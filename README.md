@@ -23,14 +23,17 @@ Choose **Hit the streets** for solo practice and the pursuit challenge. Choose *
 
 ## What is implemented
 
-- A project-authored procedural district, three vehicle body designs, roads and dirt shortcuts, traffic, lighting, shadows, signs, skid marks, combat effects, and synthesized vehicle/action audio.
+- A project-authored procedural district, six vehicle body designs, roads and dirt shortcuts, traffic, lighting, shadows, signs, skid marks, combat effects, and synthesized vehicle/action audio.
 - Shared fixed-step driving, deliberate brake-to-reverse behavior, drifting, collisions, stuck recovery, and a solo suspect-interception challenge.
 - Private 2–8-player authoritative Colyseus rooms with a countdown, five-minute free-for-all, forward automatic fire, damage, wreck credit, protected respawns, standings, results, and rematch.
 - Local movement prediction, remote interpolation with a playback clock that does not rewind on late snapshots, reconnect handling, input admission checks, and immediate control neutralization on focus/device loss or menu entry.
 - Server-measured ping in milliseconds for every player in online standings and results, plus a persistent Wi-Fi indicator for connecting, connected, reconnecting and lost connections. Unknown or stale ping reads “—”.
+- Reusable invite links: joining a valid room code after a restart opens a fresh room under the same code. Simultaneous visitors join the same room. Match progress and scores reset with the server.
 - Keyboard and standard-mapped controller input, device prompts, keyboard remapping, dead zones, sensitivity, persisted settings, reduced shake/flashes, and graphics/audio controls. No external fonts or runtime art downloads are requested.
 
 Online matches continue while a menu is open; that driver's held controls are released and safety braking applies. The pause menu stops a local practice simulation. Controller coverage currently uses synthetic standard-mapped devices; physical-controller handling and the full browser/OS matrix remain open. Music and vibration settings do not establish a shipped soundtrack or tested haptics.
+
+Multiplayer randomly assigns a patrol sedan, interceptor, roadster, army 4×4, ambulance or fire-chief SUV when a player joins. Body choice is cosmetic: every car uses the same driving, collision, health and weapon rules. Reconnects and respawns preserve the assigned body.
 
 ## Controls
 

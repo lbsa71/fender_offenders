@@ -1,14 +1,17 @@
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { Server, type Client } from '@colyseus/core';
-import { WebSocketTransport } from '@colyseus/ws-transport';
+import type { Server, Client } from '@colyseus/core';
 import { DrivingRoom } from '@fender/net-server';
 import type { Simulation } from '@fender/sim';
+import { createGameServer } from '../../apps/server/src/index.js';
 
 const consentedCloseCodes: number[] = [];
+const createdRoomIds: string[] = [];
+const dispatchRequests: string[] = [];
 class ProxyCloseRoom extends DrivingRoom {
   override async onCreate() {
     await super.onCreate();
+    createdRoomIds.push(this.roomId);
     const sim = (this as unknown as { sim: Simulation }).sim;
     const start = sim.startRound.bind(sim);
     sim.startRound = requester => {
@@ -35,12 +38,14 @@ class ProxyCloseRoom extends DrivingRoom {
 }
 let server: Server;
 beforeAll(async () => {
-  server = new Server({ transport: new WebSocketTransport(), greet: false, gracefullyShutdown: false, express: app => {
-    app.get('/ready', (_req, res) => res.json({ ready: true }));
-    app.get('/', (_req, res) => res.type('html').send('<title>Fender Offenders</title>'));
-  } });
+  server = await createGameServer(2695, '127.0.0.1');
+  const app = await server.transport.getExpressApp?.();
+  // Keep the cleanup fixture independent of whether the production client has been built.
+  app!.get('/', (_req, res) => res.type('html').send('<title>Fender Offenders</title>'));
   server.define('district', ProxyCloseRoom);
-  await server.listen(2695, '127.0.0.1');
+  server.transport.server!.on('request', request => {
+    if (request.method === 'POST' && request.url?.startsWith('/dispatch/')) dispatchRequests.push(request.url);
+  });
 }, 15000);
 afterAll(async () => { await server?.gracefullyShutdown(false); });
 
@@ -57,6 +62,7 @@ it('exits successfully after smoke assertions even when a proxy changes intentio
     while (!output.includes('Production smoke passed:') && performance.now() < deadline && exitCode === undefined) await new Promise(resolve => setTimeout(resolve, 20));
     expect(output, 'The real smoke must finish its two-player round assertions first').toContain('Production smoke passed:');
     expect(output, 'The real smoke must verify both players latency for every observer').toContain('per-player ping');
+    expect(dispatchRequests, 'The guest must consume the public invite reservation for the existing host room').toEqual([`/dispatch/${createdRoomIds[0]}`]);
     const cleanupDeadline = performance.now() + 2000;
     while (exitCode === undefined && performance.now() < cleanupDeadline) await new Promise(resolve => setTimeout(resolve, 20));
     expect(consentedCloseCodes).toHaveLength(2);

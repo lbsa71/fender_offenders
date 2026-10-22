@@ -164,4 +164,16 @@ describe('real online prediction facade baseline', () => {
     await expect(value.connect({ mode: 'create', nickname: '' })).rejects.toThrow('invalid-name');
     expect(statuses.at(-1)).toMatchObject({ state: 'error', reason: 'invalid-name' });
   });
+
+  it('distinguishes server room capacity from a full eight-player room', async () => {
+    const previousLimit = process.env.MAX_ROOMS; process.env.MAX_ROOMS = '1';
+    try {
+      await session().connect({ mode: 'create', nickname: 'Occupied dispatch' });
+      const blocked = session(), statuses: SessionStatus[] = []; blocked.onStatus(value => statuses.push(value));
+      await expect(blocked.connect({ mode: 'create', nickname: 'Waiting dispatch' })).rejects.toMatchObject({ code: 503, message: 'Dispatch capacity reached' });
+      expect(statuses.at(-1)).toMatchObject({ state: 'error', reason: 'server-capacity' });
+    } finally {
+      if (previousLimit === undefined) delete process.env.MAX_ROOMS; else process.env.MAX_ROOMS = previousLimit;
+    }
+  });
 });

@@ -219,7 +219,7 @@ Types referenced but not expanded here (`SessionRequest`, `JoinResult`, `Session
 - `SessionRequest`: mode `practice | create | join`, bounded nickname, room ID when joining, protocol/content versions, optional reconnect credential handled by the network adapter.
 - `JoinResult`: player ID, room ID, current session epoch, accepted content versions, first state, local entity ID if spawned.
 - `SessionStatus`: `idle | connecting | lobby | playing | reconnecting | disconnected | error`, with typed reason and optional retry delay.
-- Join error reasons: `room-full`, `room-missing`, `version-mismatch`, `invalid-name`, `server-shutdown`, `network-error`, `reconnect-expired`.
+- Join error reasons: `room-full`, `room-missing`, `version-mismatch`, `invalid-name`, `server-shutdown`, `server-capacity`, `network-error`, `reconnect-expired`.
 - `SimulationCheckpoint`: opaque versioned local data, including tick and source scenario identity; never accepted from an untrusted client.
 - `SceneManifest`: map revision, asset catalog revision, environment settings, visual instances, quality variants, and references to shared collision data.
 

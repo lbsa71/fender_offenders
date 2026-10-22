@@ -90,7 +90,7 @@ export interface JoinResult {
   protocolVersion: number; mapRevision: string; gameplayRevision: string;
   firstState: WorldSnapshot; localEntityId: string | null;
 }
-export type SessionError = 'room-full' | 'room-missing' | 'version-mismatch' | 'invalid-name' | 'server-shutdown' | 'network-error' | 'reconnect-expired';
+export type SessionError = 'room-full' | 'room-missing' | 'server-capacity' | 'version-mismatch' | 'invalid-name' | 'server-shutdown' | 'network-error' | 'reconnect-expired';
 export interface SessionStatus {
   state: 'idle' | 'connecting' | 'lobby' | 'playing' | 'reconnecting' | 'disconnected' | 'error';
   reason?: SessionError; message?: string; retryDelay?: number;

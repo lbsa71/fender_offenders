@@ -41,6 +41,7 @@ export interface UiCallbacks {
 }
 const defaults: UiSettings = { masterVolume: .7, musicVolume: .3, effectsVolume: .8, reducedShake: false, reducedFlash: false, vibration: true, quality: 'medium', stickDeadzone: .16, triggerDeadzone: .08, sensitivity: 1, bindings: {} };
 const errorMessages: Record<string, string> = {
+  'server-capacity': 'Dispatch is at capacity. Join an existing room or try creating one again shortly.',
   'room-full': 'All eight units are out on patrol. Try another room.', 'room-missing': 'That dispatch room has closed. Check the code or create a new one.',
   'version-mismatch': 'Your game version does not match this room. Refresh and try again.', 'invalid-name': 'Enter a callsign between 1 and 20 characters.',
   'server-shutdown': 'Dispatch is offline for maintenance. Try again shortly.', 'network-error': 'Dispatch could not be reached. Check your connection and retry.',

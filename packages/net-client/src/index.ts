@@ -1,4 +1,4 @@
-import { Client, type Room } from '@colyseus/sdk';
+import { Client, MatchMakeError, ServerError, type Room, type SeatReservation } from '@colyseus/sdk';
 import { predictVehicle } from '@fender/sim';
 import { GAMEPLAY_REVISION, PROTOCOL_VERSION, unpackSnapshot, type CollisionMap, type GameEvent, type GameSession, type InputCommand, type JoinResult, type LocalAuthorityState, type RenderFrame, type SessionRequest, type SessionStatus, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
 const clone = <T>(v: T): T => structuredClone(v);
@@ -70,7 +70,19 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       status({ state: 'connecting' });
       try {
         const options = { nickname: request.nickname, protocolVersion: PROTOCOL_VERSION, mapRevision: map.revision, gameplayRevision: GAMEPLAY_REVISION };
-        room = request.mode === 'create' ? await sdk.create('district', options) : await sdk.joinById(request.roomId!.trim(), options);
+        if (request.mode === 'create') room = await sdk.create('district', options);
+        else {
+          const invite = request.roomId!.trim();
+          if (/^[A-Za-z0-9_-]{9}$/.test(invite)) {
+            try {
+              const response = await sdk.http.post(`dispatch/${invite}`, { body: options });
+              room = await sdk.consumeSeatReservation(response.data as SeatReservation);
+            } catch (error) {
+              if (error instanceof ServerError) throw new MatchMakeError(error.message, error.code);
+              throw error;
+            }
+          } else room = await sdk.joinById(invite, options);
+        }
         roomId = room.roomId; playerId = room.sessionId;
         const connection = room.connection, reconnect = connection.reconnect.bind(connection);
         // The SDK's queued retry has no cancellation handle; guard its public transport entry point.
@@ -92,7 +104,8 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
         return { playerId, roomId, sessionEpoch: first.sessionEpoch, protocolVersion: first.protocolVersion, mapRevision: first.mapRevision, gameplayRevision: first.gameplayRevision, firstState: first, localEntityId: first.local?.vehicle.entityId ?? null };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        status({ state: 'error', reason: message.includes('version') ? 'version-mismatch' : message.includes('invalid-name') ? 'invalid-name' : message.includes('full') || message.includes('locked') ? 'room-full' : message.includes('not found') ? 'room-missing' : 'network-error', message });
+        const atCapacity = error instanceof MatchMakeError && error.code === 503 && /capacity/i.test(message);
+        status({ state: 'error', reason: atCapacity ? 'server-capacity' : message.includes('version') ? 'version-mismatch' : message.includes('invalid-name') ? 'invalid-name' : message.includes('full') || message.includes('locked') ? 'room-full' : message.includes('not found') ? 'room-missing' : 'network-error', message });
         throw error;
       }
     },

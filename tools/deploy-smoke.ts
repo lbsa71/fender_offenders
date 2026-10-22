@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { Client, type Room } from '@colyseus/sdk';
+import { Client, type Room, type SeatReservation } from '@colyseus/sdk';
 import { PROTOCOL_VERSION, GAMEPLAY_REVISION, unpackSnapshot, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
 import { districtMap } from '@fender/content';
 
@@ -19,7 +19,7 @@ const hasAllPlayerPings = (state: WorldSnapshot | undefined) => !!state && rooms
 try {
   for (let i = 0; i < 2; i++) {
     const options = { nickname: `Deploy check ${i + 1}`, protocolVersion: PROTOCOL_VERSION, gameplayRevision: GAMEPLAY_REVISION, mapRevision: districtMap.revision };
-    const room = i === 0 ? await client.create('district', options) : await client.joinById(rooms[0]!.roomId, options);
+    const room = i === 0 ? await client.create('district', options) : await client.consumeSeatReservation((await client.http.post(`dispatch/${rooms[0]!.roomId}`, { body: options })).data as SeatReservation);
     rooms.push(room);
     room.onMessage('snapshot', (wire: WireSnapshot) => states.set(room.sessionId, unpackSnapshot(wire)));
     room.onMessage('events', () => {});

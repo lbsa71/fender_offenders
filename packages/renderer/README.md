@@ -1,0 +1,7 @@
+# Procedural motor pool
+
+`CarFactory` renders the six IDs exported by `@fender/content`'s `VEHICLE_BODIES`: patrol, interceptor, roadster, army, ambulance and fire-chief. Traffic retains its independent civilian body. These are original Babylon geometry and materials; no downloaded models or textures are needed. Body choice is cosmetic: simulation footprints, weapons, health and handling are shared.
+
+Run `pnpm exec vitest run packages/renderer/src/cars.test.ts` for catalog, instancing, silhouette, paint, emergency lights, medical markings, spare-tire and visual-envelope checks using Babylon NullEngine.
+
+Run `node packages/renderer/dev/capture-bodies.mjs` from the repository root for reproducible high-quality fleet captures in `work/vehicle-bodies-front.png`, `work/vehicle-bodies-rear.png` and `work/vehicle-bodies-game.png`. The final capture uses the real district renderer and its default gameplay camera. The script starts its own temporary preview server on 5182 and closes its own browser. Acceptance: all six cars are identifiable at a glance; the army 4×4 is olive with upright cabin, roof rack and rear spare; the ambulance has a tall white box, fictional teal medical crosses and a separate red service stripe; the fire-chief SUV is red with a cream roof, service stripe and lightbar. Inspect both angles for clipping, missing surfaces, wheel placement and readable silhouettes, then check that the new bodies remain distinct at gameplay scale.

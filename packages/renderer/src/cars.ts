@@ -31,10 +31,11 @@ export class CarFactory {
   }
 
   private template(body: string, traffic: boolean): Mesh[] {
-    const type=traffic?'traffic':body.includes('roadster')?'roadster':body.includes('interceptor')?'interceptor':'patrol';
+    const type=traffic?'traffic':body==='army'||body==='ambulance'||body==='fire-chief'?body:body.includes('roadster')?'roadster':body.includes('interceptor')?'interceptor':'patrol';
     const cached=this.templates.get(type);if(cached)return cached;
     const parts=new Map<Material,Mesh[]>();
-    const paint=this.material(`paint-${type}`,type==='patrol'?'#ece5cf':type==='roadster'?'#e98a48':type==='interceptor'?'#407c91':'#cbb26e',.4);
+    const colors:Record<string,string>={patrol:'#ece5cf',roadster:'#e98a48',interceptor:'#407c91',army:'#69754a',ambulance:'#f4efe0','fire-chief':'#bd4c3d',traffic:'#cbb26e'};
+    const paint=this.material(`paint-${type}`,colors[type]!, .4);
     const navy=this.material('navy','#234953',.3),glass=this.material('glass','#244653',.65),rubber=this.material('rubber','#263438'),chrome=this.material('chrome','#adb8ae',.8),headlight=this.material('headlight','#ffe4a1',0,true),tail=this.material('tail','#e87354',0,true);
     const add=(mesh:Mesh,m:Material)=>{mesh.material=m;const a=parts.get(m)??[];a.push(mesh);parts.set(m,a);return mesh;};
     const box=(name:string,x:number,y:number,z:number,w:number,h:number,d:number,m:Material)=>{const mesh=MeshBuilder.CreateBox(name,{width:w,height:h,depth:d},this.scene);mesh.position.set(x,y,z);return add(mesh,m);};
@@ -56,10 +57,13 @@ export class CarFactory {
       const hub=MeshBuilder.CreateCylinder('hub',{height:.335,diameter:.49,tessellation:12},this.scene);hub.rotation.z=Math.PI/2;hub.position.set(x,.46,z);add(hub,chrome);
       const cap=MeshBuilder.CreateCylinder('hub-cap',{height:.35,diameter:.2,tessellation:8},this.scene);cap.rotation.z=Math.PI/2;cap.position.set(x,.46,z);add(cap,navy);
     }
-    hull('windshield',[[1.1,.79,.73,-.95],[sporty?1.58:1.83,.65,.28,-.67]],glass);
-    box('roof',0,sporty?1.6:1.85,-.2,1.34,.12,.98,paint);
+    const utility=type==='army'||type==='fire-chief';
+    const roofY=utility?2.08:sporty?1.6:1.85;
+    hull('windshield',[[1.1,.79,type==='ambulance'?1.22:.73,utility?-1.55:-.95],[utility?2.02:sporty?1.58:1.83,.65,type==='ambulance'?.8:utility?.48:.28,utility?-1.35:-.67]],glass);
+    box('roof',0,roofY,type==='ambulance'?.72:utility?-.46:-.2,1.34,.12,type==='ambulance'?.78:utility?1.9:.98,paint);
     for(const x of [-.72,.72]){
-      box('pillar',x,1.43,-.25,.09,.65,.1,paint);
+      box('pillar',x,utility?1.62:1.43,-.25,.09,utility?.9:.65,.1,paint);
+      if(utility)box('rear-pillar',x,1.62,-1.32,.09,.9,.12,paint);
       box('mirror',x*1.5,1.2,.5,.25,.2,.35,paint);
       box('door-handle',x*1.3,1.05,-.5,.05,.08,.26,chrome);
       box('body-stripe',x*1.32,.88,0,.035,.23,3.55,navy);
@@ -77,13 +81,48 @@ export class CarFactory {
       box('gun',s*.63,1.17,1.45,.13,.13,1.05,navy);
     }
     box('plate',0,.69,-length-.15,.45,.16,.03,headlight);
+    const lightbar=(y:number,z:number)=>{
+      box('lightbar-base',0,y,z,1.28,.12,.35,navy);
+      box('red-siren',-.36,y+.15,z,.57,.23,.32,this.material('red-siren','#fa7964',0,true));
+      box('blue-siren',.36,y+.15,z,.57,.23,.32,this.material('blue-siren','#57c9dc',0,true));
+    };
     if(type==='patrol'){
-      box('lightbar-base',0,2,-.2,1.28,.12,.35,navy);
-      box('red-siren',-.36,2.15,-.2,.57,.23,.32,this.material('red-siren','#fa7964',0,true));
-      box('blue-siren',.36,2.15,-.2,.57,.23,.32,this.material('blue-siren','#57c9dc',0,true));
+      lightbar(2,-.2);
       for(const x of [-.947,.947]){
         const badge=MeshBuilder.CreateCylinder('badge',{height:.04,diameter:.32,tessellation:6},this.scene);badge.rotation.z=Math.PI/2;badge.position.set(x,.97,-.25);add(badge,this.material('badge','#e4c77c',.3));
       }
+    }else if(type==='army'){
+      // Upright utility cabin, roof rack and a real vertical rear-mounted spare.
+      for(const x of [-.65,.65])box('rack-rail',x,2.24,-.5,.09,.14,1.9,navy);
+      for(const z of [-1.25,.25])box('rack-crossbar',0,2.24,z,1.4,.09,.09,navy);
+      const spare=MeshBuilder.CreateCylinder('rear-spare',{height:.4,diameter:.98,tessellation:16},this.scene);spare.rotation.x=Math.PI/2;spare.position.set(0,1.57,-2.16);add(spare,rubber);
+      const spareHub=MeshBuilder.CreateCylinder('spare-hub',{height:.42,diameter:.48,tessellation:12},this.scene);spareHub.rotation.x=Math.PI/2;spareHub.position.set(0,1.57,-2.16);add(spareHub,paint);
+      box('jerry-can',.7,1.38,-2.18,.35,.58,.25,paint);
+      box('bullbar',0,1,2.24,1.8,.1,.13,navy);
+      for(const x of [-.65,.65])box('bullbar-upright',x,.88,2.24,.1,.5,.13,navy);
+    }else if(type==='ambulance'){
+      const medical=this.material('medical-cross','#318c88',.12),red=this.material('medical-service','#c94b43',.12);
+      box('medical-box',0,1.76,-.85,1.94,1.65,2.5,paint);
+      box('medical-roof-cap',0,2.61,-.85,2,.1,2.54,paint);
+      for(const x of [-.985,.985]){
+        box('medical-belt',x,1.38,-.85,.035,.18,2.48,red);
+        box('cross-vertical',x,2.07,-.8,.045,.7,.22,medical);
+        box('cross-horizontal',x,2.07,-.8,.045,.22,.7,medical);
+      }
+      box('rear-cross-vertical',0,2.07,-2.115,.22,.7,.04,medical);
+      box('rear-cross-horizontal',0,2.07,-2.115,.7,.22,.04,medical);
+      box('rear-door-seam',0,1.6,-2.125,.025,1.18,.025,chrome);
+      for(const x of [-.68,.68])box('rear-box-lamp',x,2.4,-2.125,.18,.15,.05,tail);
+      lightbar(2.71,.15);
+    }else if(type==='fire-chief'){
+      const stripe=this.material('fire-service','#f2d18a',.15),white=this.material('service-white','#f1e9d1',.3);
+      box('white-roof',0,2.15,-.46,1.38,.09,1.94,white);
+      for(const x of [-.956,.956]){
+        box('chief-service-stripe',x,1.01,-.05,.035,.11,3.55,stripe);
+        box('rear-step',x,.53,-1.7,.23,.12,.7,chrome);
+      }
+      box('rear-window',0,1.7,-1.65,1.3,.55,.055,glass);
+      lightbar(2.29,.12);
     }else if(type==='interceptor')box('spoiler',0,1.3,-1.8,1.9,.1,.33,navy);
     else if(sporty){box('racing-stripe',0,1.16,1.25,.25,.03,1.1,navy);box('racing-stripe',0,1.16,-1.55,.25,.03,.7,navy);}
     const meshes:Mesh[]=[];

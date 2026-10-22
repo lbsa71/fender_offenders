@@ -143,6 +143,14 @@ Clients must receive a readable reason for full room, incompatible version, expi
 
 The online HUD keeps a visible Wi-Fi icon and text for connecting, connected, reconnecting and connection lost. Practice uses a local-dispatch label. Intentionally leaving disables SDK reconnect; disposal must also prevent an already queued retry from opening another socket and must finish when a close handshake never arrives.
 
+### Reusable invites and admission
+
+A nine-character invite code uses `POST /dispatch/:invite`. The server joins the current room, or creates a new room with that exact code using the public Colyseus room-ID setter during creation. A per-code promise serializes simultaneous lazy creation, then each visitor gets an independent seat reservation. After a restart the same link opens a new match; no saved gameplay state is implied. Invalid code formats do not allocate rooms.
+
+Room admission reserves capacity before asynchronous physics initialization and releases it on failed creation or disposal. An initialization that outlives SDK disposal cannot resume into a live room. The health endpoint publishes aggregate occupancy, with connected players separate from reconnect reservations. A full server reports a distinct capacity error; joining an existing room remains possible.
+
+Colyseus protocol error codes remain in response JSON, but its 520–526 codes are translated to standard HTTP statuses to avoid collisions with Cloudflare errors. Origin checks apply before reusable-invite allocation.
+
 ## 6. Maps and content
 
 Split world data into a shared collision/navigation map and a client presentation scene. Both derive from the same source layout and share a map revision/hash. Visible curbs/walls must line up with collision; export and validate this relationship.

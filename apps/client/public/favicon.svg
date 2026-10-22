@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Fender Offenders</title>
+  <rect width="64" height="64" rx="13" fill="#10282a"/>
+  <path d="M13 11h38v25c0 10-9 16-19 19-10-3-19-9-19-19Z" fill="none" stroke="#f4d34e" stroke-width="3.5"/>
+  <text x="32" y="38" text-anchor="middle" fill="#f4f0df" font-family="Arial,sans-serif" font-size="24" font-weight="800">FO</text>
+</svg>

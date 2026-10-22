@@ -28,7 +28,11 @@ Remove-Item Env:TEST_SERVER_URL
 
 This checks readiness, production HTML, two WebSocket players, authoritative cars, round start and both players' measured ping on both clients. It creates and then leaves a temporary room. It does not substitute for browser rendering, internet-latency and sustained-capacity checks.
 
-A deployment ends existing in-memory rooms. Refresh and create a new room if an old session cannot reconnect after a rollout. A 522 response is an edge-to-origin connection timeout; inspect the failed URL, timestamp and Render logs before attributing it to game simulation or a particular outage.
+A deployment ends existing in-memory matches. Refresh and use the same invite link to open a fresh room with that code; new visitors to that link join together. Scores and progress do not survive a deployment.
+
+The pinned Colyseus release uses protocol codes 520–526, including 522 for a missing room. Its default router also uses these as HTTP statuses, which Cloudflare can replace with its own error response. The application normalizes these to standard HTTP statuses while preserving the SDK code inside JSON. A missing room on the legacy matchmaking endpoint returns HTTP 404 with JSON code 522; genuine capacity rejection remains HTTP 503. Valid invite links use `/dispatch/:invite` to join or recreate the room.
+
+`/health` reports `rooms`, `maxRooms`, `registeredRooms`, `creatingRooms`, `connectedPlayers` and `reconnectingPlayers`, without player names or room codes. The two-room preview cap can reject new rooms while the process remains healthy. Pending creation reserves a slot immediately; failed creation and room disposal release it. The interface distinguishes server capacity from an eight-player room being full.
 
 ## Local and self-hosted operation
 

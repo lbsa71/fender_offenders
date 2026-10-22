@@ -71,6 +71,9 @@ try {
   await page.evaluate(() => { window.fixture.ui.update({ mode: 'practice', status: { state: 'playing' }, error: null }); window.fixture.ui.showMenu(null); });
   assert.ok((await page.locator('.fo-connection').innerText()).includes('LOCAL DISPATCH'));
   assert.equal(await page.getByRole('img', { name: 'Connection lost', exact: true }).count(), 0, 'local practice is not presented as a network fault');
+  await page.evaluate(() => window.fixture.ui.update({ mode: 'online', status: { state: 'error', reason: 'server-capacity' }, error: null }));
+  assert.equal(await page.getByText('Dispatch is at capacity. Join an existing room or try creating one again shortly.', { exact: true }).count(), 1, 'server capacity has a clear message separate from room-full');
+  await page.evaluate(() => { window.fixture.ui.update({ mode: 'practice', status: { state: 'playing' }, error: null }); window.fixture.ui.showMenu(null); });
   await page.keyboard.press('Escape');
   await page.getByRole('heading', { name: 'Taking a breather?' }).waitFor();
   assert.equal(await page.evaluate(() => window.fixture.input.sample().fire), false);

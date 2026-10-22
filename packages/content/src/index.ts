@@ -57,7 +57,7 @@ export const districtMap: CollisionMap = {
   laneEdges: [['sw', 'se'], ['se', 'ne'], ['ne', 'nw'], ['nw', 'sw'], ['isw', 'inw'], ['inw', 'ine'], ['ine', 'ise'], ['ise', 'isw']].map(([from, to]) => ({ from: from!, to: to!, speedLimit: 11 })),
 };
 
-export const VEHICLE_BODIES = ['patrol', 'interceptor', 'roadster'] as const;
+export const VEHICLE_BODIES = ['patrol', 'interceptor', 'roadster', 'army', 'ambulance', 'fire-chief'] as const;
 export const ASSET_PROVENANCE = {
   revision: 'original-procedural-1',
   creator: 'Fender Offenders project',
