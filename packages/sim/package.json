@@ -1,0 +1,11 @@
+{
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "name": "@fender/sim",
+  "dependencies": {
+    "@fender/contracts": "workspace:*",
+    "@dimforge/rapier3d-compat": "0.21.0"
+  },
+  "exports": "./src/index.ts"
+}

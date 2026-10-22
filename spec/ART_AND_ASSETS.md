@@ -1,0 +1,118 @@
+# Art direction and asset pipeline
+
+Status: sourcing and production guidance. No assets have been downloaded or approved by this documentation task. Updated: 2026-10-22.
+
+## 1. Visual target
+
+A polished miniature city with believable materials, readable forms, and comic action. Use the actual elevated gameplay camera to judge every asset. Favor coherent silhouettes and lighting over detail visible only in a close-up asset viewer.
+
+Initial reference scene: one four-way intersection, a police car and rival car, one house, one commercial facade, pavement, a dirt shoulder/shortcut, street lights/signs, and a few restrained props. Capture it in warm afternoon light and a neutral overcast setup before selecting the final palette.
+
+Cars receive the most attention: proportions, wheel placement, beveled edges, paint response, glass, lights, decals, and readable damage. Buildings establish scale and atmosphere but should not hide routes or rivals. Dirt and asphalt need visible material differences without noisy high-frequency textures.
+
+## 2. Candidate sources and exact scope
+
+| Source | Candidate use | Known license/access facts | Production note |
+| --- | --- | --- | --- |
+| [Kenney Car Kit](https://kenney.nl/assets/car-kit) | Traffic and base player vehicles, debris | Pack page states CC0, free download | Simple geometry; reserve a finishing pass for player cars |
+| [Kenney City Kit Roads](https://kenney.nl/assets/city-kit-roads) | Roads, signs, lights | Pack page states CC0 | Match road widths to the gameplay map rather than preserving source scale blindly |
+| [Kenney Suburban](https://kenney.nl/assets/city-kit-suburban) | Houses and neighborhood blocks | Pack page states CC0 | Coherent stylized fallback family |
+| [Kenney Commercial](https://kenney.nl/assets/city-kit-commercial) | Downtown buildings | Pack page states CC0 | Check occlusion from tall buildings at gameplay angle |
+| [Kenney Industrial](https://kenney.nl/assets/city-kit-industrial) | Warehouses and industrial edge | Pack page states CC0 | Use as a contrasting district edge, with the same palette/material treatment |
+| [KayKit City Builder Bits](https://kaylousberg.itch.io/city-builder-bits) | Alternative miniature-city family | Free base pack states CC0; extra/source tiers are paid | A deliberately toy-like direction; do not assume all pictured premium content is in the free download |
+| [Quaternius Downtown City MegaKit](https://quaternius.com/packs/downtowncitymegakit.html) | More detailed modular city | Pack page states CC0/free subset; site-wide license differs | License verification required for exact archive; source-tier shaders target other engines and need Babylon equivalents |
+| [Quaternius Cars](https://quaternius.itch.io/lowpoly-cars) | Alternative vehicle proportions | Legacy page states CC0; see site license discrepancy | Check exact archive and supplied license; do not assume all variants are free |
+| [Poly Haven](https://polyhaven.com/textures) | Asphalt, concrete, brick, dirt and HDR lighting | [Asset license is CC0](https://polyhaven.com/license) | Select restrained surfaces and downsample for browser use |
+| [ambientCG](https://ambientcg.com/list?category=Ground) | Dirt, gravel, mud, surface variation | [Asset license is CC0](https://docs.ambientcg.com/license/) | Use normal/roughness detail without importing unnecessary displacement geometry |
+
+The Quaternius [license page](https://quaternius.com/license.html), updated 2026-08-28, permits commercial games but restricts standalone asset redistribution. Some pack pages retain CC0 wording. Preserve the exact download's license evidence and resolve uncertainty before shipping or placing source assets in a public repository. A free commercial-use license and CC0 are different permissions.
+
+Do not mix several unrelated vehicle/building families at full strength. Select one primary family in M1 and normalize any supplementary assets to its scale, palette, bevel/detail density, and shading.
+
+## 3. Asset lifecycle and provenance
+
+1. Register a candidate in the asset manifest with source URL, creator, expected use, and claimed license.
+2. Download from the creator/official source; preserve the archive hash, date, and supplied license text.
+3. Inspect license requirements and record required attribution or redistribution constraints. Mark `verified` only with sufficient evidence.
+4. Import into Blender, inspect scale/pivots/topology/materials, and remove unused objects/materials.
+5. Normalize, optimize, and export a runtime GLB plus collision metadata and validation report.
+6. Inspect in Babylon in both lighting setups and at actual gameplay distance.
+7. Add to the shipping catalog only after visual, performance, and license checks pass.
+
+Suggested storage layout after scaffolding:
+
+```text
+packages/content/
+  manifests/assets.json
+  manifests/licenses/          # evidence and required notices
+  maps/intersection/
+  maps/district-01/
+  runtime/models/
+  runtime/textures/
+  runtime/audio/
+asset-source/                 # separate source-art storage policy, not client imports
+tools/assets/
+```
+
+The foundation lane chooses whether large source archives live in Git LFS or an external artifact store in F00. Runtime files must remain reproducible from identified source revisions. Do not commit enormous source archives to regular Git by default. Never ship Blender sources or unused high-resolution textures through the client build.
+
+## 4. Model conventions
+
+- Units in meters, Y up, front +Z at yaw zero under the project's right-handed coordinate contract.
+- Origin at vehicle center on the agreed chassis plane; wheels have separate pivots if animated.
+- Use semantic attachment names such as `wheel_fl`, `wheel_fr`, `wheel_rl`, `wheel_rr`, `muzzle`, `lightbar`, and `camera_anchor`.
+- Car colliders are simple independent geometry. Decorative mirrors, aerials, weapons, and smoke do not expand hit shapes unexpectedly.
+- Building/road collision exports use the same world transforms as rendered instances. Include a wireframe overlay for alignment checks.
+- Name variants with stable asset IDs; do not infer gameplay stats from filenames.
+- Mesh compression, texture compression, and LOD generation happen through repeatable tooling with fixed settings.
+- Validate winding, tangent space, normals, negative scale, and import handedness with an asymmetric test model. Never fix an orientation error by scattering per-asset flips through game code.
+
+## 5. Materials and lighting
+
+- Prefer metallic/roughness PBR and correct texture color spaces: base color/emissive are color data; normal/roughness/metalness/AO are non-color data.
+- Share materials and texture atlases where it reduces draw calls without making iteration painful.
+- Use clear coat selectively for player car paint; rougher tires, dark readable windows, and restrained emissive lights.
+- Start with one directional sun and an environment map. Bake static architectural shading where useful; keep dynamic car shadows legible.
+- Shadow quality, ambient occlusion, reflections, and bloom are scalable settings. No visual feature may be essential to understand collision or combat.
+- Prefer emissive siren meshes and a small bounded light budget. Do not create multiple shadow-casting lights per car.
+- Use decal/mesh pools for skid marks and impacts with strict lifetime/count limits.
+- Fake window interiors are a renderer feature requiring its own budget and fallback, not an assumed property of imported geometry.
+
+## 6. Initial content budgets
+
+These are profiling hypotheses. The frame-time and download gates outrank individual counts; record any revision with evidence.
+
+| Resource | Starting budget |
+| --- | --- |
+| Initial playable compressed transfer | At most 15 MB including required runtime JS/WASM and initial scene assets |
+| Additional district content | Stream after the player reaches a usable scene; total first district target at most 35 MB compressed |
+| Player car | About 5k–15k triangles, no more than 3 main materials |
+| Traffic car LOD | About 1k–4k triangles at typical distance |
+| Repeated buildings/props | Instanced where practical; 1–2 materials per repeated family |
+| Visible geometry | Initial target under 500k triangles on the reference scene |
+| Draw calls | Initial target under 200 on target hardware; measure shadows and effects too |
+| Textures | 1K typical, 2K for selected shared/hero maps; avoid 4K/8K runtime downloads without evidence |
+| Texture memory | Initial target under 256 MB on target hardware, with a smaller low preset |
+| Projectile/tracer visuals | Pool and cap independently from authoritative projectile state |
+| Dynamic lights | One sun plus a small explicit local-light cap; one shadow-casting light initially |
+
+Texture downloads and GPU residency differ. Report both. Start with KTX2/Basis-compatible exports when supported by the selected Babylon build, and keep an intentional fallback path if needed.
+
+## 7. Visual acceptance checklist
+
+- [ ] Silhouettes remain recognizable at gameplay camera distance.
+- [ ] Car scale, street width, doors, pavement, and props agree.
+- [ ] Road/dirt transitions are readable while driving at top speed.
+- [ ] Player car, rival car, projectiles, and health feedback remain distinct against the city.
+- [ ] No obvious seams, floating objects, inverted normals, shimmering, or missing textures.
+- [ ] Mesh/collision overlay aligns on walls, corners, and curbs.
+- [ ] Lighting and color treatment are consistent across packs.
+- [ ] Performance capture includes traffic, weapons, smoke, and shadows, not just an empty still.
+- [ ] Required license records/attribution are present and placeholders excluded.
+- [ ] Captures record browser, backend, device, resolution, quality preset, map revision, and build.
+
+## 8. Audio and combat presentation
+
+Apply the same provenance workflow to audio. Use licensed/original engine loops, tire skids, sirens, weapons, impacts, wrecks, and UI sounds. Layer pitch/volume by speed and grip, cap simultaneous sounds, and avoid restarting loops on every snapshot.
+
+Audio begins only after user interaction and respects mute/reduced-effects settings. Deduplicate confirmed and predicted sounds. Replays and reconciliation must not produce repeated gunshots. VFX/audio lane ownership belongs to rendering; gameplay publishes semantic events.

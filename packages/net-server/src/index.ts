@@ -1,0 +1,103 @@
+import { Room, ServerError, type Client } from '@colyseus/core';
+import { randomUUID } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
+import { districtMap } from '@fender/content';
+import { createSimulation, initPhysics, type Simulation } from '@fender/sim';
+import { GAMEPLAY_REVISION, PROTOCOL_VERSION, isInputCommand, isRecord, neutralActions, packSnapshot, sanitizeNickname, type AppliedDriverInput, type InputCommand, type WorldSnapshot } from '@fender/contracts';
+
+interface DriverConnection { epoch: string; entityId: string; queue: InputCommand[]; last: InputCommand | null; ack: number; received: number; lastInputAt: number; connected: boolean; windowStart: number; packets: number; reset?: WorldSnapshot['resetReason']; }
+export const serverMetrics = { rooms: 0, steps: 0, rejectedInputs: 0, queueResets: 0, slowSteps: 0, maxStepMs: 0, bytesPublished: 0, draining: false };
+export class DrivingRoom extends Room {
+  maxClients = 8;
+  private sim!: Simulation;
+  private drivers = new Map<string, DriverConnection>();
+  private accumulator = 0;
+  private tick = 0;
+  private counted = false;
+  async onCreate() {
+    if (serverMetrics.draining || serverMetrics.rooms >= Number(process.env.MAX_ROOMS || 20)) throw new ServerError(503, 'Dispatch capacity reached');
+    await initPhysics();
+    serverMetrics.rooms++; this.counted = true;
+    this.setPrivate(true);
+    this.sim = createSimulation(districtMap, { mode: 'multiplayer', matchId: this.roomId, trafficCount: 8 });
+    this.maxMessagesPerSecond = 100;
+    this.onMessage('input', (client, message: unknown) => {
+      const driver = this.drivers.get(client.sessionId);
+      if (!driver || !driver.connected || !isRecord(message) || !Array.isArray(message.commands) || message.commands.length > 4) { serverMetrics.rejectedInputs++; return; }
+      const now = performance.now();
+      if (now - driver.windowStart > 1000) { driver.windowStart = now; driver.packets = 0; }
+      if (++driver.packets > 65) { serverMetrics.rejectedInputs++; return; }
+      for (const command of message.commands) {
+        if (!isInputCommand(command) || command.sessionEpoch !== driver.epoch || command.sequence <= driver.received || command.sequence > driver.received + 600) { serverMetrics.rejectedInputs++; continue; }
+        driver.received = command.sequence; driver.lastInputAt = now;
+        driver.queue.push(command);
+      }
+      if (driver.queue.length > 12) {
+        const removed = driver.queue.splice(0, driver.queue.length - 2);
+        driver.ack = Math.max(driver.ack, removed.at(-1)?.sequence ?? -1); driver.reset = 'input-backlog'; serverMetrics.queueResets++;
+      }
+    });
+    this.onMessage('neutralize', client => this.neutralize(client.sessionId));
+    this.onMessage('resync', client => { this.neutralize(client.sessionId); const d = this.drivers.get(client.sessionId); if (d) d.reset = 'resync'; this.publish(client); });
+    this.onMessage('start-round', client => this.sim.startRound(client.sessionId));
+    this.onMessage('rematch', client => this.sim.rematch(client.sessionId));
+    this.onMessage('ping', (client, message: unknown) => { if (typeof message === 'number' && Number.isFinite(message)) client.send('pong', { sent: message, tick: this.tick }); });
+    this.setSimulationInterval(dt => {
+      this.accumulator += Math.min(dt, 250);
+      let count = 0;
+      while (this.accumulator >= 1000 / 60 && count++ < 4) { this.accumulator -= 1000 / 60; this.step(); }
+      if (this.accumulator > 250) { this.accumulator = 0; for (const d of this.drivers.values()) d.reset = 'resync'; }
+    }, 1000 / 60);
+  }
+  onAuth(_client: Client, options: unknown) {
+    if (!isRecord(options) || options.protocolVersion !== PROTOCOL_VERSION || options.mapRevision !== districtMap.revision || options.gameplayRevision !== GAMEPLAY_REVISION) throw new ServerError(409, 'version-mismatch');
+    if (serverMetrics.draining) throw new ServerError(503, 'server-shutdown');
+    try { return { nickname: sanitizeNickname(options.nickname) }; } catch { throw new ServerError(400, 'invalid-name'); }
+  }
+  onJoin(client: Client, _options: unknown, auth: { nickname: string }) {
+    const epoch = randomUUID();
+    const car = this.sim.addPlayer({ playerId: client.sessionId, nickname: auth.nickname, sessionEpoch: epoch, bodyAssetId: ['police', 'interceptor', 'coupe'][this.drivers.size % 3] });
+    this.drivers.set(client.sessionId, { epoch, entityId: car.entityId, queue: [], last: null, ack: -1, received: -1, lastInputAt: 0, connected: true, windowStart: performance.now(), packets: 0, reset: 'join' });
+    this.publish(client);
+  }
+  private neutralize(id: string) {
+    const d = this.drivers.get(id); if (!d) return;
+    d.ack = Math.max(d.ack, d.received); d.queue = []; d.last = null; d.lastInputAt = 0;
+  }
+  private step() {
+    const started = performance.now();
+    const inputs = new Map<string, AppliedDriverInput>();
+    for (const d of this.drivers.values()) {
+      const cmd = d.connected ? d.queue.shift() : undefined;
+      if (cmd) { d.last = cmd; d.ack = cmd.sequence; }
+      const held = d.connected && d.last && started - d.lastInputAt < 100;
+      const actions = cmd ? cmd.actions : held ? { ...d.last!.actions, sirenToggle: false, recover: false } : { ...neutralActions(), handbrake: true };
+      inputs.set(d.entityId, { actions, sessionEpoch: d.epoch, sourceCommandSequence: d.last?.sequence ?? null });
+    }
+    this.sim.step(inputs); this.tick++;
+    const events = this.sim.drainEvents(); if (events.length) this.broadcast('events', events);
+    if (this.tick % 3 === 0) for (const client of this.clients) this.publish(client);
+    const cost = performance.now() - started; serverMetrics.steps++; serverMetrics.maxStepMs = Math.max(serverMetrics.maxStepMs, cost); if (cost > 8) serverMetrics.slowSteps++;
+  }
+  private publish(client: Client) {
+    const d = this.drivers.get(client.sessionId); if (!d || !d.connected) return;
+    const snapshot = this.sim.snapshot(client.sessionId);
+    snapshot.sessionEpoch = d.epoch; if (snapshot.local) snapshot.local.lastConsumedSequence = d.ack;
+    snapshot.resetReason = d.reset; d.reset = undefined;
+    const wire = packSnapshot(snapshot); serverMetrics.bytesPublished += JSON.stringify(wire).length;
+    client.send('snapshot', wire);
+  }
+  async onDrop(client: Client) {
+    const d = this.drivers.get(client.sessionId); if (!d) return;
+    d.connected = false; this.neutralize(client.sessionId); this.sim.setConnection(client.sessionId, 'reconnecting');
+    try { await this.allowReconnection(client, 10); } catch { /* onLeave performs final disposal. */ }
+  }
+  onReconnect(client: Client) {
+    const d = this.drivers.get(client.sessionId); if (!d) return;
+    // Preserve stable identity but replace the input epoch so old queued packets cannot resume.
+    d.epoch = randomUUID(); d.connected = true; d.received = -1; d.ack = -1; d.last = null; d.queue = []; d.reset = 'reconnect';
+    this.sim.setConnection(client.sessionId, 'connected'); this.publish(client);
+  }
+  onLeave(client: Client) { this.drivers.delete(client.sessionId); this.sim?.removePlayer(client.sessionId); }
+  onDispose() { this.sim?.dispose(); if (this.counted) { serverMetrics.rooms--; this.counted = false; } }
+}

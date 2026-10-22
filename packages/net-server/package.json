@@ -1,0 +1,13 @@
+{
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "name": "@fender/net-server",
+  "dependencies": {
+    "@fender/contracts": "workspace:*",
+    "@colyseus/core": "0.18.23",
+    "@fender/content": "workspace:*",
+    "@fender/sim": "workspace:*"
+  },
+  "exports": "./src/index.ts"
+}

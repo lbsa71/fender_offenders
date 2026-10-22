@@ -1,0 +1,10 @@
+packages:
+  - apps/*
+  - packages/*
+allowBuilds:
+  esbuild: true
+  msgpackr-extract: false
+minimumReleaseAgeExclude:
+  - '@babylonjs/core@9.32.0'
+  - '@colyseus/core@0.18.23'
+  - '@colyseus/sdk@0.18.6'

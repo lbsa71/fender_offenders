@@ -1,0 +1,286 @@
+# Shared contracts
+
+Status: semantic contract reference for the implemented v1 alpha. Updated: 2026-10-22. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+
+This document defines cross-lane semantics and remaining acceptance expectations. Examples describe semantic TypeScript types, not the compact snapshot wire encoding or installed SDK API. Consumers use the package's public exports; additional validators and the complete proposed fixture catalog remain unfinished rather than implied by these examples.
+
+## 1. Conventions and invariants
+
+- Distances: meters. Time: integer server ticks at 60 Hz; seconds only for configuration/display.
+- World: right-handed, X right, Y up, Z forward at yaw zero. Configure Babylon's right-handed mode and verify import orientation with an asymmetric fixture.
+- Yaw: radians, positive rotates forward toward +X. Steering +1 means right. At yaw zero, front is +Z. Establish this with tests rather than relying on default model orientation.
+- World road plane: X/Z; physical vehicle center Y remains fixed for the initial model.
+- Physics and rendering conversion happens at adapter edges. Shared types contain numeric values, not engine classes.
+- IDs are opaque strings allocated by the authority; do not reuse an entity ID within a match.
+- All network numeric inputs must be finite and range-checked. Limit string length and collection counts before allocating.
+- `protocolVersion` is an integer; `mapRevision` and `gameplayRevision` identify immutable content.
+- Command sequence is a monotonic safe integer within a `sessionEpoch`. Reset sequence only with a new epoch.
+- Fire is a held state with authoritative cadence. Siren toggle and recovery are edge/hold actions deduplicated by command identity.
+
+## 2. Device input and commands
+
+```ts
+type DeviceKind = "keyboard" | "gamepad";
+
+interface DriverActions {
+  steer: number;             // [-1, 1], vehicle-relative
+  throttle: number;          // [0, 1]
+  brakeReverse: number;      // [0, 1], sim resolves braking vs reverse
+  handbrake: boolean;
+  fire: boolean;
+  sirenToggle: boolean;      // one-tick edge
+  recover: boolean;          // one-tick request after local hold threshold
+}
+
+interface InputCommand {
+  sessionEpoch: string;
+  sequence: number;
+  clientTick: number;        // diagnostic/order hint, never authority over elapsed time
+  actions: DriverActions;
+}
+
+interface InputBatch {
+  kind: "input";
+  commands: InputCommand[];  // ordinarily 2, hard maximum 4
+}
+
+interface InputSource {
+  sample(): DriverActions;
+  activeDevice(): DeviceKind;
+  resetHeldState(): void;
+  dispose(): void;
+}
+```
+
+`sample()` is called once per local sim tick. It consumes one-shot edges once, even when a render frame runs multiple simulation steps. Menu actions use a separate UI event stream and must not accidentally become driving/fire actions.
+
+Focus loss/device disconnect generates a session control `neutralize` request immediately and clears held state locally. The server still enforces stale-input neutralization if that request never arrives. A client cannot use neutralize/recover to stop authoritative momentum instantly.
+
+## 3. State, configuration, and checkpoints
+
+```ts
+interface PlanarPose { x: number; z: number; yaw: number }
+interface PlanarVelocity { x: number; z: number; yawRate: number }
+
+interface VehicleState {
+  entityId: string;
+  playerId: string | null;   // null for traffic
+  bodyAssetId: string;
+  pose: PlanarPose;
+  velocity: PlanarVelocity;
+  health: number;
+  status: "active" | "wrecked" | "respawning";
+  protectedUntilTick: number;
+  respawnAtTick: number | null;
+  sirenOn: boolean;
+  discontinuityId: number;   // increments on respawn/teleport, invalidates interpolation
+}
+
+interface DriverRuntimeState {
+  resolvedSteering: number;
+  reverseHoldTicks: number;
+  nextFireTick: number;
+  shotOrdinal: number;       // restored with controller state for replay-safe effects
+  nextRecoveryTick: number;
+  lastDamageTick: number | null;
+}
+
+interface LocalAuthorityState {
+  vehicle: VehicleState;
+  driver: DriverRuntimeState;
+  lastConsumedSequence: number;
+  // All commands <= boundary were applied or explicitly discarded; never replay them.
+  // A queue-reset reason identifies discarded rather than applied input.
+}
+
+interface ProjectileState {
+  entityId: string;
+  ownerEntityId: string;
+  pose: PlanarPose;
+  velocity: PlanarVelocity;
+  bornTick: number;
+  expiresTick: number;
+  sourceCommandSequence: number;
+  sourceShotOrdinal: number;
+}
+
+interface PlayerScore {
+  playerId: string;
+  nickname: string;
+  score: number;
+  wrecks: number;
+  connection: "connected" | "reconnecting";
+}
+
+interface WorldSnapshot {
+  protocolVersion: number;
+  mapRevision: string;
+  gameplayRevision: string;
+  sessionEpoch: string;      // receiver's current epoch
+  serverTick: number;
+  matchId: string;
+  phase: "lobby" | "countdown" | "playing" | "results";
+  phaseEndsAtTick: number | null;
+  vehicles: VehicleState[];
+  projectiles: ProjectileState[];
+  scores: PlayerScore[];
+  local: LocalAuthorityState | null;
+  resetReason?: "join" | "reconnect" | "input-backlog" | "resync";
+}
+```
+
+These DTOs are the logical projection of authoritative state. Colyseus may encode them as schema deltas. A reconstruction layer must deliver coherent snapshots with a single tick identity; do not expose half-applied patches to prediction/rendering.
+
+`SimulationCheckpoint` is an opaque simulation-owned object containing physics state, controller state, RNG state, counters, and active gameplay entities. It must not be confused with a bandwidth-reduced `WorldSnapshot`. M0 defines checkpoint versioning and confirms that restore+replay reproduces the scenario. Prediction restore may need reconstruction of the small local prediction world.
+
+Gameplay configuration has `revision`, vehicle tuning, weapon tuning, round duration, spawn/recovery rules, traffic caps, and collision filters. Rendering quality and input sensitivity are separate client configurations and must not change authoritative handling parameters.
+
+## 4. Events and replay-safe presentation
+
+```ts
+interface EventEnvelope<TKind extends string, TPayload> {
+  eventId: string;           // unique per match, stable when retransmitted
+  matchId: string;
+  serverTick: number;
+  kind: TKind;
+  payload: TPayload;
+}
+
+type GameEvent =
+  | EventEnvelope<"shot", {
+      shooterId: string; projectileId: string;
+      sessionEpoch: string; sourceCommandSequence: number;
+      sourceShotOrdinal: number; origin: PlanarPose;
+    }>
+  | EventEnvelope<"hit", {
+      projectileId: string; targetId: string; damage: number; position: PlanarPose;
+    }>
+  | EventEnvelope<"wreck", { vehicleId: string; creditedPlayerId: string | null }>
+  | EventEnvelope<"respawn", { vehicleId: string; discontinuityId: number }>
+  | EventEnvelope<"round-ended", { scores: PlayerScore[] }>
+  | EventEnvelope<"pursuit-complete", { elapsedTicks: number; bonus: number }>;
+```
+
+Maintain a bounded per-match event deduplication cache. Predictive effects use `(sessionEpoch, sourceCommandSequence, sourceShotOrdinal, effectKind)` so confirmation can match and suppress a second flash/sound, including when the server briefly holds a previous command during jitter. Shot ordinals are part of restored driver state. Reject or expire unmatched speculative effects; a key is not a promise that a shot will be accepted. Replayed simulation never directly plays audio or creates persistent particles.
+
+Health and scores live in state; an absent cosmetic event cannot corrupt them. Late join does not replay all historical shots/wrecks. State restores the present; events describe new transitions.
+
+## 5. Adapter interfaces
+
+```ts
+interface AppliedDriverInput {
+  actions: DriverActions;
+  sessionEpoch: string;
+  sourceCommandSequence: number | null; // null for AI or server-generated neutral input
+}
+
+interface Simulation {
+  step(inputs: ReadonlyMap<string, AppliedDriverInput>): void;
+  snapshot(forPlayerId?: string): WorldSnapshot;
+  drainEvents(): GameEvent[];
+  checkpoint(): SimulationCheckpoint;
+  restore(checkpoint: SimulationCheckpoint): void;
+  dispose(): void;
+}
+
+interface GameSession {
+  connect(request: SessionRequest): Promise<JoinResult>;
+  submit(command: InputCommand): void;
+  neutralize(): void;
+  request(action: "start-round" | "rematch" | "leave"): void;
+  onSnapshot(callback: (snapshot: WorldSnapshot) => void): () => void;
+  onEvents(callback: (events: GameEvent[]) => void): () => void;
+  onStatus(callback: (status: SessionStatus) => void): () => void;
+  dispose(): Promise<void>;
+}
+
+interface RenderFrame {
+  sampleTimeSeconds: number;
+  localEntityId: string | null;
+  vehicles: VehicleState[];     // already predicted/interpolated presentation poses
+  projectiles: ProjectileState[];
+  cameraTarget: PlanarPose | null;
+}
+
+interface GameRenderer {
+  loadScene(scene: SceneManifest): Promise<void>;
+  render(frame: RenderFrame, frameDeltaSeconds: number): void;
+  present(events: GameEvent[]): void;
+  resize(width: number, height: number, pixelRatio: number): void;
+  dispose(): void;
+}
+```
+
+`step()` keys inputs by vehicle entity ID. Input admission belongs to the server/session adapter, which attaches trusted command identity before simulation. AI/server-generated input cannot masquerade as a player command; a projectile produced by AI would require a separate source kind before armed AI is introduced. Replay must retain original command identities.
+
+Types referenced but not expanded here (`SessionRequest`, `JoinResult`, `SessionStatus`, `SceneManifest`, `SimulationCheckpoint`) must be concrete public exports in F01, with fixtures and validation where they cross a trust boundary. Required fields are specified below; F01 must not leave production-facing `any` or ambiguous placeholders.
+
+- `SessionRequest`: mode `practice | create | join`, bounded nickname, room ID when joining, protocol/content versions, optional reconnect credential handled by the network adapter.
+- `JoinResult`: player ID, room ID, current session epoch, accepted content versions, first state, local entity ID if spawned.
+- `SessionStatus`: `idle | connecting | lobby | playing | reconnecting | disconnected | error`, with typed reason and optional retry delay.
+- Join error reasons: `room-full`, `room-missing`, `version-mismatch`, `invalid-name`, `server-shutdown`, `network-error`, `reconnect-expired`.
+- `SimulationCheckpoint`: opaque versioned local data, including tick and source scenario identity; never accepted from an untrusted client.
+- `SceneManifest`: map revision, asset catalog revision, environment settings, visual instances, quality variants, and references to shared collision data.
+
+Do not put prediction into `GameRenderer`. `net-client` owns the online prediction controller and exposes its render sample; practice uses a local simulation presentation adapter. The app chooses the session implementation once, not through mode checks spread across every package.
+
+UI consumes a derived `HudModel` (speed, health, scores, timer, connection, prompts) and emits semantic actions. UI cannot write `WorldSnapshot`. Owner F defines the mapping; UI lane owns its presentation.
+
+## 6. Map and asset schemas
+
+### Shared map
+
+```ts
+interface CollisionMap {
+  id: string;
+  revision: string;
+  bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
+  colliders: Array<{
+    id: string;
+    shape: "box" | "convex";
+    pose: PlanarPose;
+    halfExtents?: { x: number; y: number; z: number };
+    vertices?: number[];
+    layer: "world-solid" | "vehicle" | "sensor";
+    surface: "asphalt" | "dirt" | "grass";
+  }>;
+  surfaces: Array<{
+    id: string; polygonXZ: number[]; surface: "asphalt" | "dirt" | "grass";
+  }>;
+  spawns: Array<{ id: string; pose: PlanarPose; clearanceRadius: number }>;
+  laneNodes: Array<{ id: string; x: number; z: number }>;
+  laneEdges: Array<{ from: string; to: string; speedLimit: number }>;
+}
+```
+
+Surface polygons affect grip/effects only through shared rules; they are not automatically solid colliders. Map validator rejects missing references, invalid polygons, nonfinite values, inconsistent shape fields, blocked spawns, and unreachable required routes. Fixtures must include asphalt-to-dirt transitions and an asymmetric turn.
+
+### Asset record
+
+Every runtime asset record includes:
+
+- Stable ID, category, runtime URL, content hash, byte size, format/version.
+- Source URL, creator, download date, source archive hash, exact license ID/text location, required attribution, and modifications.
+- Dimensions, orientation/pivot convention, collision asset reference if relevant, LOD/material counts, texture sizes, and optional estimated GPU cost.
+- Source status: `candidate | verified | shipping | rejected`.
+
+Do not mark a candidate `verified` based only on a search result. Store evidence from the supplied archive/page and record any discrepancy.
+
+## 7. Fixtures that unlock parallel lanes
+
+| Fixture | Must contain | Consumers |
+| --- | --- | --- |
+| `map-intersection-v1` | Turn, curb/wall, two spawns, dirt zone, lane graph | Sim, art, rendering, networking |
+| `input-slalom-v1` | Accel/turn/brake/reverse/fire with explicit ticks | Sim, input, replay, network |
+| `frames-city-v1` | Two cars, traffic, damage, teleport/respawn | Renderer, UI |
+| `events-combat-v1` | Shot/hit/wreck/respawn plus duplicate event IDs | Renderer/audio, gameplay, net |
+| `room-lifecycle-v1` | Lobby/countdown/play/results/reconnect/error | UI, net, integration |
+| `asset-catalog-v1` | One car, road, house, dirt surface with real/placeholder provenance flags | Art pipeline, renderer, tooling |
+
+Fixture creators must publish expected outcomes, not just input files. Placeholder art must remain visibly identified in manifests so it cannot accidentally pass the asset release gate.
+
+## 8. Contract evolution and compatibility
+
+The foundation/integration lane owns contracts. Proposals include affected consumers, migration, fixture changes, and compatibility tests. Wire-breaking changes increment `protocolVersion`; collision/handling changes update their content revision. Client/server mismatches are rejected clearly.
+
+For additive internal fields, publish defaults and fixtures first, migrate consumers next, then remove deprecated behavior. No lane may silently fork an interface locally to avoid coordination. Stable APIs and small compatibility adapters are the main mechanism for parallel progress.

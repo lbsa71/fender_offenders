@@ -1,0 +1,12 @@
+{
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "name": "@fender/renderer",
+  "dependencies": {
+    "@fender/contracts": "workspace:*",
+    "@babylonjs/core": "9.32.0",
+    "@fender/content": "workspace:*"
+  },
+  "exports": "./src/index.ts"
+}

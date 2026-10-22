@@ -1,0 +1,23 @@
+# Free multiplayer preview. Render deploys main only after GitHub CI passes.
+services:
+  - type: web
+    name: fender-offenders
+    runtime: docker
+    repo: https://github.com/lbsa71/fender_offenders
+    branch: main
+    region: frankfurt
+    plan: free
+    numInstances: 1
+    dockerfilePath: ./infra/Dockerfile
+    dockerContext: .
+    healthCheckPath: /ready
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: '10000'
+      - key: MAX_ROOMS
+        value: '2'

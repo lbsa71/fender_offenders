@@ -1,0 +1,15 @@
+services:
+  game:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    ports:
+      - "127.0.0.1:2567:2567"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 2567
+      MAX_ROOMS: 10
+      ALLOWED_ORIGINS: http://localhost:2567,http://127.0.0.1:2567
+    restart: unless-stopped
+    stop_grace_period: 15s
+    mem_limit: 1g
