@@ -35,7 +35,8 @@ try {
     assert.equal(state.scores.length, 2);
     assert.ok(state.local?.vehicle, 'each player needs an authoritative car');
   }
-  console.log(`Production smoke passed: HTML, readiness, two WebSocket players and round start at ${endpoint}`);
 } finally {
+  for (const room of rooms) room.reconnection.enabled = false;
   await Promise.all(rooms.map(room => room.leave(true)));
 }
+console.log(`Production smoke passed: HTML, readiness, two WebSocket players and round start at ${endpoint}`);

@@ -4,7 +4,9 @@
 
 Fender Offenders is a playable browser arcade driving and vehicle-combat alpha inspired by the energy of the original 1987 APB. Patrol a stylized 3D district, dodge traffic, pursue a suspect, or trade shots with friends in private rooms. The elevated Babylon.js camera follows vehicle-relative driving on a planar road surface.
 
-The game runs locally now. It is not a release candidate or a publicly deployed service. [Execution status](spec/EXECUTION_STATUS.md) records all 49 implementation tasks, observed checks, and remaining acceptance gates. Fender Offenders remains a working name without trademark clearance.
+**[Play the public preview](https://fender-offenders.onrender.com)**. The free Render service may need about a minute to wake after inactivity. Create a room and share its invite link to play with friends.
+
+This is a playable alpha, not a release candidate. [Execution status](spec/EXECUTION_STATUS.md) records all 49 implementation tasks, observed checks, and remaining acceptance gates. Fender Offenders remains a working name without trademark clearance.
 
 ## Run locally
 
@@ -17,7 +19,7 @@ pnpm dev
 
 Open [the game on port 5173](http://127.0.0.1:5173). Vite serves the client; the authoritative game server listens on `127.0.0.1:2567`. Exit the development command to stop its child processes. [Environment examples](.env.example) contain local defaults and no credentials.
 
-Choose **Hit the streets** for solo practice and the pursuit challenge. Choose **Create room**, copy its invite link, and open that link in another browser context to bring backup; at least two connected players are needed to start a round. Localhost links work on this machine. Friends on other machines need a reachable server and configured origins; public HTTPS/WSS hosting has not been validated.
+Choose **Hit the streets** for solo practice and the pursuit challenge. Choose **Create room**, copy its invite link, and open that link in another browser context to bring backup; at least two connected players are needed to start a round. Localhost links work on this machine; use the public preview to invite friends on other machines. Production HTTPS and two real secure WebSocket clients have reached a shared round on Render.
 
 ## What is implemented
 
@@ -64,13 +66,13 @@ Nickname and room-code text entry use the keyboard. Unknown controller mappings 
 
 For a fresh Playwright setup, run `pnpm exec playwright install chromium` before `pnpm test:e2e`. The browser config can use installed Chrome on Windows. Render-only smoke/alignment tools are in [tools/assets](tools/assets); no `test:visual` or `test:network` package script currently exists.
 
-After `pnpm build`, `node dist/server/index.js` serves the production client and WebSocket service on one port. Set `HOST`, `PORT`, and `ALLOWED_ORIGINS` for that deployment. See [the operations guide](infra/README.md) for container/TLS configuration, health/readiness, and staging checks. Render/GitHub configuration is deployment preparation; connected-account setup, published CI results, staging, and public deployment remain outstanding.
+After `pnpm build`, `node dist/server/index.js` serves the production client and WebSocket service on one port. Set `HOST`, `PORT`, and `ALLOWED_ORIGINS` for that deployment. See [the operations guide](infra/README.md) for container/TLS configuration, health/readiness, and staging checks. The connected Render service uses the Free plan in Frankfurt, with automatic deployment from `main` after GitHub checks pass. Pull requests run validation without changing the public preview.
 
 ## Validation and limits
 
 The seven-scenario integrated browser run passed in 1.8 minutes, covering local drive/fire/pause/settings, synthetic controller navigation/disconnect, blur safety, two-client room play, self-contained resource loading, and system-font layout. The run also verified actionable errors after an actual missing-room rejection. Real-socket tests cover authority, combat, respawn, reconnect, round ownership, and ordered latency/jitter/stall behavior. See [the evidence index](spec/EXECUTION_STATUS.md) for commands and scope.
 
-Human driving/visual approval, actual controllers, Firefox/Safari/macOS coverage, collision-correction traces, OS packet impairment, sustained browser frame budgets, ten-rematch memory stability, multi-room server density, and public hosting/rollback validation remain open. A short localhost eight-player run is not a capacity or remote-playability claim. Its JSON payload estimate exceeded the starting download budget; actual wire bandwidth is unverified.
+Human driving/visual approval, actual controllers, Firefox/Safari/macOS coverage, collision-correction traces, OS packet impairment, sustained browser frame budgets, ten-rematch memory stability, multi-room server density, and hosted rollback validation remain open. A short localhost eight-player run is not a capacity or remote-playability claim. Its JSON payload estimate exceeded the starting download budget; actual wire bandwidth is unverified. The free preview initially admits at most two rooms; deployments end active matches.
 
 ## Working agreements and design
 

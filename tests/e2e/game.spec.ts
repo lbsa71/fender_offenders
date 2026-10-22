@@ -38,6 +38,10 @@ async function practice(page: Page) {
   await expect.poll(async () => (await snapshot(page))?.local?.vehicle.status).toBe('active');
 }
 test('keyboard practice drives, fires, releases controls on pause and saves settings', async ({ page }) => {
+  // This exercises two real scene boots plus low→medium rendering on a
+  // software GPU. CI exhausted the former 45 s total while every reached
+  // behavioral assertion passed; retain the 12 s per-expectation bounds.
+  test.setTimeout(120000);
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await practice(page);
   const initial = (await snapshot(page))!.local!.vehicle.pose;
@@ -53,16 +57,17 @@ test('keyboard practice drives, fires, releases controls on pause and saves sett
   await page.waitForTimeout(150);
   expect((await snapshot(page))!.serverTick).toBe(pausedTick);
   await page.getByRole('button', { name: 'SETTINGS & CONTROLS' }).click();
+  await expect(page.getByLabel('Graphics')).toHaveValue('low');
   await page.getByLabel('Reduce flashes').check();
   await page.getByLabel('Reduce camera shake').check();
-  await page.getByLabel('Graphics').selectOption('low');
+  await page.getByLabel('Graphics').selectOption('medium');
   await page.getByRole('button', { name: 'SAVE & BACK' }).click();
   await page.getByRole('button', { name: 'BACK ON PATROL' }).click();
   await expect.poll(async () => (await snapshot(page))!.serverTick).toBeGreaterThan(pausedTick);
   await page.reload();
   await page.getByRole('button', { name: 'SETTINGS & CONTROLS' }).click();
   await expect(page.getByLabel('Reduce flashes')).toBeChecked();
-  await expect(page.getByLabel('Graphics')).toHaveValue('low');
+  await expect(page.getByLabel('Graphics')).toHaveValue('medium');
   expect(errors).toEqual([]);
 });
 

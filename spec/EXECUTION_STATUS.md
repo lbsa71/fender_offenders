@@ -1,6 +1,6 @@
 # Execution status and evidence
 
-Updated: 2026-10-22. This ledger covers the 49 tasks in [the plan](../IMPLEMENTATION_PLAN.md). The repository is a playable local alpha. Release-candidate acceptance and public deployment are incomplete.
+Updated: 2026-10-22. This ledger covers the 49 tasks in [the plan](../IMPLEMENTATION_PLAN.md). The playable alpha is deployed at [fender-offenders.onrender.com](https://fender-offenders.onrender.com). Release-candidate acceptance remains incomplete.
 
 `Implemented` means the principal code path exists with the evidence cited here; it does not waive outstanding release gates. `Partial` means code exists but a named deliverable or acceptance check remains. `Open` means the deciding gate has not been demonstrated. The plan retains its original acceptance definitions.
 
@@ -23,7 +23,7 @@ Updated: 2026-10-22. This ledger covers the 49 tasks in [the plan](../IMPLEMENTA
 
 The live-load JSON snapshot payload estimate was about **67.5 KB/s per client**, exceeding the starting <50 KB/s download budget. This is not captured WebSocket/TCP wire bandwidth or upstream traffic. The bandwidth budget is **not verified**. The 20 Hz publication target also needs an isolated sustained run. One room does not establish production server density.
 
-Development environment: Intel Core i7-1355U, Intel Iris Xe, Windows 11 Pro 10.0.26300, graphics driver 32.0.101.7085, Node.js 25.8.1. Browser-test viewport: 1440×900; render tools record their own settings. Exact release-browser versions, power mode, production build identity, and formal approved target/minimum-device reports remain outstanding. Dependency versions are in [package.json](../package.json) and [the lockfile](../pnpm-lock.yaml).
+Development environment: Intel Core i7-1355U, Intel Iris Xe, Windows 11 Pro 10.0.26300, graphics driver 32.0.101.7085, Node.js 25.8.1. Browser behavior tests use the shipped low graphics preset at 960×640; typography retains 1440×900 and render tools record their own settings. Trace screencasts are disabled to avoid repeated WebGL readbacks on software-rendered CI; DOM/action/network traces and failure screenshots remain. Physical-device performance acceptance is separate. Exact release-browser versions, power mode, production build identity, and formal approved target/minimum-device reports remain outstanding. Dependency versions are in [package.json](../package.json) and [the lockfile](../pnpm-lock.yaml).
 
 ## Task ledger
 
@@ -112,7 +112,7 @@ Development environment: Intel Core i7-1355U, Intel Iris Xe, Windows 11 Pro 10.0
 | Q03 | Partial | Ordered TCP delay/jitter/550 ms stall and adversarial authority checks pass. OS loss/full profiles/contact-correction reports remain. |
 | Q04 | Partial | Live combat/wreck/respawn/score and one reliable-stream impairment profile pass. Human remote playability/correction-bound acceptance remain. |
 | Q05 | Partial | Short eight-player load and sim benchmark exist. Sustained profiles/ten-rematch memory/wire bandwidth/multi-room capacity remain. |
-| Q06 | Partial | Container/compose, health/readiness/origin tests, TLS example, runbook and Render/CI preparation exist. Docker runtime/TLS-WSS staging/rolling drain/rollback remain unaccepted. |
+| Q06 | Partial | Free Render preview and Docker runtime validated with production HTML, readiness, exact-origin admission, two secure WebSocket players and a live round. Automatic deploy is configured after CI checks. Full rolling drain, sustained hosted capacity and rollback remain unaccepted. |
 | Q07 | Partial | Original asset record, no remote fonts, safe text, settings/input checks and dev-only debug guard exist. Full license/accessibility audit remains. |
 | Q08 | Open | Full Windows/macOS/browser/controller matrix and linked P01–P10 release sign-off remain. |
 
@@ -122,4 +122,4 @@ Development environment: Intel Core i7-1355U, Intel Iris Xe, Windows 11 Pro 10.0
 
 Release still requires physical-controller hotplug/remap/focus checks, named Windows/macOS/browser coverage, human driving/visual/combat review, collision-correction histograms under defined network profiles, OS packet impairment, production browser frame/cold-load/input-latency/memory reports, sustained eight-player/multi-room capacity, full license review and compatible release/rollback validation.
 
-GitHub workflow and Render blueprint files are deployment preparation. The intended pipeline checks types/docs/tests/assets, builds the game, runs browser scenarios, builds a Docker image and verifies production HTTP plus multiplayer WebSockets before checks-passed auto-deploy. Files are not evidence of a successful hosted run. No connected hosting account, published workflow result, public URL, domain/TLS validation or staging rollback success is claimed. See [operations](../infra/README.md).
+The public preview runs on the connected Free Render service in Frankfurt. The hosted smoke verified production HTML/readiness, two secure WebSocket players and a shared live round, then exited cleanly. A real browser created a hosted room and rendered the district. Exact-origin admission was checked remotely (own origin 200; unrelated origin 403). The smoke cleanup regression first observed SDK retries after a proxy-style 1001 close, then passed after reconnect was disabled before intentional leave. Initial deployment was a Blueprint-triggered build; subsequent automatic deployments are configured to wait for CI. Staging rollback remains unverified. See [operations](../infra/README.md).

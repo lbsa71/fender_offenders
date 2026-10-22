@@ -1,10 +1,12 @@
 # Hosting and continuous delivery
 
-The root [`render.yaml`](../render.yaml) defines a free Docker web service in Frankfurt for `lbsa71/fender_offenders`, branch `main`. It serves the browser game and multiplayer WebSocket endpoint at one HTTPS URL. `autoDeployTrigger: checksPass` waits for GitHub checks before automatic deployments.
+The live preview is **[fender-offenders.onrender.com](https://fender-offenders.onrender.com)**. The root [`render.yaml`](../render.yaml) defines its free Docker web service in Frankfurt for `lbsa71/fender_offenders`, branch `main`. It serves the browser game and multiplayer WebSocket endpoint at one HTTPS URL. `autoDeployTrigger: checksPass` waits for GitHub checks before automatic deployments.
+
+The Render GitHub app is scoped to this repository. The service dashboard confirms Free, Frankfurt, `/ready` health checks and **After CI Checks Pass**. Hosted smoke validation passed HTML/readiness, two real secure WebSocket clients, a shared live round and client cleanup. A real browser created a room and rendered the district; the hosted endpoint returned 200 for its own origin and 403 for an unrelated origin. These checks do not establish full Internet playability or capacity.
 
 ## Initial Render setup
 
-After the first GitHub CI run is green, connect the Render account and its GitHub integration with access to this repository. Create a Blueprint using root `render.yaml`, retaining Free, one instance and Frankfurt. Wait for the build and `/ready` health check, then use the actual URL returned by Render; the requested service name does not guarantee an exact subdomain. The Git provider integration is required for Render to observe CI checks.
+Initial setup is complete. To recreate it, connect the Render account and its GitHub integration with access to this repository. Create a Blueprint using root `render.yaml`, retaining Free, one instance and Frankfurt. Wait for the build and `/ready` health check, then use the actual URL returned by Render; the requested service name does not guarantee an exact subdomain. The Git provider integration is required for Render to observe CI checks. Initial Blueprint creation starts a deployment immediately; the CI condition governs subsequent automatic deployments.
 
 Future pushes to `main` run validation before Render deploys them. Pull requests validate without changing the preview. No deploy-hook secret is required. [GitHub CI](../.github/workflows/ci.yml) runs types/document checks, unit and real-room tests, content validation, the production build, browser interactions, and a production Docker smoke with two real WebSocket clients.
 
@@ -19,7 +21,7 @@ Official references checked 2026-10-22: [Blueprint fields/CI gating](https://ren
 With dependencies installed, run against the actual service URL:
 
 ```powershell
-$env:TEST_SERVER_URL = 'https://YOUR-SERVICE.onrender.com'
+$env:TEST_SERVER_URL = 'https://fender-offenders.onrender.com'
 pnpm test:deploy
 Remove-Item Env:TEST_SERVER_URL
 ```
@@ -32,7 +34,7 @@ Local development: `pnpm dev` starts Vite on 5173 and the authoritative Colyseus
 
 Production build: `pnpm build`, then `node dist/server/index.js`. This serves the built client and WebSocket game service on the same port. Set `HOST`, `PORT`, and `ALLOWED_ORIGINS` explicitly. For example the allowed browser origin for a same-port localhost test is `http://127.0.0.1:2567`.
 
-Container packaging: `docker compose -f infra/compose.yaml up --build`. The supplied compose file binds port2567 only to localhost. The Docker image has been built and its running HTML/readiness/two-player WebSocket smoke passed locally on Linux/Node22. Hosted validation remains separate; see the execution status.
+Container packaging: `docker compose -f infra/compose.yaml up --build`. The supplied compose file binds port2567 only to localhost. The Docker image has been built and its running HTML/readiness/two-player WebSocket smoke passed locally on Linux/Node22 and on the Render preview. See the execution status for the scope of each check.
 
 For a public host, configure a domain and TLS reverse proxy (example Caddyfile supplied), allow that exact HTTPS browser origin, and bind the game process only where the proxy can reach it. The client derives the same-origin endpoint in production. A separate CDN client may use `VITE_SERVER_URL` at build time.
 
@@ -50,4 +52,4 @@ Before public release:
 
 Keep the prior healthy deployment if a new build or health check fails. Roll back a complete client/server/content set in Render; never mix map/protocol versions. Free-service rollback availability follows Render's current limits. Hosted rollback and finish-current-round draining remain unverified operational gates.
 
-Configuration committed to Git is not proof that a public service has been created or tested. Check [the execution status](../spec/EXECUTION_STATUS.md) for observed evidence.
+Check [the execution status](../spec/EXECUTION_STATUS.md) for observed evidence and remaining release gates.
