@@ -98,6 +98,7 @@ export class InputController {
     const delta = this.settings.steeringRamp * dt;
     this.steering += clamp(target - this.steering, -delta, delta);
     const analog = applyDeadzone(pad?.axes[0] ?? 0, this.settings.stickDeadzone) * this.settings.sensitivity;
+    const longitudinal = applyDeadzone(pad?.axes[1] ?? 0, this.settings.stickDeadzone);
     const siren = held('siren') || b(2);
     const recovering = held('recover') || b(3);
     if (recovering && this.recoverStarted === null) this.recoverStarted = now;
@@ -105,7 +106,7 @@ export class InputController {
     this.recoverProgress = this.recoverStarted === null ? 0 : clamp((now - this.recoverStarted) / 1000, 0, 1);
     const recover = this.recoverProgress === 1 && !this.recoverSent;
     if (recover) this.recoverSent = true;
-    const actions = { steer: clamp(Math.abs(analog) > .001 ? analog : this.steering, -1, 1), throttle: Math.max(Number(held('throttle')), trigger(7)), brakeReverse: Math.max(Number(held('brakeReverse')), trigger(6)), handbrake: held('handbrake') || b(0), fire: held('fire') || b(5), sirenToggle: siren && !this.sirenWasDown, recover };
+    const actions = { steer: clamp(Math.abs(analog) > .001 ? analog : this.steering, -1, 1), throttle: Math.max(Number(held('throttle')), trigger(7), -longitudinal), brakeReverse: Math.max(Number(held('brakeReverse')), trigger(6), longitudinal), handbrake: held('handbrake') || b(0), fire: held('fire') || b(5), sirenToggle: siren && !this.sirenWasDown, recover };
     this.sirenWasDown = siren;
     return actions;
   }

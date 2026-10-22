@@ -5,6 +5,53 @@ function pad(overrides: Partial<PadState> = {}): PadState { return { id: 'Test s
 function button(p: PadState, index: number, value = 1): PadState { return { ...p, buttons: p.buttons.map((b, i) => i === index ? { value, pressed: value > .5 } : b) }; }
 
 describe('normalized driver input', () => {
+  it('uses forward left-stick Y as analog throttle while retaining independent steering', () => {
+    const input = new InputController(); input.setEnabled(true); input.poll([pad()], 0);
+    input.poll([pad({ axes: [.58, -.58] })], 16);
+    const actions = input.sample(16);
+    expect(actions.steer).toBeCloseTo(.5); expect(actions.throttle).toBeCloseTo(.5); expect(actions.brakeReverse).toBe(0);
+    input.poll([pad({ axes: [0, -1] })], 32);
+    expect(input.sample(32).throttle).toBe(1);
+    input.poll([pad()], 48);
+    expect(input.sample(48)).toMatchObject({ throttle: 0, brakeReverse: 0 });
+  });
+  it('uses backward left-stick Y as analog brakeReverse without resolving reverse locally', () => {
+    const input = new InputController(); input.setEnabled(true); input.poll([pad()], 0);
+    input.poll([pad({ axes: [0, .58] })], 16);
+    const actions = input.sample(16);
+    expect(actions.throttle).toBe(0); expect(actions.brakeReverse).toBeCloseTo(.5);
+    input.poll([pad({ axes: [0, 1] })], 32);
+    expect(input.sample(32)).toMatchObject({ throttle: 0, brakeReverse: 1 });
+  });
+  it('keeps both longitudinal actions neutral throughout the configured stick center dead zone', () => {
+    const input = new InputController({ stickDeadzone: .25 }); input.setEnabled(true); input.poll([pad()], 0);
+    for (const y of [-.25, -.1, 0, .1, .25]) {
+      input.poll([pad({ axes: [0, y] })], 16);
+      expect(input.sample(16)).toMatchObject({ throttle: 0, brakeReverse: 0 });
+    }
+    input.poll([pad({ axes: [0, -.625] })], 32);
+    expect(input.sample(32).throttle).toBe(.5);
+  });
+  it('combines stick and trigger alternatives by strongest action rather than adding a boost', () => {
+    const input = new InputController(); input.setEnabled(true); input.poll([pad()], 0);
+    input.poll([button(pad({ axes: [0, -.58] }), 7, .448)], 16);
+    const actions = input.sample(16);
+    expect(actions.throttle).toBeCloseTo(.5); expect(actions.brakeReverse).toBe(0);
+    input.poll([button(pad({ axes: [0, .58] }), 6, .724)], 32);
+    expect(input.sample(32).brakeReverse).toBeCloseTo(.7);
+    input.poll([button(button(pad({ axes: [0, -.58] }), 7), 6)], 48);
+    expect(input.sample(48)).toMatchObject({ throttle: 1, brakeReverse: 1 });
+  });
+  it('neutralizes a held longitudinal stick on blur and disconnect until it is centered again', () => {
+    const input = new InputController(); input.setEnabled(true); input.poll([pad()], 0);
+    input.poll([pad({ axes: [0, -1] })], 16); expect(input.sample(16).throttle).toBe(1);
+    input.setFocused(false); expect(input.sample(32).throttle).toBe(0);
+    input.setFocused(true); input.poll([pad({ axes: [0, -1] })], 48); expect(input.sample(48).throttle).toBe(0);
+    input.poll([pad()], 64); input.poll([pad({ axes: [0, 1] })], 80); expect(input.sample(80).brakeReverse).toBe(1);
+    input.poll([], 96); expect(input.sample(96).brakeReverse).toBe(0);
+    input.poll([pad({ axes: [0, 1] })], 112); expect(input.sample(112).brakeReverse).toBe(0);
+    input.poll([pad()], 128); input.poll([pad({ axes: [0, 1] })], 144); expect(input.sample(144).brakeReverse).toBe(1);
+  });
   it('ramps vehicle-relative keyboard steering and preserves held fire', () => {
     const input = new InputController(); input.setEnabled(true); input.key('KeyD', true); input.key('Space', true);
     expect(input.sample(0)).toMatchObject({ steer: 8 / 60, fire: true, throttle: 0 });

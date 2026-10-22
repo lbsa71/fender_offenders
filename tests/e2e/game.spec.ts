@@ -79,6 +79,10 @@ test('a standard controller can start, drive, pause, navigate and safely disconn
     (window as Window & { testPad?: MutablePad }).testPad = pad;
   });
   const button = async (index: number, down: boolean) => page.evaluate(({ index, down }) => { const pad = (window as Window & { testPad?: { buttons: { pressed: boolean; value: number }[] } }).testPad!; pad.buttons[index]!.pressed = down; pad.buttons[index]!.value = down ? 1 : 0; }, { index, down });
+  const stickY = async (value: number) => page.evaluate(value => {
+    (window as Window & { testPad?: { axes: number[] } }).testPad!.axes[1] = value;
+    return new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+  }, value);
   const tap = async (index: number) => page.evaluate(async index => {
     const pad = (window as Window & { testPad?: { buttons: { pressed: boolean; value: number }[] } }).testPad!;
     const pressed = pad.buttons[index]!;
@@ -94,16 +98,18 @@ test('a standard controller can start, drive, pause, navigate and safely disconn
   await page.goto('/'); await expect(page.getByRole('heading', { name: "You're on duty." })).toBeVisible();
   await tap(0);
   await expect(page.locator('.fo-hud')).toBeVisible();
-  await button(7, true);
+  await expect(page.locator('.fo-prompts')).toContainText('LEFT STICK DRIVE');
+  await expect(page.locator('.fo-prompts')).toContainText('RT/LT DRIVE/BRAKE');
+  await stickY(-1);
   await expect.poll(async () => { const car = (await snapshot(page))?.local?.vehicle; return car ? Math.hypot(car.velocity.x, car.velocity.z) : 0; }).toBeGreaterThan(3);
-  await expect(page.locator('.fo-prompts')).toContainText('RT DRIVE');
+  await stickY(0);
   await tap(9);
   await expect(page.getByRole('heading', { name: 'Taking a breather?' })).toBeVisible();
   await button(7, false); await tap(13); // Resume -> end patrol.
   await expect(page.getByRole('button', { name: 'END PATROL' })).toBeFocused();
   await tap(12); await tap(0);
   await expect(page.locator('.fo-menu')).toBeHidden();
-  await button(7, true); await button(5, true);
+  await stickY(-1); await button(5, true);
   await page.evaluate(() => { const pad = (window as Window & { testPad?: { connected: boolean } }).testPad!; pad.connected = false; window.dispatchEvent(new Event('gamepaddisconnected')); });
   const shotOrdinal = (await snapshot(page))!.local!.driver.shotOrdinal;
   await page.waitForTimeout(250);

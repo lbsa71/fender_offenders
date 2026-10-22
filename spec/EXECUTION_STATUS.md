@@ -9,7 +9,7 @@ Updated: 2026-10-22. This ledger covers the 49 tasks in [the plan](../IMPLEMENTA
 | Evidence | Observed scope | Reproduce / source |
 | --- | --- | --- |
 | Simulation | 23 headless tests: driving, real Rapier feasibility, checkpoints, combat, rounds, pursuit, disposal | `pnpm test -- packages/sim/src/core/simulation.test.ts`; [simulation notes](../packages/sim/README.md) |
-| Input | 8 tests: ramp/dead zones/remap, edges/hold, focus/menu/device-loss safety, controller navigation | `pnpm test -- packages/input/src/input.test.ts`; [input notes](../packages/input/README.md) |
+| Input | 13 tests: left-stick forward/brake/reverse, trigger alternatives, dead zones, ramp/remap, edges/hold, focus/menu/device-loss safety and controller navigation | `pnpm test -- packages/input/src/input.test.ts`; [input notes](../packages/input/README.md) |
 | Real room/network | 12 integration tests, including 3 safety-braking regressions; real authority/combat/reconnect/lifecycle and ordered delay/jitter/stall | `pnpm test:integration`; [integration evidence](../tests/integration/README.md) |
 | Browser | 7 scenarios passed together in 1.8 minutes; local practice, synthetic pad, blur, two-context online play, no external resources, typography, actionable session failures | `pnpm test:e2e`; [scenarios](../tests/e2e/game.spec.ts) |
 | Actionable session error | A separate real missing-room browser regression passed in 16.8 seconds after the intended raw-message failure was observed | [browser regression](../tests/e2e/session-errors.spec.ts) |
@@ -18,6 +18,8 @@ Updated: 2026-10-22. This ledger covers the 49 tasks in [the plan](../IMPLEMENTA
 | Prediction facade | 10 targeted real-session/interpolation tests passed, including invalid-name error handling; final aggregate run is separate | [prediction tests](../tests/prediction/online-session.test.ts), [interpolation tests](../packages/net-client/src/index.test.ts) |
 | Static/build | Local typecheck/docs/boundary checks passed; production build scripts exist | `pnpm check`, `pnpm assets:check`, `pnpm build` |
 | Linux production container | Docker build on Node 22 passed all 56 headless tests and built the client/server. Running image passed readiness, production HTML, two actual WebSocket players and round start | `docker build --load -f infra/Dockerfile -t fender-offenders:preview .`; `pnpm test:deploy` with the container endpoint |
+| Published CI | Commit `4b2e0fb` passed 57 headless tests, all 7 browser scenarios, production image build and its two-player WebSocket smoke on Ubuntu 24.04/Node 22 | [Passing workflow](https://github.com/lbsa71/fender_offenders/actions/runs/39828804952) |
+| Stick drive follow-up | Five new mapping tests and the browser prompt first failed; 13 input plus 23 simulation tests and the updated controller browser scenario then passed locally | [Input tests](../packages/input/src/input.test.ts), [controller scenario](../tests/e2e/game.spec.ts) |
 | One-room sim benchmark | 8 scripted players + 16 traffic, 18,600 ticks; mean 0.230 ms, p95 0.450 ms, p99 0.680 ms after warmup | `pnpm exec tsx packages/sim/bench.ts`; [methodology](../packages/sim/README.md) |
 | Short live load | 8 real localhost clients, 30 seconds, all remained connected; about 18.7 snapshot publications/s during concurrent GPU testing | `pnpm test:load`; local `reports/load-latest.json` is regenerated, not a retained release report |
 
@@ -31,7 +33,7 @@ Development environment: Intel Core i7-1355U, Intel Iris Xe, Windows 11 Pro 10.0
 
 | ID | State | Evidence / remaining work |
 | --- | --- | --- |
-| F00 | Implemented | Workspace, TypeScript/Vite, app roots, environment sample, test/check/build scripts exist. Remote CI execution remains an operations gate. |
+| F00 | Implemented | Workspace, TypeScript/Vite, app roots, environment sample and test/check/build scripts exist. Published GitHub CI passes validation and the production-container multiplayer smoke. |
 | F01 | Partial | DTOs/config/adapters, input/map checks and compact wire snapshots exist. Complete schema/collection validation and fixture compatibility matrix remain. |
 | F02 | Partial | Authored map and executable sim/render/browser/network fixtures unblock consumers. Proposed versioned `test-support` fixture catalog is incomplete. |
 | F03 | Implemented | Practice/online composition, adapter wiring, cleanup and fatal-start display are integrated; debug getters are development-only. |
@@ -107,7 +109,7 @@ Development environment: Intel Core i7-1355U, Intel Iris Xe, Windows 11 Pro 10.0
 
 | ID | State | Evidence / remaining work |
 | --- | --- | --- |
-| Q01 | Partial | Vitest/Playwright, docs/task/import checks, CI definitions and machine details exist. Published CI results and full environment metadata remain. |
+| Q01 | Partial | Vitest/Playwright, docs/task/import checks, published passing CI and machine details exist. Full release-environment metadata remains. |
 | Q02 | Partial | Browser input, captures and alignment tools exist. Human visual/handling approval, hardware controller, cold-load/input-to-present traces remain. |
 | Q03 | Partial | Ordered TCP delay/jitter/550 ms stall and adversarial authority checks pass. OS loss/full profiles/contact-correction reports remain. |
 | Q04 | Partial | Live combat/wreck/respawn/score and one reliable-stream impairment profile pass. Human remote playability/correction-bound acceptance remain. |

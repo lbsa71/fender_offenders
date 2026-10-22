@@ -35,9 +35,9 @@ Online matches continue while a menu is open; that driver's held controls are re
 
 | Action | Keyboard | Standard controller |
 | --- | --- | --- |
-| Accelerate | W / Up | Right trigger |
-| Brake / reverse | S / Down | Left trigger |
-| Steer | A/D or Left/Right | Left stick |
+| Accelerate | W / Up | Left stick forward, or right trigger |
+| Brake / reverse | S / Down | Left stick backward, or left trigger |
+| Steer | A/D or Left/Right | Left stick left/right |
 | Handbrake | Shift | A / south button |
 | Fire | Space | Right shoulder |
 | Siren | E | X / west button |
@@ -45,7 +45,7 @@ Online matches continue while a menu is open; that driver's held controls are re
 | Pause / settings | Escape | Menu / Start |
 | Menu navigation | Arrows, Enter, Escape; Tab for fields | D-pad / stick, A confirm, B back |
 
-Nickname and room-code text entry use the keyboard. Unknown controller mappings display a keyboard-fallback message rather than guessing button assignments.
+Pulling the stick backward brakes a forward-moving car before reversing, just like the left trigger. Stick and trigger input combine without adding extra acceleration. Nickname and room-code text entry use the keyboard. Unknown controller mappings display a keyboard-fallback message rather than guessing button assignments.
 
 ## Developer commands
 

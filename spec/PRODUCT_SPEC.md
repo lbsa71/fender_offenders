@@ -63,8 +63,8 @@ All devices produce the same action structure. Gameplay never reads raw DOM even
 
 | Action | Keyboard default | Standard gamepad default |
 | --- | --- | --- |
-| Accelerate | W / Up | Right trigger |
-| Brake / reverse | S / Down | Left trigger |
+| Accelerate | W / Up | Left stick forward or right trigger |
+| Brake / reverse | S / Down | Left stick backward or left trigger |
 | Steer | A/D or Left/Right | Left stick X |
 | Handbrake | Left Shift | South face button |
 | Fire | Space | Right shoulder |
@@ -73,7 +73,7 @@ All devices produce the same action structure. Gameplay never reads raw DOM even
 | Pause/settings | Escape | Menu/Start |
 | Confirm / back | Enter / Escape | South / East face buttons |
 
-- Steering is vehicle-relative. Keyboard steering uses a bounded response ramp; analog steering preserves useful precision.
+- Steering is vehicle-relative. Keyboard steering uses a bounded response ramp; analog steering preserves useful precision. Left-stick Y also provides analog acceleration and brake/reverse through the configured stick dead zone. Trigger alternatives remain available; take the strongest request for each action rather than summing them. Pulling backward uses the same brake-to-reverse behavior as the left trigger.
 - Brake/reverse uses speed-aware behavior: brake while moving forward; reverse only near rest after a short deliberate hold. Do not instantly reverse velocity.
 - Trigger and stick dead zones, sensitivity, remapping, and keyboard-only menu navigation are required by M3.
 - Detect device activity and switch prompts without interrupting play. Do not assume that every gamepad uses the standard mapping.
