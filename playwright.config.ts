@@ -13,10 +13,14 @@ export default defineConfig({
   use: {
     ...devices['Desktop Chrome'],
     baseURL: 'http://127.0.0.1:5173',
-    viewport: { width: 1440, height: 900 },
+    // Gameplay checks run on the real low preset at a bounded software-GPU cost.
+    // The desktop typography scenario opts back into its original 1440×900 size.
+    viewport: { width: 960, height: 640 },
     headless: true,
     launchOptions: systemChrome && existsSync(systemChrome) ? { executablePath: systemChrome } : {},
-    trace: 'retain-on-failure',
+    // Screencasts force WebGL ReadPixels every frame on software-rendered CI.
+    // Keep DOM/action/network traces and an actual screenshot on failure.
+    trace: { mode: 'retain-on-failure', screenshots: false, snapshots: true, sources: true },
     screenshot: 'only-on-failure',
   },
   webServer: [

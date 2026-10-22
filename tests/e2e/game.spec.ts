@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { createGameContext, expect, test } from './fixtures';
 import type { WorldSnapshot } from '@fender/contracts';
 
 test('home and practice load without external fonts or remote content', async ({ page, baseURL }) => {
@@ -18,6 +19,7 @@ test('home and practice load without external fonts or remote content', async ({
 });
 
 test('system typography keeps the dispatch stamp text inside its border', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: "You're on duty." })).toBeVisible();
   const overflow = await page.locator('.fo-stamp strong').evaluate(node => node.scrollWidth - node.clientWidth);
@@ -72,7 +74,18 @@ test('a standard controller can start, drive, pause, navigate and safely disconn
     (window as Window & { testPad?: MutablePad }).testPad = pad;
   });
   const button = async (index: number, down: boolean) => page.evaluate(({ index, down }) => { const pad = (window as Window & { testPad?: { buttons: { pressed: boolean; value: number }[] } }).testPad!; pad.buttons[index]!.pressed = down; pad.buttons[index]!.value = down ? 1 : 0; }, { index, down });
-  const tap = async (index: number) => { await button(index, true); await page.waitForTimeout(100); await button(index, false); await page.waitForTimeout(80); };
+  const tap = async (index: number) => page.evaluate(async index => {
+    const pad = (window as Window & { testPad?: { buttons: { pressed: boolean; value: number }[] } }).testPad!;
+    const pressed = pad.buttons[index]!;
+    pressed.pressed = true; pressed.value = 1;
+    // The app's already-scheduled frame samples the edge before this callback.
+    // Release synchronously in that frame, avoiding missed 100ms taps or repeats
+    // when software rendering makes a single frame take longer than 400ms.
+    await new Promise<void>(resolve => requestAnimationFrame(() => {
+      pressed.pressed = false; pressed.value = 0;
+      requestAnimationFrame(() => resolve());
+    }));
+  }, index);
   await page.goto('/'); await expect(page.getByRole('heading', { name: "You're on duty." })).toBeVisible();
   await tap(0);
   await expect(page.locator('.fo-hud')).toBeVisible();
@@ -110,7 +123,7 @@ test('blur drops held fire and requires a fresh keyboard press on return', async
 
 test('two browser clients create, join, start a live round and share confirmed standings', async ({ browser, baseURL }) => {
   test.setTimeout(90000);
-  const hostContext = await browser.newContext(); const guestContext = await browser.newContext();
+  const hostContext = await createGameContext(browser); const guestContext = await createGameContext(browser);
   const host = await hostContext.newPage(); const guest = await guestContext.newPage();
   try {
     await host.goto(baseURL!); await host.getByRole('textbox', { name: 'YOUR CALLSIGN' }).fill('Dispatch Host');

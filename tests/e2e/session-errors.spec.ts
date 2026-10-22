@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test('a closed dispatch room keeps its actionable error after session disposal', async ({ page }) => {
   await page.goto('/?room=missing-dispatch-regression-room');
