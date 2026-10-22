@@ -146,6 +146,12 @@ test('two browser clients create, join, start a live round and share confirmed s
     await guest.getByRole('textbox', { name: 'YOUR CALLSIGN' }).fill('Backup Unit');
     await guest.getByRole('button', { name: 'REPORT TO DISPATCH' }).click();
     await expect(host.locator('[data-scores] li')).toHaveCount(2); await expect(guest.locator('[data-scores] li')).toHaveCount(2);
+    for (const viewer of [host, guest]) {
+      await expect(viewer.locator('.fo-scoreboard').getByText('PING / ms', { exact: true })).toBeVisible();
+      for (const nickname of ['Dispatch Host', 'Backup Unit']) {
+        await expect(viewer.locator('[data-scores]').getByLabel(new RegExp(`^${nickname} ping: \\d+ milliseconds$`))).toHaveText(/^\d+ ms$/);
+      }
+    }
     console.log('Both clients joined the same room');
     await host.getByRole('button', { name: 'START ROUND' }).click();
     await expect.poll(async () => (await snapshot(host))?.phase).toBe('playing');

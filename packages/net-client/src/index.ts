@@ -14,6 +14,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
   let history: { state: WorldSnapshot; arrived: number }[] = [];
   let state: SessionStatus = { state: 'idle' }, disposed = false, playerId = '', roomId = '';
   let rtt = 0, correctionX = 0, correctionZ = 0, lastRenderAt = performance.now(), lastSnapshotAt = performance.now();
+  let playbackTick: number | null = null;
   let corrections = 0, maxCorrection = 0, receivedBytes = 0, sentBytes = 0;
   const snapshotListeners = new Set<(s: WorldSnapshot) => void>(), eventListeners = new Set<(events: GameEvent[]) => void>(), statusListeners = new Set<(s: SessionStatus) => void>();
   const status = (s: SessionStatus) => { state = s; statusListeners.forEach(fn => fn(s)); };
@@ -36,10 +37,10 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
   function receive(wire: WireSnapshot) {
     const next = unpackSnapshot(wire); receivedBytes += JSON.stringify(wire).length;
     if (snapshot && next.serverTick < snapshot.serverTick && next.matchId === snapshot.matchId) return;
-    const reset = next.resetReason || next.sessionEpoch !== snapshot?.sessionEpoch || next.local?.vehicle.discontinuityId !== snapshot?.local?.vehicle.discontinuityId;
+    const reset = next.resetReason || next.matchId !== snapshot?.matchId || next.sessionEpoch !== snapshot?.sessionEpoch || next.local?.vehicle.discontinuityId !== snapshot?.local?.vehicle.discontinuityId;
     const oldPose = predicted?.vehicle.pose;
     snapshot = next; lastSnapshotAt = performance.now();
-    if (reset) { pending = []; outgoing = []; history = []; correctionX = correctionZ = 0; }
+    if (reset) { pending = []; outgoing = []; history = []; correctionX = correctionZ = 0; playbackTick = null; }
     history.push({ state: next, arrived: lastSnapshotAt }); if (history.length > 40) history.shift();
     if (next.local) {
       pending = pending.filter(p => p.command.sequence > next.local!.lastConsumedSequence);
@@ -71,11 +72,15 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
         const options = { nickname: request.nickname, protocolVersion: PROTOCOL_VERSION, mapRevision: map.revision, gameplayRevision: GAMEPLAY_REVISION };
         room = request.mode === 'create' ? await sdk.create('district', options) : await sdk.joinById(request.roomId!.trim(), options);
         roomId = room.roomId; playerId = room.sessionId;
+        const connection = room.connection, reconnect = connection.reconnect.bind(connection);
+        // The SDK's queued retry has no cancellation handle; guard its public transport entry point.
+        connection.reconnect = options => { if (!disposed) reconnect(options); };
         room.reconnection.maxRetries = 10; room.reconnection.minDelay = 300; room.reconnection.maxDelay = 1000; room.reconnection.minUptime = 0; room.reconnection.maxEnqueuedMessages = 0;
         room.onMessage('snapshot', receive);
         room.onMessage('events', (events: GameEvent[]) => eventListeners.forEach(fn => fn(events)));
+        room.onMessage('latency-probe', (message: { nonce: string }) => { room!.send('latency-pong', { nonce: message.nonce }); });
         room.onMessage('pong', (message: { sent: number }) => { const measured = performance.now() - message.sent; rtt = rtt ? .8 * rtt + .2 * measured : measured; });
-        room.onDrop(() => { pending = []; outgoing = []; status({ state: 'reconnecting', message: 'Reconnecting to dispatch…' }); });
+        room.onDrop(() => { if (disposed) return; pending = []; outgoing = []; status({ state: 'reconnecting', message: 'Reconnecting to dispatch…' }); });
         room.onReconnect(() => { pending = []; outgoing = []; room!.reconnection.enqueuedMessages.length = 0; room!.send('resync'); });
         room.onLeave(() => { if (!disposed) status({ state: 'disconnected', reason: 'reconnect-expired' }); });
         room.onError((_code, message) => status({ state: 'error', reason: 'network-error', message }));
@@ -106,13 +111,31 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
     onSnapshot(fn) { snapshotListeners.add(fn); return () => snapshotListeners.delete(fn); },
     onEvents(fn) { eventListeners.add(fn); return () => eventListeners.delete(fn); },
     onStatus(fn) { statusListeners.add(fn); return () => statusListeners.delete(fn); },
-    async dispose() { if (disposed) return; disposed = true; clearInterval(flushTimer); clearInterval(pingTimer); outgoing = []; pending = []; await room?.leave(true); room = null; status({ state: 'disconnected' }); snapshotListeners.clear(); eventListeners.clear(); statusListeners.clear(); },
+    async dispose() {
+      if (disposed) return;
+      disposed = true; clearInterval(flushTimer); clearInterval(pingTimer); outgoing = []; pending = [];
+      if (room) {
+        room.reconnection.enabled = false;
+        if (room.connection.isOpen) {
+          let deadline: ReturnType<typeof setTimeout> | undefined;
+          try {
+            await Promise.race([room.leave(true).catch(() => undefined), new Promise<void>(resolve => {
+              deadline = setTimeout(() => { room!.connection.close(1000, 'Session disposed'); resolve(); }, 1000);
+            })]);
+          } finally { if (deadline) clearTimeout(deadline); }
+        } else room.connection.close(1000, 'Session disposed');
+        room.removeAllListeners();
+      }
+      room = null; status({ state: 'disconnected' }); snapshotListeners.clear(); eventListeners.clear(); statusListeners.clear();
+    },
     sampleFrame(now = performance.now()) {
       if (!snapshot) return null;
       const dt = Math.min(.1, (now - lastRenderAt) / 1000); lastRenderAt = now;
       correctionX *= Math.exp(-dt * 20); correctionZ *= Math.exp(-dt * 20);
       const estimatedTick = snapshot.serverTick + (now - lastSnapshotAt + rtt / 2) * .06;
-      const vehicles = remoteAt(estimatedTick - 6);
+      // A late arrival may lower the clock estimate; pause playback rather than rewind it.
+      playbackTick = Math.max(playbackTick ?? -Infinity, estimatedTick - 6);
+      const vehicles = remoteAt(playbackTick);
       if (predicted) {
         const vehicle = clone(predicted.vehicle); vehicle.pose.x += correctionX; vehicle.pose.z += correctionZ;
         const index = vehicles.findIndex(v => v.entityId === vehicle.entityId); if (index >= 0) vehicles[index] = vehicle; else vehicles.push(vehicle);

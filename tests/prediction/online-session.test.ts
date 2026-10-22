@@ -69,10 +69,82 @@ describe('real online prediction facade baseline', () => {
     expect(statuses.at(-1)!.state).toBe('lobby');
   });
 
+  it('intentionally disposes without retrying or announcing reconnection when a proxy reports Going Away', async () => {
+    const value = session(), statuses: SessionStatus[] = []; value.onStatus(s => statuses.push(s));
+    const join = await value.connect({ mode: 'create', nickname: 'Intentional leave' });
+    const room = matchMaker.getLocalRoomById(join.roomId), client = room.clients.find(c => c.sessionId === join.playerId)!;
+    const socket = client.ref as unknown as { close(code?: number, reason?: string): void };
+    const close = socket.close.bind(socket);
+    socket.close = (code, reason) => close(code === 4000 ? 1001 : code, reason);
+    let reconnectAttempts = 0;
+    const upgraded = () => { reconnectAttempts++; };
+    server.transport.server!.on('upgrade', upgraded);
+    try {
+      const completed = await Promise.race([value.dispose().then(() => true), pause(2000).then(() => false)]);
+      expect(completed, 'An intentional session disposal must complete promptly').toBe(true);
+      await pause(450);
+      expect(reconnectAttempts, 'Leaving must not open a replacement WebSocket').toBe(0);
+      expect(statuses.some(s => s.state === 'reconnecting')).toBe(false);
+      expect(statuses.at(-1)!.state).toBe('disconnected');
+      expect(value.getStats().pendingInputs).toBe(0);
+    } finally { server.transport.server!.off('upgrade', upgraded); }
+  });
+
+  it('finishes disposal promptly when the socket is already reconnecting', async () => {
+    const value = session(), statuses: SessionStatus[] = []; value.onStatus(s => statuses.push(s));
+    const join = await value.connect({ mode: 'create', nickname: 'Leave broken link' });
+    const room = matchMaker.getLocalRoomById(join.roomId), client = room.clients.find(c => c.sessionId === join.playerId)!;
+    const allowReconnection = room.allowReconnection.bind(room);
+    // Keep the real reservation/expiry path, with a short fixture duration for prompt teardown.
+    room.allowReconnection = previous => allowReconnection(previous, 1);
+    let retryUpgrades = 0;
+    const upgraded = () => { retryUpgrades++; };
+    server.transport.server!.on('upgrade', upgraded);
+    (client.ref as unknown as { terminate(): void }).terminate();
+    await until(() => statuses.some(s => s.state === 'reconnecting'), 'socket enters reconnect before leaving');
+    let outcome = 'pending';
+    const disposing = value.dispose().then(() => { outcome = 'completed'; }, () => { outcome = 'rejected'; });
+    try {
+      await pause(500);
+      expect(outcome, 'Returning to dispatch must not wait for a broken socket to reconnect').toBe('completed');
+      expect(retryUpgrades, 'A queued SDK retry must not recreate a disposed transport').toBe(0);
+      expect(statuses.at(-1)!.state).toBe('disconnected');
+    } finally {
+      server.transport.server!.off('upgrade', upgraded);
+      await Promise.race([disposing, pause(1000)]);
+    }
+  });
+
+  it('bounds disposal when the server never answers an intentional leave handshake', async () => {
+    const value = session(), join = await value.connect({ mode: 'create', nickname: 'Unanswered leave' });
+    const room = matchMaker.getLocalRoomById(join.roomId), client = room.clients.find(c => c.sessionId === join.playerId)!;
+    const socket = client.ref as unknown as { close(code?: number, reason?: string): void; terminate(): void };
+    const close = socket.close.bind(socket);
+    socket.close = (code, reason) => { if (code !== 4000) close(code, reason); };
+    const disposing = value.dispose();
+    try {
+      const completed = await Promise.race([disposing.then(() => true), pause(1500).then(() => false)]);
+      expect(completed, 'Leaving dispatch needs a deadline when the close acknowledgement never arrives').toBe(true);
+    } finally {
+      socket.close = close; socket.terminate();
+      await Promise.race([disposing, pause(1000)]);
+    }
+  });
+
   it('reports incompatible content through the status error channel', async () => {
     const value = session({ ...districtMap, revision: 'incompatible-test-map' }), statuses: SessionStatus[] = []; value.onStatus(s => statuses.push(s));
     await expect(value.connect({ mode: 'create', nickname: 'Wrong map' })).rejects.toThrow('version-mismatch');
     expect(statuses.at(-1)).toMatchObject({ state: 'error', reason: 'version-mismatch' });
+  });
+
+  it('immediately echoes the server latency nonce so every participant can see measured ping', async () => {
+    const value = session(), join = await value.connect({ mode: 'create', nickname: 'Latency probe' });
+    const room = matchMaker.getLocalRoomById(join.roomId), nonce = 'facade-latency-regression';
+    const response = new Promise<unknown>(resolve => room.onMessage('latency-pong', (_client, message: unknown) => {
+      if (typeof message === 'object' && message !== null && 'nonce' in message && message.nonce === nonce) resolve(message);
+    }));
+    room.broadcast('latency-probe', { nonce });
+    expect(await Promise.race([response, pause(750).then(() => null)])).toEqual({ nonce });
   });
 
   it('reports a missing room through the status error channel', async () => {

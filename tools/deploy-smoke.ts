@@ -15,6 +15,7 @@ for (const route of ['/ready', '/']) {
 const client = new Client(endpoint);
 const rooms: Room[] = [];
 const states = new Map<string, WorldSnapshot>();
+const hasAllPlayerPings = (state: WorldSnapshot | undefined) => !!state && rooms.every(player => state.scores.some(score => score.playerId === player.sessionId && typeof score.pingMs === 'number' && Number.isFinite(score.pingMs) && score.pingMs >= 0));
 try {
   for (let i = 0; i < 2; i++) {
     const options = { nickname: `Deploy check ${i + 1}`, protocolVersion: PROTOCOL_VERSION, gameplayRevision: GAMEPLAY_REVISION, mapRevision: districtMap.revision };
@@ -22,15 +23,17 @@ try {
     rooms.push(room);
     room.onMessage('snapshot', (wire: WireSnapshot) => states.set(room.sessionId, unpackSnapshot(wire)));
     room.onMessage('events', () => {});
+    room.onMessage('latency-probe', ({ nonce }: { nonce: string }) => room.send('latency-pong', { nonce }));
     room.send('resync');
   }
   rooms[0]!.send('start-round');
   const deadline = performance.now() + 15_000;
-  while (performance.now() < deadline && !rooms.every(room => states.get(room.sessionId)?.phase === 'playing')) {
+  while (performance.now() < deadline && !rooms.every(room => states.get(room.sessionId)?.phase === 'playing' && hasAllPlayerPings(states.get(room.sessionId)))) {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   for (const room of rooms) {
     const state = states.get(room.sessionId);
+    assert.ok(hasAllPlayerPings(state), `observer ${room.sessionId} must receive both players' finite nonnegative pingMs`);
     assert.equal(state?.phase, 'playing', 'two real WebSocket clients must reach a live round');
     assert.equal(state.scores.length, 2);
     assert.ok(state.local?.vehicle, 'each player needs an authoritative car');
@@ -39,4 +42,4 @@ try {
   for (const room of rooms) room.reconnection.enabled = false;
   await Promise.all(rooms.map(room => room.leave(true)));
 }
-console.log(`Production smoke passed: HTML, readiness, two WebSocket players and round start at ${endpoint}`);
+console.log(`Production smoke passed: HTML, readiness, two WebSocket players, round start and per-player ping at ${endpoint}`);

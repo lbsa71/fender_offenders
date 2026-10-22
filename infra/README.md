@@ -26,7 +26,9 @@ pnpm test:deploy
 Remove-Item Env:TEST_SERVER_URL
 ```
 
-This checks readiness, production HTML, two WebSocket players, authoritative cars and round start. It creates and then leaves a temporary room. It does not substitute for browser rendering, internet-latency and sustained-capacity checks.
+This checks readiness, production HTML, two WebSocket players, authoritative cars, round start and both players' measured ping on both clients. It creates and then leaves a temporary room. It does not substitute for browser rendering, internet-latency and sustained-capacity checks.
+
+A deployment ends existing in-memory rooms. Refresh and create a new room if an old session cannot reconnect after a rollout. A 522 response is an edge-to-origin connection timeout; inspect the failed URL, timestamp and Render logs before attributing it to game simulation or a particular outage.
 
 ## Local and self-hosted operation
 

@@ -110,6 +110,7 @@ interface PlayerScore {
   score: number;
   wrecks: number;
   connection: "connected" | "reconnecting";
+  pingMs?: number | null; // server-measured RTT; null/absent means unavailable
 }
 
 interface WorldSnapshot {
@@ -225,6 +226,8 @@ Types referenced but not expanded here (`SessionRequest`, `JoinResult`, `Session
 Do not put prediction into `GameRenderer`. `net-client` owns the online prediction controller and exposes its render sample; practice uses a local simulation presentation adapter. The app chooses the session implementation once, not through mode checks spread across every package.
 
 UI consumes a derived `HudModel` (speed, health, scores, timer, connection, prompts) and emits semantic actions. UI cannot write `WorldSnapshot`. Owner F defines the mapping; UI lane owns its presentation.
+
+Online standings and results display each score's `pingMs` in milliseconds; unavailable values use “—”. Practice omits the ping column. The server's `latency-probe` and client's `latency-pong` both carry `{ nonce: string }`; clients cannot submit a claimed latency value. Compact snapshots normalize omitted latency to `null` for compatibility with older snapshots. Connection status remains visible independently of the ping column.
 
 ## 6. Map and asset schemas
 

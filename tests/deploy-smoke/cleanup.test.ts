@@ -53,9 +53,10 @@ it('exits successfully after smoke assertions even when a proxy changes intentio
     child.on('exit', code => { exitCode = code; });
     child.stdout!.on('data', bytes => { output += bytes.toString(); });
     child.stderr!.on('data', bytes => { output += bytes.toString(); });
-    const deadline = performance.now() + 12000;
+    const deadline = performance.now() + 18000;
     while (!output.includes('Production smoke passed:') && performance.now() < deadline && exitCode === undefined) await new Promise(resolve => setTimeout(resolve, 20));
     expect(output, 'The real smoke must finish its two-player round assertions first').toContain('Production smoke passed:');
+    expect(output, 'The real smoke must verify both players latency for every observer').toContain('per-player ping');
     const cleanupDeadline = performance.now() + 2000;
     while (exitCode === undefined && performance.now() < cleanupDeadline) await new Promise(resolve => setTimeout(resolve, 20));
     expect(consentedCloseCodes).toHaveLength(2);
@@ -64,4 +65,4 @@ it('exits successfully after smoke assertions even when a proxy changes intentio
   } finally {
     if (child && exitCode === undefined) child.kill();
   }
-}, 20000);
+}, 25000);

@@ -84,6 +84,15 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const all = <T extends HTMLElement = HTMLElement>(selector: string) => [...shell.querySelectorAll<T>(selector)];
   const write = (key: string, value: string) => { const node = one(`[data-text="${key}"]`); if (node.textContent !== value) node.textContent = value; };
   const hide = (selector: string, hidden: boolean) => { one(selector).hidden = hidden; };
+  const connectivityIcon = doc.createElement('span'); connectivityIcon.className = 'fo-connectivity-icon';
+  connectivityIcon.setAttribute('role', 'img'); connectivityIcon.setAttribute('aria-live', 'polite');
+  connectivityIcon.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 8a15 15 0 0 1 18 0M6 11.5a10 10 0 0 1 12 0M9 15a5 5 0 0 1 6 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="19" r="1.3" fill="currentColor"/><path class="fo-wifi-slash" d="m3 3 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  one('.fo-connection i').replaceWith(connectivityIcon);
+  for (const selector of ['[data-scores]', '[data-results]']) {
+    const heading = doc.createElement('div'); heading.className = 'fo-score-head';
+    heading.innerHTML = '<span aria-hidden="true">#</span><span>UNIT</span><span class="fo-ping-label">PING / ms</span><span>PTS</span>';
+    one(selector).before(heading);
+  }
   const nickname = one<HTMLInputElement>('[name="nickname"]');
   const roomInput = one<HTMLInputElement>('[name="room"]');
   const notify = (message: string) => { const node = one('.fo-notice'); node.textContent = message; node.hidden = !message; };
@@ -164,22 +173,28 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   };
   shell.addEventListener('click', click); shell.addEventListener('input', change); one('form').addEventListener('submit', submit); doc.addEventListener('keydown', remapKey, true);
   const scoreRows = new Map<string, HTMLLIElement>();
+  const resultRows = new Map<string, HTMLLIElement>();
   function updateScores(target: HTMLOListElement, results: boolean) {
     const scores = [...(model.snapshot?.scores ?? [])].sort((a, b) => b.score - a.score || a.nickname.localeCompare(b.nickname));
-    if (results) target.replaceChildren();
+    const rows = results ? resultRows : scoreRows;
     const liveIds = new Set(scores.map(score => score.playerId));
-    if (!results) for (const [id, row] of scoreRows) if (!liveIds.has(id)) { row.remove(); scoreRows.delete(id); }
+    for (const [id, row] of rows) if (!liveIds.has(id)) { row.remove(); rows.delete(id); }
     scores.forEach((score, rank) => {
-      let row = results ? undefined : scoreRows.get(score.playerId);
-      if (!row) { row = doc.createElement('li'); row.innerHTML = '<span></span><span></span><strong></strong>'; if (!results) scoreRows.set(score.playerId, row); }
+      let row = rows.get(score.playerId);
+      if (!row) { row = doc.createElement('li'); row.innerHTML = '<span></span><span class="fo-score-name"></span><span class="fo-ping"></span><strong></strong>'; rows.set(score.playerId, row); }
+      row.dataset.playerId = score.playerId;
       row.classList.toggle('fo-you', score.playerId === model.localPlayerId);
       row.children[0]!.textContent = `${rank + 1}`;
       row.children[1]!.textContent = `${score.nickname}${score.playerId === model.localPlayerId ? ' / YOU' : ''}${score.connection === 'reconnecting' ? ' …' : ''}${results ? ` · ${score.wrecks} WRECKS` : ''}`;
-      row.children[2]!.textContent = String(score.score); target.append(row);
+      const ping = typeof score.pingMs === 'number' && Number.isFinite(score.pingMs) && score.pingMs >= 0 ? Math.round(score.pingMs) : null;
+      row.children[2]!.textContent = ping === null ? '—' : `${ping} ms`;
+      row.children[2]!.setAttribute('aria-label', `${score.nickname} ping: ${ping === null ? 'unavailable' : `${ping} milliseconds`}`);
+      row.children[3]!.textContent = String(score.score); target.append(row);
     });
   }
   function update(next: UiModel) {
     const previousPhase = model.snapshot?.phase; model = { ...model, ...next };
+    shell.classList.toggle('fo-online', model.mode === 'online');
     const snapshot = model.snapshot; const hud = deriveHud(model); const status = statusName(model.status);
     if (snapshot && menu === 'home' && status !== 'error') { resultDismissed = false; showMenu(null); notify(''); }
     if (snapshot?.phase === 'results' && previousPhase !== 'results') { resultDismissed = false; updateScores(one('[data-results]'), true); showMenu('pause'); }
@@ -188,8 +203,19 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     one<HTMLElement>('.fo-health i').style.width = `${Math.max(0, Math.min(100, hud.health))}%`; one('.fo-health').classList.toggle('fo-low-health', hud.health < 30);
     write('phase', model.mode === 'practice' ? 'FREE PATROL / PURSUIT' : hud.phase === 'lobby' ? 'WAITING FOR BACKUP' : hud.phase === 'countdown' ? 'PATROL STARTING' : hud.phase === 'results' ? 'CASE CLOSED' : 'FREE-FOR-ALL');
     write('timer', hud.phase === 'lobby' ? 'STAND BY' : model.mode === 'practice' ? 'ON DUTY' : time(hud.seconds));
-    write('connection', status === 'reconnecting' ? 'RECONNECTING…' : status === 'disconnected' ? 'DISPATCH LOST' : model.mode === 'online' ? `LIVE DISPATCH${model.pingMs === undefined ? '' : ` / ${Math.round(model.pingMs)} MS`}` : 'LOCAL DISPATCH');
-    shell.classList.toggle('fo-reconnecting', status === 'reconnecting' || status === 'disconnected');
+    const remoteConnection = model.mode === 'online' && status !== 'idle';
+    const reconnecting = remoteConnection && status === 'reconnecting';
+    const connectionLost = remoteConnection && (status === 'disconnected' || status === 'error');
+    const connecting = remoteConnection && status === 'connecting';
+    const connectionLabel = !remoteConnection ? 'Local practice' : reconnecting ? 'Reconnecting' : connectionLost ? 'Connection lost' : connecting ? 'Connecting' : 'Connected';
+    connectivityIcon.setAttribute('aria-label', connectionLabel);
+    const connection = one('.fo-connection');
+    connection.classList.toggle('fo-connection-local', !remoteConnection);
+    connection.classList.toggle('fo-connection-reconnecting', reconnecting);
+    connection.classList.toggle('fo-connection-broken', connectionLost);
+    connection.classList.toggle('fo-connection-connecting', connecting);
+    write('connection', !remoteConnection ? 'LOCAL DISPATCH' : reconnecting ? 'Reconnecting…' : connectionLost ? 'Connection lost' : connecting ? 'Connecting…' : `CONNECTED${model.pingMs === undefined ? '' : ` / ${Math.round(model.pingMs)} MS`}`);
+    shell.classList.toggle('fo-reconnecting', reconnecting);
     write('room', model.roomId ? ` / ${model.roomId}` : ''); hide('.fo-invite', !model.roomId || model.mode !== 'online');
     hide('.fo-start', !snapshot || snapshot.phase !== 'lobby' || model.mode !== 'online' || model.canStart === false);
     write('prompts', model.device === 'gamepad' ? 'LEFT STICK DRIVE · RT/LT DRIVE/BRAKE · A DRIFT · RB FIRE · X SIREN · HOLD Y RECOVER' : 'WASD DRIVE · SHIFT DRIFT · SPACE FIRE · E SIREN · HOLD R RECOVER');
@@ -200,6 +226,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     const showCallout = snapshot?.phase === 'countdown' || hud.status !== 'active'; hide('.fo-center-callout', !showCallout);
     write('callout-label', snapshot?.phase === 'countdown' ? 'READY TO ROLL?' : 'UNIT OUT OF ACTION'); write('callout', snapshot?.phase === 'countdown' ? String(Math.max(1, Math.ceil(hud.seconds))) : `BACK IN ${Math.ceil(hud.respawn)}…`);
     updateScores(one('[data-scores]'), false);
+    if (snapshot?.phase === 'results') updateScores(one('[data-results]'), true);
     const reason = typeof model.status === 'object' ? model.status.reason ?? model.status.message : undefined;
     const error = model.error ?? (status === 'error' ? reason ?? 'network-error' : null);
     if (error) { if (menu === null) showMenu('pause'); notify(errorMessages[error] ?? error); }

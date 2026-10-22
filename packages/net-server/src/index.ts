@@ -5,7 +5,7 @@ import { districtMap } from '@fender/content';
 import { createSimulation, initPhysics, type Simulation } from '@fender/sim';
 import { GAMEPLAY_REVISION, PROTOCOL_VERSION, isInputCommand, isRecord, neutralActions, packSnapshot, sanitizeNickname, type AppliedDriverInput, type InputCommand, type WorldSnapshot } from '@fender/contracts';
 
-interface DriverConnection { epoch: string; entityId: string; queue: InputCommand[]; last: InputCommand | null; ack: number; received: number; lastInputAt: number; connected: boolean; windowStart: number; packets: number; reset?: WorldSnapshot['resetReason']; }
+interface DriverConnection { epoch: string; entityId: string; queue: InputCommand[]; last: InputCommand | null; ack: number; received: number; lastInputAt: number; connected: boolean; windowStart: number; packets: number; reset?: WorldSnapshot['resetReason']; client: Client; latencyProbe: { nonce: string; sentAt: number } | null; pingMs: number | null; latencyMeasuredAt: number | null; }
 export const serverMetrics = { rooms: 0, steps: 0, rejectedInputs: 0, queueResets: 0, slowSteps: 0, maxStepMs: 0, bytesPublished: 0, draining: false };
 export class DrivingRoom extends Room {
   maxClients = 8;
@@ -42,6 +42,23 @@ export class DrivingRoom extends Room {
     this.onMessage('start-round', client => this.sim.startRound(client.sessionId));
     this.onMessage('rematch', client => this.sim.rematch(client.sessionId));
     this.onMessage('ping', (client, message: unknown) => { if (typeof message === 'number' && Number.isFinite(message)) client.send('pong', { sent: message, tick: this.tick }); });
+    this.onMessage('latency-pong', (client, message: unknown) => {
+      const d = this.drivers.get(client.sessionId);
+      if (!d?.connected || d.client !== client || !d.latencyProbe || !isRecord(message) || message.nonce !== d.latencyProbe.nonce) return;
+      const now = performance.now(), elapsed = now - d.latencyProbe.sentAt;
+      d.latencyProbe = null; // A nonce accepts exactly one response from its current connection.
+      if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > 5000) return;
+      d.pingMs = Math.round(elapsed); d.latencyMeasuredAt = now;
+    });
+    this.clock.setInterval(() => {
+      for (const client of this.clients) {
+        const d = this.drivers.get(client.sessionId); if (!d?.connected || d.client !== client) continue;
+        const now = performance.now();
+        if (d.latencyProbe && now - d.latencyProbe.sentAt < 5000) continue;
+        d.latencyProbe = { nonce: randomUUID(), sentAt: now };
+        client.send('latency-probe', { nonce: d.latencyProbe.nonce });
+      }
+    }, 1000);
     this.setSimulationInterval(dt => {
       this.accumulator += Math.min(dt, 250);
       let count = 0;
@@ -57,7 +74,7 @@ export class DrivingRoom extends Room {
   onJoin(client: Client, _options: unknown, auth: { nickname: string }) {
     const epoch = randomUUID();
     const car = this.sim.addPlayer({ playerId: client.sessionId, nickname: auth.nickname, sessionEpoch: epoch, bodyAssetId: ['police', 'interceptor', 'coupe'][this.drivers.size % 3] });
-    this.drivers.set(client.sessionId, { epoch, entityId: car.entityId, queue: [], last: null, ack: -1, received: -1, lastInputAt: 0, connected: true, windowStart: performance.now(), packets: 0, reset: 'join' });
+    this.drivers.set(client.sessionId, { epoch, entityId: car.entityId, queue: [], last: null, ack: -1, received: -1, lastInputAt: 0, connected: true, windowStart: performance.now(), packets: 0, reset: 'join', client, latencyProbe: null, pingMs: null, latencyMeasuredAt: null });
     this.publish(client);
   }
   private neutralize(id: string) {
@@ -82,6 +99,12 @@ export class DrivingRoom extends Room {
   private publish(client: Client) {
     const d = this.drivers.get(client.sessionId); if (!d || !d.connected) return;
     const snapshot = this.sim.snapshot(client.sessionId);
+    const now = performance.now();
+    snapshot.scores = snapshot.scores.map(score => {
+      const connection = this.drivers.get(score.playerId);
+      const fresh = connection?.connected && connection.latencyMeasuredAt !== null && now - connection.latencyMeasuredAt <= 3000;
+      return { ...score, pingMs: fresh ? connection.pingMs : null };
+    });
     snapshot.sessionEpoch = d.epoch; if (snapshot.local) snapshot.local.lastConsumedSequence = d.ack;
     snapshot.resetReason = d.reset; d.reset = undefined;
     const wire = packSnapshot(snapshot); serverMetrics.bytesPublished += JSON.stringify(wire).length;
@@ -89,13 +112,14 @@ export class DrivingRoom extends Room {
   }
   async onDrop(client: Client) {
     const d = this.drivers.get(client.sessionId); if (!d) return;
-    d.connected = false; this.neutralize(client.sessionId); this.sim.setConnection(client.sessionId, 'reconnecting');
+    d.connected = false; d.latencyProbe = null; d.pingMs = null; d.latencyMeasuredAt = null; this.neutralize(client.sessionId); this.sim.setConnection(client.sessionId, 'reconnecting');
     try { await this.allowReconnection(client, 10); } catch { /* onLeave performs final disposal. */ }
   }
   onReconnect(client: Client) {
     const d = this.drivers.get(client.sessionId); if (!d) return;
     // Preserve stable identity but replace the input epoch so old queued packets cannot resume.
     d.epoch = randomUUID(); d.connected = true; d.received = -1; d.ack = -1; d.last = null; d.queue = []; d.reset = 'reconnect';
+    d.client = client; d.latencyProbe = null; d.pingMs = null; d.latencyMeasuredAt = null;
     this.sim.setConnection(client.sessionId, 'connected'); this.publish(client);
   }
   onLeave(client: Client) { this.drivers.delete(client.sessionId); this.sim?.removePlayer(client.sessionId); }

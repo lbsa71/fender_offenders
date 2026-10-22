@@ -13,12 +13,12 @@ export interface WireSnapshot {
 export function packSnapshot(s: WorldSnapshot): WireSnapshot {
   return { v: [s.protocolVersion, s.mapRevision, s.gameplayRevision], e: s.sessionEpoch, t: s.serverTick, m: s.matchId, p: s.phase, end: s.phaseEndsAtTick,
     cars: s.vehicles.map(packCar), shots: s.projectiles.map(p => [p.entityId, p.ownerEntityId, q(p.pose.x), q(p.pose.z), q(p.pose.yaw), q(p.velocity.x), q(p.velocity.z), p.bornTick, p.expiresTick, p.sourceCommandSequence, p.sourceShotOrdinal]),
-    scores: s.scores, local: s.local ? [s.local.vehicle.entityId, s.local.driver, s.local.lastConsumedSequence] : null, reset: s.resetReason, pursuit: s.pursuit };
+    scores: s.scores.map(score => ({ ...score, pingMs: score.pingMs ?? null })), local: s.local ? [s.local.vehicle.entityId, s.local.driver, s.local.lastConsumedSequence] : null, reset: s.resetReason, pursuit: s.pursuit };
 }
 export function unpackSnapshot(s: WireSnapshot): WorldSnapshot {
   const vehicles = s.cars.map(unpackCar);
   const projectiles: ProjectileState[] = s.shots.map(p => ({ entityId: p[0], ownerEntityId: p[1], pose: { x: p[2], z: p[3], yaw: p[4] }, velocity: { x: p[5], z: p[6], yawRate: 0 }, bornTick: p[7], expiresTick: p[8], sourceCommandSequence: p[9], sourceShotOrdinal: p[10] }));
   const car = s.local ? vehicles.find(v => v.entityId === s.local![0]) : null;
-  return { protocolVersion: s.v[0], mapRevision: s.v[1], gameplayRevision: s.v[2], sessionEpoch: s.e, serverTick: s.t, matchId: s.m, phase: s.p, phaseEndsAtTick: s.end, vehicles, projectiles, scores: s.scores,
+  return { protocolVersion: s.v[0], mapRevision: s.v[1], gameplayRevision: s.v[2], sessionEpoch: s.e, serverTick: s.t, matchId: s.m, phase: s.p, phaseEndsAtTick: s.end, vehicles, projectiles, scores: s.scores.map(score => ({ ...score, pingMs: score.pingMs ?? null })),
     local: s.local && car ? { vehicle: car, driver: s.local[1], lastConsumedSequence: s.local[2] } : null, resetReason: s.reset, pursuit: s.pursuit };
 }

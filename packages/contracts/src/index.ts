@@ -34,7 +34,10 @@ export interface ProjectileState {
 export interface PlayerScore {
   playerId: string; nickname: string; score: number; wrecks: number;
   connection: 'connected' | 'reconnecting';
+  /** Server-measured round-trip milliseconds; absent/unknown/stale values are unavailable. */
+  pingMs?: number | null;
 }
+export interface LatencyProbe { nonce: string }
 export interface WorldSnapshot {
   protocolVersion: number; mapRevision: string; gameplayRevision: string;
   sessionEpoch: string; serverTick: number; matchId: string;

@@ -123,6 +123,12 @@ Only one module owns prediction. If the chosen Colyseus release supplies suitabl
 
 Render other cars initially about 100 ms behind estimated server time, with a tunable 50–150 ms buffer. Interpolate buffered snapshots by server tick. Bound extrapolation to 100 ms, then hold/fade with a connection indication. Reset histories across teleports, respawns, and session epochs. Remote health and scores use confirmed state, not extrapolation.
 
+The current implementation uses a fixed 100 ms buffer. Its presentation tick cannot move backward when a late snapshot lowers the clock estimate: playback holds until the estimate catches up. Match changes also clear history and the presentation tick. This prevents clock-induced backward motion; it does not remove authoritative collision corrections or implement an adaptive jitter buffer.
+
+### Shared latency display
+
+The server probes each connected player approximately once per second with an opaque, single-use nonce. The client echoes it; the server measures round-trip time with its monotonic clock and publishes `pingMs` in every observer's score rows. Keep an unanswered probe until its reply or five-second expiry so RTT above one second remains measurable. Accept replies only from the current connection with the current nonce. Measurements older than three seconds, disconnected players and unmeasured players publish `null`; reconnect clears the previous measurement. This is client-to-server RTT, not direct latency between players.
+
 ### Combat timing
 
 Use visible projectiles and swept collision at server tick rate. Test a relative-motion sweep for moving targets, and treat teleport/respawn as discontinuities. This reduces tunneling and makes the first weapon understandable without hitscan rewind.
@@ -134,6 +140,8 @@ Do not rewind the whole world to a client-supplied timestamp in the initial buil
 Reserve a slot for 10 seconds after unexpected disconnect. Neutralize and brake the car; keep it damageable and retain score. On reconnect, require the room's reconnect token/session epoch and send current full state. Clear old commands and visual predictions. On timeout remove the participant. Rejoining later creates a new session with no restoration guarantee.
 
 Clients must receive a readable reason for full room, incompatible version, expired room, transport failure, or shutdown. Idle empty rooms expire after a configurable period, initially 60 seconds.
+
+The online HUD keeps a visible Wi-Fi icon and text for connecting, connected, reconnecting and connection lost. Practice uses a local-dispatch label. Intentionally leaving disables SDK reconnect; disposal must also prevent an already queued retry from opening another socket and must finish when a close handshake never arrives.
 
 ## 6. Maps and content
 
