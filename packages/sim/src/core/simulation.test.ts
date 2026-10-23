@@ -30,7 +30,28 @@ describe('fixed-step shared simulation', () => {
     for (let i = 90; i < 120; i++) sim.step(new Map([[a.entityId, input({ throttle: 1, steer: 1 }, i)]]));
     const turning = sim.snapshot('a').local!.vehicle;
     expect(turning.pose.x).toBeGreaterThan(straight.pose.x); expect(turning.pose.yaw).toBeGreaterThan(0);
-    expect(Math.hypot(turning.velocity.x, turning.velocity.z)).toBeLessThanOrEqual(24.001); sim.dispose();
+    expect(Math.hypot(turning.velocity.x, turning.velocity.z)).toBeLessThanOrEqual(DEFAULT_GAMEPLAY_CONFIG.vehicle.topSpeed + 0.001); sim.dispose();
+  });
+  it('grips in gentle corners, power-drifts on full lock, holds a handbrake drift on a centred stick and straightens on counter-steer or lift-off', () => {
+    const slipOf = (v: { velocity: { x: number; z: number }; pose: { yaw: number } }) => { const heading = Math.atan2(v.velocity.x, v.velocity.z); return Math.abs(Math.atan2(Math.sin(heading - v.pose.yaw), Math.cos(heading - v.pose.yaw))); };
+    const run = (phases: Array<[number, Partial<DriverActions>]>, sample: (slip: number, speed: number, phase: number, tick: number) => void) => {
+      const sim = createSimulation(map(), { trafficCount: 0 }); const a = player(sim); let i = 0;
+      phases.forEach(([ticks, actions], phase) => { for (let k = 0; k < ticks; k++, i++) { sim.step(new Map([[a.entityId, input(actions, i)]])); const v = sim.snapshot('a').local!.vehicle; sample(slipOf(v), Math.hypot(v.velocity.x, v.velocity.z), phase, k); } });
+      sim.dispose();
+    };
+    let worst = 0;
+    run([[150, { throttle: 1 }], [180, { throttle: 1, steer: 0.6 }]], (slip, _s, phase) => { if (phase === 1) worst = Math.max(worst, slip); });
+    expect(worst).toBeLessThan(0.2);
+    let powerOver = 0;
+    run([[150, { throttle: 1 }], [120, { throttle: 1, steer: 1 }]], (slip, _s, phase, tick) => { if (phase === 1 && tick === 119) powerOver = slip; });
+    expect(powerOver).toBeGreaterThan(0.35);
+    const held: number[] = [], heldSpeed: number[] = [];
+    run([[55, { throttle: 1 }], [30, { throttle: 0.5, steer: 1, handbrake: true }], [180, { throttle: 1, steer: 0 }]], (slip, speed, phase, tick) => { if (phase === 2 && tick >= 60) { held.push(slip); heldSpeed.push(speed); } });
+    expect(Math.min(...held)).toBeGreaterThan(0.35); expect(Math.max(...held)).toBeLessThan(0.7); expect(Math.min(...heldSpeed)).toBeGreaterThan(15);
+    let afterCounter = 1, afterLift = 1;
+    run([[55, { throttle: 1 }], [30, { throttle: 0.5, steer: 1, handbrake: true }], [60, { throttle: 1, steer: 0 }], [30, { throttle: 1, steer: -1 }], [60, { throttle: 1, steer: 0 }]], (slip, _s, phase, tick) => { if (phase === 4 && tick === 59) afterCounter = slip; });
+    run([[55, { throttle: 1 }], [30, { throttle: 0.5, steer: 1, handbrake: true }], [60, { throttle: 1, steer: 0 }], [90, { throttle: 0, steer: 0 }]], (slip, _s, phase, tick) => { if (phase === 3 && tick === 89) afterLift = slip; });
+    expect(afterCounter).toBeLessThan(0.2); expect(afterLift).toBeLessThan(0.1);
   });
   it('brakes before reversing and requires a deliberate reverse hold', () => {
     const sim = createSimulation(map(), { trafficCount: 0 }); const a = player(sim);

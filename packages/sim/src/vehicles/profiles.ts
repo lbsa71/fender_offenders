@@ -11,9 +11,11 @@ export function tuningForVehicle(config: SimulationConfig, vehicle: ProfileVehic
   return { ...tune,
     maxSpeed: tune.maxSpeed * profile.topSpeed / baseline.topSpeed,
     acceleration: tune.acceleration * profile.acceleration / baseline.acceleration,
-    steeringRate: tune.steeringRate * profile.steeringRate / baseline.steeringRate,
-    grip: tune.grip * profile.grip / baseline.grip,
-    driftGrip: tune.driftGrip * profile.grip / baseline.grip,
+    steerLock: tune.steerLock * profile.steeringRate / baseline.steeringRate,
+    corneringStiffness: tune.corneringStiffness * profile.grip / baseline.grip,
+    frontGrip: tune.frontGrip * profile.grip / baseline.grip,
+    rearGrip: tune.rearGrip * profile.grip / baseline.grip,
+    handbrakeGrip: tune.handbrakeGrip * profile.grip / baseline.grip,
   };
 }
 

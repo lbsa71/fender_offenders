@@ -29,12 +29,49 @@ export function driveVehicle(vehicle: VehicleState, driver: DriverRuntimeState, 
     if (forward > 0.5) { forward = Math.max(0, forward - tune.braking * actions.brakeReverse * dt); driver.reverseHoldTicks = 0; }
     else { driver.reverseHoldTicks++; if (driver.reverseHoldTicks >= tune.reverseHoldTicks) forward -= tune.reverseAcceleration * actions.brakeReverse * dt; }
   } else { driver.reverseHoldTicks = 0; forward += tune.acceleration * actions.throttle * dt; }
-  if (actions.handbrake) forward *= Math.exp(-1.6 * dt);
+  if (actions.handbrake) forward -= Math.sign(forward) * Math.min(Math.abs(forward), tune.handbrakeDecel * dt);
   forward *= Math.exp(-tune.drag * dt);
   forward = clamp(forward, -tune.reverseSpeed, tune.maxSpeed * (surface === 'grass' ? 0.65 : 1));
-  side *= Math.exp(-(actions.handbrake ? tune.driftGrip : tune.grip) * gripScale * dt);
-  vehicle.velocity.yawRate = driver.resolvedSteering * tune.steeringRate * Math.min(1, Math.abs(forward) / 5) * Math.sign(forward) / (1 + Math.abs(forward) / 35);
-  vehicle.pose.yaw = wrapAngle(vehicle.pose.yaw + vehicle.velocity.yawRate * dt);
+  // Steering lock shrinks with speed so full stick is usable on the highway.
+  const delta = driver.resolvedSteering * tune.steerLock / (1 + Math.abs(forward) / tune.steerLockFalloff);
+  const a = tune.cgToFront, b = tune.cgToRear, floor = tune.slipSpeedFloor;
+  let omega = vehicle.velocity.yawRate;
+  // Tyre slip angles in each tyre's own frame; the speed floor keeps crawling stable.
+  const frontLat = (side + omega * a) * Math.cos(delta) - forward * Math.sin(delta);
+  const frontLong = (side + omega * a) * Math.sin(delta) + forward * Math.cos(delta);
+  const slipFront = Math.atan2(frontLat, Math.max(Math.abs(frontLong), floor));
+  const slipRear = Math.atan2(side - omega * b, Math.max(Math.abs(forward), floor));
+  // Rear grip drops under power or handbrake; that is what starts and feeds a drift. Power-over scales with lock so a
+  // gentle fast corner keeps grip while full lock plus throttle breaks the rear loose.
+  const frontCap = tune.frontGrip * gripScale;
+  const powerLoss = tune.throttleGripLoss * actions.throttle * (0.5 + 0.5 * Math.abs(driver.resolvedSteering));
+  const rearCap = (actions.handbrake ? tune.handbrakeGrip : tune.rearGrip * (1 - powerLoss)) * gripScale;
+  const frontForce = clamp(-tune.corneringStiffness * slipFront, -frontCap, frontCap) * Math.cos(delta);
+  const rearForce = clamp(-tune.corneringStiffness * slipRear, -rearCap, rearCap);
+  // Physics alone makes a counter-steered drift a knife edge, so once the rear is well past its grip the yaw is servoed toward
+  // a drift angle set by the stick: centred or into the turn holds driftAngle, counter-steer trims it down to straight.
+  const saturation = rearCap / tune.corneringStiffness, rearSlip = Math.abs(slipRear);
+  const drifting = clamp((rearSlip - tune.driftEntryAngle) / tune.driftEntryWidth, 0, 1) * clamp(rearSlip / saturation - 1, 0, 1);
+  const speed = Math.hypot(forward, side), slipAngle = Math.atan2(side, Math.abs(forward)) * Math.sign(forward || 1);
+  const pathRate = speed > floor ? (frontForce + rearForce) * Math.cos(slipAngle) / speed * Math.sign(forward || 1) : 0;
+  const into = -Math.sign(slipAngle), targetAngle = -into * tune.driftAngle * clamp(1 + driver.resolvedSteering * into, 0, 1);
+  const driftRate = pathRate - tune.driftSteerGain * clamp(targetAngle - slipAngle, -tune.driftSteerWindow, tune.driftSteerWindow);
+  const physicalRate = omega + (frontForce * a - rearForce * b) / tune.yawInertia * dt;
+  const damped = physicalRate * Math.exp(-tune.yawDamping * Math.max(Math.abs(forward), floor) / 20 * dt);
+  const servoed = omega + (driftRate - omega) * Math.min(1, tune.driftServoRate * dt);
+  omega = damped + (servoed - damped) * drifting;
+  // Below kinematicBlendSpeed the nose simply follows the wheels, so parking and reversing stay crisp.
+  const crawl = clamp(1 - Math.abs(forward) / tune.kinematicBlendSpeed, 0, 1);
+  omega += (forward * Math.tan(delta) / (a + b) - omega) * crawl;
+  side += (frontForce + rearForce) * dt;
+  side *= 1 - crawl * 0.5;
+  // Rotate the velocity into the new heading frame; momentum keeps pointing where it was.
+  const turn = omega * dt, rotatedForward = forward * Math.cos(turn) + side * Math.sin(turn), rotatedSide = side * Math.cos(turn) - forward * Math.sin(turn);
+  forward = rotatedForward; side = rotatedSide;
+  const cap = tune.maxSpeed * (surface === 'grass' ? 0.65 : 1), finalSpeed = Math.hypot(forward, side);
+  if (finalSpeed > cap) { forward *= cap / finalSpeed; side *= cap / finalSpeed; }
+  vehicle.velocity.yawRate = omega;
+  vehicle.pose.yaw = wrapAngle(vehicle.pose.yaw + turn);
   vehicle.velocity.x = Math.sin(vehicle.pose.yaw) * forward + Math.cos(vehicle.pose.yaw) * side;
   vehicle.velocity.z = Math.cos(vehicle.pose.yaw) * forward - Math.sin(vehicle.pose.yaw) * side;
   // Two bounded substeps keep movement below the thinnest authored curb.

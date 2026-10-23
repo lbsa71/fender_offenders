@@ -33,7 +33,8 @@ it('gives the roadster a real straight-line speed advantage over armor', () => {
     return Math.hypot(vehicle.velocity.x, vehicle.velocity.z);
   };
   const armored = speed('army'), fast = speed('roadster');
-  expect(armored).toBeCloseTo(20, 3); expect(fast).toBeCloseTo(28, 3); expect(fast).toBeGreaterThan(armored);
+  const base = DEFAULT_GAMEPLAY_CONFIG.vehicle.topSpeed / getVehicleProfile('patrol').topSpeed;
+  expect(armored).toBeCloseTo(base * getVehicleProfile('army').topSpeed, 3); expect(fast).toBeCloseTo(base * getVehicleProfile('roadster').topSpeed, 3); expect(fast).toBeGreaterThan(armored);
 });
 
 it('uses the shared gameplay revision and scales custom health and handling overrides proportionally', () => {
