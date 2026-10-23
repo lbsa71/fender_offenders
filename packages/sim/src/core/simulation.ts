@@ -1,10 +1,11 @@
-import { PROTOCOL_VERSION, isDriverActions, sanitizeNickname, validateMap } from '@fender/contracts';
+import { PROTOCOL_VERSION, isDriverActions, isVehicleBodyId, sanitizeNickname, validateMap } from '@fender/contracts';
 import type { AppliedDriverInput, CollisionMap, DriverActions, DriverRuntimeState, GameEvent, GameplayConfig, LocalAuthorityState, PlanarPose, PlayerScore, ProjectileState, VehicleState, WorldSnapshot } from '@fender/contracts';
 import { DEFAULT_GAMEPLAY_CONFIG, FIXED_DELTA, normalizeGameplay, type SimulationConfig } from './config.js';
 import { box, colliderPolygon, isPoseClear, overlap, segmentPolygon, type Point } from '../physics/geometry.js';
 import { driveVehicle, neutralActions, newDriver, resolveStatic, resolveVehicleContacts } from '../vehicles/controller.js';
 import { trafficInput, type TrafficRuntime } from '../traffic/traffic.js';
 import { createStaticQueries, type StaticQueries } from '../physics/rapier.js';
+import { maxHealthForVehicle } from '../vehicles/profiles.js';
 
 interface VehicleRecord {
   vehicle: VehicleState; driver: DriverRuntimeState; epoch: string; sequence: number;
@@ -24,6 +25,7 @@ export interface Simulation {
   addPlayer(options: PlayerOptions): VehicleState;
   removePlayer(playerId: string): void;
   setConnection(playerId: string, connection: PlayerScore['connection']): void;
+  setPlayerVehicle(playerId: string, bodyId: string): boolean;
   startRound(requesterId?: string): boolean;
   rematch(requesterId?: string): boolean;
   step(inputs: ReadonlyMap<string, AppliedDriverInput>): void;
@@ -75,7 +77,8 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
     return clone(candidates[0]!.pose);
   };
   const makeVehicle = (pose: PlanarPose, playerId: string | null, bodyAssetId: string): VehicleRecord => {
-    const vehicle: VehicleState = { entityId: `${matchId}:vehicle:${++counter}`, playerId, bodyAssetId, pose: clone(pose), velocity: { x: 0, z: 0, yawRate: 0 }, health: config.rules.health, status: 'active', protectedUntilTick: tick + config.rules.protectionTicks, respawnAtTick: null, sirenOn: false, discontinuityId: 0 };
+    const maxHealth = maxHealthForVehicle(config, { playerId, bodyAssetId });
+    const vehicle: VehicleState = { entityId: `${matchId}:vehicle:${++counter}`, playerId, bodyAssetId, pose: clone(pose), velocity: { x: 0, z: 0, yawRate: 0 }, health: maxHealth, maxHealth, status: 'active', protectedUntilTick: tick + config.rules.protectionTicks, respawnAtTick: null, sirenOn: false, discontinuityId: 0 };
     const record: VehicleRecord = { vehicle, driver: newDriver(), epoch: 'ai', sequence: -1, lastEdgeSequence: -1, lastAttacker: null, attackerTick: -Infinity };
     records.set(vehicle.entityId, record); return record;
   };
@@ -112,7 +115,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
   const respawn = (r: VehicleRecord) => {
     const pose = spawnPose(r.vehicle.entityId);
     if (!pose) { r.vehicle.status = 'respawning'; r.vehicle.respawnAtTick = tick + 30; return; }
-    r.vehicle.pose = pose; r.vehicle.velocity = { x: 0, z: 0, yawRate: 0 }; r.vehicle.health = config.rules.health;
+    r.vehicle.pose = pose; r.vehicle.velocity = { x: 0, z: 0, yawRate: 0 }; r.vehicle.maxHealth = maxHealthForVehicle(config, r.vehicle); r.vehicle.health = r.vehicle.maxHealth;
     r.vehicle.status = 'active'; r.vehicle.respawnAtTick = null; r.vehicle.discontinuityId++;
     r.vehicle.protectedUntilTick = tick + config.rules.protectionTicks; r.driver = newDriver(); r.lastAttacker = null;
     emit({ kind: 'respawn', payload: { vehicleId: r.vehicle.entityId, discontinuityId: r.vehicle.discontinuityId } });
@@ -198,6 +201,17 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
       if (phase === 'countdown' && scores.size < 2) { phase = 'lobby'; phaseEnd = null; }
     },
     setConnection(playerId, connection) { check(); const score = scores.get(playerId); if (score) score.connection = connection; },
+    setPlayerVehicle(playerId, bodyId) {
+      check();
+      if (!isVehicleBodyId(bodyId) || mode === 'multiplayer' && phase !== 'lobby') return false;
+      const record = recordForPlayer(playerId);
+      if (!record || mode === 'practice' && record.vehicle.status !== 'active') return false;
+      record.vehicle.bodyAssetId = bodyId;
+      record.vehicle.maxHealth = maxHealthForVehicle(config, record.vehicle); record.vehicle.health = record.vehicle.maxHealth;
+      record.vehicle.velocity = { x: 0, z: 0, yawRate: 0 }; record.vehicle.discontinuityId++;
+      record.driver = newDriver(); record.lastAttacker = null; record.attackerTick = -Infinity;
+      return true;
+    },
     startRound(requesterId) {
       check(); if (mode !== 'multiplayer' || phase !== 'lobby' || scores.size < 2 || requesterId !== undefined && requesterId !== creator) return false;
       phase = 'countdown'; phaseEnd = tick + config.rules.countdownTicks;

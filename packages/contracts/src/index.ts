@@ -3,7 +3,9 @@ export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v1';
+export const GAMEPLAY_REVISION = 'arcade-v2';
+export { VEHICLE_BODIES, VEHICLE_PROFILES, getVehicleProfile, isVehicleBodyId } from './vehicle-profiles';
+export type { VehicleBodyId, VehicleProfile } from './vehicle-profiles';
 export type DeviceKind = 'keyboard' | 'gamepad';
 export interface DriverActions {
   steer: number; throttle: number; brakeReverse: number;
@@ -18,7 +20,7 @@ export interface PlanarPose { x: number; z: number; yaw: number }
 export interface PlanarVelocity { x: number; z: number; yawRate: number }
 export interface VehicleState {
   entityId: string; playerId: string | null; bodyAssetId: string;
-  pose: PlanarPose; velocity: PlanarVelocity; health: number;
+  pose: PlanarPose; velocity: PlanarVelocity; health: number; maxHealth?: number;
   status: 'active' | 'wrecked' | 'respawning'; protectedUntilTick: number;
   respawnAtTick: number | null; sirenOn: boolean; discontinuityId: number;
 }
@@ -84,13 +86,14 @@ export interface RenderFrame {
 export interface SessionRequest {
   mode: 'practice' | 'create' | 'join'; nickname: string; roomId?: string;
   protocolVersion?: number; mapRevision?: string; gameplayRevision?: string;
+  vehicleBodyId?: import('./vehicle-profiles').VehicleBodyId;
 }
 export interface JoinResult {
   playerId: string; roomId: string; sessionEpoch: string;
   protocolVersion: number; mapRevision: string; gameplayRevision: string;
   firstState: WorldSnapshot; localEntityId: string | null;
 }
-export type SessionError = 'room-full' | 'room-missing' | 'server-capacity' | 'version-mismatch' | 'invalid-name' | 'server-shutdown' | 'network-error' | 'reconnect-expired';
+export type SessionError = 'room-full' | 'room-missing' | 'server-capacity' | 'version-mismatch' | 'invalid-name' | 'invalid-vehicle' | 'server-shutdown' | 'network-error' | 'reconnect-expired';
 export interface SessionStatus {
   state: 'idle' | 'connecting' | 'lobby' | 'playing' | 'reconnecting' | 'disconnected' | 'error';
   reason?: SessionError; message?: string; retryDelay?: number;
@@ -99,6 +102,7 @@ export interface GameSession {
   connect(request: SessionRequest): Promise<JoinResult>;
   submit(command: InputCommand): void; neutralize(): void;
   request(action: 'start-round' | 'rematch' | 'leave'): void;
+  selectVehicle(bodyId: import('./vehicle-profiles').VehicleBodyId): void;
   onSnapshot(callback: (snapshot: WorldSnapshot) => void): () => void;
   onEvents(callback: (events: GameEvent[]) => void): () => void;
   onStatus(callback: (status: SessionStatus) => void): () => void;

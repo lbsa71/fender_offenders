@@ -69,7 +69,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
     async connect(request: SessionRequest): Promise<JoinResult> {
       status({ state: 'connecting' });
       try {
-        const options = { nickname: request.nickname, protocolVersion: PROTOCOL_VERSION, mapRevision: map.revision, gameplayRevision: GAMEPLAY_REVISION };
+        const options = { nickname: request.nickname, protocolVersion: PROTOCOL_VERSION, mapRevision: map.revision, gameplayRevision: GAMEPLAY_REVISION, ...(request.vehicleBodyId ? { vehicleBodyId: request.vehicleBodyId } : {}) };
         if (request.mode === 'create') room = await sdk.create('district', options);
         else {
           const invite = request.roomId!.trim();
@@ -105,7 +105,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         const atCapacity = error instanceof MatchMakeError && error.code === 503 && /capacity/i.test(message);
-        status({ state: 'error', reason: atCapacity ? 'server-capacity' : message.includes('version') ? 'version-mismatch' : message.includes('invalid-name') ? 'invalid-name' : message.includes('full') || message.includes('locked') ? 'room-full' : message.includes('not found') ? 'room-missing' : 'network-error', message });
+        status({ state: 'error', reason: atCapacity ? 'server-capacity' : message.includes('version') ? 'version-mismatch' : message.includes('invalid-name') ? 'invalid-name' : message.includes('invalid-vehicle') ? 'invalid-vehicle' : message.includes('full') || message.includes('locked') ? 'room-full' : message.includes('not found') ? 'room-missing' : 'network-error', message });
         throw error;
       }
     },
@@ -121,6 +121,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
     },
     neutralize() { outgoing = []; pending = []; room?.send('neutralize'); },
     request(action) { if (action === 'leave') { void api.dispose(); } else room?.send(action); },
+    selectVehicle(vehicleBodyId) { if (!disposed && snapshot?.phase === 'lobby') room?.send('select-vehicle', { vehicleBodyId }); },
     onSnapshot(fn) { snapshotListeners.add(fn); return () => snapshotListeners.delete(fn); },
     onEvents(fn) { eventListeners.add(fn); return () => eventListeners.delete(fn); },
     onStatus(fn) { statusListeners.add(fn); return () => statusListeners.delete(fn); },

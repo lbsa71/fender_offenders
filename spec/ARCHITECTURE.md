@@ -1,6 +1,6 @@
 # Architecture
 
-Status: architecture and acceptance targets for the implemented local alpha. Updated: 2026-10-22. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
+Status: architecture and acceptance targets for the implemented local alpha. Updated: 2026-10-23. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
 
 The current code uses Babylon WebGL rendering, a custom Colyseus session/prediction facade, source-generated procedural art, and bounded planar vehicle contacts with Rapier WASM projectile/map queries. Sections describing a dynamic Rapier vehicle controller, GLB pipeline, WebGPU or complete operational recovery remain design targets unless the ledger explicitly records evidence. Public implementations are in `packages/`; app roots own composition. The full contact-correction, device/browser and hosting acceptance matrices are not complete.
 
@@ -76,6 +76,12 @@ Keep authoritative and rendered positions distinct. A correction changes simulat
 Initial implementation uses Rapier rigid bodies constrained to planar translation and yaw. Apply acceleration, drag, lateral grip, and steering through a custom arcade controller. Use simple convex/cuboid car colliders and static map blockers. Configure body rotation/translation locks explicitly and test them.
 
 The controller tunes forward/reverse acceleration, braking, speed-sensitive steering, lateral traction, handbrake grip, drag, and collision recovery. Store these values in a versioned data object. Never hardcode divergent handling in renderer and server.
+
+The implemented planar controller reads the six shared vehicle profiles from `contracts`. Profile ratios scale configured speed, acceleration, steering and grip; maximum health scales the configured baseline. Authority, practice and local prediction use the same controller. Traffic retains baseline tuning. Weapons, collision dimensions, braking/reverse rules and spawn protection are equal across player profiles. `arcade-v2` identifies the profile gameplay revision; mismatching clients must refresh. Measured trade-offs and the limits of the starting balance guard are recorded in [the balance report](../packages/sim/BALANCE.md).
+
+The UI rolls a garage vehicle on the first visit and saves its ID in browser storage. Home and pre-round online lobbies offer a different random assignment, show profile stats and render a separate rotating garage scene. The join request carries only a validated body ID; the server derives all stats. Lobby reassignment is authoritative, broadcasts to observers, resets stationary driver state and locks at countdown. Respawn and reconnect preserve the selected profile.
+
+Cartoon motion belongs entirely to presentation. The renderer keeps authoritative planar pose on the root, suspension bounce/pitch on a child and coachwork lean/squash on another child, leaving wheels and HUD markers outside body scaling. Shared decorative road-bump locations drive segment-crossing cues; damped lean and bounded compression/rebound never alter collision, prediction or health. Local squeaks/boings have cooldowns and respect effects volume/mute. Reduced motion or reduced shake suppresses deformation, its cues and garage rotation.
 
 Avoid assuming a rigid-body snapshot alone captures the whole game: include gameplay timers, controller state, IDs, RNG state, projectiles, and collision ordering where relevant. Use a seeded RNG for authoritative randomness. Pin Rapier versions and build options across client/server, but still reconcile; surrounding floating-point code and differing predicted participants can diverge.
 

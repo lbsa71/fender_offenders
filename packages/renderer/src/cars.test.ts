@@ -4,6 +4,7 @@ import { Scene } from '@babylonjs/core/scene';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { VEHICLE_BODIES } from '@fender/content';
 import { CarFactory, type CarVisual } from './cars';
+import * as CarPresentation from './cars';
 
 let engine: NullEngine, scene: Scene, factory: CarFactory;
 beforeEach(() => { engine = new NullEngine(); scene = new Scene(engine); factory = new CarFactory(scene); });
@@ -20,6 +21,28 @@ function paint(car: CarVisual, name: string) {
 }
 
 describe('original procedural vehicle bodies', () => {
+  it('uses supported protection blinking, preserves marker and wreck silhouette, and honors reduced flash',()=>{
+    const car=factory.create('status','patrol',false),update=Reflect.get(CarPresentation,'updateCarStatus') as (car:CarVisual,protectedSpawn:boolean,time:number,reducedFlash:boolean)=>void;
+    expect(update).toBeTypeOf('function');
+    car.marker.isVisible=true;update(car,true,.1,false);expect(car.parts.every(p=>p.isVisible)).toBe(true);
+    update(car,true,.4,false);expect(car.parts.every(p=>!p.isVisible)).toBe(true);expect(car.marker.isVisible).toBe(true);
+    update(car,true,.4,true);expect(car.parts.every(p=>p.isVisible)).toBe(true);
+    update(car,false,.4,false);expect(car.parts.every(p=>p.isVisible)).toBe(true);
+  });
+  it('deforms the coachwork while keeping wheels rigid and health/identity outside the deformation', () => {
+    const car = factory.create('elastic', 'ambulance', false);
+    expect(car).toHaveProperty('body');expect(car).toHaveProperty('suspension');
+    const body=(car as unknown as {body:import('@babylonjs/core/Meshes/transformNode').TransformNode}).body;
+    const suspension=(car as unknown as {suspension:import('@babylonjs/core/Meshes/transformNode').TransformNode}).suspension;
+    expect(car.parts.filter(p=>p.sourceMesh.metadata?.role==='wheel').length).toBeGreaterThan(0);
+    expect(car.parts.filter(p=>p.sourceMesh.metadata?.role==='wheel').every(p=>p.parent===suspension)).toBe(true);
+    expect(car.parts.filter(p=>p.sourceMesh.metadata?.role!=='wheel').every(p=>p.parent===body)).toBe(true);
+    body.scaling.set(1.2,.75,1.1);body.rotation.z=.28;suspension.position.y=.4;
+    car.health.computeWorldMatrix(true);car.marker.computeWorldMatrix(true);
+    expect(car.health.parent).toBe(car.root);expect(car.marker.parent).toBe(car.root);
+    expect(car.health.getAbsolutePosition().y).toBeCloseTo(3.51,2);expect(car.marker.getAbsolutePosition().y).toBeCloseTo(.08,2);
+    expect(car.root.scaling.y).toBe(1);expect(car.root.rotation.z).toBe(0);
+  });
   it('publishes all six selectable bodies in the shared authoritative catalog', () => {
     expect(VEHICLE_BODIES).toEqual(['patrol', 'interceptor', 'roadster', 'army', 'ambulance', 'fire-chief']);
   });

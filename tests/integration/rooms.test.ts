@@ -9,7 +9,8 @@ import type { Simulation } from '@fender/sim';
 import { createTcpProxy } from './tcp-proxy.js';
 
 const endpoint = 'ws://127.0.0.1:2677';
-const options = { nickname: 'Officer', protocolVersion: PROTOCOL_VERSION, mapRevision: districtMap.revision, gameplayRevision: GAMEPLAY_REVISION };
+// These authority/combat fixtures use the baseline patrol; profile differences have their own suite.
+const options = { nickname: 'Officer', protocolVersion: PROTOCOL_VERSION, mapRevision: districtMap.revision, gameplayRevision: GAMEPLAY_REVISION, vehicleBodyId: 'patrol' };
 const pause = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 async function until(predicate: () => boolean, message: string, timeout = 5000): Promise<void> {
   const end = performance.now() + timeout;

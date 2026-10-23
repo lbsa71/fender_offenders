@@ -1,6 +1,7 @@
 import type { CollisionMap, DriverActions, DriverRuntimeState, VehicleState } from '@fender/contracts';
 import { FIXED_DELTA, normalizeGameplay, type SimulationConfig } from '../core/config.js';
 import { box, clamp, nearPolygon, overlap, pointInPolygon, wrapAngle, HALF_LENGTH, HALF_WIDTH, type Point } from '../physics/geometry.js';
+import { tuningForVehicle } from './profiles.js';
 
 export const neutralActions = (): DriverActions => ({ steer: 0, throttle: 0, brakeReverse: 0, handbrake: false, fire: false, sirenToggle: false, recover: false });
 export const newDriver = (): DriverRuntimeState => ({ resolvedSteering: 0, reverseHoldTicks: 0, nextFireTick: 0, shotOrdinal: 0, nextRecoveryTick: 0, lastDamageTick: null });
@@ -16,7 +17,7 @@ export function surfaceAt(map: CollisionMap, pose: Point): 'asphalt' | 'dirt' | 
 
 export function driveVehicle(vehicle: VehicleState, driver: DriverRuntimeState, actions: DriverActions, map: CollisionMap, solids: Point[][], config: SimulationConfig = normalizeGameplay()): void {
   if (vehicle.status !== 'active') return;
-  const tune = config.vehicle, dt = FIXED_DELTA;
+  const tune = tuningForVehicle(config, vehicle), dt = FIXED_DELTA;
   driver.resolvedSteering += clamp(actions.steer - driver.resolvedSteering, -tune.steeringResponse * dt, tune.steeringResponse * dt);
   const fx = Math.sin(vehicle.pose.yaw), fz = Math.cos(vehicle.pose.yaw), rx = fz, rz = -fx;
   let forward = vehicle.velocity.x * fx + vehicle.velocity.z * fz;

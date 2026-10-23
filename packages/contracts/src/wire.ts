@@ -1,8 +1,9 @@
 import type { WorldSnapshot, VehicleState, DriverRuntimeState, ProjectileState } from './index';
-type VehicleWire = [string, string | null, string, number, number, number, number, number, number, number, VehicleState['status'], number, number | null, boolean, number];
+import { getVehicleProfile } from './vehicle-profiles';
+type VehicleWire = [string, string | null, string, number, number, number, number, number, number, number, VehicleState['status'], number, number | null, boolean, number, number?];
 const q = (n: number) => Math.round(n * 1000) / 1000;
-const packCar = (v: VehicleState): VehicleWire => [v.entityId, v.playerId, v.bodyAssetId, q(v.pose.x), q(v.pose.z), q(v.pose.yaw), q(v.velocity.x), q(v.velocity.z), q(v.velocity.yawRate), v.health, v.status, v.protectedUntilTick, v.respawnAtTick, v.sirenOn, v.discontinuityId];
-const unpackCar = (v: VehicleWire): VehicleState => ({ entityId: v[0], playerId: v[1], bodyAssetId: v[2], pose: { x: v[3], z: v[4], yaw: v[5] }, velocity: { x: v[6], z: v[7], yawRate: v[8] }, health: v[9], status: v[10], protectedUntilTick: v[11], respawnAtTick: v[12], sirenOn: v[13], discontinuityId: v[14] });
+const packCar = (v: VehicleState): VehicleWire => [v.entityId, v.playerId, v.bodyAssetId, q(v.pose.x), q(v.pose.z), q(v.pose.yaw), q(v.velocity.x), q(v.velocity.z), q(v.velocity.yawRate), v.health, v.status, v.protectedUntilTick, v.respawnAtTick, v.sirenOn, v.discontinuityId, v.maxHealth ?? getVehicleProfile(v.bodyAssetId).maxHealth];
+const unpackCar = (v: VehicleWire): VehicleState => ({ entityId: v[0], playerId: v[1], bodyAssetId: v[2], pose: { x: v[3], z: v[4], yaw: v[5] }, velocity: { x: v[6], z: v[7], yawRate: v[8] }, health: v[9], status: v[10], protectedUntilTick: v[11], respawnAtTick: v[12], sirenOn: v[13], discontinuityId: v[14], maxHealth: v[15] ?? 100 });
 export interface WireSnapshot {
   v: [number, string, string]; e: string; t: number; m: string;
   p: WorldSnapshot['phase']; end: number | null;

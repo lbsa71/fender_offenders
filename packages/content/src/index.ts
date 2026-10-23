@@ -57,7 +57,7 @@ export const districtMap: CollisionMap = {
   laneEdges: [['sw', 'se'], ['se', 'ne'], ['ne', 'nw'], ['nw', 'sw'], ['isw', 'inw'], ['inw', 'ine'], ['ine', 'ise'], ['ise', 'isw']].map(([from, to]) => ({ from: from!, to: to!, speedLimit: 11 })),
 };
 
-export const VEHICLE_BODIES = ['patrol', 'interceptor', 'roadster', 'army', 'ambulance', 'fire-chief'] as const;
+export { VEHICLE_BODIES } from '@fender/contracts';
 export const ASSET_PROVENANCE = {
   revision: 'original-procedural-1',
   creator: 'Fender Offenders project',
@@ -74,3 +74,13 @@ export const districtScene: SceneManifest = {
   visualInstances: buildings.map((b) => ({ assetId: b.kind, pose: { x: b.x, z: b.z, yaw: 0 }, scale: [b.width, b.height, b.depth] })),
   qualityVariants: ['low', 'medium', 'high'],
 };
+
+/** Cosmetic speed humps only: these never modify collision geometry or vehicle authority. */
+export const ROAD_BUMPS = [
+  {id:'bureau-hump',x:0,z:-20,yaw:0,width:14,length:1.6,height:.18},
+  {id:'north-hump',x:0,z:20,yaw:0,width:14,length:1.6,height:.18},
+  {id:'east-hump',x:80,z:40,yaw:0,width:14,length:1.6,height:.18},
+  {id:'west-hump',x:-80,z:-40,yaw:0,width:14,length:1.6,height:.18},
+  {id:'harbor-hump',x:40,z:-80,yaw:Math.PI/2,width:14,length:1.6,height:.18},
+  {id:'park-hump',x:-40,z:80,yaw:Math.PI/2,width:14,length:1.6,height:.18},
+] as const;

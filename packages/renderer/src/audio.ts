@@ -55,6 +55,19 @@ export class MotorAudio {
     noise.start();
   }
 
+  cartoon(kind: 'boing' | 'squeak'): void {
+    const c=this.context;
+    if(!c||!this.master||this.muted||this.volume<=0||this.voices.size>=12)return;
+    const voice=c.createOscillator(),gain=c.createGain(),now=c.currentTime,length=kind==='boing'?.24:.14;
+    voice.type=kind==='boing'?'triangle':'sine';
+    voice.frequency.setValueAtTime(kind==='boing'?105:1450,now);
+    voice.frequency.exponentialRampToValueAtTime(kind==='boing'?210:1050,now+.045);
+    voice.frequency.exponentialRampToValueAtTime(kind==='boing'?58:650,now+length);
+    gain.gain.setValueAtTime(.0001,now);gain.gain.linearRampToValueAtTime(kind==='boing'?.1:.045,now+.012);gain.gain.exponentialRampToValueAtTime(.0001,now+length);
+    voice.connect(gain);gain.connect(this.master);this.voices.add(voice);
+    voice.onended=()=>{voice.disconnect();gain.disconnect();this.voices.delete(voice);};voice.start();voice.stop(now+length+.01);
+  }
+
   dispose(): void {
     for (const voice of this.voices) voice.stop();
     this.voices.clear();

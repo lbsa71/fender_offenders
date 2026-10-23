@@ -33,7 +33,11 @@ Choose **Hit the streets** for solo practice and the pursuit challenge. Choose *
 
 Online matches continue while a menu is open; that driver's held controls are released and safety braking applies. The pause menu stops a local practice simulation. Controller coverage currently uses synthetic standard-mapped devices; physical-controller handling and the full browser/OS matrix remain open. Music and vibration settings do not establish a shipped soundtrack or tested haptics.
 
-Multiplayer randomly assigns a patrol sedan, interceptor, roadster, army 4×4, ambulance or fire-chief SUV when a player joins. Body choice is cosmetic: every car uses the same driving, collision, health and weapon rules. Reconnects and respawns preserve the assigned body.
+Your first visit randomly assigns a patrol sedan, interceptor, roadster, army 4×4, ambulance or fire-chief SUV. The garage saves the assignment in this browser and shows the car on a rotating turntable, with its strengths and trade-offs. **Reassign vehicle** rolls a different car before dispatch or in a waiting multiplayer lobby. The choice locks at countdown; reconnects and respawns preserve it. Clearing browser storage starts a new garage assignment.
+
+Cars have distinct armor, speed, acceleration, steering and grip, using the same shared rules for authority, local prediction and practice. The army 4×4 absorbs more hits but accelerates and turns slowly; the roadster is fast and fragile. Collision dimensions, weapons and spawn protection remain equal. See the measured [vehicle balance report](packages/sim/BALANCE.md) for all six roles and the automated guardrails.
+
+Cornering adds cartoon body lean and squash, while visible road humps trigger compression, rebound and short synthesized sounds. These animations preserve the underlying driving pose and collision shape. Reduced-motion preferences and reduced-shake settings suppress the deformation and turntable rotation.
 
 ## Controls
 

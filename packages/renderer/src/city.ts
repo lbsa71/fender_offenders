@@ -6,7 +6,7 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import { MeshBuilder } from './primitives';
-import { buildings, districtMap, roadCenters, trees } from '@fender/content';
+import { buildings, districtMap, roadCenters, trees, ROAD_BUMPS } from '@fender/content';
 
 /** Groups authored primitives into material batches; temporary primitives are disposed. */
 export function buildCity(scene: Scene): Mesh[] {
@@ -76,6 +76,15 @@ export function buildCity(scene: Scene): Mesh[] {
         box('crossing', p + s * 10.2, .03, q + j, 2.3, .015, .8, '#dce0ca');
       }
       box('stop-line', p + s * 4, .033, q + s * 13, 6.4, .015, .3, '#e0d8b5');
+    }
+  }
+  // Rounded amber/charcoal humps are cosmetic; planar authority remains unchanged.
+  for(const bump of ROAD_BUMPS){
+    for(let i=0;i<12;i++){
+      const offset=-bump.width/2+(i+.5)*bump.width/12;
+      const hump=MeshBuilder.CreateCylinder(`speed-hump-${bump.id}`,{diameter:bump.length,height:bump.width/12,tessellation:16},scene);
+      hump.position.set(bump.x+Math.cos(bump.yaw)*offset,.025,bump.z-Math.sin(bump.yaw)*offset);hump.rotation.set(0,bump.yaw,Math.PI/2);hump.scaling.x=bump.height/(bump.length/2);
+      add(hump,i%2?'#d6b86f':'#3e5156');
     }
   }
   // Two real driveable shortcuts, also represented in the shared surface polygons.

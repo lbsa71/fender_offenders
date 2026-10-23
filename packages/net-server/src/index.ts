@@ -3,7 +3,7 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { districtMap, VEHICLE_BODIES } from '@fender/content';
 import { createSimulation, initPhysics, type Simulation } from '@fender/sim';
-import { GAMEPLAY_REVISION, PROTOCOL_VERSION, isInputCommand, isRecord, neutralActions, packSnapshot, sanitizeNickname, type AppliedDriverInput, type InputCommand, type WorldSnapshot } from '@fender/contracts';
+import { GAMEPLAY_REVISION, PROTOCOL_VERSION, isInputCommand, isRecord, isVehicleBodyId, neutralActions, packSnapshot, sanitizeNickname, type AppliedDriverInput, type InputCommand, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
 
 interface DriverConnection { epoch: string; entityId: string; queue: InputCommand[]; last: InputCommand | null; ack: number; received: number; lastInputAt: number; connected: boolean; windowStart: number; packets: number; reset?: WorldSnapshot['resetReason']; client: Client; latencyProbe: { nonce: string; sentAt: number } | null; pingMs: number | null; latencyMeasuredAt: number | null; }
 export const serverMetrics = { rooms: 0, steps: 0, rejectedInputs: 0, queueResets: 0, slowSteps: 0, maxStepMs: 0, bytesPublished: 0, draining: false };
@@ -60,6 +60,13 @@ export class DrivingRoom extends Room {
       this.onMessage('resync', client => { this.neutralize(client.sessionId); const d = this.drivers.get(client.sessionId); if (d) d.reset = 'resync'; this.publish(client); });
       this.onMessage('start-round', client => this.sim.startRound(client.sessionId));
       this.onMessage('rematch', client => this.sim.rematch(client.sessionId));
+      this.onMessage('select-vehicle', (client, message: unknown) => {
+        if (!isRecord(message) || !isVehicleBodyId(message.vehicleBodyId)) return;
+        if (!this.sim.setPlayerVehicle(client.sessionId, message.vehicleBodyId)) return;
+        this.neutralize(client.sessionId);
+        const driver = this.drivers.get(client.sessionId); if (driver) driver.reset = 'resync';
+        for (const peer of this.clients) this.publish(peer);
+      });
       this.onMessage('ping', (client, message: unknown) => { if (typeof message === 'number' && Number.isFinite(message)) client.send('pong', { sent: message, tick: this.tick }); });
       this.onMessage('latency-pong', (client, message: unknown) => {
         const d = this.drivers.get(client.sessionId);
@@ -91,11 +98,12 @@ export class DrivingRoom extends Room {
   onAuth(_client: Client, options: unknown) {
     if (!isRecord(options) || options.protocolVersion !== PROTOCOL_VERSION || options.mapRevision !== districtMap.revision || options.gameplayRevision !== GAMEPLAY_REVISION) throw new ServerError(409, 'version-mismatch');
     if (serverMetrics.draining) throw new ServerError(503, 'server-shutdown');
-    try { return { nickname: sanitizeNickname(options.nickname) }; } catch { throw new ServerError(400, 'invalid-name'); }
+    if (options.vehicleBodyId !== undefined && !isVehicleBodyId(options.vehicleBodyId)) throw new ServerError(400, 'invalid-vehicle');
+    try { return { nickname: sanitizeNickname(options.nickname), vehicleBodyId: options.vehicleBodyId as VehicleBodyId | undefined }; } catch { throw new ServerError(400, 'invalid-name'); }
   }
-  onJoin(client: Client, _options: unknown, auth: { nickname: string }) {
+  onJoin(client: Client, _options: unknown, auth: { nickname: string; vehicleBodyId?: VehicleBodyId }) {
     const epoch = randomUUID();
-    const car = this.sim.addPlayer({ playerId: client.sessionId, nickname: auth.nickname, sessionEpoch: epoch, bodyAssetId: VEHICLE_BODIES[randomInt(VEHICLE_BODIES.length)] });
+    const car = this.sim.addPlayer({ playerId: client.sessionId, nickname: auth.nickname, sessionEpoch: epoch, bodyAssetId: auth.vehicleBodyId ?? VEHICLE_BODIES[randomInt(VEHICLE_BODIES.length)] });
     this.drivers.set(client.sessionId, { epoch, entityId: car.entityId, queue: [], last: null, ack: -1, received: -1, lastInputAt: 0, connected: true, windowStart: performance.now(), packets: 0, reset: 'join', client, latencyProbe: null, pingMs: null, latencyMeasuredAt: null });
     this.publish(client);
   }

@@ -4,7 +4,7 @@ import { createSimulation, initPhysics, type Simulation } from '@fender/sim';
 import { createInputSource, type InputSettings } from '@fender/input';
 import { mountGameUi, type UiSettings } from '@fender/ui';
 import { createOnlineSession } from '@fender/net-client';
-import { neutralActions, type GameEvent, type RenderFrame, type SessionRequest, type SessionStatus, type WorldSnapshot } from '@fender/contracts';
+import { isVehicleBodyId, neutralActions, type GameEvent, type RenderFrame, type SessionRequest, type SessionStatus, type WorldSnapshot } from '@fender/contracts';
 import './style.css';
 
 async function boot() {
@@ -39,7 +39,7 @@ async function boot() {
     sequence = 0; clientTick = 0; accumulator = 0; epoch = crypto.randomUUID();
     if (request.mode === 'practice') {
       local?.dispose(); local = createSimulation(districtMap, { mode: 'practice', trafficCount: 8, pursuit: true });
-      playerId = 'local-player'; local.addPlayer({ playerId, nickname: request.nickname, sessionEpoch: epoch, bodyAssetId: 'police' });
+      playerId = 'local-player'; local.addPlayer({ playerId, nickname: request.nickname, sessionEpoch: epoch, bodyAssetId: request.vehicleBodyId ?? ui.getVehicle() });
       snapshot = local.snapshot(playerId); mode = 'practice'; status = { state: 'playing' }; active = true;
     } else {
       mode = 'online'; status = { state: 'connecting' }; ui.update({ status, error: null, snapshot: null });
@@ -59,7 +59,7 @@ async function boot() {
       }
     }
     ui.update({ snapshot, status, mode, localPlayerId: playerId, roomId, error: null });
-    ui.showMenu(null); input?.setEnabled(true);
+    ui.showMenu(null); input?.setEnabled(!ui.isMenuVisible() && !(mode === 'online' && snapshot?.phase === 'lobby'));
   }
   const ui = mountGameUi(root, {
     onPlay: play,
@@ -68,7 +68,8 @@ async function boot() {
     onStartRound: () => online?.request('start-round'),
     onRematch: () => online?.request('rematch'),
     onSettings: applySettings,
-    onMenuVisibility: visible => { input?.setEnabled(active && !visible); if (visible) online?.neutralize(); },
+    onVehicleChange: vehicleBodyId => { if (snapshot?.phase === 'lobby') online?.selectVehicle(vehicleBodyId); },
+    onMenuVisibility: visible => { input?.setEnabled(active && !visible && !(mode === 'online' && snapshot?.phase === 'lobby')); if (visible) online?.neutralize(); },
   });
   input = createInputSource({ onNeutralize: () => online?.neutralize(), onMenuAction: action => ui.navigate(action) });
   applySettings(ui.getSettings());
@@ -79,6 +80,7 @@ async function boot() {
     if (stopped) return;
     const dt = Math.min(.1, Math.max(0, (now - previousTime) / 1000)); previousTime = now;
     frameDurations.push(dt * 1000); if (frameDurations.length > 600) frameDurations.shift();
+    input!.setEnabled(active && !ui.isMenuVisible() && !(mode === 'online' && snapshot?.phase === 'lobby'));
     input!.pollMenus();
     if (document.hidden) { animation = requestAnimationFrame(frame); return; }
     const paused = active && mode === 'practice' && ui.isMenuVisible();
@@ -102,11 +104,13 @@ async function boot() {
       const state = local.snapshot(active ? playerId : 'preview');
       renderFrame = { sampleTimeSeconds: now / 1000, vehicles: state.vehicles, projectiles: state.projectiles, localEntityId: state.local?.vehicle.entityId ?? null, cameraTarget: state.local?.vehicle.pose ?? { x: 4, z: -48, yaw: 0 } };
     }
+    renderer.setGaragePreview(!active || mode === 'online' && snapshot?.phase === 'lobby' ? ui.getVehicle() : null);
     if (renderFrame) renderer.render(renderFrame, dt);
     if (now - hudAt > 80) {
       hudAt = now; const device = input!.getStatus();
       ui.update({ snapshot: active ? snapshot : null, status, mode, localPlayerId: playerId, roomId, device: device.activeDevice, recoverProgress: device.recoverProgress, unsupportedPad: device.unsupportedPad,
-        canStart: snapshot?.scores.filter(s => s.connection === 'connected').length! >= 2 && snapshot?.scores[0]?.playerId === playerId, pingMs: online?.getStats().rtt });
+        canStart: snapshot?.scores.filter(s => s.connection === 'connected').length! >= 2 && snapshot?.scores[0]?.playerId === playerId, pingMs: online?.getStats().rtt,
+        selectedVehicleBodyId: snapshot?.local && isVehicleBodyId(snapshot.local.vehicle.bodyAssetId) ? snapshot.local.vehicle.bodyAssetId : undefined });
     }
     animation = requestAnimationFrame(frame);
   }
@@ -116,6 +120,7 @@ async function boot() {
       get snapshot() { return snapshot ? structuredClone(snapshot) : null; },
       get events() { return structuredClone(observedEvents); },
       get identity() { return { playerId, roomId, active, mode }; },
+      get garage() { return { vehicleBodyId: ui.getVehicle(), visible: !active || mode === 'online' && snapshot?.phase === 'lobby' }; },
       get stats() { return { renderer: renderer.getStats(), network: online?.getStats(), frameDurations: [...frameDurations] }; },
       get input() { return input!.getStatus(); },
     }) });

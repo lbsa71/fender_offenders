@@ -18,12 +18,14 @@ test('home and practice load without external fonts or remote content', async ({
   expect(externalRequests, 'Home and practice must use only local application resources').toEqual([]);
 });
 
-test('system typography keeps the dispatch stamp text inside its border', async ({ page }) => {
+test('garage typography and statistics fit inside their desktop panels', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: "You're on duty." })).toBeVisible();
-  const overflow = await page.locator('.fo-stamp strong').evaluate(node => node.scrollWidth - node.clientWidth);
-  expect(overflow, 'The stamp title must fit within the available stamp width').toBeLessThanOrEqual(0);
+  const overflow = await page.locator('.fo-garage-card').evaluate(node => node.scrollWidth - node.clientWidth);
+  expect(overflow, 'The vehicle statistics must fit within the garage card width').toBeLessThanOrEqual(0);
+  const titleOverflow = await page.locator('[data-text="vehicle-name"]').evaluate(node => node.scrollWidth - node.clientWidth);
+  expect(titleOverflow, 'The assigned vehicle name must fit within the garage heading width').toBeLessThanOrEqual(0);
 });
 
 type DebugWindow = Window & { __FENDER_DEBUG__?: { snapshot: WorldSnapshot | null | (() => WorldSnapshot | null) } };
@@ -72,6 +74,7 @@ test('keyboard practice drives, fires, releases controls on pause and saves sett
 });
 
 test('a standard controller can start, drive, pause, navigate and safely disconnect', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(() => {
     type MutablePad = { id: string; index: number; connected: boolean; mapping: string; axes: number[]; buttons: { pressed: boolean; touched: boolean; value: number }[]; timestamp: number };
     const pad: MutablePad = { id: 'Automated standard controller', index: 0, connected: true, mapping: 'standard', axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 })), timestamp: 0 };
@@ -110,10 +113,14 @@ test('a standard controller can start, drive, pause, navigate and safely disconn
   await tap(12); await tap(0);
   await expect(page.locator('.fo-menu')).toBeHidden();
   await stickY(-1); await button(5, true);
-  await page.evaluate(() => { const pad = (window as Window & { testPad?: { connected: boolean } }).testPad!; pad.connected = false; window.dispatchEvent(new Event('gamepaddisconnected')); });
+  await page.evaluate(() => {
+    const pad = (window as Window & { testPad?: { connected: boolean } }).testPad!; pad.connected = false;
+    const event = new Event('gamepaddisconnected'); Object.defineProperty(event, 'gamepad', { value: pad }); window.dispatchEvent(event);
+  });
   const shotOrdinal = (await snapshot(page))!.local!.driver.shotOrdinal;
   await page.waitForTimeout(250);
   expect((await snapshot(page))!.local!.driver.shotOrdinal).toBe(shotOrdinal);
+  expect(errors).toEqual([]);
 });
 
 test('blur drops held fire and requires a fresh keyboard press on return', async ({ page }) => {

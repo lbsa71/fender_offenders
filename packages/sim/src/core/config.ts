@@ -1,17 +1,17 @@
-import type { GameplayConfig } from '@fender/contracts';
+import { GAMEPLAY_REVISION, type GameplayConfig } from '@fender/contracts';
 export const TICK_RATE = 60;
 export const FIXED_DELTA = 1 / TICK_RATE;
 
 /** All gameplay numbers are shared by browser practice, prediction, and authority. */
 const INTERNAL_DEFAULTS = {
-  revision: 'arcade-v1',
+  revision: GAMEPLAY_REVISION,
   vehicle: { maxSpeed: 24, reverseSpeed: 8, acceleration: 18, reverseAcceleration: 9, braking: 32, drag: 0.45, grip: 9, driftGrip: 2.2, steeringRate: 2.1, steeringResponse: 9, reverseHoldTicks: 15 },
   weapon: { damage: 10, cooldownTicks: 12, projectileSpeed: 70, lifetimeTicks: 39 },
   rules: { health: 100, respawnTicks: 180, protectionTicks: 120, recoveryCooldownTicks: 600, recoveryDamageDelayTicks: 180, creditTicks: 300, countdownTicks: 180, roundTicks: 18000, maxPlayers: 8, maxTraffic: 16, arrestTicks: 180 },
 };
 
 export const DEFAULT_GAMEPLAY_CONFIG: GameplayConfig = {
-  revision: 'arcade-v1',
+  revision: GAMEPLAY_REVISION,
   vehicle: { acceleration: 18, reverseAcceleration: 9, braking: 32, topSpeed: 24, reverseSpeed: 8, drag: 0.45, grip: 9, handbrakeGrip: 2.2, steeringRate: 2.1, halfWidth: 0.95, halfLength: 2.15 },
   weapon: { damage: 10, shotsPerSecond: 5, speed: 70, lifetimeSeconds: 0.65 },
   roundSeconds: 300, countdownSeconds: 3, respawnSeconds: 3,

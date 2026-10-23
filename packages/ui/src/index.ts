@@ -1,4 +1,4 @@
-import type { DeviceKind, WorldSnapshot } from '@fender/contracts';
+import { getVehicleProfile, isVehicleBodyId, VEHICLE_BODIES, type DeviceKind, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
 import './style.css';
 
 export type MenuAction = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back' | 'pause';
@@ -29,9 +29,11 @@ export interface UiModel {
   pursuit?: { progress: number; complete?: boolean; message?: string } | null;
   pingMs?: number;
   canStart?: boolean;
+  selectedVehicleBodyId?: VehicleBodyId;
 }
 export interface UiCallbacks {
-  onPlay: (request: { mode: 'practice' | 'create' | 'join'; nickname: string; roomId?: string }) => void | Promise<void>;
+  onPlay: (request: { mode: 'practice' | 'create' | 'join'; nickname: string; roomId?: string; vehicleBodyId?: VehicleBodyId }) => void | Promise<void>;
+  onVehicleChange?: (vehicleBodyId: VehicleBodyId) => void;
   onResume?: () => void;
   onLeave?: () => void;
   onStartRound?: () => void;
@@ -41,6 +43,7 @@ export interface UiCallbacks {
 }
 const defaults: UiSettings = { masterVolume: .7, musicVolume: .3, effectsVolume: .8, reducedShake: false, reducedFlash: false, vibration: true, quality: 'medium', stickDeadzone: .16, triggerDeadzone: .08, sensitivity: 1, bindings: {} };
 const errorMessages: Record<string, string> = {
+  'invalid-vehicle': 'Choose a valid garage vehicle and try again.',
   'server-capacity': 'Dispatch is at capacity. Join an existing room or try creating one again shortly.',
   'room-full': 'All eight units are out on patrol. Try another room.', 'room-missing': 'That dispatch room has closed. Check the code or create a new one.',
   'version-mismatch': 'Your game version does not match this room. Refresh and try again.', 'invalid-name': 'Enter a callsign between 1 and 20 characters.',
@@ -54,7 +57,8 @@ const number = (value: number, fallback = 0) => Number.isFinite(value) ? value :
 export function deriveHud(model: UiModel) {
   const snapshot = model.snapshot;
   const car = snapshot?.local?.vehicle ?? snapshot?.vehicles.find(vehicle => vehicle.playerId === model.localPlayerId);
-  return { speed: car ? Math.round(Math.hypot(car.velocity.x, car.velocity.z) * 3.6) : 0, health: car?.health ?? 100,
+  const maxHealth = car?.maxHealth ?? getVehicleProfile(car?.bodyAssetId ?? 'patrol').maxHealth;
+  return { speed: car ? Math.round(Math.hypot(car.velocity.x, car.velocity.z) * 3.6) : 0, health: car ? Math.max(0, Math.min(100, car.health / Math.max(1, maxHealth) * 100)) : 100,
     phase: snapshot?.phase ?? 'lobby', seconds: snapshot?.phaseEndsAtTick == null ? 0 : (snapshot.phaseEndsAtTick - snapshot.serverTick) / 60,
     status: car?.status ?? 'active', score: snapshot?.scores.find(score => score.playerId === model.localPlayerId)?.score ?? 0,
     respawn: car?.respawnAtTick == null || !snapshot ? 0 : Math.max(0, (car.respawnAtTick - snapshot.serverTick) / 60) };
@@ -74,15 +78,24 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   let resultDismissed = false;
   let bindingAction: string | null = null;
   let lastUnsupportedPad: string | null = null;
+  const rollVehicle = (except?: VehicleBodyId): VehicleBodyId => { const choices = VEHICLE_BODIES.filter(id => id !== except); return choices[Math.floor(Math.random() * choices.length)]!; };
+  let vehicle: VehicleBodyId;
+  try { const saved = JSON.parse(view?.localStorage.getItem('fender-garage-v1') ?? 'null'); vehicle = isVehicleBodyId(saved?.vehicleBodyId) ? saved.vehicleBodyId : rollVehicle(); } catch { vehicle = rollVehicle(); }
+  const persistVehicle = () => { try { view?.localStorage.setItem('fender-garage-v1', JSON.stringify({ vehicleBodyId: vehicle })); } catch { /* Garage remains usable without storage. */ } };
+  persistVehicle();
+  let awaitingVehicle: VehicleBodyId | null = null;
   const shell = doc.createElement('div'); shell.className = 'fo-ui';
   shell.innerHTML = `
     <div class="fo-grain" aria-hidden="true"></div>
     <header class="fo-top"><a class="fo-wordmark" href="#" aria-label="Fender Offenders home"><span class="fo-badge">FO</span><span>FENDER<br>OFFENDERS<span class="fo-edition">MOTOR DIVISION / 01</span></span></a><div class="fo-top-right"><span class="fo-connection"><i></i><span data-text="connection">LOCAL DISPATCH</span></span><button class="fo-icon" data-action="pause" aria-label="Open pause menu">Ⅱ</button></div></header>
     <section class="fo-hud" hidden aria-label="Driving dashboard"><div class="fo-round"><span data-text="phase">FREE PATROL</span><strong data-text="timer">05:00</strong></div><aside class="fo-scoreboard"><div class="fo-label">DISPATCH LEADERBOARD</div><ol data-scores></ol></aside><div class="fo-instruments"><div class="fo-speed"><strong data-text="speed">0</strong><span>KM/H</span></div><div class="fo-car-state"><div class="fo-label">UNIT INTEGRITY <b data-text="health">100%</b></div><div class="fo-health"><i></i></div><span data-text="ammo">AUTO / UNLIMITED AMMO</span></div></div><div class="fo-prompts" data-text="prompts">WASD DRIVE · SHIFT DRIFT · SPACE FIRE</div><div class="fo-recover" hidden><span>RECOVERING UNIT</span><progress max="1" value="0"></progress></div><div class="fo-pursuit" hidden><span data-text="pursuit">INTERCEPT THE SUSPECT</span><progress max="1" value="0"></progress></div><div class="fo-center-callout" hidden><span data-text="callout-label">STAND BY</span><strong data-text="callout">3</strong></div><button class="fo-invite" data-action="invite">COPY INVITE <span data-text="room"></span></button><button class="fo-start" data-action="start" hidden>START ROUND →</button></section>
-    <div class="fo-menu-backdrop"></div><main class="fo-menu"><div class="fo-hero"><span class="fo-kicker">AN OPEN CASE. A FULL TANK.</span><h1>KEEP THE<br><em>PEACE.</em><br>CAUSE A<br><span>LITTLE CHAOS.</span></h1><p>A city full of bad drivers.<br>One very questionable police department.</p><div class="fo-stamp"><span>DISPATCH</span><strong>AUTHORIZED<br>EXCESSIVE FUN</strong><span>EST. 1987 ENERGY</span></div></div><section class="fo-panel" aria-label="Dispatch menu"><div class="fo-panel-heading"><span class="fo-kicker" data-text="panel-kicker">CITY MOTOR DIVISION</span><span class="fo-panel-no">FORM 01–FO</span></div><div class="fo-home"><h2>You're on duty.</h2><p class="fo-muted">Pick a callsign. Take the keys.</p><label class="fo-field">YOUR CALLSIGN<input name="nickname" maxlength="20" autocomplete="nickname" spellcheck="false" value="Officer Rookie" placeholder="Officer Rookie"></label><button class="fo-primary" data-action="practice"><span>HIT THE STREETS<small>Solo practice & pursuit challenge</small></span><b>↗</b></button><div class="fo-divider"><span>OR BRING BACKUP</span></div><div class="fo-actions"><button class="fo-secondary" data-action="create">CREATE ROOM <span>+</span></button><button class="fo-secondary" data-action="join-toggle">JOIN ROOM <span>→</span></button></div><form class="fo-join" hidden><label class="fo-field">ROOM CODE OR INVITE LINK<input name="room" maxlength="250" autocomplete="off" spellcheck="false" placeholder="Paste a code or invite link"></label><button class="fo-primary" type="submit">REPORT TO DISPATCH →</button></form><div class="fo-room-note">PRIVATE ROOMS · 2–8 DRIVERS · NO ACCOUNT NEEDED</div></div><div class="fo-pause" hidden><h2>Taking a breather?</h2><p class="fo-muted" data-text="pause-description">Your patrol is paused.</p><button class="fo-primary" data-action="resume">BACK ON PATROL →</button><button class="fo-secondary" data-action="leave">END PATROL <span>↗</span></button></div><div class="fo-settings" hidden><h2>Fine tuning.</h2><p class="fo-muted">Make this patrol yours.</p><div class="fo-settings-list"><label>Master volume<input type="range" data-setting="masterVolume" min="0" max="1" step=".05"></label><label>Music<input type="range" data-setting="musicVolume" min="0" max="1" step=".05"></label><label>Effects<input type="range" data-setting="effectsVolume" min="0" max="1" step=".05"></label><label>Graphics<select data-setting="quality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label><label>Reduce camera shake<input type="checkbox" data-setting="reducedShake"></label><label>Reduce flashes<input type="checkbox" data-setting="reducedFlash"></label><label>Controller vibration<input type="checkbox" data-setting="vibration"></label><label>Stick dead zone<input type="range" data-setting="stickDeadzone" min=".05" max=".5" step=".01"></label><label>Trigger dead zone<input type="range" data-setting="triggerDeadzone" min="0" max=".5" step=".01"></label><label>Steering sensitivity<input type="range" data-setting="sensitivity" min=".4" max="1.8" step=".05"></label></div><details class="fo-bindings"><summary>KEYBOARD BINDINGS</summary><div data-bindings></div></details><button class="fo-secondary" data-action="settings-back">SAVE & BACK <span>↩</span></button></div><div class="fo-results" hidden><span class="fo-kicker">CASE CLOSED</span><h2 data-text="result-title">Patrol complete.</h2><p class="fo-muted">Final standings / confirmed by dispatch</p><ol data-results></ol><button class="fo-primary" data-action="rematch">ANOTHER ROUND →</button><button class="fo-secondary" data-action="leave">BACK TO DISPATCH <span>↗</span></button></div><div class="fo-notice" role="status" aria-live="polite" hidden></div><footer class="fo-panel-footer"><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button><span class="fo-input-hint" data-text="input-hint">↑ ↓ SELECT · ENTER CONFIRM</span></footer></section></main><footer class="fo-bottom"><span>MINOR INFRACTIONS. MAJOR COLLISIONS.</span><span>DRIVE FAST. FILE LATER.</span></footer><div class="fo-toast" role="status" aria-live="polite" hidden></div>`;
+    <div class="fo-menu-backdrop"></div><main class="fo-menu"><div class="fo-hero" aria-hidden="true"></div><section class="fo-panel" aria-label="Dispatch menu"><div class="fo-panel-heading"><span class="fo-kicker" data-text="panel-kicker">CITY MOTOR DIVISION</span><span class="fo-panel-no">FORM 01–FO</span></div><div class="fo-home"><h2>You're on duty.</h2><p class="fo-muted">Pick a callsign. Take the keys.</p><label class="fo-field">YOUR CALLSIGN<input name="nickname" maxlength="20" autocomplete="nickname" spellcheck="false" value="Officer Rookie" placeholder="Officer Rookie"></label><button class="fo-primary" data-action="practice"><span>HIT THE STREETS<small>Solo practice & pursuit challenge</small></span><b>↗</b></button><div class="fo-divider"><span>OR BRING BACKUP</span></div><div class="fo-actions"><button class="fo-secondary" data-action="create">CREATE ROOM <span>+</span></button><button class="fo-secondary" data-action="join-toggle">JOIN ROOM <span>→</span></button></div><form class="fo-join" hidden><label class="fo-field">ROOM CODE OR INVITE LINK<input name="room" maxlength="250" autocomplete="off" spellcheck="false" placeholder="Paste a code or invite link"></label><button class="fo-primary" type="submit">REPORT TO DISPATCH →</button></form><div class="fo-room-note">PRIVATE ROOMS · 2–8 DRIVERS · NO ACCOUNT NEEDED</div></div><div class="fo-pause" hidden><h2>Taking a breather?</h2><p class="fo-muted" data-text="pause-description">Your patrol is paused.</p><button class="fo-primary" data-action="resume">BACK ON PATROL →</button><button class="fo-secondary" data-action="leave">END PATROL <span>↗</span></button></div><div class="fo-settings" hidden><h2>Fine tuning.</h2><p class="fo-muted">Make this patrol yours.</p><div class="fo-settings-list"><label>Master volume<input type="range" data-setting="masterVolume" min="0" max="1" step=".05"></label><label>Music<input type="range" data-setting="musicVolume" min="0" max="1" step=".05"></label><label>Effects<input type="range" data-setting="effectsVolume" min="0" max="1" step=".05"></label><label>Graphics<select data-setting="quality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label><label>Reduce camera shake<input type="checkbox" data-setting="reducedShake"></label><label>Reduce flashes<input type="checkbox" data-setting="reducedFlash"></label><label>Controller vibration<input type="checkbox" data-setting="vibration"></label><label>Stick dead zone<input type="range" data-setting="stickDeadzone" min=".05" max=".5" step=".01"></label><label>Trigger dead zone<input type="range" data-setting="triggerDeadzone" min="0" max=".5" step=".01"></label><label>Steering sensitivity<input type="range" data-setting="sensitivity" min=".4" max="1.8" step=".05"></label></div><details class="fo-bindings"><summary>KEYBOARD BINDINGS</summary><div data-bindings></div></details><button class="fo-secondary" data-action="settings-back">SAVE & BACK <span>↩</span></button></div><div class="fo-results" hidden><span class="fo-kicker">CASE CLOSED</span><h2 data-text="result-title">Patrol complete.</h2><p class="fo-muted">Final standings / confirmed by dispatch</p><ol data-results></ol><button class="fo-primary" data-action="rematch">ANOTHER ROUND →</button><button class="fo-secondary" data-action="leave">BACK TO DISPATCH <span>↗</span></button></div><div class="fo-notice" role="status" aria-live="polite" hidden></div><footer class="fo-panel-footer"><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button><span class="fo-input-hint" data-text="input-hint">↑ ↓ SELECT · ENTER CONFIRM</span></footer></section></main><footer class="fo-bottom"><span>MINOR INFRACTIONS. MAJOR COLLISIONS.</span><span>DRIVE FAST. FILE LATER.</span></footer><div class="fo-toast" role="status" aria-live="polite" hidden></div>`;
   root.append(shell);
   const one = <T extends HTMLElement = HTMLElement>(selector: string) => shell.querySelector<T>(selector)!;
   const all = <T extends HTMLElement = HTMLElement>(selector: string) => [...shell.querySelectorAll<T>(selector)];
+  const garage = doc.createElement('section'); garage.className = 'fo-garage'; garage.setAttribute('aria-label', 'Assigned vehicle garage');
+  garage.innerHTML = `<div class="fo-garage-heading"><span class="fo-kicker">CITY MOTOR POOL / YOUR ASSIGNED UNIT</span><h1>TAKE THE KEYS.</h1><h2 data-text="vehicle-name"></h2><span class="fo-vehicle-role" data-text="vehicle-role"></span></div><div class="fo-garage-card"><div class="fo-garage-stats"><div><span>ARMOR</span><strong data-text="vehicle-armor"></strong></div><div><span>TOP SPEED</span><strong data-text="vehicle-speed"></strong></div><div><span>ACCELERATION</span><meter aria-label="Vehicle acceleration" min="0" max="1" value="0"></meter></div><div><span>HANDLING</span><meter aria-label="Vehicle handling" min="0" max="1" value="0"></meter></div></div><p data-text="vehicle-description"></p><button type="button" data-action="reassign">REASSIGN VEHICLE</button><span class="fo-garage-note">LUCK OF THE MOTOR POOL. MAKE IT YOURS.</span></div>`;
+  shell.append(garage);
   const write = (key: string, value: string) => { const node = one(`[data-text="${key}"]`); if (node.textContent !== value) node.textContent = value; };
   const hide = (selector: string, hidden: boolean) => { one(selector).hidden = hidden; };
   const connectivityIcon = doc.createElement('span'); connectivityIcon.className = 'fo-connectivity-icon';
@@ -99,7 +112,23 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const notify = (message: string) => { const node = one('.fo-notice'); node.textContent = message; node.hidden = !message; };
   const persist = () => { try { view?.localStorage.setItem('fender-settings-v1', JSON.stringify(settings)); } catch { /* Optional persistence. */ } callbacks.onSettings?.(structuredClone(settings)); };
   function focusFirst() { const focusable = visibleControls(); (focusable.find(node => node.matches('.fo-primary')) ?? focusable[0])?.focus({ preventScroll: true }); }
-  function visibleControls() { return all<HTMLButtonElement | HTMLInputElement | HTMLSelectElement | HTMLElement>('button,input,select,summary').filter(node => !node.closest('[hidden]') && !(node as HTMLButtonElement).disabled && !node.closest('.fo-hud') && !node.closest('.fo-top')); }
+  const lobby = () => model.mode === 'online' && model.snapshot?.phase === 'lobby';
+  const canReassign = () => !pending && (menu === 'home' && !model.snapshot || menu === null && lobby() && ['lobby', 'playing'].includes(statusName(model.status)));
+  function visibleControls() { return all<HTMLButtonElement | HTMLInputElement | HTMLSelectElement | HTMLElement>('button,input,select,summary').filter(node => !node.closest('[hidden]') && !(node as HTMLButtonElement).disabled && (!node.closest('.fo-hud') || lobby() && node.matches('[data-action="start"],[data-action="invite"]')) && !node.closest('.fo-top')); }
+  function updateGarage() {
+    const visible = menu === 'home' && !model.snapshot || menu === null && lobby();
+    garage.hidden = !visible;
+    shell.classList.toggle('fo-in-garage', visible);
+    shell.classList.toggle('fo-lobby', visible && lobby());
+    garage.dataset.vehicle = vehicle;
+    const profile = getVehicleProfile(vehicle);
+    write('vehicle-name', profile.name); write('vehicle-role', profile.role);
+    write('vehicle-armor', `${profile.maxHealth} HP`); write('vehicle-speed', `${Math.round(profile.topSpeed * 3.6)} KM/H`);
+    write('vehicle-description', profile.description);
+    one<HTMLMeterElement>('[aria-label="Vehicle acceleration"]').value = Math.min(1, profile.acceleration / 24);
+    one<HTMLMeterElement>('[aria-label="Vehicle handling"]').value = Math.min(1, profile.steeringRate / 2.6 * Math.sqrt(profile.grip / 10));
+    one<HTMLButtonElement>('[data-action="reassign"]').disabled = !canReassign();
+  }
   function showMenu(next: Menu = 'pause') {
     if (next === 'settings') previousMenu = menu;
     menu = next;
@@ -110,7 +139,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     hide('.fo-home', menu !== 'home' || results); hide('.fo-pause', menu !== 'pause' || results); hide('.fo-settings', menu !== 'settings'); hide('.fo-results', !results);
     hide('[data-action="settings"]', menu === 'settings');
     write('pause-description', model.mode === 'online' ? 'THE MATCH IS STILL LIVE. Your unit is coasting with controls released.' : 'Your local patrol is paused. Take your time.');
-    callbacks.onMenuVisibility?.(menu !== null);
+    callbacks.onMenuVisibility?.(menu !== null || lobby());
+    updateGarage();
     if (menu !== null) focusFirst();
   }
   function parseRoom(value: string): string {
@@ -123,9 +153,10 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if (!name) { notify('Your unit needs a callsign.'); nickname.focus(); return; }
     if (mode === 'join' && !roomId) { notify('Enter a room code or paste an invite link.'); roomInput.focus(); return; }
     pending = true; notify('Contacting dispatch…'); all<HTMLButtonElement>('.fo-home button').forEach(button => { button.disabled = true; });
-    try { await callbacks.onPlay({ mode, nickname: name, ...(mode === 'join' ? { roomId } : {}) }); }
+    updateGarage();
+    try { persistVehicle(); await callbacks.onPlay({ mode, nickname: name, vehicleBodyId: vehicle, ...(mode === 'join' ? { roomId } : {}) }); }
     catch (error) { notify(error instanceof Error ? error.message : 'Dispatch could not be reached. Try again.'); }
-    finally { pending = false; if (!disposed) all<HTMLButtonElement>('.fo-home button').forEach(button => { button.disabled = false; }); }
+    finally { pending = false; if (!disposed) { all<HTMLButtonElement>('.fo-home button').forEach(button => { button.disabled = false; }); updateGarage(); } }
   }
   const bindingDefaults: Record<string, string[]> = { throttle: ['KeyW'], brakeReverse: ['KeyS'], left: ['KeyA'], right: ['KeyD'], handbrake: ['ShiftLeft'], fire: ['Space'], siren: ['KeyE'], recover: ['KeyR'] };
   const bindingLabels: Record<string, string> = { throttle: 'Accelerate', brakeReverse: 'Brake / reverse', left: 'Steer left', right: 'Steer right', handbrake: 'Handbrake', fire: 'Fire', siren: 'Siren', recover: 'Hold to recover' };
@@ -150,6 +181,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if (button.dataset.binding) { bindingAction = button.dataset.binding; button.textContent = 'PRESS A KEY…'; return; }
     switch (button.dataset.action) {
       case 'practice': void play('practice'); break;
+      case 'reassign': if (canReassign()) { vehicle = rollVehicle(vehicle); awaitingVehicle = lobby() ? vehicle : null; persistVehicle(); updateGarage(); callbacks.onVehicleChange?.(vehicle); toast('NEW KEYS. SAME QUESTIONABLE DEPARTMENT.'); } break;
       case 'create': void play('create'); break;
       case 'join-toggle': hide('.fo-join', !one('.fo-join').hidden); roomInput.focus(); break;
       case 'pause': if (model.snapshot) showMenu(menu === null ? 'pause' : null); break;
@@ -194,7 +226,18 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     });
   }
   function update(next: UiModel) {
-    const previousPhase = model.snapshot?.phase; model = { ...model, ...next };
+    const previousPhase = model.snapshot?.phase, previousEpoch = model.snapshot?.sessionEpoch; const wasLobby = lobby(); model = { ...model, ...next };
+    if (wasLobby !== lobby()) callbacks.onMenuVisibility?.(menu !== null || lobby());
+    const leavingWithPending = wasLobby && !lobby() && awaitingVehicle !== null;
+    const interrupted = ['reconnecting', 'disconnected', 'error'].includes(statusName(model.status));
+    const epochChanged = previousEpoch !== undefined && previousEpoch !== model.snapshot?.sessionEpoch;
+    if (interrupted || epochChanged || leavingWithPending) awaitingVehicle = null;
+    const authoritative = next.selectedVehicleBodyId ?? next.snapshot?.local?.vehicle.bodyAssetId;
+    if ((lobby() || leavingWithPending) && isVehicleBodyId(authoritative)) {
+      if (authoritative === awaitingVehicle) awaitingVehicle = null;
+      if (!awaitingVehicle && vehicle !== authoritative) { vehicle = authoritative; persistVehicle(); }
+    }
+    if (!lobby()) awaitingVehicle = null;
     shell.classList.toggle('fo-online', model.mode === 'online');
     const snapshot = model.snapshot; const hud = deriveHud(model); const status = statusName(model.status);
     if (snapshot && menu === 'home' && status !== 'error') { resultDismissed = false; showMenu(null); notify(''); }
@@ -233,6 +276,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if (error) { if (menu === null) showMenu('pause'); notify(errorMessages[error] ?? error); }
     if (model.unsupportedPad && model.unsupportedPad !== lastUnsupportedPad) toast('UNSUPPORTED CONTROLLER MAPPING — KEYBOARD CONTROLS AVAILABLE');
     lastUnsupportedPad = model.unsupportedPad ?? null;
+    updateGarage();
   }
   function navigate(action: MenuAction) {
     if (action === 'pause' || action === 'back') {
@@ -242,7 +286,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
       else if (!one('.fo-join').hidden) hide('.fo-join', true);
       return;
     }
-    if (menu === null) { if (action === 'confirm' && model.snapshot?.phase === 'lobby') callbacks.onStartRound?.(); return; }
+    if (menu === null && !lobby()) return;
+    if (menu === null && lobby() && action === 'confirm' && !visibleControls().includes(doc.activeElement as HTMLElement)) { callbacks.onStartRound?.(); return; }
     const controls = visibleControls(); const focused = doc.activeElement as HTMLElement; let index = controls.indexOf(focused);
     if (action === 'up' || action === 'down') { index = (index + (action === 'down' ? 1 : -1) + controls.length) % controls.length; controls[index]?.focus(); controls[index]?.scrollIntoView({ block: 'nearest' }); }
     else if (action === 'confirm') {
@@ -258,10 +303,10 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const invitedRoom = new URLSearchParams(view?.location.search ?? '').get('room');
   if (invitedRoom) { roomInput.value = invitedRoom; hide('.fo-join', false); }
   showMenu('home'); callbacks.onSettings?.(structuredClone(settings));
-  return { update, showMenu, navigate, getSettings: () => structuredClone(settings), setSettings: (next: Partial<UiSettings>) => {
+  return { update, showMenu, navigate, getVehicle: () => vehicle, getSettings: () => structuredClone(settings), setSettings: (next: Partial<UiSettings>) => {
     settings = { ...settings, ...next };
     for (const input of all<HTMLInputElement | HTMLSelectElement>('[data-setting]')) { const key = input.dataset.setting as keyof UiSettings; if (input instanceof HTMLInputElement && input.type === 'checkbox') input.checked = Boolean(settings[key]); else input.value = String(settings[key]); }
     persist();
-  }, isMenuVisible: () => menu !== null,
+  }, isMenuVisible: () => menu !== null || lobby(),
     dispose: () => { disposed = true; clearTimeout(toastTimer); shell.removeEventListener('click', click); shell.removeEventListener('input', change); doc.removeEventListener('keydown', remapKey, true); shell.remove(); } };
 }

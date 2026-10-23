@@ -1,6 +1,6 @@
 # Shared contracts
 
-Status: semantic contract reference for the implemented v1 alpha. Updated: 2026-10-22. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+Status: semantic contract reference for the implemented alpha (`arcade-v2` gameplay). Updated: 2026-10-23. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
 
 This document defines cross-lane semantics and remaining acceptance expectations. Examples describe semantic TypeScript types, not the compact snapshot wire encoding or installed SDK API. Consumers use the package's public exports; additional validators and the complete proposed fixture catalog remain unfinished rather than implied by these examples.
 
@@ -69,6 +69,7 @@ interface VehicleState {
   pose: PlanarPose;
   velocity: PlanarVelocity;
   health: number;
+  maxHealth?: number;        // authority-provided maximum; HUD renders a percentage
   status: "active" | "wrecked" | "respawning";
   protectedUntilTick: number;
   respawnAtTick: number | null;
@@ -136,6 +137,8 @@ These DTOs are the logical projection of authoritative state. Colyseus may encod
 
 Gameplay configuration has `revision`, vehicle tuning, weapon tuning, round duration, spawn/recovery rules, traffic caps, and collision filters. Rendering quality and input sensitivity are separate client configurations and must not change authoritative handling parameters.
 
+`VEHICLE_BODIES`, `VehicleBodyId`, `VEHICLE_PROFILES`, `isVehicleBodyId` and `getVehicleProfile` are public contracts. Player body IDs select the shared profile; untrusted requests must validate IDs before accessing profiles. Profile lookup falls back to patrol for presentation compatibility. The compact vehicle tuple appends optional `maxHealth` at slot 15; a legacy tuple without it decodes to 100. Current authority includes the configured maximum so HUD and health bars can render percentages correctly.
+
 ## 4. Events and replay-safe presentation
 
 ```ts
@@ -189,6 +192,7 @@ interface GameSession {
   submit(command: InputCommand): void;
   neutralize(): void;
   request(action: "start-round" | "rematch" | "leave"): void;
+  selectVehicle(bodyId: VehicleBodyId): void;
   onSnapshot(callback: (snapshot: WorldSnapshot) => void): () => void;
   onEvents(callback: (events: GameEvent[]) => void): () => void;
   onStatus(callback: (status: SessionStatus) => void): () => void;
@@ -216,14 +220,16 @@ interface GameRenderer {
 
 Types referenced but not expanded here (`SessionRequest`, `JoinResult`, `SessionStatus`, `SceneManifest`, `SimulationCheckpoint`) must be concrete public exports in F01, with fixtures and validation where they cross a trust boundary. Required fields are specified below; F01 must not leave production-facing `any` or ambiguous placeholders.
 
-- `SessionRequest`: mode `practice | create | join`, bounded nickname, room ID when joining, protocol/content versions, optional reconnect credential handled by the network adapter.
+- `SessionRequest`: mode `practice | create | join`, bounded nickname, room ID when joining, optional validated `vehicleBodyId`, protocol/content versions, optional reconnect credential handled by the network adapter. Omission retains server random assignment for legacy/tool callers; clients cannot supply profile tuning values.
 - `JoinResult`: player ID, room ID, current session epoch, accepted content versions, first state, local entity ID if spawned.
 - `SessionStatus`: `idle | connecting | lobby | playing | reconnecting | disconnected | error`, with typed reason and optional retry delay.
-- Join error reasons: `room-full`, `room-missing`, `version-mismatch`, `invalid-name`, `server-shutdown`, `server-capacity`, `network-error`, `reconnect-expired`.
+- Join error reasons: `room-full`, `room-missing`, `version-mismatch`, `invalid-name`, `invalid-vehicle`, `server-shutdown`, `server-capacity`, `network-error`, `reconnect-expired`.
 - `SimulationCheckpoint`: opaque versioned local data, including tick and source scenario identity; never accepted from an untrusted client.
 - `SceneManifest`: map revision, asset catalog revision, environment settings, visual instances, quality variants, and references to shared collision data.
 
 Do not put prediction into `GameRenderer`. `net-client` owns the online prediction controller and exposes its render sample; practice uses a local simulation presentation adapter. The app chooses the session implementation once, not through mode checks spread across every package.
+
+`selectVehicle` sends a semantic lobby request. The authority accepts only known IDs during the lobby, neutralizes pending input, applies profile health/tuning and publishes a discontinuity to all observers. Countdown and live-round requests cannot change the car or heal it. The browser persists its garage choice independently of a room; it supplies that choice on the next dispatch.
 
 UI consumes a derived `HudModel` (speed, health, scores, timer, connection, prompts) and emits semantic actions. UI cannot write `WorldSnapshot`. Owner F defines the mapping; UI lane owns its presentation.
 
