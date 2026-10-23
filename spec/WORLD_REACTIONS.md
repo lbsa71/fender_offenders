@@ -1,6 +1,6 @@
 # Wrecks, physical scenery and pedestrians
 
-Reactive scenery and a cosmetic crowd were introduced in `arcade-v4`. The current `arcade-v5` build retains this world behavior alongside the drift controller and paired gunfire; scenery adds no vehicle damage and does not change the default three-second respawn.
+Reactive scenery and a cosmetic crowd were introduced in `arcade-v4`. The current `arcade-v6` build retains this world behavior alongside the drift controller, paired gunfire and competitive pursuit; scenery adds no vehicle damage and does not change the default three-second respawn.
 
 ## Authority and physics
 

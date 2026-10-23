@@ -1,6 +1,6 @@
 # Shared contracts
 
-Status: semantic contract reference for the implemented alpha (`arcade-v5` gameplay). Updated: 2026-10-23. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+Status: semantic contract reference for the implemented alpha (`arcade-v6` gameplay). Updated: 2026-10-23. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
 
 This document defines cross-lane semantics and remaining acceptance expectations. Examples describe semantic TypeScript types, not the compact snapshot wire encoding or installed SDK API. Consumers use the package's public exports; additional validators and the complete proposed fixture catalog remain unfinished rather than implied by these examples.
 
@@ -249,6 +249,10 @@ Types referenced but not expanded here (`SessionRequest`, `JoinResult`, `Session
 Do not put prediction into `GameRenderer`. `net-client` owns the online prediction controller and exposes its render sample; practice uses a local simulation presentation adapter. The app chooses the session implementation once, not through mode checks spread across every package.
 
 Projectile presentation uses the predicted local car clock (at most six ticks ahead) and buffered remote car clock. It never rewinds an already shown round; confirmed impacts or absence from the latest authoritative state retire it. Presentation clips against world geometry and cannot cause damage. `presentationAgeSeconds` is render-only, never serialized, and bounds fresh tracer length from simulation age. `sampleTimeSeconds` remains a browser clock and must not be used as projectile age. New match/session epoch/life boundaries clear the relevant presentation history.
+
+`PursuitState` contains `state: 'chasing'|'arresting'|'complete'`, `suspectId`, leading `progress` and `elapsedTicks`, plus optional `arrestingPlayerId`, `winnerPlayerId` (nullable) and `contenders: Array<{playerId,progress}>`. Every contender owns independent progress. Clients must show the local contender's progress, not a rival's leading progress. The first qualifying arrest ends the dispatch; simultaneous completions resolve by stable player ID. `pursuit-complete` adds optional `playerId`/`suspectId`; `round-ended` adds optional `winnerPlayerId`/`reason: 'apprehended'|'timeout'`. State carries the result for late join/reconnect. Combat score does not determine the pursuit winner. See [the rule decision](adr/001-competitive-pursuit.md).
+
+`RenderFrame.pursuit` is included only while a dispatch is playing and its objective is incomplete. `TargetIndicator` is a render-only `{x,y,angle,offscreen,distanceMeters}` value: normalized canvas-relative X/Y, clockwise-from-up radians and planar distance to the local car. `renderer.getTargetIndicator()` uses the actual camera and sampled suspect pose; `ui.setTargetIndicator()` updates the existing badge each frame and gates its visibility by menu/session lifecycle. Neither value is serialized or accepted as gameplay authority.
 
 `selectVehicle` sends a semantic lobby request. The authority accepts only known IDs during the lobby, neutralizes pending input, applies profile health/tuning and publishes a discontinuity to all observers. Countdown and live-round requests cannot change the car or heal it. The browser persists its garage choice independently of a room; it supplies that choice on the next dispatch.
 

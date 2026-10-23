@@ -16,6 +16,9 @@ test('home and practice load without external fonts or remote content', async ({
   await expect.poll(() => page.evaluate(() => (window as DebugWindow).__FENDER_DEBUG__?.stats?.renderer?.props ?? 0)).toBeGreaterThan(100);
   await expect.poll(() => page.evaluate(() => (window as DebugWindow).__FENDER_DEBUG__?.stats?.renderer?.pedestrians ?? 0)).toBe(24);
   expect((await snapshot(page))!.props!.some(prop => prop.kind === 'tree' && prop.mode === 'fixed')).toBe(true);
+  const objective = (await snapshot(page))!.pursuit!;
+  expect((await snapshot(page))!.vehicles.filter(vehicle => vehicle.entityId === objective.suspectId)).toHaveLength(1);
+  await expect(page.getByRole('img', { name: /^Wanted suspect,/ })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   await expect(page.locator('.fo-prompts')).toBeVisible();
   expect(externalRequests, 'Home and practice must use only local application resources').toEqual([]);
@@ -59,6 +62,7 @@ test('keyboard practice drives, fires, releases controls on pause and saves sett
   await expect.poll(()=>page.evaluate(()=>(window as DebugWindow).__FENDER_DEBUG__?.events?.some(event=>event.kind==='shot'&&event.payload.projectileIds?.length===2&&event.payload.origins?.length===2)??false)).toBe(true);
   await page.keyboard.press('Escape'); await page.keyboard.up('w'); await page.keyboard.up('Space');
   await expect(page.getByRole('heading', { name: 'Taking a breather?' })).toBeVisible();
+  await expect(page.locator('.fo-target-indicator')).toBeHidden();
   await expect(page.getByText('Your local patrol is paused.', { exact: false })).toBeVisible();
   const pausedTick = (await snapshot(page))!.serverTick;
   await page.waitForTimeout(150);
@@ -71,6 +75,7 @@ test('keyboard practice drives, fires, releases controls on pause and saves sett
   await page.getByRole('button', { name: 'SAVE & BACK' }).click();
   await page.getByRole('button', { name: 'BACK ON PATROL' }).click();
   await expect.poll(async () => (await snapshot(page))!.serverTick).toBeGreaterThan(pausedTick);
+  await expect(page.getByRole('img', { name: /^Wanted suspect,/ })).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: 'SETTINGS & CONTROLS' }).click();
   await expect(page.getByLabel('Reduce flashes')).toBeChecked();
@@ -185,6 +190,12 @@ test('two browser clients create, join, start a live round and share confirmed s
     await expect.poll(async () => (await snapshot(host))?.phase).toBe('playing');
     await expect.poll(async () => (await snapshot(guest))?.phase).toBe('playing');
     console.log('Both clients received playing phase');
+    const sharedSuspect = (await snapshot(host))!.pursuit!.suspectId;
+    expect((await snapshot(guest))!.pursuit!.suspectId).toBe(sharedSuspect);
+    for (const viewer of [host, guest]) {
+      await expect(viewer.locator('.fo-pursuit')).toContainText('FIRST TO APPREHEND');
+      await expect(viewer.getByRole('img', { name: /^Wanted suspect,/ })).toBeVisible();
+    }
     await host.keyboard.press('Escape');
     await expect(host.getByText('THE MATCH IS STILL LIVE.', { exact: false })).toBeVisible();
     const tick = (await snapshot(host))!.serverTick;

@@ -1,4 +1,4 @@
-import { getVehicleProfile, isVehicleBodyId, VEHICLE_BODIES, type DeviceKind, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
+import { getVehicleProfile, isVehicleBodyId, VEHICLE_BODIES, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
 import './style.css';
 
 export type MenuAction = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back' | 'pause';
@@ -71,6 +71,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   try { stored = JSON.parse(view?.localStorage.getItem('fender-settings-v1') ?? '{}') as Partial<UiSettings>; } catch { /* Storage is optional. */ }
   let settings: UiSettings = { ...defaults, ...stored, bindings: stored.bindings ?? {} };
   let model: UiModel = {};
+  let targetIndicator: TargetIndicator | null = null;
+  let targetAngle = 0;
   let menu: Menu = 'home';
   let previousMenu: Menu = 'home';
   let pending = false;
@@ -93,6 +95,18 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   root.append(shell);
   const one = <T extends HTMLElement = HTMLElement>(selector: string) => shell.querySelector<T>(selector)!;
   const all = <T extends HTMLElement = HTMLElement>(selector: string) => [...shell.querySelectorAll<T>(selector)];
+  const targetBadge = doc.createElement('div'); targetBadge.className = 'fo-target-indicator'; targetBadge.hidden = true; targetBadge.setAttribute('role', 'img');
+  targetBadge.innerHTML = '<span class="fo-target-arrow" aria-hidden="true"><svg viewBox="0 0 44 44"><path class="fo-target-chevron" d="m8 23 14-14 14 14"/><path class="fo-target-chevron" d="m8 36 14-14 14 14"/></svg></span><strong class="fo-target-label">WANTED SUSPECT</strong><span class="fo-target-distance"></span>';
+  shell.append(targetBadge);
+  const targetLabel = targetBadge.querySelector<HTMLElement>('.fo-target-label')!;
+  const targetDistance = targetBadge.querySelector<HTMLElement>('.fo-target-distance')!;
+  const arrestLabel = doc.createElement('span'); arrestLabel.className = 'fo-arrest-label';
+  const arrestProgress = one<HTMLProgressElement>('.fo-pursuit progress'); arrestProgress.setAttribute('aria-label', 'Your arrest progress'); arrestProgress.before(arrestLabel);
+  const arrestHelp = doc.createElement('small'); arrestHelp.className = 'fo-arrest-help'; arrestHelp.textContent = 'Stay close & match speed · 3s'; one('.fo-pursuit').append(arrestHelp);
+  const resultOutcome = doc.createElement('p'); resultOutcome.className = 'fo-result-outcome'; resultOutcome.hidden = true; one('.fo-results h2').after(resultOutcome);
+  one('.fo-home .fo-muted').textContent = 'Find the wanted suspect. First unit to apprehend wins.';
+  one('.fo-home .fo-divider span').textContent = 'COMPETE FOR THE ARREST';
+  one('.fo-home .fo-room-note').textContent = 'PRIVATE PURSUITS · 2–8 DRIVERS · FIRST TO APPREHEND';
   const garage = doc.createElement('section'); garage.className = 'fo-garage'; garage.setAttribute('aria-label', 'Assigned vehicle garage');
   garage.innerHTML = `<div class="fo-garage-heading"><span class="fo-kicker">CITY MOTOR POOL / YOUR ASSIGNED UNIT</span><h1>TAKE THE KEYS.</h1><h2 data-text="vehicle-name"></h2><span class="fo-vehicle-role" data-text="vehicle-role"></span></div><div class="fo-garage-card"><div class="fo-garage-stats"><div><span>ARMOR</span><strong data-text="vehicle-armor"></strong></div><div><span>TOP SPEED</span><strong data-text="vehicle-speed"></strong></div><div><span>ACCELERATION</span><meter aria-label="Vehicle acceleration" min="0" max="1" value="0"></meter></div><div><span>HANDLING</span><meter aria-label="Vehicle handling" min="0" max="1" value="0"></meter></div></div><p data-text="vehicle-description"></p><button type="button" data-action="reassign">REASSIGN VEHICLE</button><span class="fo-garage-note">LUCK OF THE MOTOR POOL. MAKE IT YOURS.</span></div>`;
   shell.append(garage);
@@ -110,9 +124,29 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const nickname = one<HTMLInputElement>('[name="nickname"]');
   const roomInput = one<HTMLInputElement>('[name="room"]');
   const notify = (message: string) => { const node = one('.fo-notice'); node.textContent = message; node.hidden = !message; };
-  const persist = () => { try { view?.localStorage.setItem('fender-settings-v1', JSON.stringify(settings)); } catch { /* Optional persistence. */ } callbacks.onSettings?.(structuredClone(settings)); };
+  const persist = () => { shell.classList.toggle('fo-reduced-motion', settings.reducedShake); try { view?.localStorage.setItem('fender-settings-v1', JSON.stringify(settings)); } catch { /* Optional persistence. */ } callbacks.onSettings?.(structuredClone(settings)); };
   function focusFirst() { const focusable = visibleControls(); (focusable.find(node => node.matches('.fo-primary')) ?? focusable[0])?.focus({ preventScroll: true }); }
   const lobby = () => model.mode === 'online' && model.snapshot?.phase === 'lobby';
+  const hasResult = (candidate = model) => candidate.snapshot?.phase === 'results' || candidate.mode === 'practice' && candidate.snapshot?.pursuit?.state === 'complete';
+  function updateTargetBadge() {
+    const snapshot = model.snapshot, pursuit = snapshot?.pursuit;
+    const connected = model.mode !== 'online' || statusName(model.status) === 'playing';
+    const allowed = !disposed && menu === null && snapshot?.phase === 'playing' && pursuit && pursuit.state !== 'complete' && connected && !model.error && snapshot.vehicles.some(v => v.entityId === pursuit.suspectId && v.status !== 'respawning');
+    const indicator = targetIndicator;
+    targetBadge.hidden = !allowed || !indicator || ![indicator.x, indicator.y, indicator.angle, indicator.distanceMeters].every(Number.isFinite);
+    if (targetBadge.hidden || !indicator) return;
+    targetBadge.dataset.offscreen = String(indicator.offscreen);
+    targetBadge.style.setProperty('--target-x', `${Math.max(0, Math.min(1, indicator.x)) * 100}%`);
+    targetBadge.style.setProperty('--target-y', `${Math.max(0, Math.min(1, indicator.y)) * 100}%`);
+    targetAngle += Math.atan2(Math.sin(indicator.angle - targetAngle), Math.cos(indicator.angle - targetAngle));
+    targetBadge.style.setProperty('--target-angle', `${targetAngle}rad`);
+    const label = indicator.offscreen ? 'SUSPECT' : 'WANTED SUSPECT', meters = Math.max(0, Math.min(99999, Math.round(indicator.distanceMeters)));
+    if (targetLabel.textContent !== label) targetLabel.textContent = label;
+    if (targetDistance.textContent !== `${meters} m`) targetDistance.textContent = `${meters} m`;
+    const accessible = `Wanted suspect, ${meters} meters away, ${indicator.offscreen ? 'off screen' : 'on screen'}`;
+    if (targetBadge.getAttribute('aria-label') !== accessible) targetBadge.setAttribute('aria-label', accessible);
+  }
+  function setTargetIndicator(indicator: TargetIndicator | null) { targetIndicator = indicator; updateTargetBadge(); }
   const canReassign = () => !pending && (menu === 'home' && !model.snapshot || menu === null && lobby() && ['lobby', 'playing'].includes(statusName(model.status)));
   function visibleControls() { return all<HTMLButtonElement | HTMLInputElement | HTMLSelectElement | HTMLElement>('button,input,select,summary').filter(node => !node.closest('[hidden]') && !(node as HTMLButtonElement).disabled && (!node.closest('.fo-hud') || lobby() && node.matches('[data-action="start"],[data-action="invite"]')) && !node.closest('.fo-top')); }
   function updateGarage() {
@@ -135,12 +169,13 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     shell.classList.toggle('fo-is-playing', menu === null);
     shell.classList.toggle('fo-is-settings', menu === 'settings');
     hide('.fo-menu', menu === null); hide('.fo-menu-backdrop', menu === null); hide('.fo-hero', menu !== 'home'); hide('.fo-bottom', menu !== 'home');
-    const results = model.snapshot?.phase === 'results' && !resultDismissed && menu !== 'settings';
+    const results = hasResult() && !resultDismissed && menu !== 'settings';
     hide('.fo-home', menu !== 'home' || results); hide('.fo-pause', menu !== 'pause' || results); hide('.fo-settings', menu !== 'settings'); hide('.fo-results', !results);
     hide('[data-action="settings"]', menu === 'settings');
     write('pause-description', model.mode === 'online' ? 'THE MATCH IS STILL LIVE. Your unit is coasting with controls released.' : 'Your local patrol is paused. Take your time.');
     callbacks.onMenuVisibility?.(menu !== null || lobby());
     updateGarage();
+    updateTargetBadge();
     if (menu !== null) focusFirst();
   }
   function parseRoom(value: string): string {
@@ -226,7 +261,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     });
   }
   function update(next: UiModel) {
-    const previousPhase = model.snapshot?.phase, previousEpoch = model.snapshot?.sessionEpoch; const wasLobby = lobby(); model = { ...model, ...next };
+    const previousEpoch = model.snapshot?.sessionEpoch, previousResult = hasResult(); const wasLobby = lobby(); model = { ...model, ...next };
     if (wasLobby !== lobby()) callbacks.onMenuVisibility?.(menu !== null || lobby());
     const leavingWithPending = wasLobby && !lobby() && awaitingVehicle !== null;
     const interrupted = ['reconnecting', 'disconnected', 'error'].includes(statusName(model.status));
@@ -241,11 +276,11 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     shell.classList.toggle('fo-online', model.mode === 'online');
     const snapshot = model.snapshot; const hud = deriveHud(model); const status = statusName(model.status);
     if (snapshot && menu === 'home' && status !== 'error') { resultDismissed = false; showMenu(null); notify(''); }
-    if (snapshot?.phase === 'results' && previousPhase !== 'results') { resultDismissed = false; updateScores(one('[data-results]'), true); showMenu('pause'); }
-    if (previousPhase === 'results' && snapshot?.phase !== 'results' && menu === 'pause') showMenu(null);
+    if (hasResult() && !previousResult) { resultDismissed = false; updateScores(one('[data-results]'), true); showMenu('pause'); }
+    if (previousResult && !hasResult() && menu === 'pause') showMenu(null);
     hide('.fo-hud', !snapshot); write('speed', String(hud.speed)); write('health', `${Math.ceil(hud.health)}%`);
     one<HTMLElement>('.fo-health i').style.width = `${Math.max(0, Math.min(100, hud.health))}%`; one('.fo-health').classList.toggle('fo-low-health', hud.health < 30);
-    write('phase', model.mode === 'practice' ? 'FREE PATROL / PURSUIT' : hud.phase === 'lobby' ? 'WAITING FOR BACKUP' : hud.phase === 'countdown' ? 'PATROL STARTING' : hud.phase === 'results' ? 'CASE CLOSED' : 'FREE-FOR-ALL');
+    write('phase', model.mode === 'practice' ? 'SOLO PURSUIT' : hud.phase === 'lobby' ? 'WAITING FOR BACKUP' : hud.phase === 'countdown' ? 'PURSUIT STARTING' : hud.phase === 'results' ? 'PURSUIT COMPLETE' : 'COMPETING PURSUIT');
     write('timer', hud.phase === 'lobby' ? 'STAND BY' : model.mode === 'practice' ? 'ON DUTY' : time(hud.seconds));
     const remoteConnection = model.mode === 'online' && status !== 'idle';
     const reconnecting = remoteConnection && status === 'reconnecting';
@@ -265,24 +300,43 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     write('prompts', model.device === 'gamepad' ? 'LEFT STICK DRIVE · RT/LT DRIVE/BRAKE · A DRIFT · RB FIRE · X SIREN · HOLD Y RECOVER' : 'WASD DRIVE · SHIFT DRIFT · SPACE FIRE · E SIREN · HOLD R RECOVER');
     write('input-hint', model.device === 'gamepad' ? '↕ SELECT · A CONFIRM · B BACK' : '↑ ↓ SELECT · ENTER CONFIRM');
     const recovery = number(model.recoverProgress ?? 0); hide('.fo-recover', recovery <= 0); one<HTMLProgressElement>('.fo-recover progress').value = recovery;
-    const pursuit = model.pursuit ?? (snapshot?.pursuit ? { progress: snapshot.pursuit.progress, complete: snapshot.pursuit.state === 'complete' } : null);
-    hide('.fo-pursuit', !pursuit); if (pursuit) { write('pursuit', 'message' in pursuit && pursuit.message ? pursuit.message : pursuit.complete ? 'SUSPECT CITED. PAPERWORK PENDING.' : 'INTERCEPT SUSPECT · MATCH SPEED TO ARREST'); one<HTMLProgressElement>('.fo-pursuit progress').value = pursuit.progress; }
+    const authorityPursuit = snapshot?.pursuit;
+    const pursuit = authorityPursuit ? { progress: authorityPursuit.progress, complete: authorityPursuit.state === 'complete' } : model.pursuit;
+    hide('.fo-pursuit', !pursuit || snapshot?.phase !== 'playing' || Boolean(pursuit.complete));
+    if (pursuit) {
+      const own = authorityPursuit?.contenders?.find(contender => contender.playerId === model.localPlayerId)?.progress;
+      const progress = Math.max(0, Math.min(1, number(own ?? (model.mode === 'practice' || authorityPursuit?.arrestingPlayerId === model.localPlayerId ? pursuit.progress : 0))));
+      write('pursuit', model.mode === 'online' ? 'FIRST TO APPREHEND' : 'APPREHEND THE SUSPECT');
+      arrestLabel.textContent = `YOUR ARREST / ${Math.round(progress * 100)}%`; arrestProgress.value = progress;
+    }
     const showCallout = snapshot?.phase === 'countdown' || hud.status !== 'active'; hide('.fo-center-callout', !showCallout);
     write('callout-label', snapshot?.phase === 'countdown' ? 'READY TO ROLL?' : 'UNIT OUT OF ACTION'); write('callout', snapshot?.phase === 'countdown' ? String(Math.max(1, Math.ceil(hud.seconds))) : `BACK IN ${Math.ceil(hud.respawn)}…`);
     updateScores(one('[data-scores]'), false);
-    if (snapshot?.phase === 'results') updateScores(one('[data-results]'), true);
+    if (hasResult()) {
+      updateScores(one('[data-results]'), true);
+      const winnerId = authorityPursuit?.winnerPlayerId;
+      const practiceClosed = model.mode === 'practice' && authorityPursuit?.state === 'complete';
+      const winner = snapshot?.scores.find(score => score.playerId === winnerId)?.nickname ?? (winnerId === model.localPlayerId ? 'YOUR UNIT' : 'ANOTHER UNIT');
+      write('result-title', authorityPursuit ? winnerId || practiceClosed ? 'Suspect apprehended.' : 'Suspect escaped.' : 'Patrol complete.');
+      one('.fo-results>.fo-kicker').textContent = authorityPursuit && !winnerId && !practiceClosed ? 'TIME UP' : 'CASE CLOSED';
+      resultOutcome.hidden = !authorityPursuit;
+      resultOutcome.textContent = winnerId ? `APPREHENDED BY ${winner.toUpperCase()}${winnerId === model.localPlayerId ? ' / YOU' : ''}` : practiceClosed ? 'SUSPECT IN CUSTODY. GOOD WORK, OFFICER.' : 'TIME UP · SUSPECT ESCAPED';
+      one('.fo-results .fo-muted').textContent = authorityPursuit ? 'Combat points below / pursuit result confirmed by dispatch' : 'Final standings / confirmed by dispatch';
+      one('[data-action="rematch"]').textContent = model.mode === 'practice' ? 'NEW DISPATCH →' : 'ANOTHER ROUND →';
+    }
     const reason = typeof model.status === 'object' ? model.status.reason ?? model.status.message : undefined;
     const error = model.error ?? (status === 'error' ? reason ?? 'network-error' : null);
     if (error) { if (menu === null) showMenu('pause'); notify(errorMessages[error] ?? error); }
     if (model.unsupportedPad && model.unsupportedPad !== lastUnsupportedPad) toast('UNSUPPORTED CONTROLLER MAPPING — KEYBOARD CONTROLS AVAILABLE');
     lastUnsupportedPad = model.unsupportedPad ?? null;
     updateGarage();
+    updateTargetBadge();
   }
   function navigate(action: MenuAction) {
     if (action === 'pause' || action === 'back') {
       if (bindingAction) { bindingAction = null; return; }
       if (menu === 'settings') showMenu(previousMenu);
-      else if (model.snapshot && model.snapshot.phase !== 'results') { showMenu(menu === null ? 'pause' : null); if (menu === null) callbacks.onResume?.(); }
+      else if (model.snapshot && !hasResult()) { showMenu(menu === null ? 'pause' : null); if (menu === null) callbacks.onResume?.(); }
       else if (!one('.fo-join').hidden) hide('.fo-join', true);
       return;
     }
@@ -302,8 +356,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   // Invite links prefill the join flow, while preserving an intentional start action.
   const invitedRoom = new URLSearchParams(view?.location.search ?? '').get('room');
   if (invitedRoom) { roomInput.value = invitedRoom; hide('.fo-join', false); }
-  showMenu('home'); callbacks.onSettings?.(structuredClone(settings));
-  return { update, showMenu, navigate, getVehicle: () => vehicle, getSettings: () => structuredClone(settings), setSettings: (next: Partial<UiSettings>) => {
+  showMenu('home'); shell.classList.toggle('fo-reduced-motion', settings.reducedShake); callbacks.onSettings?.(structuredClone(settings));
+  return { update, showMenu, navigate, setTargetIndicator, getVehicle: () => vehicle, getSettings: () => structuredClone(settings), setSettings: (next: Partial<UiSettings>) => {
     settings = { ...settings, ...next };
     for (const input of all<HTMLInputElement | HTMLSelectElement>('[data-setting]')) { const key = input.dataset.setting as keyof UiSettings; if (input instanceof HTMLInputElement && input.type === 'checkbox') input.checked = Boolean(settings[key]); else input.value = String(settings[key]); }
     persist();

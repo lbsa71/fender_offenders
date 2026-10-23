@@ -12,6 +12,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
   const sdk = new Client(endpoint);
   const projectilePresentation = new ProjectilePresentation(map);
   let room: Room | null = null, snapshot: WorldSnapshot | null = null, predicted: LocalAuthorityState | null = null;
+  let latestFullResync: WorldSnapshot | null = null;
   let pending: { command: InputCommand; estimatedTick: number }[] = [], outgoing: InputCommand[] = [];
   let history: { state: WorldSnapshot; arrived: number }[] = [];
   let state: SessionStatus = { state: 'idle' }, disposed = false, playerId = '', roomId = '';
@@ -58,6 +59,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
   function receive(wire: WireSnapshot) {
     const next = unpackSnapshot(wire, wire.m === snapshot?.matchId ? snapshot?.props : undefined); receivedBytes += JSON.stringify(wire).length;
     if (snapshot && next.serverTick < snapshot.serverTick && next.matchId === snapshot.matchId && next.sessionEpoch === snapshot.sessionEpoch) return;
+    if (next.resetReason === 'resync' && !wire.propsPatch) latestFullResync = next;
     const reset = next.resetReason || next.matchId !== snapshot?.matchId || next.sessionEpoch !== snapshot?.sessionEpoch || next.local?.vehicle.discontinuityId !== snapshot?.local?.vehicle.discontinuityId;
     const oldPose = predicted?.vehicle.pose;
     snapshot = next; lastSnapshotAt = performance.now();projectilePresentation.receive(next,Boolean(reset));
@@ -119,7 +121,9 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
         room.onError((_code, message) => status({ state: 'error', reason: 'network-error', message }));
         const first = await new Promise<WorldSnapshot>((resolve, reject) => {
           const timer = setTimeout(() => { snapshotListeners.delete(listener); reject(new Error('Dispatch did not send a world')); }, 10000);
-          const listener = (s: WorldSnapshot) => { clearTimeout(timer); snapshotListeners.delete(listener); resolve(s); };
+          // A queued join or clock-only reset can precede the requested full baseline.
+          // Let the caller submit its first command only after that baseline has arrived.
+          const listener = (s: WorldSnapshot) => { if (s !== latestFullResync) return; clearTimeout(timer); snapshotListeners.delete(listener); resolve(s); };
           snapshotListeners.add(listener); room!.send('resync');
         });
         return { playerId, roomId, sessionEpoch: first.sessionEpoch, protocolVersion: first.protocolVersion, mapRevision: first.mapRevision, gameplayRevision: first.gameplayRevision, firstState: first, localEntityId: first.local?.vehicle.entityId ?? null };
@@ -175,7 +179,8 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
         const vehicle = clone(predicted.vehicle); vehicle.pose.x += correctionX; vehicle.pose.z += correctionZ;
         const index = vehicles.findIndex(v => v.entityId === vehicle.entityId); if (index >= 0) vehicles[index] = vehicle; else vehicles.push(vehicle);
       }
-      return { sampleTimeSeconds: now / 1000, vehicles, projectiles: projectilePresentation.sample(predicted?.vehicle.entityId??null,estimatedTick,playbackTick), props: propsAt(playbackTick), localEntityId: predicted?.vehicle.entityId ?? null, cameraTarget: vehicles.find(v => v.playerId === playerId)?.pose ?? null };
+      return { sampleTimeSeconds: now / 1000, vehicles, projectiles: projectilePresentation.sample(predicted?.vehicle.entityId??null,estimatedTick,playbackTick), props: propsAt(playbackTick), localEntityId: predicted?.vehicle.entityId ?? null, cameraTarget: vehicles.find(v => v.playerId === playerId)?.pose ?? null,
+        pursuit: snapshot.phase === 'playing' && snapshot.pursuit?.state !== 'complete' ? clone(snapshot.pursuit) : undefined };
     },
     getSnapshot: () => snapshot,
     getIdentity: () => ({ playerId, roomId }),

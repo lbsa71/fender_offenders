@@ -3,14 +3,14 @@ import { packSnapshot, unpackSnapshot, neutralActions, type VehicleState, type W
 import { createOnlineSession } from './index.js';
 import type { CollisionMap } from '@fender/contracts';
 
-const wire = vi.hoisted(() => ({ handlers: new Map<string, (message: unknown) => void>(), initial: null as unknown }));
+const wire = vi.hoisted(() => ({ handlers: new Map<string, (message: unknown) => void>(), initial: null as unknown, deferBaseline: false }));
 vi.mock('@colyseus/sdk', () => ({ Client: class {
   async create() { return {
     roomId: 'clock-fixture', sessionId: 'local', reconnection: { enqueuedMessages: [] },
     connection: { isOpen: true, reconnect() {}, close() {} },
     onMessage(type: string, handler: (value: unknown) => void) { wire.handlers.set(type, handler); },
     onDrop() {}, onReconnect() {}, onLeave() {}, onError() {},
-    send(type: string) { if (type === 'resync') wire.handlers.get('snapshot')!(wire.initial); },
+    send(type: string) { if (type === 'resync') wire.handlers.get('snapshot')!({ ...(wire.initial as WireSnapshot), reset: wire.deferBaseline ? 'join' : 'resync' }); },
     async leave() { return 4000; },
     removeAllListeners() { wire.handlers.clear(); },
   }; }
@@ -24,13 +24,48 @@ function snapshot(tick: number, options: { direction?: number; epoch?: string; m
   const state: WorldSnapshot = { protocolVersion: 1, mapRevision: map.revision, gameplayRevision: 'arcade-v1', sessionEpoch: options.epoch ?? 'clock-epoch', serverTick: tick, matchId: options.matchId ?? 'clock-fixture', phase: 'playing', phaseEndsAtTick: null, vehicles: [local, car('remote', direction * tick / 6)], projectiles: [], scores: [], local: { vehicle: local, driver: { resolvedSteering: 0, reverseHoldTicks: 0, nextFireTick: 0, shotOrdinal: 0, nextRecoveryTick: 0, lastDamageTick: null }, lastConsumedSequence: -1 } };
   return packSnapshot(state);
 }
-afterEach(() => { vi.useRealTimers(); wire.handlers.clear(); });
+afterEach(() => { vi.useRealTimers(); wire.handlers.clear(); wire.deferBaseline = false; });
+
+it('waits for the requested initial resync before accepting a joined session and its first input', async () => {
+  wire.initial = snapshot(100); wire.deferBaseline = true;
+  const session = createOnlineSession('ws://clock-fixture', map); let settled = false;
+  const joining = session.connect({ mode: 'create', nickname: 'Join baseline race' }).then(result => { settled = true; return result; });
+  try {
+    for (let turn = 0; turn < 8; turn++) await Promise.resolve();
+    expect(wire.handlers.has('snapshot')).toBe(true);
+    expect(settled, 'A queued join snapshot must not finish the resync handshake').toBe(false);
+    wire.handlers.get('snapshot')!({ ...(wire.initial as WireSnapshot), reset: 'resync', propsPatch: true });
+    for (let turn = 0; turn < 4; turn++) await Promise.resolve();
+    expect(settled, 'A clock-only correction must not finish the requested baseline handshake').toBe(false);
+    wire.handlers.get('snapshot')!({ ...(wire.initial as WireSnapshot), reset: 'resync' });
+    await joining;
+    session.submit({ sessionEpoch: session.getSnapshot()!.sessionEpoch, sequence: 0, clientTick: 0, actions: { ...neutralActions(), throttle: 1 } });
+    expect(session.getStats().pendingInputs).toBe(1);
+  } finally { await session.dispose(); }
+});
+
+it('passes authoritative suspect identity and progress to rendering and removes the marker after dispatch completion', async () => {
+  wire.initial = snapshot(100);
+  const source = unpackSnapshot(wire.initial as WireSnapshot);
+  source.pursuit = { suspectId: 'remote', state: 'arresting', elapsedTicks: 100, progress: .5, arrestingPlayerId: 'local', winnerPlayerId: null, contenders: [{ playerId: 'local', progress: .5 }] };
+  wire.initial = packSnapshot(source);
+  const session = createOnlineSession('ws://clock-fixture', map);
+  try {
+    await session.connect({ mode: 'create', nickname: 'Pursuit marker' });
+    expect(session.sampleFrame()!.pursuit).toEqual(source.pursuit);
+    const finished = { ...source, serverTick: 101, phase: 'results' as const, pursuit: { ...source.pursuit, state: 'complete' as const, progress: 1, winnerPlayerId: 'local' } };
+    wire.handlers.get('snapshot')!(packSnapshot(finished));
+    expect(session.sampleFrame()!.pursuit).toBeUndefined();
+    wire.handlers.get('snapshot')!(packSnapshot({ ...source, serverTick: 102, pursuit: undefined }));
+    expect(session.sampleFrame()!.pursuit).toBeUndefined();
+  } finally { await session.dispose(); }
+});
 
 it('advances both confirmed local barrels alongside the predicted car and retires impact events immediately', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
   const source = unpackSnapshot(snapshot(100)); source.local!.vehicle.velocity.z = 28;
   source.projectiles = [0, 1].map(barrel => ({ entityId: `local-shot-${barrel}`, ownerEntityId: 'local', pose: { x: 100 + (barrel ? .63 : -.63), z: 103.617, yaw: 0 }, velocity: { x: 0, z: 70, yawRate: 0 }, bornTick: 100, expiresTick: 220, sourceCommandSequence: 0, sourceShotOrdinal: 1, barrelIndex: barrel as 0 | 1, volleyId: 'volley-1', damage: 5 }));
-  wire.initial = packSnapshot(source); const expectedAuthority = unpackSnapshot(wire.initial as WireSnapshot), session = createOnlineSession('ws://clock-fixture', map);
+  wire.initial = packSnapshot(source); const expectedAuthority = { ...unpackSnapshot(wire.initial as WireSnapshot), resetReason: 'resync' }, session = createOnlineSession('ws://clock-fixture', map);
   try {
     await session.connect({ mode: 'create', nickname: 'Moving twin barrels' });
     for (let tick = 0; tick < 6; tick++) session.submit({ sessionEpoch: source.sessionEpoch, sequence: tick, clientTick: tick, actions: { ...neutralActions(), throttle: 1 } });

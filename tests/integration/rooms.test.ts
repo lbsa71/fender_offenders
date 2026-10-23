@@ -75,10 +75,10 @@ describe('real Colyseus authority over local WebSockets', () => {
     expect(creator.state!.scores).toHaveLength(1);
   });
 
-  it('requires the revised combat build instead of accepting arcade-v2 clients', async () => {
+  it('requires the competitive pursuit build instead of accepting arcade-v5 clients', async () => {
     const creator=await peer();let legacy:Room|undefined;
     try{
-      await expect(new Client(endpoint).joinById(creator.room.roomId,{...options,gameplayRevision:'arcade-v2'}).then(room=>{legacy=room;return 'accepted-legacy-client';})).rejects.toThrow('version-mismatch');
+      await expect(new Client(endpoint).joinById(creator.room.roomId,{...options,gameplayRevision:'arcade-v5'}).then(room=>{legacy=room;return 'accepted-legacy-client';})).rejects.toThrow('version-mismatch');
     }finally{if(legacy){legacy.reconnection.enabled=false;await legacy.leave(true);}}
   });
 

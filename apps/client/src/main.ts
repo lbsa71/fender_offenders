@@ -66,7 +66,10 @@ async function boot() {
     onResume: () => { void renderer.unlockAudio(); },
     onLeave: () => { void leave(); },
     onStartRound: () => online?.request('start-round'),
-    onRematch: () => online?.request('rematch'),
+    onRematch: () => {
+      if (mode === 'online') online?.request('rematch');
+      else void play({ mode: 'practice', nickname: snapshot?.scores.find(score => score.playerId === playerId)?.nickname ?? 'Officer Rookie', vehicleBodyId: ui.getVehicle() });
+    },
     onSettings: applySettings,
     onVehicleChange: vehicleBodyId => { if (snapshot?.phase === 'lobby') online?.selectVehicle(vehicleBodyId); },
     onMenuVisibility: visible => { input?.setEnabled(active && !visible && !(mode === 'online' && snapshot?.phase === 'lobby')); if (visible) online?.neutralize(); },
@@ -102,10 +105,13 @@ async function boot() {
     let renderFrame: RenderFrame | null = online?.sampleFrame(now) ?? null;
     if (!renderFrame && local) {
       const state = local.snapshot(active ? playerId : 'preview');
-      renderFrame = { sampleTimeSeconds: now / 1000, vehicles: state.vehicles, projectiles: state.projectiles.map(projectile=>({...projectile,presentationAgeSeconds:Math.max(0,(state.serverTick-projectile.bornTick+1)/60)})), props: state.props, localEntityId: state.local?.vehicle.entityId ?? null, cameraTarget: state.local?.vehicle.pose ?? { x: 4, z: -48, yaw: 0 } };
+      renderFrame = { sampleTimeSeconds: now / 1000, vehicles: state.vehicles, projectiles: state.projectiles.map(projectile=>({...projectile,presentationAgeSeconds:Math.max(0,(state.serverTick-projectile.bornTick+1)/60)})), props: state.props, localEntityId: state.local?.vehicle.entityId ?? null, cameraTarget: state.local?.vehicle.pose ?? { x: 4, z: -48, yaw: 0 },
+        pursuit: active && state.phase === 'playing' && state.pursuit?.state !== 'complete' ? state.pursuit : undefined };
     }
     renderer.setGaragePreview(!active || mode === 'online' && snapshot?.phase === 'lobby' ? ui.getVehicle() : null);
+    if (renderFrame && (!active || ui.isMenuVisible())) renderFrame.pursuit = undefined;
     if (renderFrame) renderer.render(renderFrame, dt);
+    ui.setTargetIndicator(active ? renderer.getTargetIndicator() : null);
     if (now - hudAt > 80) {
       hudAt = now; const device = input!.getStatus();
       ui.update({ snapshot: active ? snapshot : null, status, mode, localPlayerId: playerId, roomId, device: device.activeDevice, recoverProgress: device.recoverProgress, unsupportedPad: device.unsupportedPad,

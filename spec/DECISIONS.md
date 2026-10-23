@@ -14,6 +14,7 @@ Updated: 2026-10-22. This document distinguishes requirements from implementatio
 | D06 | Freely licensed asset sources and a convincing finish | User request |
 | D07 | Project repository is `C:\Source\lbsa71\fender_offenders` | User supplied path |
 | D08 | Documentation must enable parallel lanes, milestones, and tasks | User request |
+| D21 | Every dispatch has one clearly marked suspect; in multiplayer, the first driver to apprehend it completes the dispatch | User request, 2026-10-23; supersedes the free-for-all winner and single-player-only pursuit defaults below; [decision](adr/001-competitive-pursuit.md) |
 
 ## Chosen defaults, revisable through implementation evidence
 

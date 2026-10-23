@@ -88,19 +88,19 @@ All devices produce the same action structure. Gameplay never reads raw DOM even
 
 - Private, invite-link rooms; 2–8 players. A lone player may wait or practice while the room is in the lobby.
 - The room creator can request a start when two players are connected. The server owns the transition and validates the request.
-- Three-second countdown, five-minute active round, results screen, then rematch/lobby.
+- Three-second countdown, up to five minutes of pursuit, results when an officer apprehends the suspect or time expires, then rematch/lobby.
 - Mid-round joins enter as a spawned participant if capacity permits. Late joins receive a full authoritative state and current round timer.
 - Creator departure does not kill the match. The server assigns lobby control to the longest-connected remaining player.
-- Friendly free-for-all is the initial mode. Teams, pursuits between player factions, and cooperative missions are deferred.
+- Drivers compete to apprehend one shared AI suspect first while retaining player-versus-player shooting. Teams and cooperative missions are deferred.
 
 ### Weapon and damage
 
-- One forward-facing automatic weapon. Holding Fire repeats at a server-controlled cadence.
-- Initial baseline: 100 health, 10 damage per projectile, 5 shots/second, projectile speed 70 m/s, lifetime 0.65 seconds. These values belong in a versioned gameplay configuration.
+- Two forward-facing barrels fire one paired volley. Holding Fire repeats at a server-controlled cadence.
+- Current baseline: profile-dependent health, two 5-damage rounds per volley, 5 volleys/second, projectile speed 70 m/s, lifetime 0.65 seconds. These values belong in a versioned gameplay configuration.
 - Infinite ammunition for the initial mode. Heat/reload systems require a later playtest decision.
 - The server creates authoritative projectiles, sweeps their paths against collision geometry, applies hits once, and emits events.
 - Buildings and solid obstacles block shots. Dirt, lane paint, and cosmetic debris do not.
-- Shots cannot damage their owner. There is no friendly-fire setting in free-for-all.
+- Shots cannot damage their owner. Other drivers remain damageable during the pursuit.
 - M2 must prove one hit leads to exactly one health deduction even when messages or visual effects are repeated.
 - Predicted muzzle flashes/audio may play instantly. Health loss, wrecks, kill credit, and score always follow server outcomes.
 - Start with non-damaging vehicle collisions; M3 may add bounded ram damage after network collision acceptance passes. Ramming is optional for first release, not a gate.
@@ -112,7 +112,7 @@ All devices produce the same action structure. Gameplay never reads raw DOM even
 - Give two seconds of visible spawn protection; firing ends it early. Protected cars cannot deal damage until protection ends.
 - Wreck visuals are short-lived cosmetic effects. Disable the wrecked car's weapon and dynamic collision immediately; do not create permanent roadblocks.
 - Stuck-car recovery has a cooldown and cannot be used while taking damage or to teleport across the map. Server rules own eligibility and location.
-- At round end, higher score wins; equal scores remain a draw. Results show score, wrecks suffered, and connection state.
+- The first completed arrest wins the dispatch and awards three points. Combat score does not override that winner. Timeout has no winner. Results show the apprehending driver separately from combat standings, wrecks suffered, and connection state.
 
 ## 9. District, traffic, and pursuit challenge
 
@@ -123,8 +123,9 @@ All devices produce the same action structure. Gameplay never reads raw DOM even
 - Traffic follows a small authored lane graph. No general-purpose city pathfinding is required.
 - Start with 8 AI vehicles, with a performance cap of 16 for the first district. The server owns traffic in online rooms.
 - Traffic can collide but does not shoot. It must recover from jams without blocking a route indefinitely.
-- Practice includes a short pursuit challenge: intercept an AI suspect, remain close and at low relative speed for a short arrest timer, then receive a comic citation/score result. It is single-player content for the first release.
-- Online pursuit missions, pedestrians, enterable buildings, and an explorable open world are deferred.
+- Practice and online dispatches identify one AI suspect. An active connected officer must stay within 8 m, below 5 m/s relative speed, with clear world line of sight for three seconds. Each officer owns their progress, which decays when ineligible. Shooting or wrecking the target alone does not complete the dispatch.
+- The suspect has a persistent world marker and labeled camera-relative screen-edge guidance. Markers clear for menus, disconnected sessions and completed dispatches. Existing replicated vehicle poses drive presentation; no cosmetic marker transforms are transmitted.
+- Cosmetic evasive pedestrians are implemented; enterable buildings and a larger open world remain deferred.
 
 ## 10. Presentation and feedback
 
