@@ -1,5 +1,6 @@
 import { afterAll,beforeAll,expect,it } from 'vitest';
 import { Client,type Room } from '@colyseus/sdk';
+import { matchMaker } from '@colyseus/core';
 import { createGameServer } from '../../../apps/server/src/index.js';
 import { districtMap } from '@fender/content';
 import { GAMEPLAY_REVISION,PROTOCOL_VERSION,neutralActions,type WireSnapshot } from '@fender/contracts';
@@ -15,7 +16,13 @@ it('publishes a full join/resync baseline and sparse subsequent props over a rea
  expect(first.props!.length).toBeGreaterThan(100);expect(first.propsPatch).not.toBe(true);
  const patch=packets.find(packet=>packet.propsPatch===true)!;
  expect(patch).toBeDefined();expect(patch.props?.filter(tuple=>tuple[10]===0)??[]).toHaveLength(0);
- room.send('resync');await until(()=>packets.filter(packet=>packet.reset==='resync').length>=2);
+ // A server catch-up clamp resets the prediction clock, not the reliable prop stream.
+ const beforeClockRecovery=packets.length;
+ (matchMaker.getLocalRoomById(room.roomId) as unknown as {accumulator:number}).accumulator=500;
+ await until(()=>packets.slice(beforeClockRecovery).some(packet=>packet.reset==='resync'));
+ expect(packets.slice(beforeClockRecovery).find(packet=>packet.reset==='resync')!.propsPatch).toBe(true);
+ const previousExplicitResyncs=packets.filter(packet=>packet.reset==='resync').length;
+ room.send('resync');await until(()=>packets.filter(packet=>packet.reset==='resync').length>previousExplicitResyncs);
  expect(packets.filter(packet=>packet.reset==='resync').at(-1)!.props!.length).toBe(first.props!.length);
  // Input queue correction does not invalidate an ordered prop baseline.
  for(let batch=0;batch<8;batch++)room.send('input',{commands:Array.from({length:4},(_,i)=>({sessionEpoch:first.e,sequence:batch*4+i,clientTick:batch*4+i,actions:neutralActions()}))});

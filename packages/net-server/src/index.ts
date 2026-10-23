@@ -58,7 +58,7 @@ export class DrivingRoom extends Room {
         }
       });
       this.onMessage('neutralize', client => this.neutralize(client.sessionId));
-      this.onMessage('resync', client => { this.neutralize(client.sessionId); const d = this.drivers.get(client.sessionId); if (d) d.reset = 'resync'; this.publish(client); });
+      this.onMessage('resync', client => { this.neutralize(client.sessionId); const d = this.drivers.get(client.sessionId); if (d) d.reset = 'resync'; this.publish(client,true); });
       this.onMessage('start-round', client => this.sim.startRound(client.sessionId));
       this.onMessage('rematch', client => this.sim.rematch(client.sessionId));
       this.onMessage('select-vehicle', (client, message: unknown) => {
@@ -127,7 +127,7 @@ export class DrivingRoom extends Room {
     if (this.tick % 3 === 0) for (const client of this.clients) this.publish(client);
     const cost = performance.now() - started; serverMetrics.steps++; serverMetrics.maxStepMs = Math.max(serverMetrics.maxStepMs, cost); if (cost > 8) serverMetrics.slowSteps++;
   }
-  private publish(client: Client) {
+  private publish(client: Client, replacePropBaseline = false) {
     const d = this.drivers.get(client.sessionId); if (!d || !d.connected) return;
     const snapshot = this.sim.snapshot(client.sessionId);
     const now = performance.now();
@@ -138,7 +138,6 @@ export class DrivingRoom extends Room {
     });
     snapshot.sessionEpoch = d.epoch; if (snapshot.local) snapshot.local.lastConsumedSequence = d.ack;
     snapshot.resetReason = d.reset; d.reset = undefined;
-    const replacePropBaseline = snapshot.resetReason === 'join' || snapshot.resetReason === 'reconnect' || snapshot.resetReason === 'resync';
     const wire = d.propPublisher.filter(packSnapshot(snapshot),replacePropBaseline); serverMetrics.bytesPublished += JSON.stringify(wire).length;
     client.send('snapshot', wire);
   }
@@ -152,7 +151,7 @@ export class DrivingRoom extends Room {
     // Preserve stable identity but replace the input epoch so old queued packets cannot resume.
     d.epoch = randomUUID(); d.connected = true; d.received = -1; d.ack = -1; d.last = null; d.queue = []; d.reset = 'reconnect';
     d.client = client; d.latencyProbe = null; d.pingMs = null; d.latencyMeasuredAt = null;
-    this.sim.setConnection(client.sessionId, 'connected'); this.publish(client);
+    this.sim.setConnection(client.sessionId, 'connected'); this.publish(client,true);
   }
   onLeave(client: Client) { this.drivers.delete(client.sessionId); if (!this.disposed) this.sim?.removePlayer(client.sessionId); }
   onDispose() {
