@@ -104,6 +104,21 @@ describe('original bounded slapstick audio', () => {
     audio.dispose();
   });
 
+  it('gives a wreck a distinct six-layer blast, falling whistle and cartoon metal coda, within existing source/gain bounds',()=>{
+    const audio=new MotorAudio();audio.unlock();const context=Context.instances[0]!,before=context.sources.length;
+    audio.effect('wreck');const voices=context.sources.slice(before);expect(voices.length).toBeGreaterThanOrEqual(6);
+    expect(voices.some(source=>Math.max(...source.frequency.values)>2000&&source.frequency.values.at(-1)!<150)).toBe(true);
+    expect(Math.max(...voices.map(source=>source.stopAt??0))).toBeGreaterThan(1.1);
+    expect(context.nodes.filter(node=>node.kind==='gain').flatMap(node=>node.gain.values).every(value=>value<=.55)).toBe(true);
+    audio.dispose();expect(context.nodes.every(node=>node.disconnected)).toBe(true);
+  });
+  it('cancels owner-scoped wreck tails on lifecycle cleanup without stopping unrelated shots',()=>{
+    const audio=new MotorAudio();audio.unlock();const context=Context.instances[0]!,start=context.sources.length,effect=audio.effect as (...args:any[])=>void;
+    effect.call(audio,'wreck',1,'hero');const wreckVoices=context.sources.slice(start);audio.effect('shot');const shot=context.sources.at(-1)!;
+    const stop=Reflect.get(audio,'stopWreck') as (owner?:string)=>void;expect(stop).toBeTypeOf('function');stop.call(audio,'hero');
+    expect(wreckVoices.every(source=>source.disconnected)).toBe(true);expect(shot.disconnected).toBe(false);
+    effect.call(audio,'wreck',1,'peer');stop.call(audio);expect(context.sources.slice(context.sources.length-6).every(source=>source.disconnected)).toBe(true);audio.dispose();
+  });
   it('disconnects every transient node on natural completion and all persistent nodes on disposal', () => {
     const audio = new MotorAudio(); audio.unlock(); const context = Context.instances[0]!, start = context.nodes.length;
     crash(audio, 1); const transient = context.nodes.slice(start); context.sources.slice(2).forEach(source => source.finish());

@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { packSnapshot, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
+import { packSnapshot, unpackSnapshot, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
 import { createOnlineSession } from './index.js';
 import type { CollisionMap } from '@fender/contracts';
 
@@ -25,6 +25,38 @@ function snapshot(tick: number, options: { direction?: number; epoch?: string; m
   return packSnapshot(state);
 }
 afterEach(() => { vi.useRealTimers(); wire.handlers.clear(); });
+
+it('presents physical props on the shared interpolation clock with normalized rotation, then freezes on lost snapshots', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
+  const fixture = (tick: number, discontinuityId = 0) => packSnapshot({ ...unpackSnapshot(snapshot(tick)), props: [{ entityId: 'barrel', kind: 'barrel' as const, scale: 1, position: { x: tick, y: 1, z: 0 }, rotation: tick === 100 ? { x: 0, y: 0, z: 0, w: 1 } : { x: 0, y: Math.SQRT1_2, z: 0, w: Math.SQRT1_2 }, mode: 'dynamic' as const, sleeping: false, discontinuityId }] });
+  wire.initial = fixture(100); const session = createOnlineSession('ws://clock-fixture', map);
+  try {
+    await session.connect({ mode: 'create', nickname: 'Prop observer' });
+    expect(session.sampleFrame()!.props?.[0]?.position.x).toBe(100);
+    vi.advanceTimersByTime(100); wire.handlers.get('snapshot')!(fixture(106)); vi.advanceTimersByTime(50);
+    const middle = session.sampleFrame()!.props![0]!;
+    expect(middle.position.x).toBeCloseTo(103, 3); expect(middle.rotation.y).toBeCloseTo(Math.sin(Math.PI / 8), 3);
+    expect(Math.hypot(...Object.values(middle.rotation))).toBeCloseTo(1, 6);
+    vi.advanceTimersByTime(1000); expect(session.sampleFrame()!.props![0]!.position.x).toBe(106);
+    wire.handlers.get('snapshot')!(fixture(112, 1)); expect(session.sampleFrame()!.props![0]!.position.x).toBe(112);
+  } finally { await session.dispose(); }
+});
+
+it('retains quiet props and merges one changed prop without clearing the rest of the street', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
+  const props = ['lamp', 'barrel'].map((kind, index) => ({ entityId: kind, kind: kind as 'lamp' | 'barrel', scale: 1, position: { x: index, y: 1, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, mode: 'dynamic' as const, sleeping: true, discontinuityId: 0 }));
+  wire.initial = packSnapshot({ ...unpackSnapshot(snapshot(100)), props }); const session = createOnlineSession('ws://clock-fixture', map);
+  try {
+    await session.connect({ mode: 'create', nickname: 'Quiet street' });
+    const quiet = snapshot(106); delete quiet.props; wire.handlers.get('snapshot')!({ ...quiet, propsPatch: true });
+    vi.advanceTimersByTime(300); expect(session.sampleFrame()!.props).toHaveLength(2);
+    const changed = packSnapshot({ ...unpackSnapshot(snapshot(112)), props: [{ ...props[1]!, position: { x: 10, y: 1, z: 0 }, sleeping: false }] });
+    wire.handlers.get('snapshot')!({ ...changed, propsPatch: true }); vi.advanceTimersByTime(300);
+    expect(session.sampleFrame()!.props!.map(prop => [prop.entityId, prop.position.x])).toEqual([['lamp', 0], ['barrel', 10]]);
+    const reset = packSnapshot({ ...unpackSnapshot(snapshot(118)), props: [] }); wire.handlers.get('snapshot')!(reset);
+    vi.advanceTimersByTime(300); expect(session.sampleFrame()!.props).toEqual([]);
+  } finally { await session.dispose(); }
+});
 
 it('does not move a steadily advancing remote car backward when a snapshot arrives late', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });

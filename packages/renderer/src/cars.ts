@@ -13,11 +13,14 @@ import { MeshBuilder } from './primitives';
 import { newCartoonMotion, type CartoonMotion } from './deformation';
 import {newVehicleFeedback,type VehicleFeedback} from './feedback';
 
-export interface CarVisual { root: TransformNode; suspension: TransformNode; body: TransformNode; bodyAssetId:string; traffic:boolean; motion:CartoonMotion;feedback:VehicleFeedback;lastCrashAt:number;lastCrashTick:number; lastBumpId:string|null;lastBumpAt:number; parts: InstancedMesh[]; sirenRed: InstancedMesh | null; sirenBlue: InstancedMesh | null; health: Mesh; healthBack: Mesh; marker: Mesh; previousX: number; previousZ: number; previousYaw: number; discontinuity: number }
+export const VEHICLE_PAINT_COLORS:Readonly<Record<string,string>>={patrol:'#ece5cf',roadster:'#e98a48',interceptor:'#407c91',army:'#69754a',ambulance:'#f4efe0','fire-chief':'#bd4c3d',traffic:'#cbb26e'};
+
+export interface CarVisual { entityId:string;wreckLifeFloor:number;wreckParts:InstancedMesh[];wreckLife:number|null;explodedLife:number|null;root: TransformNode; suspension: TransformNode; body: TransformNode; bodyAssetId:string; traffic:boolean; motion:CartoonMotion;feedback:VehicleFeedback;lastCrashAt:number;lastCrashTick:number; lastBumpId:string|null;lastBumpAt:number; parts: InstancedMesh[]; sirenRed: InstancedMesh | null; sirenBlue: InstancedMesh | null; health: Mesh; healthBack: Mesh; marker: Mesh; previousX: number; previousZ: number; previousYaw: number; discontinuity: number }
 
 export class CarFactory {
   private templates = new Map<string, Mesh[]>();
   private materials = new Map<string, Material>();
+  private charredTemplate:Mesh|null=null;
   constructor(private scene: Scene) {}
 
   private material(id: string, color: string, metal = 0, glow = false): Material {
@@ -37,7 +40,7 @@ export class CarFactory {
     const type=traffic?'traffic':body==='army'||body==='ambulance'||body==='fire-chief'?body:body.includes('roadster')?'roadster':body.includes('interceptor')?'interceptor':'patrol';
     const cached=this.templates.get(type);if(cached)return cached;
     const parts=new Map<string,{material:Material;meshes:Mesh[];role:'body'|'wheel'}>();
-    const colors:Record<string,string>={patrol:'#ece5cf',roadster:'#e98a48',interceptor:'#407c91',army:'#69754a',ambulance:'#f4efe0','fire-chief':'#bd4c3d',traffic:'#cbb26e'};
+    const colors=VEHICLE_PAINT_COLORS;
     const paint=this.material(`paint-${type}`,colors[type]!, .4);
     const navy=this.material('navy','#234953',.3),glass=this.material('glass','#244653',.65),rubber=this.material('rubber','#263438'),chrome=this.material('chrome','#adb8ae',.8),headlight=this.material('headlight','#ffe4a1',0,true),tail=this.material('tail','#e87354',0,true);
     const add=(mesh:Mesh,m:Material,role:'body'|'wheel'='body')=>{mesh.material=m;const key=`${m.name}/${role}`;const group=parts.get(key)??{material:m,meshes:[],role};group.meshes.push(mesh);parts.set(key,group);return mesh;};
@@ -133,21 +136,32 @@ export class CarFactory {
     this.templates.set(type,meshes);return meshes;
   }
 
+  private charred():Mesh{
+    if(this.charredTemplate)return this.charredTemplate;
+    const pieces:Mesh[]=[];
+    const box=(x:number,y:number,z:number,w:number,h:number,d:number,tilt=0)=>{const mesh=MeshBuilder.CreateBox('charred-metal',{width:w,height:h,depth:d},this.scene);mesh.position.set(x,y,z);mesh.rotation.x=tilt;pieces.push(mesh);};
+    box(0,.35,0,1.68,.24,3.7);box(0,.5,1.3,1.4,.14,.9,-.23);box(0,.5,-1.35,1.45,.12,.7,.2);
+    for(const x of [-.74,.74]){box(x,.72,-.4,.07,.65,1.6);box(x,1.02,-.43,.08,.07,1.65);}
+    for(const z of [-1.32,1.32])box(0,.42,z,2.05,.12,.12);
+    const merged=Mesh.MergeMeshes(pieces,true,true,undefined,false,false)!;merged.name='charred-chassis-source';merged.material=this.material('charred-chassis','#263237');merged.isVisible=false;merged.receiveShadows=true;merged.metadata={wreckPart:true};return this.charredTemplate=merged;
+  }
   create(entityId:string, body:string, traffic:boolean):CarVisual{
     const root=new TransformNode(`vehicle-${entityId}`,this.scene);
     const suspension=new TransformNode(`suspension-${entityId}`,this.scene);suspension.parent=root;
     const coachwork=new TransformNode(`body-${entityId}`,this.scene);coachwork.parent=suspension;coachwork.setPivotPoint(new Vector3(0,.55,0));
     const parts=this.template(body,traffic).map((mesh)=>{const i=mesh.createInstance(`${entityId}-${mesh.name}`);i.parent=mesh.metadata?.role==='wheel'?suspension:coachwork;i.isVisible=true;return i;});
+    const chassis=this.charred().createInstance(`${entityId}-charred-chassis`);chassis.parent=root;chassis.isVisible=false;const wreckParts=[chassis];
     const healthBack=MeshBuilder.CreateBox(`${entityId}-health-back`,{width:2.2,height:.09,depth:.2},this.scene);healthBack.position.set(0,3.5,0);healthBack.parent=root;healthBack.material=this.material('health-back','#29464d');
     const health=MeshBuilder.CreateBox(`${entityId}-health`,{width:2,height:.1,depth:.21},this.scene);health.position.set(0,3.51,0);health.parent=root;health.material=this.material('health','#a6ddbd',0,true);
     const marker=MeshBuilder.CreateTorus(`${entityId}-marker`,{diameter:3,thickness:.065,tessellation:40},this.scene);marker.position.y=.08;marker.parent=root;marker.material=this.material('marker','#b9e8da',0,true);
-    return{root,suspension,body:coachwork,bodyAssetId:body,traffic,motion:newCartoonMotion(),feedback:newVehicleFeedback(),lastCrashAt:-10,lastCrashTick:-1,lastBumpId:null,lastBumpAt:-10,parts,sirenRed:parts.find((p)=>p.sourceMesh.name==='red-siren')??null,sirenBlue:parts.find((p)=>p.sourceMesh.name==='blue-siren')??null,health,healthBack,marker,previousX:0,previousZ:0,previousYaw:0,discontinuity:-1};
+    return{entityId,root,wreckParts,wreckLife:null,explodedLife:null,wreckLifeFloor:-1,suspension,body:coachwork,bodyAssetId:body,traffic,motion:newCartoonMotion(),feedback:newVehicleFeedback(),lastCrashAt:-10,lastCrashTick:-1,lastBumpId:null,lastBumpAt:-10,parts,sirenRed:parts.find((p)=>p.sourceMesh.name==='red-siren')??null,sirenBlue:parts.find((p)=>p.sourceMesh.name==='blue-siren')??null,health,healthBack,marker,previousX:0,previousZ:0,previousYaw:0,discontinuity:-1};
   }
-  dispose():void{this.templates.clear();this.materials.clear();}
+  dispose():void{this.templates.clear();this.materials.clear();this.charredTemplate=null;}
 }
 
 /** Native instances support boolean visibility; status never mutates shared source/material alpha. */
-export function updateCarStatus(car:CarVisual,protectedSpawn:boolean,time:number,reducedFlash:boolean):void{
-  const visible=!protectedSpawn||reducedFlash||Math.sin(time*12)>-.4;
+export function updateCarStatus(car:CarVisual,protectedSpawn:boolean,time:number,reducedFlash:boolean,status:'active'|'wrecked'|'respawning'='active'):void{
+  const visible=status==='active'&&(!protectedSpawn||reducedFlash||Math.sin(time*12)>-.4);
+  for(const part of car.wreckParts)part.isVisible=status==='wrecked';
   for(const part of car.parts)part.isVisible=visible;
 }

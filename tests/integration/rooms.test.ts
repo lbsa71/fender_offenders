@@ -23,7 +23,7 @@ async function peer(roomId?: string, address = endpoint): Promise<Peer> {
   const room = roomId ? await sdk.joinById(roomId, options) : await sdk.create('district', options);
   room.reconnection.minUptime = 0; room.reconnection.minDelay = 200; room.reconnection.maxDelay = 300; room.reconnection.maxEnqueuedMessages = 0;
   const p: Peer = { room, state: null, history: [], events: [], sequence: 0 };
-  room.onMessage('snapshot', (wire: WireSnapshot) => { p.state = unpackSnapshot(wire); p.history.push(p.state); });
+  room.onMessage('snapshot', (wire: WireSnapshot) => { p.state = unpackSnapshot(wire, wire.m === p.state?.matchId ? p.state?.props : undefined); p.history.push(p.state); });
   room.onMessage('events', (events: GameEvent[]) => p.events.push(...events));
   room.onMessage('pong', () => {});
   peers.push(p); room.send('resync'); await until(() => p.state !== null, 'initial authoritative world'); return p;

@@ -1,5 +1,5 @@
 import { createGameRenderer } from '@fender/renderer';
-import { districtMap } from '@fender/content';
+import { districtMap, districtProps } from '@fender/content';
 import { createSimulation, initPhysics, type Simulation } from '@fender/sim';
 import { createInputSource, type InputSettings } from '@fender/input';
 import { mountGameUi, type UiSettings } from '@fender/ui';
@@ -12,7 +12,7 @@ async function boot() {
   const root = document.querySelector<HTMLElement>('#ui')!;
   const renderer = createGameRenderer(canvas, districtMap);
   await initPhysics();
-  let local: Simulation | null = createSimulation(districtMap, { mode: 'practice', trafficCount: 8 });
+  let local: Simulation | null = createSimulation(districtMap, { mode: 'practice', trafficCount: 8, props: districtProps });
   local.addPlayer({ playerId: 'preview', nickname: 'Preview', bodyAssetId: 'police' });
   let online: ReturnType<typeof createOnlineSession> | null = null;
   let input: ReturnType<typeof createInputSource> | undefined;
@@ -29,7 +29,7 @@ async function boot() {
   async function leave() {
     active = false; input?.setEnabled(false); snapshot = null; roomId = ''; playerId = ''; observedEvents = [];
     const old = online; online = null; await old?.dispose();
-    local?.dispose(); local = createSimulation(districtMap, { mode: 'practice', trafficCount: 8 });
+    local?.dispose(); local = createSimulation(districtMap, { mode: 'practice', trafficCount: 8, props: districtProps });
     local.addPlayer({ playerId: 'preview', nickname: 'Preview', bodyAssetId: 'police' });
     status = { state: 'idle' }; ui.update({ snapshot: null, status, roomId: null, error: null });
   }
@@ -38,7 +38,7 @@ async function boot() {
     await leave();
     sequence = 0; clientTick = 0; accumulator = 0; epoch = crypto.randomUUID();
     if (request.mode === 'practice') {
-      local?.dispose(); local = createSimulation(districtMap, { mode: 'practice', trafficCount: 8, pursuit: true });
+      local?.dispose(); local = createSimulation(districtMap, { mode: 'practice', trafficCount: 8, pursuit: true, props: districtProps });
       playerId = 'local-player'; local.addPlayer({ playerId, nickname: request.nickname, sessionEpoch: epoch, bodyAssetId: request.vehicleBodyId ?? ui.getVehicle() });
       snapshot = local.snapshot(playerId); mode = 'practice'; status = { state: 'playing' }; active = true;
     } else {
@@ -102,7 +102,7 @@ async function boot() {
     let renderFrame: RenderFrame | null = online?.sampleFrame(now) ?? null;
     if (!renderFrame && local) {
       const state = local.snapshot(active ? playerId : 'preview');
-      renderFrame = { sampleTimeSeconds: now / 1000, vehicles: state.vehicles, projectiles: state.projectiles, localEntityId: state.local?.vehicle.entityId ?? null, cameraTarget: state.local?.vehicle.pose ?? { x: 4, z: -48, yaw: 0 } };
+      renderFrame = { sampleTimeSeconds: now / 1000, vehicles: state.vehicles, projectiles: state.projectiles, props: state.props, localEntityId: state.local?.vehicle.entityId ?? null, cameraTarget: state.local?.vehicle.pose ?? { x: 4, z: -48, yaw: 0 } };
     }
     renderer.setGaragePreview(!active || mode === 'online' && snapshot?.phase === 'lobby' ? ui.getVehicle() : null);
     if (renderFrame) renderer.render(renderFrame, dt);

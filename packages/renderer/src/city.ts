@@ -6,7 +6,7 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import { MeshBuilder } from './primitives';
-import { buildings, districtMap, roadCenters, trees, ROAD_BUMPS } from '@fender/content';
+import { buildings, districtMap, roadCenters, ROAD_BUMPS } from '@fender/content';
 
 /** Groups authored primitives into material batches; temporary primitives are disposed. */
 export function buildCity(scene: Scene): Mesh[] {
@@ -155,26 +155,7 @@ export function buildCity(scene: Scene): Mesh[] {
       }
     }
   }
-  for (const t of trees) {
-    cylinder('tree-trunk',t.x,1.5,t.z,.55,2.8,'#786f52');
-    for (let i=0;i<3;i++) {
-      const crown = MeshBuilder.CreateIcoSphere('tree-crown',{radius:(2.7-i*.35)*t.scale,subdivisions:1},scene);
-      crown.position.set(t.x+Math.sin(i*3)*.8,3.8+i*.9,t.z+Math.cos(i*3)*.6);crown.scaling.y=.9;add(crown,i%2?'#4e7d65':'#638b6b');
-    }
-  }
-  // Street furniture stays outside the road collision envelope.
-  for (const p of roadCenters) for (let q=-110;q<=110;q+=32) {
-    if (roadCenters.some((r)=>Math.abs(q-r)<13)) continue;
-    for (const side of [-1,1]) {
-      const x=p+side*10.8;
-      cylinder('streetlamp',x,3.5,q,.18,7,'#4b6669',.12,6);
-      box('lamp-arm',x-side*.8,7,q,1.8,.15,.18,'#4b6669');
-      box('lamp-head',x-side*1.6,6.95,q,.9,.2,.5,'#f0d69d');
-      box('bench',x+side*2,.75,q+5,1.6,.15,3,'#947b59');
-      box('bench-back',x+side*2.65,1.2,q+5,.15,.8,3,'#947b59');
-      cylinder('bin',x, .65,q+8,.8,1.2,'#5d7d70');
-    }
-  }
+  // Trees and street furniture are drawn from authoritative rigid-prop state.
   for (const side of [-1,1]) {
     box('district-wall',side*125,1,0,1.5,2,252,'#849b8c');
     box('district-wall',0,1,side*125,252,2,1.5,'#849b8c');

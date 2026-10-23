@@ -13,6 +13,9 @@ test('home and practice load without external fonts or remote content', async ({
     } else await route.continue();
   });
   await practice(page);
+  await expect.poll(() => page.evaluate(() => (window as DebugWindow).__FENDER_DEBUG__?.stats?.renderer?.props ?? 0)).toBeGreaterThan(100);
+  await expect.poll(() => page.evaluate(() => (window as DebugWindow).__FENDER_DEBUG__?.stats?.renderer?.pedestrians ?? 0)).toBe(24);
+  expect((await snapshot(page))!.props!.some(prop => prop.kind === 'tree' && prop.mode === 'fixed')).toBe(true);
   await page.evaluate(() => document.fonts.ready);
   await expect(page.locator('.fo-prompts')).toBeVisible();
   expect(externalRequests, 'Home and practice must use only local application resources').toEqual([]);
@@ -28,7 +31,7 @@ test('garage typography and statistics fit inside their desktop panels', async (
   expect(titleOverflow, 'The assigned vehicle name must fit within the garage heading width').toBeLessThanOrEqual(0);
 });
 
-type DebugWindow = Window & { __FENDER_DEBUG__?: { snapshot: WorldSnapshot | null | (() => WorldSnapshot | null); events?: {kind:string}[]; stats?: {renderer?:{muzzleFlashes?:number;impactRings?:number}} } };
+type DebugWindow = Window & { __FENDER_DEBUG__?: { snapshot: WorldSnapshot | null | (() => WorldSnapshot | null); events?: {kind:string}[]; stats?: {renderer?:{muzzleFlashes?:number;impactRings?:number;props?:number;pedestrians?:number}} } };
 async function snapshot(page: Page) {
   return page.evaluate(() => { const debug = (window as DebugWindow).__FENDER_DEBUG__; return typeof debug?.snapshot === 'function' ? debug.snapshot() : debug?.snapshot ?? null; });
 }

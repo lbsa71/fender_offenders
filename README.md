@@ -41,7 +41,11 @@ Cornering adds cartoon body lean and squash, while visible road humps trigger co
 
 Confirmed crashes squash the coachwork in the impact direction and spring back, with severity-scaled slapstick audio. Gunfire adds recoil, paired muzzle flashes, bright tracers and impact bursts. These effects share bounded pools and audio limits; crashes do not add ram damage.
 
-Firing applies subtle aim assist to a visible opponent or the practice suspect within **4°**, **2.5 m of the original firing line**, and **40 m**. Buildings and nearer cars block selection. The correction happens once when a shot is fired; projectiles retain their straight trajectory, damage and cadence, and the car's heading is unchanged. `arcade-v3` clients and servers must match.
+Firing applies subtle aim assist to a visible opponent or the practice suspect within **4°**, **2.5 m of the original firing line**, and **40 m**. Buildings and nearer cars block selection. The correction happens once when a shot is fired; projectiles retain their straight trajectory, damage and cadence, and the car's heading is unchanged. `arcade-v4` clients and servers must match.
+
+Wrecks throw off four wheels and colored body panels in a cartoon explosion, then leave a charred chassis until the protected respawn. Loose barrels, crates, bins and park benches use server-owned 3D rigid-body physics. Lamp posts, signs and trees stand fixed until a car knocks them free. Cars push this scenery without receiving a physics impulse back, preserving their shared arcade handling and prediction.
+
+Twenty-four cosmetic pedestrians walk sidewalks, wait for safe crossing gaps and flee approaching cars. Predictive avoidance and a final rendered-car sweep check keep them clear of vehicles; they have no health, collision bodies or combat targeting. Their animation runs locally and can differ between viewers. See [world reactions](spec/WORLD_REACTIONS.md) for lifecycle, safety, budgets and reproducible visual checks.
 
 ## Controls
 
@@ -82,7 +86,7 @@ After `pnpm build`, `node dist/server/index.js` serves the production client and
 
 ## Validation and limits
 
-The garage/profile build passed all 175 headless tests, 10 browser scenarios and the production-container multiplayer smoke in [published CI](https://github.com/lbsa71/fender_offenders/actions/runs/39910016049). Browser coverage includes local drive/fire/pause/settings, synthetic controller navigation/disconnect, blur safety, two-client room play, saved garage selection, self-contained resources and panel layout. Real-socket tests cover authority, combat, respawn, reconnect, round ownership, and ordered latency/jitter/stall behavior. See [the evidence index](spec/EXECUTION_STATUS.md) for current commands and scope.
+The integrated reactive-world build passed all **283 headless tests across 36 files** and **11 browser scenarios** locally, plus types/docs/assets and the production build. Browser coverage includes physical scenery/crowd presence, local drive/fire/crash/pause/settings, synthetic controller navigation/disconnect, blur safety, two-client room play, saved garage selection, self-contained resources and panel layout. Real-socket tests cover authority, combat, respawn, reconnect, round ownership, changed-only prop publication and ordered latency/jitter/stall behavior. The prior combat build also passed the production-container multiplayer smoke in [published CI](https://github.com/lbsa71/fender_offenders/actions/runs/39914103006). See [the evidence index](spec/EXECUTION_STATUS.md) for current commands and scope.
 
 Human driving/visual approval, actual controllers, Firefox/Safari/macOS coverage, collision-correction traces, OS packet impairment, sustained browser frame budgets, ten-rematch memory stability, multi-room server density, and hosted rollback validation remain open. A short localhost eight-player run is not a capacity or remote-playability claim. Its JSON payload estimate exceeded the starting download budget; actual wire bandwidth is unverified. The free preview initially admits at most two rooms; deployments end active matches.
 

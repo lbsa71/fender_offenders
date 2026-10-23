@@ -1,6 +1,6 @@
 # Shared contracts
 
-Status: semantic contract reference for the implemented alpha (`arcade-v3` gameplay). Updated: 2026-10-23. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+Status: semantic contract reference for the implemented alpha (`arcade-v4` gameplay). Updated: 2026-10-23. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
 
 This document defines cross-lane semantics and remaining acceptance expectations. Examples describe semantic TypeScript types, not the compact snapshot wire encoding or installed SDK API. Consumers use the package's public exports; additional validators and the complete proposed fixture catalog remain unfinished rather than implied by these examples.
 
@@ -166,7 +166,7 @@ type GameEvent =
   | EventEnvelope<"hit", {
       projectileId: string; targetId: string; damage: number; position: PlanarPose;
     }>
-  | EventEnvelope<"wreck", { vehicleId: string; creditedPlayerId: string | null }>
+  | EventEnvelope<"wreck", { vehicleId: string; creditedPlayerId: string | null; position?: PlanarPose; bodyAssetId?: string; discontinuityId?: number }>
   | EventEnvelope<"respawn", { vehicleId: string; discontinuityId: number }>
   | EventEnvelope<"round-ended", { scores: PlayerScore[] }>
   | EventEnvelope<"pursuit-complete", { elapsedTicks: number; bonus: number }>;
@@ -176,7 +176,11 @@ Maintain a bounded per-match event deduplication cache. Predictive effects use `
 
 Health and scores live in state; an absent cosmetic event cannot corrupt them. Late join does not replay all historical shots/wrecks. State restores the present; events describe new transitions.
 
-`crash` reports a confirmed contact's outward world-space normal and closing speed in m/s (3–60), at most once per vehicle per 30 ticks. The renderer rejects a crash whose discontinuity no longer matches the car and deduplicates event IDs. `projectile-impact` reports a static obstruction hit; `hit` remains confirmed vehicle damage. Neither event permits client damage or collision claims. Shot `origin.yaw` includes the bounded server aim correction; the vehicle's own pose is unchanged. The gameplay revision is `arcade-v3`; damage, cadence and vehicle profile stats retain their previous values.
+`crash` reports a confirmed contact's outward world-space normal and closing speed in m/s (3–60), at most once per vehicle per 30 ticks. The renderer rejects a crash whose discontinuity no longer matches the car and deduplicates event IDs. `projectile-impact` reports a static obstruction hit; `hit` remains confirmed vehicle damage. Neither event permits client damage or collision claims. Shot `origin.yaw` includes the bounded server aim correction; the vehicle's own pose is unchanged. The gameplay revision is `arcade-v4`; damage, cadence and vehicle profile stats retain their previous values.
+
+Wreck authority always supplies its final `position`, `bodyAssetId` and `discontinuityId`; optional fields preserve older event fixtures. Presentation accepts complete metadata before the wrecked snapshot, rejects older lives and cancels debris/audio on respawn. Legacy metadata-free events require an already wrecked snapshot. Flying wreck parts are bounded local effects and have no network state.
+
+`WorldSnapshot.props` and `RenderFrame.props` are optional arrays of `PropState`: `{ entityId, kind, scale, position: {x,y,z}, rotation: {x,y,z,w}, mode: 'fixed'|'dynamic', sleeping, discontinuityId }`. Kinds are barrel/crate/bin/bench/lamp/sign/tree. The server owns every physical transform. Full baselines replace the set; wire `propsPatch: true` merges only changed tuples using `unpackSnapshot(wire, previousProps)`. Omitted props on a patch preserve the baseline, and callers must scope that baseline to the same match. Join, reconnect and resync force full baselines. Fixed/resting objects are silent, with meaningful position/rotation thresholds measured against the last sent state. See [world reactions](WORLD_REACTIONS.md).
 
 ## 5. Adapter interfaces
 

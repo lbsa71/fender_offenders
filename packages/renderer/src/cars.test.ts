@@ -29,6 +29,13 @@ describe('original procedural vehicle bodies', () => {
     update(car,true,.4,true);expect(car.parts.every(p=>p.isVisible)).toBe(true);
     update(car,false,.4,false);expect(car.parts.every(p=>p.isVisible)).toBe(true);
   });
+  it('hides intact wheels and coachwork for snapshot wrecks, shows a charred chassis, and restores after respawn',()=>{
+    const car=factory.create('wreck-state','ambulance',false),update=CarPresentation.updateCarStatus as (...args:any[])=>void;
+    update(car,false,0,false,'wrecked');expect(car.parts.every(p=>!p.isVisible)).toBe(true);
+    const charred=Reflect.get(car,'wreckParts') as import('@babylonjs/core/Meshes/instancedMesh').InstancedMesh[];expect(charred.length).toBeGreaterThan(0);expect(charred.every(m=>m.isVisible)).toBe(true);
+    expect(charred.every(m=>m.parent===car.root)).toBe(true);expect(car.health.parent).toBe(car.root);
+    update(car,false,0,false,'active');expect(car.parts.every(p=>p.isVisible)).toBe(true);expect(charred.every(m=>!m.isVisible)).toBe(true);
+  });
   it('deforms the coachwork while keeping wheels rigid and health/identity outside the deformation', () => {
     const car = factory.create('elastic', 'ambulance', false);
     expect(car).toHaveProperty('body');expect(car).toHaveProperty('suspension');

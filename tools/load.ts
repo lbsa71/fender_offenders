@@ -13,7 +13,7 @@ try {
     const options = { nickname: `Load Unit ${i + 1}`, protocolVersion: PROTOCOL_VERSION, mapRevision: districtMap.revision, gameplayRevision: GAMEPLAY_REVISION };
     const room = i === 0 ? await sdk.create('district', options) : await sdk.joinById(rooms[0]!.roomId, options);
     rooms.push(room); latest.push(null); bytes.push(0); counts.push(0); sequence.push(0);
-    room.onMessage('snapshot', (wire: WireSnapshot) => { latest[i] = unpackSnapshot(wire); bytes[i]! += JSON.stringify(wire).length; counts[i]!++; });
+    room.onMessage('snapshot', (wire: WireSnapshot) => { latest[i] = unpackSnapshot(wire, wire.m === latest[i]?.matchId ? latest[i]?.props : undefined); bytes[i]! += JSON.stringify(wire).length; counts[i]!++; });
     room.onMessage('events', (data: unknown[]) => { if (i === 0) events += data.length; });
     room.onMessage('pong', (data: { sent: number }) => latencies.push(performance.now() - data.sent));
   }

@@ -21,7 +21,7 @@ try {
     const options = { nickname: `Deploy check ${i + 1}`, protocolVersion: PROTOCOL_VERSION, gameplayRevision: GAMEPLAY_REVISION, mapRevision: districtMap.revision };
     const room = i === 0 ? await client.create('district', options) : await client.consumeSeatReservation((await client.http.post(`dispatch/${rooms[0]!.roomId}`, { body: options })).data as SeatReservation);
     rooms.push(room);
-    room.onMessage('snapshot', (wire: WireSnapshot) => states.set(room.sessionId, unpackSnapshot(wire)));
+    room.onMessage('snapshot', (wire: WireSnapshot) => { const previous = states.get(room.sessionId); states.set(room.sessionId, unpackSnapshot(wire, wire.m === previous?.matchId ? previous?.props : undefined)); });
     room.onMessage('events', () => {});
     room.onMessage('latency-probe', ({ nonce }: { nonce: string }) => room.send('latency-pong', { nonce }));
     room.send('resync');

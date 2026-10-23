@@ -1,11 +1,12 @@
 import { Room, ServerError, type Client } from '@colyseus/core';
 import { randomInt, randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
-import { districtMap, VEHICLE_BODIES } from '@fender/content';
+import { districtMap, districtProps, VEHICLE_BODIES } from '@fender/content';
 import { createSimulation, initPhysics, type Simulation } from '@fender/sim';
 import { GAMEPLAY_REVISION, PROTOCOL_VERSION, isInputCommand, isRecord, isVehicleBodyId, neutralActions, packSnapshot, sanitizeNickname, type AppliedDriverInput, type InputCommand, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
+import { createPropPublisher } from './prop-publisher.js';
 
-interface DriverConnection { epoch: string; entityId: string; queue: InputCommand[]; last: InputCommand | null; ack: number; received: number; lastInputAt: number; connected: boolean; windowStart: number; packets: number; reset?: WorldSnapshot['resetReason']; client: Client; latencyProbe: { nonce: string; sentAt: number } | null; pingMs: number | null; latencyMeasuredAt: number | null; }
+interface DriverConnection { epoch: string; entityId: string; queue: InputCommand[]; last: InputCommand | null; ack: number; received: number; lastInputAt: number; connected: boolean; windowStart: number; packets: number; reset?: WorldSnapshot['resetReason']; client: Client; latencyProbe: { nonce: string; sentAt: number } | null; pingMs: number | null; latencyMeasuredAt: number | null; propPublisher:ReturnType<typeof createPropPublisher>; }
 export const serverMetrics = { rooms: 0, steps: 0, rejectedInputs: 0, queueResets: 0, slowSteps: 0, maxStepMs: 0, bytesPublished: 0, draining: false };
 const creatingRooms = new Set<DrivingRoom>();
 const registeredRooms = new Map<DrivingRoom, () => number>();
@@ -38,7 +39,7 @@ export class DrivingRoom extends Room {
       await initPhysics();
       if (this.disposed) throw new ServerError(503, 'Dispatch creation expired');
       this.setPrivate(true);
-      this.sim = createSimulation(districtMap, { mode: 'multiplayer', matchId: this.roomId, trafficCount: 8 });
+      this.sim = createSimulation(districtMap, { mode: 'multiplayer', matchId: this.roomId, trafficCount: 8, props: districtProps });
       this.maxMessagesPerSecond = 100;
       this.onMessage('input', (client, message: unknown) => {
         const driver = this.drivers.get(client.sessionId);
@@ -104,7 +105,7 @@ export class DrivingRoom extends Room {
   onJoin(client: Client, _options: unknown, auth: { nickname: string; vehicleBodyId?: VehicleBodyId }) {
     const epoch = randomUUID();
     const car = this.sim.addPlayer({ playerId: client.sessionId, nickname: auth.nickname, sessionEpoch: epoch, bodyAssetId: auth.vehicleBodyId ?? VEHICLE_BODIES[randomInt(VEHICLE_BODIES.length)] });
-    this.drivers.set(client.sessionId, { epoch, entityId: car.entityId, queue: [], last: null, ack: -1, received: -1, lastInputAt: 0, connected: true, windowStart: performance.now(), packets: 0, reset: 'join', client, latencyProbe: null, pingMs: null, latencyMeasuredAt: null });
+    this.drivers.set(client.sessionId, { epoch, entityId: car.entityId, queue: [], last: null, ack: -1, received: -1, lastInputAt: 0, connected: true, windowStart: performance.now(), packets: 0, reset: 'join', client, latencyProbe: null, pingMs: null, latencyMeasuredAt: null, propPublisher:createPropPublisher() });
     this.publish(client);
   }
   private neutralize(id: string) {
@@ -137,7 +138,8 @@ export class DrivingRoom extends Room {
     });
     snapshot.sessionEpoch = d.epoch; if (snapshot.local) snapshot.local.lastConsumedSequence = d.ack;
     snapshot.resetReason = d.reset; d.reset = undefined;
-    const wire = packSnapshot(snapshot); serverMetrics.bytesPublished += JSON.stringify(wire).length;
+    const replacePropBaseline = snapshot.resetReason === 'join' || snapshot.resetReason === 'reconnect' || snapshot.resetReason === 'resync';
+    const wire = d.propPublisher.filter(packSnapshot(snapshot),replacePropBaseline); serverMetrics.bytesPublished += JSON.stringify(wire).length;
     client.send('snapshot', wire);
   }
   async onDrop(client: Client) {
@@ -158,6 +160,6 @@ export class DrivingRoom extends Room {
     this.disposed = true;
     try { this.sim?.dispose(); }
     catch (error) { console.error('Failed to dispose room simulation', error); }
-    finally { this.releaseAdmission(); }
+    finally { this.drivers.clear(); this.releaseAdmission(); }
   }
 }

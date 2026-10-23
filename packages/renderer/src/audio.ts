@@ -9,6 +9,8 @@ export class MotorAudio {
   private persistent: AudioNode[] = [];
   private voices = new Map<OscillatorNode | AudioBufferSourceNode, () => void>();
   private disposed = false;
+  private wreckVoices=new Map<OscillatorNode | AudioBufferSourceNode,string>();
+  private pendingWreckOwner:string|null=null;
   volume = .55;
   muted = false;
   constructor(private createContext: () => AudioContext = () => new AudioContext()) {}
@@ -50,9 +52,9 @@ export class MotorAudio {
     const cleanup = () => {
       if (ended) return; ended = true; source.onended = null;
       for (const node of [source, ...nodes]) node.disconnect();
-      this.voices.delete(source);
+      this.voices.delete(source);this.wreckVoices.delete(source);
     };
-    this.voices.set(source, cleanup); source.onended = cleanup;
+    this.voices.set(source, cleanup);if(this.pendingWreckOwner!==null)this.wreckVoices.set(source,this.pendingWreckOwner); source.onended = cleanup;
     source.start(); source.stop(this.context!.currentTime + length + .015);
   }
   private envelope(gain: GainNode, length: number, scale: number, rattle = false) {
@@ -96,10 +98,22 @@ export class MotorAudio {
     this.tone('square', .16 + severity * .3, [[0, 1450], [.2, 720], [1, 240]], impact * .4, true);
     if (severity > .65) this.tone('sawtooth', .28 + severity * .4, [[0, 185], [.15, 245], [1, 85]], impact * .55, true);
   }
-  effect(kind: 'shot' | 'hit' | 'wreck', volumeScale = 1): void {
+  effect(kind: 'shot' | 'hit' | 'wreck', volumeScale = 1, ownerId?:string): void {
     const volume = this.unit(volumeScale);
     if (!volume || !this.audible()) return;
-    if (kind === 'wreck') { this.crash(1, volume); return; }
+    if (kind === 'wreck') {
+      this.pendingWreckOwner=ownerId??'*';
+      try {
+        // Original cartoon demolition: bass blast, debris clatter, falling whistle and rubbery coda.
+        this.noise(.9, 700, volume);
+        this.noise(.55, 2600, volume * .7);
+        this.tone('triangle', 1.22, [[0, 78], [.12, 155], [.4, 95], [1, 32]], volume);
+        this.tone('sine', 1.15, [[0, 2600], [.08, 3200], [.5, 680], [1, 95]], volume * .65);
+        this.tone('square', .85, [[0, 1900], [.25, 850], [1, 180]], volume * .45, true);
+        this.tone('sawtooth', 1.05, [[0, 160], [.18, 330], [.5, 190], [1, 64]], volume * .55, true);
+      } finally { this.pendingWreckOwner=null; }
+      return;
+    }
     if (kind === 'shot') {
       this.noise(.095, 3200, .9 * volume);
       this.tone('square', .14, [[0, 720], [.18, 170], [1, 58]], .75 * volume);
@@ -107,6 +121,9 @@ export class MotorAudio {
       this.noise(.17, 2400, .85 * volume);
       this.tone('triangle', .23, [[0, 1100], [.15, 760], [1, 140]], .8 * volume);
     }
+  }
+  stopWreck(ownerId?:string):void{
+    for(const [source,owner]of this.wreckVoices)if(ownerId===undefined||owner===ownerId){source.stop();this.voices.get(source)?.();}
   }
   cartoon(kind: 'boing' | 'squeak'): void {
     const boing = kind === 'boing';

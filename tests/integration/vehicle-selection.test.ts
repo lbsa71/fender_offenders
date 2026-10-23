@@ -18,7 +18,7 @@ async function peer(body: unknown, roomId?: string) {
   const room = roomId ? await sdk.joinById(roomId, { ...options, vehicleBodyId: body }) : await sdk.create('district', { ...options, vehicleBodyId: body, maxHealth: 99999, topSpeed: 999 });
   peers.push(room); room.reconnection.enabled = false;
   let state: WorldSnapshot | null = null;
-  room.onMessage('snapshot', (wire: WireSnapshot) => { state = unpackSnapshot(wire); }); room.onMessage('events', () => {}); room.onMessage('latency-probe', () => {}); room.send('resync');
+  room.onMessage('snapshot', (wire: WireSnapshot) => { state = unpackSnapshot(wire, wire.m === state?.matchId ? state?.props : undefined); }); room.onMessage('events', () => {}); room.onMessage('latency-probe', () => {}); room.send('resync');
   await until(() => !!state, 'initial snapshot');
   return { room, get state() { return state!; } };
 }

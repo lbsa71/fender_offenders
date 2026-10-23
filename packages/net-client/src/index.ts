@@ -1,6 +1,6 @@
 import { Client, MatchMakeError, ServerError, type Room, type SeatReservation } from '@colyseus/sdk';
 import { predictVehicle } from '@fender/sim';
-import { GAMEPLAY_REVISION, PROTOCOL_VERSION, unpackSnapshot, type CollisionMap, type GameEvent, type GameSession, type InputCommand, type JoinResult, type LocalAuthorityState, type RenderFrame, type SessionRequest, type SessionStatus, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
+import { GAMEPLAY_REVISION, PROTOCOL_VERSION, unpackSnapshot, type CollisionMap, type GameEvent, type GameSession, type InputCommand, type JoinResult, type LocalAuthorityState, type PropState, type RenderFrame, type SessionRequest, type SessionStatus, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
 const clone = <T>(v: T): T => structuredClone(v);
 const wrap = (n: number) => Math.atan2(Math.sin(n), Math.cos(n));
 export function interpolateVehicle(a: VehicleState, b: VehicleState, t: number): VehicleState {
@@ -34,8 +34,27 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       return result;
     });
   }
+  function propsAt(tick: number): PropState[] {
+    if (!history.length) return [];
+    const before = [...history].reverse().find(h => h.state.serverTick <= tick) ?? history[0]!;
+    const after = history.find(h => h.state.serverTick >= tick) ?? history.at(-1)!;
+    const span = after.state.serverTick - before.state.serverTick;
+    const t = span ? Math.max(0, Math.min(1, (tick - before.state.serverTick) / span)) : 1;
+    const previous = new Map((before.state.props ?? []).map(prop => [prop.entityId, prop]));
+    return (after.state.props ?? []).map(prop => {
+      const a = previous.get(prop.entityId), result = clone(prop);
+      if (!a || a.discontinuityId !== prop.discontinuityId || a.kind !== prop.kind) return result;
+      for (const axis of ['x', 'y', 'z'] as const) result.position[axis] = a.position[axis] + (prop.position[axis] - a.position[axis]) * t;
+      const dot = a.rotation.x * prop.rotation.x + a.rotation.y * prop.rotation.y + a.rotation.z * prop.rotation.z + a.rotation.w * prop.rotation.w;
+      const sign = dot < 0 ? -1 : 1;
+      for (const axis of ['x', 'y', 'z', 'w'] as const) result.rotation[axis] = a.rotation[axis] * (1 - t) + prop.rotation[axis] * sign * t;
+      const length = Math.hypot(result.rotation.x, result.rotation.y, result.rotation.z, result.rotation.w) || 1;
+      for (const axis of ['x', 'y', 'z', 'w'] as const) result.rotation[axis] /= length;
+      return result;
+    });
+  }
   function receive(wire: WireSnapshot) {
-    const next = unpackSnapshot(wire); receivedBytes += JSON.stringify(wire).length;
+    const next = unpackSnapshot(wire, wire.m === snapshot?.matchId ? snapshot?.props : undefined); receivedBytes += JSON.stringify(wire).length;
     if (snapshot && next.serverTick < snapshot.serverTick && next.matchId === snapshot.matchId) return;
     const reset = next.resetReason || next.matchId !== snapshot?.matchId || next.sessionEpoch !== snapshot?.sessionEpoch || next.local?.vehicle.discontinuityId !== snapshot?.local?.vehicle.discontinuityId;
     const oldPose = predicted?.vehicle.pose;
@@ -154,7 +173,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
         const vehicle = clone(predicted.vehicle); vehicle.pose.x += correctionX; vehicle.pose.z += correctionZ;
         const index = vehicles.findIndex(v => v.entityId === vehicle.entityId); if (index >= 0) vehicles[index] = vehicle; else vehicles.push(vehicle);
       }
-      return { sampleTimeSeconds: now / 1000, vehicles, projectiles: snapshot.projectiles, localEntityId: predicted?.vehicle.entityId ?? null, cameraTarget: vehicles.find(v => v.playerId === playerId)?.pose ?? null };
+      return { sampleTimeSeconds: now / 1000, vehicles, projectiles: snapshot.projectiles, props: propsAt(playbackTick), localEntityId: predicted?.vehicle.entityId ?? null, cameraTarget: vehicles.find(v => v.playerId === playerId)?.pose ?? null };
     },
     getSnapshot: () => snapshot,
     getIdentity: () => ({ playerId, roomId }),

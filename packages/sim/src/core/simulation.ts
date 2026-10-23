@@ -1,5 +1,5 @@
 import { PROTOCOL_VERSION, isDriverActions, isVehicleBodyId, sanitizeNickname, validateMap } from '@fender/contracts';
-import type { AppliedDriverInput, CollisionMap, DriverActions, DriverRuntimeState, GameEvent, GameplayConfig, LocalAuthorityState, PlanarPose, PlayerScore, ProjectileState, VehicleState, WorldSnapshot } from '@fender/contracts';
+import type { AppliedDriverInput, CollisionMap, DriverActions, DriverRuntimeState, GameEvent, GameplayConfig, LocalAuthorityState, PlanarPose, PlayerScore, ProjectileState, PropDefinition, VehicleState, WorldSnapshot } from '@fender/contracts';
 import { DEFAULT_GAMEPLAY_CONFIG, FIXED_DELTA, normalizeGameplay, type SimulationConfig } from './config.js';
 import { box, colliderPolygon, isPoseClear, overlap, segmentPolygon, type Point } from '../physics/geometry.js';
 import { driveVehicle, neutralActions, newDriver, resolveStatic, resolveVehicleContacts, type ContactImpact } from '../vehicles/controller.js';
@@ -7,6 +7,7 @@ import { trafficInput, type TrafficRuntime } from '../traffic/traffic.js';
 import { createStaticQueries, type StaticQueries } from '../physics/rapier.js';
 import { maxHealthForVehicle } from '../vehicles/profiles.js';
 import { selectAssistedYaw } from '../combat/aim-assist.js';
+import { createPropPhysics, type PropPhysicsCheckpoint } from '../physics/props.js';
 
 interface VehicleRecord {
   vehicle: VehicleState; driver: DriverRuntimeState; epoch: string; sequence: number;
@@ -17,11 +18,12 @@ interface VehicleRecord {
 export interface SimulationOptions {
   mode?: 'practice' | 'multiplayer'; seed?: number; matchId?: string;
   trafficCount?: number; config?: GameplayConfig; pursuit?: boolean;
+  props?: readonly PropDefinition[];
 }
 export interface PlayerOptions { playerId: string; nickname: string; sessionEpoch?: string; bodyAssetId?: string }
 export interface SimulationCheckpoint {
   version: 1; mapRevision: string; gameplayRevision: string; tick: number; matchId: string;
-  state: { records: VehicleRecord[]; projectiles: ProjectileState[]; scores: PlayerScore[]; phase: WorldSnapshot['phase']; phaseEnd: number | null; counter: number; eventCounter: number; rng: number; creator: string | null; pursuit: WorldSnapshot['pursuit']; arrestTicks: number };
+  state: { records: VehicleRecord[]; projectiles: ProjectileState[]; scores: PlayerScore[]; phase: WorldSnapshot['phase']; phaseEnd: number | null; counter: number; eventCounter: number; rng: number; creator: string | null; pursuit: WorldSnapshot['pursuit']; arrestTicks: number; physicsProps?: PropPhysicsCheckpoint };
 }
 export interface Simulation {
   addPlayer(options: PlayerOptions): VehicleState;
@@ -102,6 +104,8 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
   const trafficCount = options.trafficCount ?? options.config?.trafficCount ?? DEFAULT_GAMEPLAY_CONFIG.trafficCount;
   if (!Number.isInteger(trafficCount) || trafficCount < 0 || trafficCount > config.rules.maxTraffic) { queries.dispose(); throw new Error('Traffic count must be 0–16'); }
   addTraffic(trafficCount);
+  let propPhysics: ReturnType<typeof createPropPhysics> | null = null;
+  try { if (options.props?.length) propPhysics = createPropPhysics(map, options.props); } catch (error) { queries.dispose(); throw error; }
 
   const authority = (playerId: string): LocalAuthorityState | null => {
     const r = recordForPlayer(playerId); return r ? clone({ vehicle: r.vehicle, driver: r.driver, lastConsumedSequence: r.sequence }) : null;
@@ -112,7 +116,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
     const credited = r.lastAttacker && tick - r.attackerTick <= config.rules.creditTicks && r.lastAttacker !== r.vehicle.playerId ? r.lastAttacker : null;
     if (credited && scores.has(credited)) scores.get(credited)!.score++;
     if (r.vehicle.playerId) scores.get(r.vehicle.playerId)!.wrecks++;
-    emit({ kind: 'wreck', payload: { vehicleId: r.vehicle.entityId, creditedPlayerId: credited } });
+    emit({ kind: 'wreck', payload: { vehicleId: r.vehicle.entityId, creditedPlayerId: credited, position: clone(r.vehicle.pose), bodyAssetId: r.vehicle.bodyAssetId, discontinuityId: r.vehicle.discontinuityId } });
   };
   const respawn = (r: VehicleRecord) => {
     const pose = spawnPose(r.vehicle.entityId);
@@ -219,13 +223,14 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
     startRound(requesterId) {
       check(); if (mode !== 'multiplayer' || phase !== 'lobby' || scores.size < 2 || requesterId !== undefined && requesterId !== creator) return false;
       phase = 'countdown'; phaseEnd = tick + config.rules.countdownTicks;
+      propPhysics?.reset();
       for (const score of scores.values()) { score.score = 0; score.wrecks = 0; }
       projectiles.clear(); for (const r of records.values()) if (r.vehicle.playerId) respawn(r);
       return true;
     },
     rematch(requesterId) {
       check(); if (phase !== 'results' || requesterId !== undefined && requesterId !== creator) return false;
-      phase = 'lobby'; phaseEnd = null; projectiles.clear(); return true;
+      phase = 'lobby'; phaseEnd = null; projectiles.clear(); propPhysics?.reset(); return true;
     },
     step(inputs) {
       check(); tick++;
@@ -266,6 +271,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
         if (actions.fire && phase === 'playing' && r.vehicle.playerId) fire(r);
       }
       resolveVehicleContacts(allVehicles(), map, solids, observeImpact);
+      propPhysics?.step(allVehicles());
       if (phase === 'playing') for (const impact of impacts.values()) {
         const r = records.get(impact.vehicleId);
         if (!r || impact.speed < 3 || tick < (r.nextCrashTick ?? 0)) continue;
@@ -275,7 +281,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
       if (phase === 'playing') { stepProjectiles(previous); if (mode === 'practice') updatePursuit(); }
     },
     snapshot(forPlayerId) {
-      check(); return clone({ protocolVersion: PROTOCOL_VERSION, mapRevision: map.revision, gameplayRevision: config.revision, sessionEpoch: forPlayerId ? recordForPlayer(forPlayerId)?.epoch ?? '' : '', serverTick: tick, matchId, phase, phaseEndsAtTick: phaseEnd, vehicles: allVehicles(), projectiles: [...projectiles.values()], scores: [...scores.values()], local: forPlayerId ? authority(forPlayerId) : null, ...(pursuit ? { pursuit } : {}) });
+      check(); return clone({ protocolVersion: PROTOCOL_VERSION, mapRevision: map.revision, gameplayRevision: config.revision, sessionEpoch: forPlayerId ? recordForPlayer(forPlayerId)?.epoch ?? '' : '', serverTick: tick, matchId, phase, phaseEndsAtTick: phaseEnd, vehicles: allVehicles(), projectiles: [...projectiles.values()], scores: [...scores.values()], props: propPhysics?.snapshot() ?? [], local: forPlayerId ? authority(forPlayerId) : null, ...(pursuit ? { pursuit } : {}) });
     },
     authority,
     restoreAuthority(local, serverTick, proxies = []) {
@@ -288,14 +294,16 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
     },
     drainEvents() { check(); const output = events; events = []; return output; },
     checkpoint() {
-      check(); return clone({ version: 1, mapRevision: map.revision, gameplayRevision: config.revision, tick, matchId, state: { records: [...records.values()], projectiles: [...projectiles.values()], scores: [...scores.values()], phase, phaseEnd, counter, eventCounter, rng, creator, pursuit, arrestTicks } });
+      check(); return clone({ version: 1, mapRevision: map.revision, gameplayRevision: config.revision, tick, matchId, state: { records: [...records.values()], projectiles: [...projectiles.values()], scores: [...scores.values()], phase, phaseEnd, counter, eventCounter, rng, creator, pursuit, arrestTicks, ...(propPhysics ? {physicsProps:propPhysics.checkpoint()} : {}) } });
     },
     restore(checkpoint) {
       check(); if (checkpoint.version !== 1 || checkpoint.mapRevision !== map.revision || checkpoint.gameplayRevision !== config.revision || checkpoint.matchId !== matchId) throw new Error('Incompatible simulation checkpoint');
+      if ((checkpoint.state.physicsProps?.signature ?? null) !== (propPhysics?.signature ?? null)) throw new Error('Incompatible physics prop checkpoint');
       const c = clone(checkpoint); tick = c.tick; records = new Map(c.state.records.map(r => [r.vehicle.entityId, r])); projectiles = new Map(c.state.projectiles.map(p => [p.entityId, p])); scores = new Map(c.state.scores.map(s => [s.playerId, s]));
       ({ phase, phaseEnd, counter, eventCounter, rng, creator, pursuit, arrestTicks } = c.state); events = [];
+      if (propPhysics) { if(c.state.physicsProps) propPhysics.restore(c.state.physicsProps); else propPhysics.reset(); }
     },
-    dispose() { if (disposed) return; disposed = true; records.clear(); projectiles.clear(); scores.clear(); events = []; queries.dispose(); },
+    dispose() { if (disposed) return; disposed = true; records.clear(); projectiles.clear(); scores.clear(); events = []; queries.dispose(); propPhysics?.dispose(); },
   };
 }
 

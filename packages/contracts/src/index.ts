@@ -3,7 +3,7 @@ export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v3';
+export const GAMEPLAY_REVISION = 'arcade-v4';
 export { VEHICLE_BODIES, VEHICLE_PROFILES, getVehicleProfile, isVehicleBodyId } from './vehicle-profiles';
 export type { VehicleBodyId, VehicleProfile } from './vehicle-profiles';
 export type DeviceKind = 'keyboard' | 'gamepad';
@@ -18,6 +18,11 @@ export interface AppliedDriverInput { actions: DriverActions; sessionEpoch: stri
 export interface InputSource { sample(): DriverActions; activeDevice(): DeviceKind; resetHeldState(): void; dispose(): void }
 export interface PlanarPose { x: number; z: number; yaw: number }
 export interface PlanarVelocity { x: number; z: number; yawRate: number }
+export type PropKind = 'barrel' | 'crate' | 'bin' | 'lamp' | 'sign' | 'tree' | 'bench';
+export interface Vector3State { x: number; y: number; z: number }
+export interface QuaternionState { x: number; y: number; z: number; w: number }
+export interface PropDefinition { entityId: string; kind: PropKind; position: Vector3State; yaw?: number; scale?: number; anchored?: boolean }
+export interface PropState { entityId: string; kind: PropKind; scale: number; position: Vector3State; rotation: QuaternionState; mode: 'fixed' | 'dynamic'; sleeping: boolean; discontinuityId: number }
 export interface VehicleState {
   entityId: string; playerId: string | null; bodyAssetId: string;
   pose: PlanarPose; velocity: PlanarVelocity; health: number; maxHealth?: number;
@@ -45,6 +50,7 @@ export interface WorldSnapshot {
   sessionEpoch: string; serverTick: number; matchId: string;
   phase: 'lobby' | 'countdown' | 'playing' | 'results'; phaseEndsAtTick: number | null;
   vehicles: VehicleState[]; projectiles: ProjectileState[]; scores: PlayerScore[];
+  props?: PropState[];
   local: LocalAuthorityState | null;
   resetReason?: 'join' | 'reconnect' | 'input-backlog' | 'resync';
   pursuit?: { state: 'chasing' | 'arresting' | 'complete'; suspectId: string; progress: number; elapsedTicks: number };
@@ -55,7 +61,7 @@ export type GameEvent =
   | EventEnvelope<'projectile-impact', { projectileId: string; ownerEntityId: string; position: PlanarPose }>
   | EventEnvelope<'shot', { shooterId: string; projectileId: string; sessionEpoch: string; sourceCommandSequence: number; sourceShotOrdinal: number; origin: PlanarPose }>
   | EventEnvelope<'hit', { projectileId: string; targetId: string; damage: number; position: PlanarPose }>
-  | EventEnvelope<'wreck', { vehicleId: string; creditedPlayerId: string | null }>
+  | EventEnvelope<'wreck', { vehicleId: string; creditedPlayerId: string | null; position?: PlanarPose; bodyAssetId?: string; discontinuityId?: number }>
   | EventEnvelope<'respawn', { vehicleId: string; discontinuityId: number }>
   | EventEnvelope<'round-ended', { scores: PlayerScore[] }>
   | EventEnvelope<'pursuit-complete', { elapsedTicks: number; bonus: number }>;
@@ -84,6 +90,7 @@ export interface SceneManifest {
 export interface RenderFrame {
   sampleTimeSeconds: number; localEntityId: string | null;
   vehicles: VehicleState[]; projectiles: ProjectileState[]; cameraTarget: PlanarPose | null;
+  props?: PropState[];
 }
 export interface SessionRequest {
   mode: 'practice' | 'create' | 'join'; nickname: string; roomId?: string;

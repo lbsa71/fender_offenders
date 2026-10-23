@@ -1,4 +1,5 @@
 import type { CollisionMap, SceneManifest } from '@fender/contracts';
+import { defineDistrictProps } from './props.js';
 
 /** Authored in meters, +Z north/front. Render and physics consume these same footprints. */
 export interface Building { id: string; x: number; z: number; width: number; depth: number; height: number; color: string; kind: 'shop' | 'house' | 'warehouse' | 'civic'; label?: string }
@@ -25,6 +26,7 @@ for (let i = -112; i <= 112; i += 16) {
   }
 }
 trees.push(...[[-67, 34], [-44, 64], [-40, 58], [-44, 48], [-35, 47], [60, -57], [23, -59], [48, -56]].map(([x, z]) => ({ x: x!, z: z!, scale: 1.15 })));
+export const districtProps = defineDistrictProps(trees, roadCenters);
 
 const laneNodes = [
   { id: 'sw', x: -76, z: -76 }, { id: 'se', x: 76, z: -76 }, { id: 'ne', x: 76, z: 76 }, { id: 'nw', x: -76, z: 76 },

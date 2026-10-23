@@ -167,7 +167,9 @@ Colyseus protocol error codes remain in response JSON, but its 520–526 codes a
 
 Split world data into a shared collision/navigation map and a client presentation scene. Both derive from the same source layout and share a map revision/hash. Visible curbs/walls must line up with collision; export and validate this relationship.
 
-Server loads only colliders, spawns, lane graph, gameplay zones, and needed tuning. Client loads visual models/materials, decorative props, sound, and the same collision map. Instance repeated meshes/materials where useful. Use stable asset IDs rather than source filenames in gameplay rules.
+Server loads colliders, spawns, lane graph, gameplay zones, shared rigid-prop definitions and needed tuning. Client loads visual models/materials, sound, and the same collision map. Instance repeated meshes/materials where useful. Use stable asset IDs rather than source filenames in gameplay rules.
+
+The separate Rapier scenery world uses gravity and full rigid-body rotations, with kinematic authority car proxies pushing loose props and releasing anchored lamps/signs/trees. It does not feed forces into planar arcade driving. Trusted checkpoints retain its complete native state. Prop replication sends an initial baseline and then meaningful changes; client presentation merges patches and interpolates them on the existing buffered clock. Wreck debris and a safety-checked local pedestrian crowd remain purely cosmetic, with no transform traffic or combat state. [World reactions](WORLD_REACTIONS.md) records the lifecycle and safety contracts.
 
 The server advertises protocol, map, and gameplay config versions at join. A mismatching client loads the matching immutable content or fails with an actionable message. Silent collision-map mismatch is a release blocker.
 

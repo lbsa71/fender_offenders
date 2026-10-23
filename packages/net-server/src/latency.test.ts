@@ -14,7 +14,7 @@ async function peer(roomId?:string){
   const sdk=new Client(endpoint),room=roomId?await sdk.joinById(roomId,options):await sdk.create('district',options);
   room.reconnection.minUptime=0;room.reconnection.minDelay=200;room.reconnection.maxDelay=250;room.reconnection.maxEnqueuedMessages=0;
   const p:Peer={room,state:null,probes:[]};peers.push(p);
-  room.onMessage('snapshot',(wire:WireSnapshot)=>p.state=unpackSnapshot(wire));
+  room.onMessage('snapshot',(wire:WireSnapshot)=>p.state=unpackSnapshot(wire,wire.m===p.state?.matchId?p.state?.props:undefined));
   room.onMessage('events',()=>{});room.onMessage('pong',()=>{});
   room.onMessage('latency-probe',(probe:{nonce:string})=>p.probes.push(probe.nonce));
   room.send('resync');await until(()=>p.state!==null,'initial snapshot');return p;

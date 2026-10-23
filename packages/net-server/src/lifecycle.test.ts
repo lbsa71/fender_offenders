@@ -35,7 +35,7 @@ const previousLimit=process.env.MAX_ROOMS;
 function holdPhysics(){physics.waiting=0;physics.gate=new Promise<void>((r)=>physics.release=r);}
 async function create(name='district',extra:Record<string,unknown>={},roomId?:string){
   const sdk=new Client(endpoint),room=roomId?await sdk.joinById(roomId,{...options,...extra}):await sdk.create(name,{...options,...extra});peers.push(room);room.reconnection.enabled=false;
-  room.onMessage('snapshot',(wire:WireSnapshot)=>snapshots.set(room.sessionId,unpackSnapshot(wire)));room.onMessage('events',()=>{});room.onMessage('latency-probe',({nonce}:{nonce:string})=>room.send('latency-pong',{nonce}));room.send('resync');await until(()=>snapshots.has(room.sessionId),'fully joined authoritative snapshot');return room;
+  room.onMessage('snapshot',(wire:WireSnapshot)=>{const previous=snapshots.get(room.sessionId);snapshots.set(room.sessionId,unpackSnapshot(wire,wire.m===previous?.matchId?previous?.props:undefined));});room.onMessage('events',()=>{});room.onMessage('latency-probe',({nonce}:{nonce:string})=>room.send('latency-pong',{nonce}));room.send('resync');await until(()=>snapshots.has(room.sessionId),'fully joined authoritative snapshot');return room;
 }
 beforeAll(async()=>{server=new Server({transport:new WebSocketTransport(),greet:false,gracefullyShutdown:false});server.define('district',TrackedRoom);server.define('fast-drop',FastDropRoom);server.define('expiring-create',ExpiringCreateRoom);await server.listen(2708,'127.0.0.1');},15000);
 afterEach(async()=>{
