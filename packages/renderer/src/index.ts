@@ -19,7 +19,7 @@ import { CarFactory, updateCarStatus, type CarVisual } from './cars';
 import {crossedRoadBump,newCartoonMotion,stepCartoonMotion} from './deformation';
 import {createGaragePreview,type GaragePreview} from './garage';
 import {newVehicleFeedback,kickImpact,kickRecoil,stepVehicleFeedback} from './feedback';
-import {CombatEffects} from './combat-effects';
+import {CombatEffects,type MuzzlePose} from './combat-effects';
 import {PropVisuals} from './props';
 import {PedestrianCrowd} from './pedestrians';
 import {WreckEffects} from './wreck-effects';
@@ -30,6 +30,7 @@ export interface RendererSettings {
   cameraDistance: number; cameraLookAhead: number; cameraSmoothing: number;
 }
 export type RendererOptions = Partial<RendererSettings>;
+interface MuzzleRequest{key:string;payload:Extract<GameEvent,{kind:'shot'}>['payload'];life:number|null;points:MuzzlePose[];expires:number}
 interface Particle { mesh: Mesh; vx:number;vy:number;vz:number;life:number;duration:number;size:number }
 const defaults:RendererSettings={quality:'high',masterVolume:.65,effectsVolume:.75,muted:false,reducedShake:false,reducedFlash:false,cameraDistance:1,cameraLookAhead:1,cameraSmoothing:6};
 
@@ -64,6 +65,8 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
   const marks=Array.from({length:128},(_,i)=>{const mesh=MeshBuilder.CreateBox(`pooled-skid-${i}`,{width:.2,height:.012,depth:.85},scene);mesh.material=skid;mesh.isVisible=false;return{mesh,life:0};});
   let markIndex=0,particleIndex=0,time=0,shake=0,disposed=false,lastSmoke=0,lastSkid=0,lastFrame:RenderFrame|null=null,frameCpuMs=0,frameDrawCalls=0;
   const seen=new Set<string>(),eventQueue:string[]=[],retiredMatches:string[]=[];let activeMatch:string|null=null;
+  const seenVolleys=new Set<string>(),volleyQueue:string[]=[],pendingMuzzles:MuzzleRequest[]=[],mountedMuzzles=new Map<string,MuzzleRequest>();
+  const gunPoint=new Vector3(),worldGun=new Vector3();
   const target=new Vector3(4,0,-43),desired=new Vector3(),eye=new Vector3();
   function emit(x:number,y:number,z:number,count:number,type:'spark'|'smoke'|'fire') {
     const cap=settings.reducedFlash?Math.min(count,4):count;
@@ -77,7 +80,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
   }
   function clearWreck(entityId:string):void{wrecks.remove(entityId);audio.stopWreck(entityId);}
   function resetCombatPresentation():void{
-    combat.reset();wrecks.reset();audio.stopWreck();shake=0;
+    combat.reset();wrecks.reset();audio.stopWreck();shake=0;seenVolleys.clear();volleyQueue.length=0;pendingMuzzles.length=0;mountedMuzzles.clear();
     for(const p of particles){p.life=0;p.mesh.isVisible=false;}
     for(const mark of marks){mark.life=0;mark.mesh.isVisible=false;}
     for(const car of cars.values()){car.feedback=newVehicleFeedback();car.lastCrashAt=-10;car.lastCrashTick=-1;car.wreckLife=null;car.explodedLife=null;car.wreckLifeFloor=-1;}
@@ -96,6 +99,30 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     scene.shadowsEnabled=settings.quality!=='low';garage?.setQuality(settings.quality);engine.setHardwareScalingLevel(Math.max(1,(window.devicePixelRatio||1)/Math.min(window.devicePixelRatio||1,settings.quality==='low'?1:1.5)));
   }
   setSettings(options);
+  function resolveMuzzles(request:MuzzleRequest):boolean{
+    const origins=request.payload.origins;if(!origins?.length)return false;
+    const car=cars.get(request.payload.shooterId),vehicle=lastFrame?.vehicles.find(v=>v.entityId===request.payload.shooterId);
+    if(car&&(request.life!==null&&car.discontinuity!==request.life||vehicle?.status!=='active'||car.wreckLife===car.discontinuity))return false;
+    const count=Math.min(2,origins.length);request.points.length=count;
+    if(car){car.root.computeWorldMatrix(true);car.suspension.computeWorldMatrix(true);car.body.computeWorldMatrix(true);}
+    for(let i=0;i<count;i++){
+      const origin=origins[i]!,point=request.points[i]??{x:0,z:0,yaw:0,height:1.2};request.points[i]=point;point.yaw=origin.yaw;
+      if(car){gunPoint.set(i===0?-.63:.63,1.17,2.45);Vector3.TransformCoordinatesToRef(gunPoint,car.body.getWorldMatrix(),worldGun);point.x=-worldGun.x;point.z=worldGun.z;point.height=worldGun.y;}
+      else{point.x=origin.x;point.z=origin.z;point.height=1.2;}
+    }
+    return true;
+  }
+  function renderMuzzles():void{
+    for(const [key,request]of mountedMuzzles){if(time>=request.expires||!resolveMuzzles(request)){combat.moveMuzzles(key,[]);mountedMuzzles.delete(key);}else combat.moveMuzzles(key,request.points);}
+    for(const request of pendingMuzzles){
+      if(request.payload.origins?.length){if(!resolveMuzzles(request))continue;combat.muzzle(request.points,settings.reducedFlash,request.key);request.expires=time+.09;mountedMuzzles.set(request.key,request);}
+      else combat.muzzle(request.payload.origin,settings.reducedFlash);
+      // Sparks share the exact flash locations; they remain independent particles after emission.
+      if(request.payload.origins?.length)for(const point of request.points)emit(-point.x,point.height??1.2,point.z,2,'spark');else emit(-request.payload.origin.x,1.2,request.payload.origin.z,4,'spark');
+    }
+    pendingMuzzles.length=0;
+    while(mountedMuzzles.size>12){const key=mountedMuzzles.keys().next().value!;combat.moveMuzzles(key,[]);mountedMuzzles.delete(key);}
+  }
   function render(frame:RenderFrame,dt:number):void{
     if(disposed)return;const cpuStart=performance.now();lastFrame=frame;dt=Math.min(Math.max(dt,0),.1);time+=dt;
     const reducedMotion=settings.reducedShake||prefersReducedMotion.matches;
@@ -145,7 +172,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     if(!frame.localEntityId)audio.update(0,false,time,false);
     if(time-lastSmoke>.12)lastSmoke=time;if(time-lastSkid>.055)lastSkid=time;
     for(const [id,car]of cars)if(!active.has(id)){removeCar(car);cars.delete(id);}
-    combat.renderProjectiles(frame.projectiles);combat.update(dt,settings.reducedFlash);wrecks.update(dt,{reducedMotion,reducedFlash:settings.reducedFlash});
+    renderMuzzles();combat.renderProjectiles(frame.projectiles,dt);combat.update(dt,settings.reducedFlash);wrecks.update(dt,{reducedMotion,reducedFlash:settings.reducedFlash});
     props.render(frame.props??[]);pedestrians.update(frame.vehicles,dt,reducedMotion);
     for(const p of particles)if(p.life>0){p.life-=dt;p.mesh.isVisible=p.life>0;p.mesh.position.x+=p.vx*dt;p.mesh.position.y+=p.vy*dt;p.mesh.position.z+=p.vz*dt;p.vy-=p.mesh.material===smoke?-.3*dt:9*dt;const f=Math.max(0,p.life/p.duration);p.mesh.scaling.setAll(p.size*(p.mesh.material===smoke?2-f:f));p.mesh.visibility=f;}
     for(const mark of marks)if(mark.life>0){mark.life-=dt;mark.mesh.isVisible=mark.life>0;mark.mesh.visibility=Math.min(1,mark.life);}
@@ -184,8 +211,11 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
         const distance=local?Math.hypot(p.position.x-local.pose.x,p.position.z-local.pose.z):Infinity,volumeScale=isLocal?1:Math.max(0,1-distance/35)*.65;
         if(volumeScale>0)audio.crash(strength,volumeScale);if(isLocal)shake=Math.max(shake,strength*.42);
       }else if(event.kind==='shot'){
-        const p=event.payload.origin,car=cars.get(event.payload.shooterId);if(car)car.feedback=kickRecoil(car.feedback);
-        combat.muzzle(p,settings.reducedFlash);emit(-p.x,1.2,p.z,4,'spark');const volume=combatVolume(p,event.payload.shooterId===lastFrame?.localEntityId);if(volume>0)audio.effect('shot',volume);
+        const payload=event.payload,p=payload.origin,volleyKey=`${event.matchId}:${payload.volleyId??`${payload.sessionEpoch}:${payload.shooterId}:${payload.sourceCommandSequence}:${payload.sourceShotOrdinal}`}`;
+        if(seenVolleys.has(volleyKey))continue;seenVolleys.add(volleyKey);volleyQueue.push(volleyKey);if(volleyQueue.length>256)seenVolleys.delete(volleyQueue.shift()!);
+        const car=cars.get(payload.shooterId);if(car)car.feedback=kickRecoil(car.feedback);
+        if(pendingMuzzles.length>=12)pendingMuzzles.shift();pendingMuzzles.push({key:volleyKey,payload,life:car?.discontinuity??null,points:[],expires:0});
+        const volume=combatVolume(p,payload.shooterId===lastFrame?.localEntityId);if(volume>0)audio.effect('shot',volume);
       }else if(event.kind==='hit'){
         const p=event.payload.position;combat.impact(p,.7,settings.reducedFlash);emit(-p.x,1,p.z,14,'spark');emit(-p.x,1,p.z,2,'smoke');const volume=combatVolume(p);if(volume>0)audio.effect('hit',volume);if(event.payload.targetId===lastFrame?.localEntityId)shake=Math.max(shake,.3);
       }else if(event.kind==='projectile-impact'){

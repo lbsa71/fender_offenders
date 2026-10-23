@@ -5,3 +5,4 @@ export { initPhysics, runPhysicsSpike } from './physics/rapier.js';
 export { surfaceAt, newDriver } from './vehicles/controller.js';
 export { selectAssistedYaw, AIM_ASSIST_LIMITS } from './combat/aim-assist.js';
 export type { AimLineBlocked } from './combat/aim-assist.js';
+export { getVolleyOrigins, MUZZLE_FORWARD, MUZZLE_LATERAL } from './combat/volleys.js';

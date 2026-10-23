@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { createGameContext, expect, test } from './fixtures';
-import type { WorldSnapshot } from '@fender/contracts';
+import type { WorldSnapshot, GameEvent } from '@fender/contracts';
 
 test('home and practice load without external fonts or remote content', async ({ page, baseURL }) => {
   const localHost = new URL(baseURL!).hostname;
@@ -31,7 +31,7 @@ test('garage typography and statistics fit inside their desktop panels', async (
   expect(titleOverflow, 'The assigned vehicle name must fit within the garage heading width').toBeLessThanOrEqual(0);
 });
 
-type DebugWindow = Window & { __FENDER_DEBUG__?: { snapshot: WorldSnapshot | null | (() => WorldSnapshot | null); events?: {kind:string}[]; stats?: {renderer?:{muzzleFlashes?:number;impactRings?:number;props?:number;pedestrians?:number}} } };
+type DebugWindow = Window & { __FENDER_DEBUG__?: { snapshot: WorldSnapshot | null | (() => WorldSnapshot | null); events?: GameEvent[]; stats?: {renderer?:{muzzleFlashes?:number;impactRings?:number;props?:number;pedestrians?:number}} } };
 async function snapshot(page: Page) {
   return page.evaluate(() => { const debug = (window as DebugWindow).__FENDER_DEBUG__; return typeof debug?.snapshot === 'function' ? debug.snapshot() : debug?.snapshot ?? null; });
 }
@@ -55,7 +55,8 @@ test('keyboard practice drives, fires, releases controls on pause and saves sett
   await page.keyboard.down('Space');
   // A shot can expire between publications; held fire is verified through the local driver's authoritative shot ordinal.
   await expect.poll(async () => (await snapshot(page))?.local?.driver.shotOrdinal ?? 0).toBeGreaterThan(0);
-  await expect.poll(()=>page.evaluate(()=>(window as DebugWindow).__FENDER_DEBUG__?.stats?.renderer?.muzzleFlashes??0)).toBeGreaterThan(0);
+  await expect.poll(()=>page.evaluate(()=>(window as DebugWindow).__FENDER_DEBUG__?.stats?.renderer?.muzzleFlashes??0)).toBeGreaterThanOrEqual(2);
+  await expect.poll(()=>page.evaluate(()=>(window as DebugWindow).__FENDER_DEBUG__?.events?.some(event=>event.kind==='shot'&&event.payload.projectileIds?.length===2&&event.payload.origins?.length===2)??false)).toBe(true);
   await page.keyboard.press('Escape'); await page.keyboard.up('w'); await page.keyboard.up('Space');
   await expect(page.getByRole('heading', { name: 'Taking a breather?' })).toBeVisible();
   await expect(page.getByText('Your local patrol is paused.', { exact: false })).toBeVisible();

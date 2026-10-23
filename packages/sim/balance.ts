@@ -42,19 +42,22 @@ function combat(body: VehicleBodyId) {
     fixture.state.records[0]!.vehicle.pose = { x: 0, z: -10, yaw: 0 }; fixture.state.records[1]!.vehicle.pose = { x: 0, z: 10, yaw: 0 };
     for (const record of fixture.state.records) record.vehicle.protectedUntilTick = 0;
     sim.restore(fixture);
-    const hits: number[] = [];
+    const hits: {tick:number;projectileId:string;damage:number}[] = [], volleys=new Map<string,string>();
     for (let tick = 0; tick < 240 && sim.authority('target')!.vehicle.status === 'active'; tick++) {
       input(sim, shooter.entityId, tick, { fire: true });
-      for (const event of sim.drainEvents()) if (event.kind === 'hit') hits.push(event.serverTick);
+      for (const event of sim.drainEvents()) {
+        if(event.kind==='shot')for(const id of event.payload.projectileIds??[event.payload.projectileId])volleys.set(id,event.payload.volleyId??event.eventId);
+        if(event.kind==='hit')hits.push({tick:event.serverTick,projectileId:event.payload.projectileId,damage:event.payload.damage});
+      }
     }
-    return { hitsToWreck: hits.length, firstHitToWreckSeconds: (hits.at(-1)! - hits[0]!) / 60, wreckAtTick: sim.snapshot().serverTick };
+    return { hitsToWreck: hits.length, volleysToWreck:new Set(hits.map(hit=>volleys.get(hit.projectileId))).size,totalDamage:hits.reduce((sum,hit)=>sum+hit.damage,0),firstHitToWreckSeconds: (hits.at(-1)!.tick - hits[0]!.tick) / 60, wreckAtTick: sim.snapshot().serverTick };
   } finally { sim.dispose(); }
 }
 await initPhysics();
 const baseline = getVehicleProfile('patrol');
 const rows = VEHICLE_BODIES.map(body => {
   const profile = getVehicleProfile(body), actualCombat = combat(body);
-  const budget = 0.35 * actualCombat.hitsToWreck * 10 / baseline.maxHealth + 0.25 * profile.topSpeed / baseline.topSpeed + 0.2 * profile.acceleration / baseline.acceleration + 0.1 * profile.steeringRate / baseline.steeringRate + 0.1 * profile.grip / baseline.grip;
+  const budget = 0.35 * actualCombat.volleysToWreck * 10 / baseline.maxHealth + 0.25 * profile.topSpeed / baseline.topSpeed + 0.2 * profile.acceleration / baseline.acceleration + 0.1 * profile.steeringRate / baseline.steeringRate + 0.1 * profile.grip / baseline.grip;
   return { body, maxHealth: profile.maxHealth, ...measure(body), ...actualCombat, weightedBudget: budget };
 });
-console.log(JSON.stringify({ gameplayRevision: GAMEPLAY_REVISION, tickRate: 60, weaponDamage: 10, shotCadenceTicks: 12, rows }, null, 2));
+console.log(JSON.stringify({ gameplayRevision: GAMEPLAY_REVISION, tickRate: 60, weaponDamagePerVolley: 10,damagePerProjectile:5,barrels:2,shotCadenceTicks: 12, rows }, null, 2));

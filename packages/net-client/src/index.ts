@@ -1,5 +1,6 @@
 import { Client, MatchMakeError, ServerError, type Room, type SeatReservation } from '@colyseus/sdk';
 import { predictVehicle } from '@fender/sim';
+import { ProjectilePresentation } from './projectile-presentation';
 import { GAMEPLAY_REVISION, PROTOCOL_VERSION, unpackSnapshot, type CollisionMap, type GameEvent, type GameSession, type InputCommand, type JoinResult, type LocalAuthorityState, type PropState, type RenderFrame, type SessionRequest, type SessionStatus, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
 const clone = <T>(v: T): T => structuredClone(v);
 const wrap = (n: number) => Math.atan2(Math.sin(n), Math.cos(n));
@@ -9,6 +10,7 @@ export function interpolateVehicle(a: VehicleState, b: VehicleState, t: number):
 }
 export function createOnlineSession(endpoint: string, map: CollisionMap) {
   const sdk = new Client(endpoint);
+  const projectilePresentation = new ProjectilePresentation(map);
   let room: Room | null = null, snapshot: WorldSnapshot | null = null, predicted: LocalAuthorityState | null = null;
   let pending: { command: InputCommand; estimatedTick: number }[] = [], outgoing: InputCommand[] = [];
   let history: { state: WorldSnapshot; arrived: number }[] = [];
@@ -55,10 +57,10 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
   }
   function receive(wire: WireSnapshot) {
     const next = unpackSnapshot(wire, wire.m === snapshot?.matchId ? snapshot?.props : undefined); receivedBytes += JSON.stringify(wire).length;
-    if (snapshot && next.serverTick < snapshot.serverTick && next.matchId === snapshot.matchId) return;
+    if (snapshot && next.serverTick < snapshot.serverTick && next.matchId === snapshot.matchId && next.sessionEpoch === snapshot.sessionEpoch) return;
     const reset = next.resetReason || next.matchId !== snapshot?.matchId || next.sessionEpoch !== snapshot?.sessionEpoch || next.local?.vehicle.discontinuityId !== snapshot?.local?.vehicle.discontinuityId;
     const oldPose = predicted?.vehicle.pose;
-    snapshot = next; lastSnapshotAt = performance.now();
+    snapshot = next; lastSnapshotAt = performance.now();projectilePresentation.receive(next,Boolean(reset));
     if (reset) { pending = []; outgoing = []; history = []; correctionX = correctionZ = 0; playbackTick = null; }
     history.push({ state: next, arrived: lastSnapshotAt }); if (history.length > 40) history.shift();
     if (next.local) {
@@ -108,7 +110,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
         connection.reconnect = options => { if (!disposed) reconnect(options); };
         room.reconnection.maxRetries = 10; room.reconnection.minDelay = 300; room.reconnection.maxDelay = 1000; room.reconnection.minUptime = 0; room.reconnection.maxEnqueuedMessages = 0;
         room.onMessage('snapshot', receive);
-        room.onMessage('events', (events: GameEvent[]) => eventListeners.forEach(fn => fn(events)));
+        room.onMessage('events', (events: GameEvent[]) => { projectilePresentation.present(events);eventListeners.forEach(fn => fn(events)); });
         room.onMessage('latency-probe', (message: { nonce: string }) => { room!.send('latency-pong', { nonce: message.nonce }); });
         room.onMessage('pong', (message: { sent: number }) => { const measured = performance.now() - message.sent; rtt = rtt ? .8 * rtt + .2 * measured : measured; });
         room.onDrop(() => { if (disposed) return; pending = []; outgoing = []; status({ state: 'reconnecting', message: 'Reconnecting to dispatch…' }); });
@@ -146,7 +148,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
     onStatus(fn) { statusListeners.add(fn); return () => statusListeners.delete(fn); },
     async dispose() {
       if (disposed) return;
-      disposed = true; clearInterval(flushTimer); clearInterval(pingTimer); outgoing = []; pending = [];
+      disposed = true; clearInterval(flushTimer); clearInterval(pingTimer); outgoing = []; pending = [];projectilePresentation.dispose();
       if (room) {
         room.reconnection.enabled = false;
         if (room.connection.isOpen) {
@@ -173,7 +175,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
         const vehicle = clone(predicted.vehicle); vehicle.pose.x += correctionX; vehicle.pose.z += correctionZ;
         const index = vehicles.findIndex(v => v.entityId === vehicle.entityId); if (index >= 0) vehicles[index] = vehicle; else vehicles.push(vehicle);
       }
-      return { sampleTimeSeconds: now / 1000, vehicles, projectiles: snapshot.projectiles, props: propsAt(playbackTick), localEntityId: predicted?.vehicle.entityId ?? null, cameraTarget: vehicles.find(v => v.playerId === playerId)?.pose ?? null };
+      return { sampleTimeSeconds: now / 1000, vehicles, projectiles: projectilePresentation.sample(predicted?.vehicle.entityId??null,estimatedTick,playbackTick), props: propsAt(playbackTick), localEntityId: predicted?.vehicle.entityId ?? null, cameraTarget: vehicles.find(v => v.playerId === playerId)?.pose ?? null };
     },
     getSnapshot: () => snapshot,
     getIdentity: () => ({ playerId, roomId }),

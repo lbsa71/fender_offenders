@@ -101,7 +101,8 @@ describe('authoritative combat and round rules', () => {
     const events = sim.drainEvents(), hits = events.filter(e => e.kind === 'hit');
     expect(events.filter(e => e.kind === 'shot')).toHaveLength(5);
     expect(new Set(hits.map(e => e.payload.projectileId)).size).toBe(hits.length);
-    expect(sim.authority('b')!.vehicle.health).toBe(100 - hits.length * 10);
+    expect(hits.every(hit=>hit.payload.damage===5)).toBe(true);
+    expect(sim.authority('b')!.vehicle.health).toBe(100 - hits.length * 5);
     expect(sim.authority('a')!.vehicle.health).toBe(100); sim.dispose();
   });
   it('protects a spawn, ends protection on fire, credits one wreck and respawns', () => {

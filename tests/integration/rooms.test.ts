@@ -150,12 +150,14 @@ describe('real Colyseus authority over local WebSockets', () => {
     const a = await peer(), b = await peer(a.room.roomId); combatFixture(a, b);
     const sender = setInterval(() => a.room.send('input', { commands: [command(a, { fire: true }), command(a, { fire: true })] }), 34);
     try {
-      await until(() => b.state!.local!.vehicle.status === 'wrecked', 'ten confirmed projectile hits wreck target', 6000);
+      await until(() => b.state!.local!.vehicle.status === 'wrecked', 'ten twin-barrel volleys wreck target', 6000);
     } finally { clearInterval(sender); a.room.send('neutralize'); }
     const shots = a.events.filter(e => e.kind === 'shot' && e.payload.shooterId === a.state!.local!.vehicle.entityId);
     for (let i = 1; i < shots.length; i++) expect(shots[i]!.serverTick - shots[i - 1]!.serverTick).toBeGreaterThanOrEqual(12);
     const hits = a.events.filter((e): e is Extract<GameEvent, { kind: 'hit' }> => e.kind === 'hit' && e.payload.targetId === b.state!.local!.vehicle.entityId);
-    expect(hits).toHaveLength(10); expect(new Set(hits.map(e => e.payload.projectileId)).size).toBe(10);
+    expect(hits).toHaveLength(20); expect(new Set(hits.map(e => e.payload.projectileId)).size).toBe(20);
+    expect(hits.every(hit=>hit.payload.damage===5)).toBe(true);expect(hits.reduce((total,hit)=>total+hit.payload.damage,0)).toBe(100);
+    expect(shots.every(shot=>shot.kind==='shot'&&shot.payload.projectileIds?.length===2&&shot.payload.origins?.length===2)).toBe(true);
     expect(a.state!.scores.find(s => s.playerId === a.room.sessionId)!.score).toBe(1);
     expect(b.state!.local!.vehicle.health).toBe(0); expect(b.state!.scores.find(s => s.playerId === b.room.sessionId)!.wrecks).toBe(1);
     const oldDiscontinuity = b.state!.local!.vehicle.discontinuityId;
@@ -167,15 +169,21 @@ describe('real Colyseus authority over local WebSockets', () => {
     const a = await peer(), b = await peer(a.room.roomId); combatFixture(a, b);
     const sim = localSimulation(a), nearMiss = sim.checkpoint();
     const shooterId = a.state!.local!.vehicle.entityId;
-    nearMiss.state.records.find(record => record.vehicle.playerId === b.room.sessionId)!.vehicle.pose = { x: 6.3, z: 20, yaw: 0 };
+    // Both actual muzzles remain inside the original4-degree/2.5m assist limits.
+    nearMiss.state.records.find(record => record.vehicle.playerId === b.room.sessionId)!.vehicle.pose = { x: 5.5, z: 20, yaw: 0 };
     sim.restore(nearMiss); send(a, { fire: true });
     await until(() => b.state!.local!.vehicle.health === 90 && [a, b].every(p => p.events.some(event => event.kind === 'shot' && event.payload.shooterId === shooterId)), 'both peers observe a corrected shot and real damage');
     const shot = a.events.find((event): event is Extract<GameEvent, { kind: 'shot' }> => event.kind === 'shot' && event.payload.shooterId === shooterId)!;
-    expect(shot.payload.origin.yaw).toBeCloseTo(Math.atan2(2.3, 35), 10);
+    expect(shot.payload.origins).toHaveLength(2);expect(new Set(shot.payload.projectileIds).size).toBe(2);
+    expect(shot.payload.origins![0]!.yaw).toBeCloseTo(Math.atan2(2.13,32.55),10);
+    expect(shot.payload.origins![1]!.yaw).toBeCloseTo(Math.atan2(.87,32.55),10);
+    expect(shot.payload.origin).toEqual(shot.payload.origins![0]);
+    for(const peer of [a,b])expect(peer.history.some(state=>state.projectiles.filter(projectile=>shot.payload.projectileIds!.includes(projectile.entityId)).length===2)).toBe(true);
     expect(b.events.find(event => event.eventId === shot.eventId)).toEqual(shot);
 
     const wall = sim.checkpoint(), record = wall.state.records.find(record => record.vehicle.entityId === shooterId)!;
-    record.vehicle.pose = { x: districtMap.bounds.maxX - 1, z: 0, yaw: 0 };
+    // Drive nose-first into the wall; a purely sideways launch is damped by tyre grip.
+    record.vehicle.pose = { x: districtMap.bounds.maxX - 3, z: 0, yaw: Math.PI/2 };
     record.vehicle.velocity = { x: 18, z: 0, yawRate: 0 }; record.vehicle.discontinuityId++;
     const discontinuityId = record.vehicle.discontinuityId; sim.restore(wall);
     await until(() => [a, b].every(p => p.events.some(event => event.kind === 'crash' && event.payload.vehicleId === shooterId && event.payload.discontinuityId === discontinuityId)), 'both peers observe the same wall crash');

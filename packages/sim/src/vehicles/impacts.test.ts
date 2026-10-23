@@ -67,7 +67,7 @@ describe('real collision impact observations',()=>{
    sim.step(new Map([[a.entityId,{actions:{...neutralActions(),fire:true},sessionEpoch:'a',sourceCommandSequence:0}]]));
    for(let i=0;i<35;i++)sim.step(new Map());
    const events=sim.drainEvents(),strike=events.find(e=>e.kind==='projectile-impact');
-   expect(strike).toMatchObject({kind:'projectile-impact',payload:{ownerEntityId:a.entityId,position:{x:0,yaw:0}}});
+   expect(strike).toMatchObject({kind:'projectile-impact',payload:{ownerEntityId:a.entityId,position:{x:-.63,yaw:0}}});expect(events.filter(e=>e.kind==='projectile-impact')).toHaveLength(2);
    expect((strike as Extract<GameEvent,{kind:'projectile-impact'}>).payload.position.z).toBeCloseTo(-1,6);
    expect(sim.authority('b')!.vehicle.health).toBe(100);expect(events.filter(e=>e.kind==='hit')).toHaveLength(0);
   }finally{sim.dispose();}

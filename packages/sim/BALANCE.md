@@ -1,6 +1,6 @@
-# Vehicle balance baseline: arcade-v2
+# Vehicle balance baseline: arcade-v5
 
-The same vehicle stats, damage, cadence and protection rules remain in `arcade-v3`. Its aim assist applies equally to every profile; the measurements below remain the starting vehicle baseline.
+These measurements were regenerated after merging the tyre-force and drift model from PR #1 (working tree based on `3f6227c`). The default patrol configuration now uses a 28 m/s forward cap, acceleration 26, speed-sensitive steering lock and front/rear tyre forces. The shared profile ratios, paired weapons and narrow aim assist remain part of the `arcade-v5` baseline.
 
 Measured 2026-10-23 with the real shared simulation at 60 Hz. Reproduce from the repository root:
 
@@ -9,51 +9,55 @@ node node_modules/tsx/dist/cli.mjs packages/sim/balance.ts
 node node_modules/vitest/vitest.mjs run packages/sim
 ```
 
-The initial proposal was tightened after measuring armor quantization: ambulance health changed from 115 to 110; fire-chief health changed from 105 to 100 and steering rate from 2.1 to 2.0. The other four profiles are unchanged. Authority, practice and prediction apply the same profile ratios to room configuration overrides. Traffic retains baseline tuning and health. All cars use the same collision footprint, projectile damage, fire cadence, braking, reverse speed, respawn delay and protection duration.
+The initial proposal was tightened after measuring armor quantization: ambulance health changed from 115 to 110 and fire-chief health from 105 to 100. Fire-chief's steering anchor is now 1.9 following the drift merge. Authority, practice and prediction apply the same profile ratios to room configuration overrides. Traffic retains baseline tuning and health. All cars use the same collision footprint, projectile damage, fire cadence, braking, reverse speed, respawn delay and protection duration.
 
 ## Authored stats
 
-| Body | HP | Forward speed m/s | Acceleration | Steering rate | Grip |
+| Body | HP | Speed anchor | Acceleration anchor | Steering anchor | Grip anchor |
 |---|---:|---:|---:|---:|---:|
 | Patrol | 100 | 24 | 18 | 2.10 | 9.0 |
 | Interceptor | 90 | 26 | 20 | 1.90 | 9.0 |
 | Roadster | 80 | 28 | 22 | 2.05 | 8.0 |
 | Army | 130 | 20 | 14 | 1.80 | 9.5 |
 | Ambulance | 110 | 22 | 16 | 2.20 | 9.0 |
-| Fire chief | 100 | 23 | 19 | 2.00 | 9.8 |
+| Fire chief | 100 | 23 | 19 | 1.90 | 9.8 |
+
+These are the values in `VEHICLE_PROFILES`, used as ratios against patrol. They are not the current room's absolute handling settings: patrol's speed/acceleration anchors remain 24/18 while the default room supplies 28/26. For example, army receives a speed cap of `28 × 20 / 24 = 23.33 m/s` and acceleration `26 × 14 / 18 = 20.22`. Steering anchors scale the default 0.6-radian steering lock; grip anchors scale tyre stiffness and front/rear grip limits. The actual resulting speeds appear below.
 
 ## Actual driving and combat outcomes
 
-Every scenario runs in the same empty asphalt arena, without traffic or walls. Straight driving starts stationary with full throttle. Turn radius is distance travelled divided by accumulated yaw during seconds 8–10 of full throttle and full steering; each car therefore turns at its own sustained speed. The separate half-second turn starts every car at 12 m/s with no throttle, and isolates the common-speed steering comparison. Lateral recovery starts with identical 6 m/s side velocity and 12 m/s forward velocity and applies neutral input for 0.2 seconds.
+Every scenario runs in the same empty asphalt arena, without traffic or walls. Straight driving starts stationary with full throttle. Turn-path radius is distance travelled divided by accumulated yaw during seconds 8–10 of full throttle and full steering. This includes the model's drift state and each car's resulting speed; it does not establish a constant-speed circular turning radius. The separate half-second turn starts every car at 12 m/s with no throttle, and provides the common-starting-speed steering comparison. Lateral recovery starts with identical 6 m/s side velocity and 12 m/s forward velocity and applies neutral input for 0.2 seconds.
 
-| Body | Actual top m/s | Speed at 1 s m/s | Time to travel 20 m | Half-second turn | Sustained turn radius m | Residual side m/s |
+| Body | Actual top m/s | Speed at 1 s m/s | Time to travel 20 m | Half-second turn | Full-throttle turn-path radius m | Residual side m/s |
 |---|---:|---:|---:|---:|---:|---:|
-| Patrol | 24 | 14.44 | 1.683 s | 41.80° | 19.27 | 0.992 |
-| Interceptor | 26 | 16.05 | 1.583 s | 37.82° | 23.85 | 0.992 |
-| Roadster | 28 | 17.65 | 1.500 s | 40.81° | 24.59 | 1.211 |
-| Army | 20 | 11.23 | 1.933 s | 35.83° | 17.46 | 0.897 |
-| Ambulance | 22 | 12.84 | 1.800 s | 43.79° | 16.29 | 0.992 |
-| Fire chief | 23 | 15.24 | 1.633 s | 39.81° | 19.06 | 0.845 |
+| Patrol | 28.00 | 20.86 | 1.367 s | 45.64° | 21.52 | 0.230 |
+| Interceptor | 30.33 | 23.18 | 1.300 s | 41.92° | 28.76 | 0.230 |
+| Roadster | 32.67 | 25.49 | 1.233 s | 42.78° | 35.17 | 0.475 |
+| Army | 23.33 | 16.22 | 1.583 s | 40.63° | 6.47 | 0.132 |
+| Ambulance | 25.67 | 18.54 | 1.467 s | 47.35° | 13.91 | 0.230 |
+| Fire chief | 26.83 | 22.02 | 1.333 s | 43.15° | 20.12 | 0.077 |
 
-The combat scenario holds stationary cars 20 m apart, disables initial protection, and fires actual 10-damage projectiles every 12 ticks. The time below runs from first impact to lethal impact, excluding travel to the first impact. Hit counts include quantization: the proposed 115 HP ambulance took 12 hits and the proposed 105 HP fire chief took 11; the revised values avoid those extra whole-hit benefits.
+The combat scenario holds stationary cars 20 m apart, disables initial protection, and fires paired projectiles every 12 ticks. Each barrel deals 5 damage, retaining 10 total damage per volley and 50 maximum damage per second when both land. The time below runs from first impact to lethal impact, excluding travel to the first impact. Volleys include quantization: the proposed 115 HP ambulance required 12 volleys and the proposed 105 HP fire chief required 11; the revised values avoid those extra whole-volley benefits.
 
-| Target body | Hits to wreck | Effective damage threshold | First-hit-to-wreck | Weighted budget |
-|---|---:|---:|---:|---:|
-| Patrol | 10 | 100 | 1.80 s | 1.0000 |
-| Interceptor | 9 | 90 | 1.60 s | 0.9985 |
-| Roadster | 8 | 80 | 1.40 s | 1.0026 |
-| Army | 13 | 130 | 2.40 s | 1.0102 |
-| Ambulance | 11 | 110 | 2.00 s | 0.9967 |
-| Fire chief | 10 | 100 | 1.80 s | 1.0048 |
+| Target body | Volleys to wreck | Projectile hits | Effective damage threshold | First-hit-to-wreck | Weighted budget |
+|---|---:|---:|---:|---:|---:|
+| Patrol | 10 | 20 | 100 | 1.80 s | 1.0000 |
+| Interceptor | 9 | 18 | 90 | 1.60 s | 0.9985 |
+| Roadster | 8 | 16 | 80 | 1.40 s | 1.0026 |
+| Army | 13 | 26 | 130 | 2.40 s | 1.0102 |
+| Ambulance | 11 | 22 | 110 | 2.00 s | 0.9967 |
+| Fire chief | 10 | 20 | 100 | 1.80 s | 1.0001 |
+
+Both shots now originate from real muzzle tips 2.45 m forward and 0.63 m left/right of the car center. Each independently uses the same narrow aim-assist limits from its own muzzle and follows a fixed trajectory. A close wall or vehicle between the car center and a muzzle is swept before normal flight. One blocked or missed barrel deals only 5 damage; the balance table assumes both land. Correcting the spawn position shortens first-impact travel from the old center spawn without changing the interval between damaging volleys. Projectile lifetime remains 0.65 seconds (39 ticks).
 
 These outcomes expose the intended compensation:
 
 - Patrol retains higher top speed than the three heavier utility cars, with baseline armor and predictable steering.
-- Interceptor reaches 20 m sooner and sustains a higher speed than patrol, while losing one hit of armor and common-speed turning response.
-- Roadster is fastest out of the gate and at top speed, while taking the fewest hits and retaining the most sideways velocity after an impact. Its faster sustained turn also needs the largest radius.
-- Army survives the most hits and recovers sideways motion better than patrol, while having the slowest acceleration, lowest speed and weakest common-speed steering.
-- Ambulance has the best common-speed steering and smallest sustained turning radius, plus one extra hit over patrol, while taking longer to cover 20 m and losing 2 m/s of top speed.
-- Fire chief recovers sideways motion best and accelerates slightly faster than patrol, with the same armor. It loses 1 m/s of top speed and common-speed steering response. This corner-exit versus straight-line tradeoff still merits human comparison with patrol.
+- Interceptor reaches 20 m sooner and sustains a higher speed than patrol, while losing one full volley of armor and common-starting-speed turning response.
+- Roadster is fastest out of the gate and at top speed, while taking the fewest hits and retaining the most sideways velocity after an impact. It has the largest measured full-throttle turn-path radius.
+- Army survives the most hits and recovers sideways motion better than patrol, while having the slowest acceleration, lowest speed and weakest common-starting-speed steering. It now produces the smallest turn-path radius in the full-throttle drift scenario, so that result must be assessed separately from its initial steering response.
+- Ambulance has the strongest common-starting-speed steering and a smaller full-throttle turn-path radius than patrol, plus one extra full volley of armor, while taking longer to cover 20 m and losing 2.33 m/s of top speed.
+- Fire chief recovers sideways motion best and accelerates slightly faster than patrol, with the same armor. It loses 1.17 m/s of top speed and common-starting-speed steering response. This corner-exit versus straight-line tradeoff still merits human comparison with patrol.
 
 ## Automated constraints and limits
 
@@ -61,7 +65,7 @@ The tests reject any profile that equals or exceeds another in every authored st
 
 `0.35 × effective armor ratio + 0.25 × top-speed ratio + 0.20 × acceleration ratio + 0.10 × steering-rate ratio + 0.10 × grip ratio`
 
-Effective armor uses `ceil(HP / 10) × 10`, matching the measured weapon hit count. The weights are explicit design assumptions, not an estimate of win probability. The budget cannot express map geometry, aiming, collisions, escape routes, player skill, or interactions between stats. A smaller turning radius at different speeds is also not proof of better common-speed steering.
+Effective armor uses `ceil(HP / 10) × 10`, matching the measured full-volley budget when both barrels land. The weights use authored profile ratios and are explicit design assumptions, not an estimate of win probability. They do not quantify the nonlinear drift response or the new absolute room defaults. The budget cannot express map geometry, aiming, collisions, escape routes, player skill, or interactions between stats. A smaller turn-path radius in different drift states is also not proof of better common-speed steering.
 
 The suite verifies all six authority/prediction pairs under custom tuning, real shots-to-wreck and respawn, equal weapon/protection rules, checkpoint replay, scaled-health serialization/respawn, lobby selection restrictions, actual speed/acceleration/turning outcomes and lateral recovery. It does not claim automated proof of human fairness, a duel win-rate matrix, or equivalence across all browser runtimes. Human multiplayer driving, aiming and map-specific match comparisons remain necessary before stronger balance claims.
 

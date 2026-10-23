@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { packSnapshot, unpackSnapshot, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
+import { packSnapshot, unpackSnapshot, neutralActions, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
 import { createOnlineSession } from './index.js';
 import type { CollisionMap } from '@fender/contracts';
 
@@ -25,6 +25,35 @@ function snapshot(tick: number, options: { direction?: number; epoch?: string; m
   return packSnapshot(state);
 }
 afterEach(() => { vi.useRealTimers(); wire.handlers.clear(); });
+
+it('advances both confirmed local barrels alongside the predicted car and retires impact events immediately', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
+  const source = unpackSnapshot(snapshot(100)); source.local!.vehicle.velocity.z = 28;
+  source.projectiles = [0, 1].map(barrel => ({ entityId: `local-shot-${barrel}`, ownerEntityId: 'local', pose: { x: 100 + (barrel ? .63 : -.63), z: 103.617, yaw: 0 }, velocity: { x: 0, z: 70, yawRate: 0 }, bornTick: 100, expiresTick: 220, sourceCommandSequence: 0, sourceShotOrdinal: 1, barrelIndex: barrel as 0 | 1, volleyId: 'volley-1', damage: 5 }));
+  wire.initial = packSnapshot(source); const expectedAuthority = unpackSnapshot(wire.initial as WireSnapshot), session = createOnlineSession('ws://clock-fixture', map);
+  try {
+    await session.connect({ mode: 'create', nickname: 'Moving twin barrels' });
+    for (let tick = 0; tick < 6; tick++) session.submit({ sessionEpoch: source.sessionEpoch, sequence: tick, clientTick: tick, actions: { ...neutralActions(), throttle: 1 } });
+    vi.advanceTimersByTime(100); const frame = session.sampleFrame()!, car = frame.vehicles.find(vehicle => vehicle.entityId === 'local')!;
+    expect(frame.projectiles).toHaveLength(2);
+    for (const projectile of frame.projectiles) { expect(projectile.pose.z).toBeCloseTo(110.617, 3); expect(projectile.pose.z).toBeGreaterThan(car.pose.z + 2.45); expect(projectile.velocity.z).toBe(70); }
+    expect(session.getSnapshot()).toEqual(expectedAuthority);
+    wire.handlers.get('events')!([{ eventId: 'impact-1', matchId: source.matchId, serverTick: 101, kind: 'projectile-impact', payload: { projectileId: 'local-shot-0', ownerEntityId: 'local', position: { x: 100, z: 105, yaw: 0 } } }]);
+    expect(session.sampleFrame()!.projectiles.map(projectile => projectile.entityId)).toEqual(['local-shot-1']);
+  } finally { await session.dispose(); }
+});
+
+it('uses the buffered remote clock for projectile birth and first-seen travel', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] }); wire.initial = snapshot(100);
+  const session = createOnlineSession('ws://clock-fixture', map);
+  try {
+    await session.connect({ mode: 'create', nickname: 'Remote volley clock' });
+    const after = unpackSnapshot(snapshot(106)); after.projectiles = [{ entityId: 'remote-shot', ownerEntityId: 'remote', pose: { x: 0, z: 30, yaw: 0 }, velocity: { x: 0, z: 70, yawRate: 0 }, bornTick: 103, expiresTick: 223, sourceCommandSequence: 0, sourceShotOrdinal: 1 }];
+    vi.advanceTimersByTime(100); wire.handlers.get('snapshot')!(packSnapshot(after));
+    expect(session.sampleFrame()!.projectiles).toEqual([]);
+    vi.advanceTimersByTime(50); expect(session.sampleFrame()!.projectiles[0]!.pose.z).toBeCloseTo(26.5, 3);
+  } finally { await session.dispose(); }
+});
 
 it('presents physical props on the shared interpolation clock with normalized rotation, then freezes on lost snapshots', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
@@ -92,7 +121,7 @@ it.each(['epoch', 'match', 'discontinuity'] as const)('resets the playback clock
     await session.connect({ mode: 'create', nickname: 'Reset test' });
     for (const tick of [103, 106, 109]) { vi.advanceTimersByTime(50); wire.handlers.get('snapshot')!(snapshot(tick)); }
     vi.advanceTimersByTime(200); session.sampleFrame();
-    const next = reset === 'epoch' ? snapshot(112, { epoch: 'new-epoch' }) : reset === 'match' ? snapshot(10, { matchId: 'new-match' }) : snapshot(112, { discontinuity: 1 });
+    const next = reset === 'epoch' ? snapshot(10, { epoch: 'new-epoch' }) : reset === 'match' ? snapshot(10, { matchId: 'new-match' }) : snapshot(112, { discontinuity: 1 });
     wire.handlers.get('snapshot')!(next);
     expect(session.sampleFrame()!.vehicles.find(v => v.entityId === 'remote')!.pose.z).toBeCloseTo(next.cars.find(v => v[0] === 'remote')![4], 3);
   } finally { await session.dispose(); }

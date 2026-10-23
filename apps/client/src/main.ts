@@ -102,7 +102,7 @@ async function boot() {
     let renderFrame: RenderFrame | null = online?.sampleFrame(now) ?? null;
     if (!renderFrame && local) {
       const state = local.snapshot(active ? playerId : 'preview');
-      renderFrame = { sampleTimeSeconds: now / 1000, vehicles: state.vehicles, projectiles: state.projectiles, props: state.props, localEntityId: state.local?.vehicle.entityId ?? null, cameraTarget: state.local?.vehicle.pose ?? { x: 4, z: -48, yaw: 0 } };
+      renderFrame = { sampleTimeSeconds: now / 1000, vehicles: state.vehicles, projectiles: state.projectiles.map(projectile=>({...projectile,presentationAgeSeconds:Math.max(0,(state.serverTick-projectile.bornTick+1)/60)})), props: state.props, localEntityId: state.local?.vehicle.entityId ?? null, cameraTarget: state.local?.vehicle.pose ?? { x: 4, z: -48, yaw: 0 } };
     }
     renderer.setGaragePreview(!active || mode === 'online' && snapshot?.phase === 'lobby' ? ui.getVehicle() : null);
     if (renderFrame) renderer.render(renderFrame, dt);

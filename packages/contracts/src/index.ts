@@ -3,7 +3,7 @@ export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v4';
+export const GAMEPLAY_REVISION = 'arcade-v5';
 export { VEHICLE_BODIES, VEHICLE_PROFILES, getVehicleProfile, isVehicleBodyId } from './vehicle-profiles';
 export type { VehicleBodyId, VehicleProfile } from './vehicle-profiles';
 export type DeviceKind = 'keyboard' | 'gamepad';
@@ -37,7 +37,9 @@ export interface LocalAuthorityState { vehicle: VehicleState; driver: DriverRunt
 export interface ProjectileState {
   entityId: string; ownerEntityId: string; pose: PlanarPose; velocity: PlanarVelocity;
   bornTick: number; expiresTick: number; sourceCommandSequence: number; sourceShotOrdinal: number;
+  volleyId?: string; barrelIndex?: 0 | 1; damage?: number;
 }
+export type RenderProjectileState = ProjectileState & { presentationAgeSeconds?: number };
 export interface PlayerScore {
   playerId: string; nickname: string; score: number; wrecks: number;
   connection: 'connected' | 'reconnecting';
@@ -59,7 +61,7 @@ export interface EventEnvelope<K extends string, P> { eventId: string; matchId: 
 export type GameEvent =
   | EventEnvelope<'crash', { vehicleId: string; position: PlanarPose; normal: { x: number; z: number }; speed: number; discontinuityId: number }>
   | EventEnvelope<'projectile-impact', { projectileId: string; ownerEntityId: string; position: PlanarPose }>
-  | EventEnvelope<'shot', { shooterId: string; projectileId: string; sessionEpoch: string; sourceCommandSequence: number; sourceShotOrdinal: number; origin: PlanarPose }>
+  | EventEnvelope<'shot', { shooterId: string; projectileId: string; sessionEpoch: string; sourceCommandSequence: number; sourceShotOrdinal: number; origin: PlanarPose; projectileIds?: string[]; origins?: PlanarPose[]; volleyId?: string }>
   | EventEnvelope<'hit', { projectileId: string; targetId: string; damage: number; position: PlanarPose }>
   | EventEnvelope<'wreck', { vehicleId: string; creditedPlayerId: string | null; position?: PlanarPose; bodyAssetId?: string; discontinuityId?: number }>
   | EventEnvelope<'respawn', { vehicleId: string; discontinuityId: number }>
@@ -89,7 +91,7 @@ export interface SceneManifest {
 }
 export interface RenderFrame {
   sampleTimeSeconds: number; localEntityId: string | null;
-  vehicles: VehicleState[]; projectiles: ProjectileState[]; cameraTarget: PlanarPose | null;
+  vehicles: VehicleState[]; projectiles: RenderProjectileState[]; cameraTarget: PlanarPose | null;
   props?: PropState[];
 }
 export interface SessionRequest {

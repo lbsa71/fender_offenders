@@ -84,7 +84,7 @@ export class CarFactory {
     for(const s of [-1,1]){
       box('headlamp',s*.67,.9,length-.02,.43,.25,.08,headlight);
       box('taillamp',s*.64,.9,-length+.02,.52,.2,.08,tail);
-      box('gun',s*.63,1.17,1.45,.13,.13,1.05,navy);
+      box('gun',s*.63,1.17,1.925,.13,.13,1.05,navy);
     }
     box('plate',0,.69,-length-.15,.45,.16,.03,headlight);
     const lightbar=(y:number,z:number)=>{

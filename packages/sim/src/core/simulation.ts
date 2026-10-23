@@ -7,6 +7,7 @@ import { trafficInput, type TrafficRuntime } from '../traffic/traffic.js';
 import { createStaticQueries, type StaticQueries } from '../physics/rapier.js';
 import { maxHealthForVehicle } from '../vehicles/profiles.js';
 import { selectAssistedYaw } from '../combat/aim-assist.js';
+import { getVolleyOrigins } from '../combat/volleys.js';
 import { createPropPhysics, type PropPhysicsCheckpoint } from '../physics/props.js';
 
 interface VehicleRecord {
@@ -57,6 +58,8 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
   const queries: StaticQueries = createStaticQueries(map);
   const matchId = options.matchId ?? 'local-match';
   let records = new Map<string, VehicleRecord>(), scores = new Map<string, PlayerScore>(), projectiles = new Map<string, ProjectileState>();
+  // Every launch sweep is consumed after all cars have acted in this same synchronous fixed step.
+  const launchStarts = new Map<string, PlanarPose>();
   let tick = 0, counter = 0, eventCounter = 0, rng = options.seed ?? 12345, disposed = false;
   let phase: WorldSnapshot['phase'] = mode === 'practice' ? 'playing' : 'lobby';
   let phaseEnd: number | null = null, creator: string | null = null, events: GameEvent[] = [];
@@ -136,25 +139,20 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
     r.driver.nextRecoveryTick = tick + config.rules.recoveryCooldownTicks; r.driver.resolvedSteering = 0;
   };
   const fire = (r: VehicleRecord) => {
-    if (tick < r.driver.nextFireTick || projectiles.size >= 256) return;
+    if (tick < r.driver.nextFireTick || projectiles.size > 254) return;
     r.vehicle.protectedUntilTick = tick;
     r.driver.nextFireTick = tick + config.weapon.cooldownTicks; r.driver.shotOrdinal++;
-    const yaw = selectAssistedYaw(r.vehicle, allVehicles(), tick, (start, end) => queries.segmentHit(start, end) !== null, pursuit?.suspectId);
-    const fx = Math.sin(yaw), fz = Math.cos(yaw);
-    // Start at center: sweeping to the muzzle prevents shooting through a close wall.
-    const pose = { ...r.vehicle.pose, yaw };
-    const projectile: ProjectileState = { entityId: `${matchId}:projectile:${++counter}`, ownerEntityId: r.vehicle.entityId, pose, velocity: { x: fx * config.weapon.projectileSpeed, z: fz * config.weapon.projectileSpeed, yawRate: 0 }, bornTick: tick, expiresTick: tick + config.weapon.lifetimeTicks, sourceCommandSequence: r.sequence, sourceShotOrdinal: r.driver.shotOrdinal };
-    projectiles.set(projectile.entityId, projectile);
-    emit({ kind: 'shot', payload: { shooterId: r.vehicle.entityId, projectileId: projectile.entityId, sessionEpoch: r.epoch, sourceCommandSequence: r.sequence, sourceShotOrdinal: r.driver.shotOrdinal, origin: { ...pose, x: pose.x + fx * 2.3, z: pose.z + fz * 2.3 } } });
+    const volleyId=`${matchId}:volley:${counter+1}`;
+    const origins=getVolleyOrigins(r.vehicle.pose).map(pose=>({...pose,yaw:selectAssistedYaw({...r.vehicle,pose},allVehicles(),tick,(start,end)=>queries.segmentHit(start,end)!==null,pursuit?.suspectId)}));
+    const rounds=origins.map((pose,barrelIndex):ProjectileState=>({entityId:`${matchId}:projectile:${++counter}`,ownerEntityId:r.vehicle.entityId,pose,velocity:{x:Math.sin(pose.yaw)*config.weapon.projectileSpeed,z:Math.cos(pose.yaw)*config.weapon.projectileSpeed,yawRate:0},bornTick:tick,expiresTick:tick+config.weapon.lifetimeTicks,sourceCommandSequence:r.sequence,sourceShotOrdinal:r.driver.shotOrdinal,volleyId,barrelIndex:barrelIndex as 0|1,damage:config.weapon.damage/2}));
+    for(const p of rounds){projectiles.set(p.entityId,p);launchStarts.set(p.entityId,clone(r.vehicle.pose));}
+    emit({kind:'shot',payload:{shooterId:r.vehicle.entityId,projectileId:rounds[0]!.entityId,sessionEpoch:r.epoch,sourceCommandSequence:r.sequence,sourceShotOrdinal:r.driver.shotOrdinal,origin:clone(origins[0]!),projectileIds:rounds.map(p=>p.entityId),origins:clone(origins),volleyId}});
   };
-  const stepProjectiles = (previous: Map<string, PlanarPose>) => {
-    for (const p of projectiles.values()) {
-      if (tick >= p.expiresTick) { projectiles.delete(p.entityId); continue; }
-      const start = clone(p.pose), end = { x: start.x + p.velocity.x * FIXED_DELTA, z: start.z + p.velocity.z * FIXED_DELTA };
+  const collideProjectile = (p:ProjectileState,start:PlanarPose,end:Point,previous?:Map<string,PlanarPose>):boolean => {
       let fraction = queries.segmentHit(start, end) ?? Infinity, target: VehicleRecord | null = null;
       for (const r of records.values()) {
         if (r.vehicle.entityId === p.ownerEntityId || r.vehicle.status !== 'active') continue;
-        const old = previous.get(r.vehicle.entityId) ?? r.vehicle.pose;
+        const old = previous?.get(r.vehicle.entityId) ?? r.vehicle.pose;
         const relativeEnd = { x: end.x - (r.vehicle.pose.x - old.x), z: end.z - (r.vehicle.pose.z - old.z) };
         const hit = segmentPolygon(start, relativeEnd, box(old));
         if (hit !== null && hit < fraction) { fraction = hit; target = r; }
@@ -164,13 +162,24 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
         if (!target) emit({ kind: 'projectile-impact', payload: { projectileId: p.entityId, ownerEntityId: p.ownerEntityId, position: { x: start.x + (end.x - start.x) * fraction, z: start.z + (end.z - start.z) * fraction, yaw: p.pose.yaw } } });
         if (target && target.vehicle.protectedUntilTick <= tick) {
           const shooter = records.get(p.ownerEntityId);
-          if (!shooter || shooter.vehicle.protectedUntilTick > tick) continue;
-          target.vehicle.health = Math.max(0, target.vehicle.health - config.weapon.damage); target.driver.lastDamageTick = tick;
+          if (!shooter || shooter.vehicle.protectedUntilTick > tick) return true;
+          const damage=p.damage??config.weapon.damage;
+          target.vehicle.health = Math.max(0, target.vehicle.health - damage); target.driver.lastDamageTick = tick;
           target.lastAttacker = shooter.vehicle.playerId; target.attackerTick = tick;
-          emit({ kind: 'hit', payload: { projectileId: p.entityId, targetId: target.vehicle.entityId, damage: config.weapon.damage, position: { x: start.x + (end.x - start.x) * fraction, z: start.z + (end.z - start.z) * fraction, yaw: p.pose.yaw } } });
+          emit({ kind: 'hit', payload: { projectileId: p.entityId, targetId: target.vehicle.entityId, damage, position: { x: start.x + (end.x - start.x) * fraction, z: start.z + (end.z - start.z) * fraction, yaw: p.pose.yaw } } });
           if (target.vehicle.health <= 0) wreck(target);
         }
-      } else { p.pose.x = end.x; p.pose.z = end.z; }
+        return true;
+      }
+      return false;
+  };
+  const stepProjectiles = (previous: Map<string, PlanarPose>) => {
+    for (const p of projectiles.values()) {
+      const launch=launchStarts.get(p.entityId);launchStarts.delete(p.entityId);
+      if (tick >= p.expiresTick) { projectiles.delete(p.entityId); continue; }
+      if(launch&&collideProjectile(p,launch,p.pose))continue;
+      const start=clone(p.pose),end={x:start.x+p.velocity.x*FIXED_DELTA,z:start.z+p.velocity.z*FIXED_DELTA};
+      if(!collideProjectile(p,start,end,previous)){p.pose.x=end.x;p.pose.z=end.z;}
     }
   };
   const updatePursuit = () => {

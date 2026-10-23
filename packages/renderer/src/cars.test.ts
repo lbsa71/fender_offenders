@@ -21,6 +21,12 @@ function paint(car: CarVisual, name: string) {
 }
 
 describe('original procedural vehicle bodies', () => {
+  it('puts both modeled gun tips at the shared physical forward2.45/lateral0.63/worldheight1.20 positions',()=>{
+    const car=factory.create('gun-measure','patrol',false),navy=car.parts.find(m=>m.parent===car.body&&m.sourceMesh.material?.name==='navy')!.sourceMesh,vertices=navy.getVerticesData('position')!;
+    for(const side of [-1,1]){const gun:number[][]=[];for(let i=0;i<vertices.length;i+=3){const x=vertices[i]!,y=vertices[i+1]!,z=vertices[i+2]!;if(x*side>.56&&x*side<.70&&y>1.10&&y<1.24&&z>.9)gun.push([x,y,z]);}
+      expect(Math.max(...gun.map(v=>v[2]!))).toBeCloseTo(2.45,5);expect((Math.min(...gun.map(v=>v[0]!))+Math.max(...gun.map(v=>v[0]!)))/2).toBeCloseTo(side*.63,5);expect((Math.min(...gun.map(v=>v[1]!))+Math.max(...gun.map(v=>v[1]!)))/2+.03).toBeCloseTo(1.2,5);
+    }
+  });
   it('uses supported protection blinking, preserves marker and wreck silhouette, and honors reduced flash',()=>{
     const car=factory.create('status','patrol',false),update=Reflect.get(CarPresentation,'updateCarStatus') as (car:CarVisual,protectedSpawn:boolean,time:number,reducedFlash:boolean)=>void;
     expect(update).toBeTypeOf('function');

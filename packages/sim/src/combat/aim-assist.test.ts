@@ -19,20 +19,20 @@ function fixture(targetPose: PlanarPose = { x: 1.8, z: 30, yaw: 0 }, map = arena
 beforeAll(async () => { await initPhysics(); });
 afterEach(() => { simulations.splice(0).forEach(sim => sim.dispose()); });
 
-it('corrects a narrow real projectile near-miss without steering or moving the firing car', () => {
+it('corrects the eligible offset barrel near-miss without steering or moving the firing car', () => {
   const { sim, fire } = fixture(); fire();
   for (let tick = 0; tick < 35; tick++) sim.step(new Map());
-  expect(sim.authority('target')!.vehicle.health).toBe(90);
+  expect(sim.authority('target')!.vehicle.health).toBe(95);
   expect(sim.authority('shooter')!.vehicle.pose).toEqual({ x: 0, z: 0, yaw: 0 });
   expect(sim.authority('shooter')!.driver.resolvedSteering).toBe(0);
   const shots = sim.drainEvents().filter(event => event.kind === 'shot');
-  expect(shots).toHaveLength(1); expect(shots[0]!.payload.origin.yaw).toBeCloseTo(Math.atan2(1.8, 30), 10);
+  expect(shots).toHaveLength(1); expect(shots[0]!.payload.origins![0]!.yaw).toBe(0);expect(shots[0]!.payload.origins![1]!.yaw).toBeCloseTo(Math.atan2(1.8-.63,30-2.45),10);
 });
 
 it.each([
   ['outside the four-degree cone', { x: Math.tan(4.1 * Math.PI / 180) * 25, z: 25, yaw: 0 }],
-  ['outside the lateral radius', { x: 2.51, z: 39, yaw: 0 }],
-  ['outside the 40-metre range', { x: 1.8, z: 41, yaw: 0 }],
+  ['outside the lateral radius of the left muzzle', { x: 2.51-.63, z: 39+2.45, yaw: 0 }],
+  ['outside the 40-metre range', { x: 1.8, z: 43, yaw: 0 }],
   ['behind the firing ray', { x: 1.8, z: -30, yaw: 0 }],
 ] as const)('keeps the original firing direction for a target %s', (_name, pose) => {
   const { sim, fire } = fixture(pose); fire();
@@ -51,7 +51,7 @@ it('allows only the explicitly identified practice pursuit suspect among traffic
   const { sim, target, fire } = fixture(), initial = sim.checkpoint();
   initial.state.records[1]!.vehicle.playerId = null; initial.state.records[1]!.vehicle.bodyAssetId = 'suspect';
   initial.state.pursuit = { suspectId: target.entityId, state: 'chasing', progress: 0, elapsedTicks: 0 };
-  sim.restore(initial); fire(); expect(sim.snapshot().projectiles[0]!.pose.yaw).toBeCloseTo(Math.atan2(1.8, 30), 10);
+  sim.restore(initial); fire(); expect(sim.snapshot().projectiles[1]!.pose.yaw).toBeCloseTo(Math.atan2(1.8-.63,30-2.45),10);
 });
 
 it.each([2.3, 15])('does not select through a real Rapier world wall at z=%s', z => {
@@ -70,11 +70,11 @@ it('does not select a far player through a nearer protected civilian car', () =>
 });
 
 it('prefers the smallest correction before distance and fixes the projectile direction at firing', () => {
-  const { sim, fire } = fixture({ x: 1.5, z: 30, yaw: 0 }), closer = sim.addPlayer({ playerId: 'closer', nickname: 'Closer' });
+  const { sim, fire } = fixture({ x: .5, z: 30, yaw: 0 }), closer = sim.addPlayer({ playerId: 'closer', nickname: 'Closer' });
   const initial = sim.checkpoint(); const other = initial.state.records.find(record => record.vehicle.entityId === closer.entityId)!;
-  other.vehicle.pose = { x: -1.3, z: 20, yaw: 0 }; other.vehicle.protectedUntilTick = 0; sim.restore(initial); fire();
+  other.vehicle.pose = { x: -1.5, z: 20, yaw: 0 }; other.vehicle.protectedUntilTick = 0; sim.restore(initial); fire();
   const projectile = sim.snapshot().projectiles[0]!;
-  expect(projectile.pose.yaw).toBeCloseTo(Math.atan2(1.5, 30), 10);
+  expect(projectile.pose.yaw).toBeCloseTo(Math.atan2(.5+.63,30-2.45),10);
   const moved = sim.checkpoint(); moved.state.records[1]!.vehicle.pose.x = -10; sim.restore(moved);
   for (let tick = 0; tick < 5; tick++) sim.step(new Map());
   expect(sim.snapshot().projectiles[0]!.velocity).toEqual(projectile.velocity);

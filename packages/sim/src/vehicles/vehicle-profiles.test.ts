@@ -117,10 +117,11 @@ it.each(VEHICLE_BODIES)('uses real %s armor for hits to wreck and restores it on
     step(sim, shooter.entityId, sequence, { fire: true });
     for (const event of sim.drainEvents()) if (event.kind === 'hit' && event.payload.targetId === victim.entityId) hits.push({ damage: event.payload.damage, tick: event.serverTick });
   }
-  const hitBudgets = { patrol: 10, interceptor: 9, roadster: 8, army: 13, ambulance: 11, 'fire-chief': 10 };
-  const expectedHits = hitBudgets[body];
-  expect(hits).toHaveLength(expectedHits); expect(hits.every(hit => hit.damage === 10)).toBe(true);
-  expect(hits.at(-1)!.tick - hits[0]!.tick).toBe((expectedHits - 1) * 12);
+  const volleyBudgets = { patrol: 10, interceptor: 9, roadster: 8, army: 13, ambulance: 11, 'fire-chief': 10 };
+  const expectedVolleys = volleyBudgets[body];
+  expect(hits).toHaveLength(expectedVolleys*2); expect(hits.every(hit => hit.damage === 5)).toBe(true);expect(hits.reduce((sum,hit)=>sum+hit.damage,0)).toBe(getVehicleProfile(body).maxHealth);
+  expect(new Set(hits.map(hit=>hit.tick)).size).toBe(expectedVolleys);
+  expect(hits.at(-1)!.tick - hits[0]!.tick).toBe((expectedVolleys - 1) * 12);
   expect(sim.snapshot().scores.find(s => s.playerId === 'shooter')!.score).toBe(1);
   for (let tick = 0; tick < 180; tick++) sim.step(new Map());
   expect(sim.authority('victim')!.vehicle).toMatchObject({ status: 'active', health: getVehicleProfile(body).maxHealth, maxHealth: getVehicleProfile(body).maxHealth, discontinuityId: 1 });
@@ -136,7 +137,7 @@ it.each(VEHICLE_BODIES)('keeps %s weapon damage, fire cadence and spawn-protecti
   for (let sequence = 0; sequence < 48; sequence++) step(sim, shooter.entityId, sequence, { fire: true });
   const events = sim.drainEvents(), shots = events.filter(e => e.kind === 'shot');
   expect(shots.map(e => e.serverTick)).toEqual([1, 13, 25, 37]);
-  expect(events.filter(e => e.kind === 'hit').every(e => e.payload.damage === 10)).toBe(true);
+  expect(events.filter(e => e.kind === 'hit').every(e => e.payload.damage === 5)).toBe(true);
   expect(sim.authority('victim')!.vehicle.health).toBe(70);
   expect(sim.authority('shooter')!.vehicle.protectedUntilTick).toBeLessThanOrEqual(sim.snapshot().serverTick);
 });

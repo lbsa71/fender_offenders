@@ -1,6 +1,6 @@
 # Shared contracts
 
-Status: semantic contract reference for the implemented alpha (`arcade-v4` gameplay). Updated: 2026-10-23. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+Status: semantic contract reference for the implemented alpha (`arcade-v5` gameplay). Updated: 2026-10-23. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
 
 This document defines cross-lane semantics and remaining acceptance expectations. Examples describe semantic TypeScript types, not the compact snapshot wire encoding or installed SDK API. Consumers use the package's public exports; additional validators and the complete proposed fixture catalog remain unfinished rather than implied by these examples.
 
@@ -103,6 +103,9 @@ interface ProjectileState {
   expiresTick: number;
   sourceCommandSequence: number;
   sourceShotOrdinal: number;
+  volleyId?: string;
+  barrelIndex?: 0 | 1;
+  damage?: number;
 }
 
 interface PlayerScore {
@@ -162,6 +165,7 @@ type GameEvent =
       shooterId: string; projectileId: string;
       sessionEpoch: string; sourceCommandSequence: number;
       sourceShotOrdinal: number; origin: PlanarPose;
+      volleyId?: string; projectileIds?: string[]; origins?: PlanarPose[];
     }>
   | EventEnvelope<"hit", {
       projectileId: string; targetId: string; damage: number; position: PlanarPose;
@@ -176,11 +180,13 @@ Maintain a bounded per-match event deduplication cache. Predictive effects use `
 
 Health and scores live in state; an absent cosmetic event cannot corrupt them. Late join does not replay all historical shots/wrecks. State restores the present; events describe new transitions.
 
-`crash` reports a confirmed contact's outward world-space normal and closing speed in m/s (3–60), at most once per vehicle per 30 ticks. The renderer rejects a crash whose discontinuity no longer matches the car and deduplicates event IDs. `projectile-impact` reports a static obstruction hit; `hit` remains confirmed vehicle damage. Neither event permits client damage or collision claims. Shot `origin.yaw` includes the bounded server aim correction; the vehicle's own pose is unchanged. The gameplay revision is `arcade-v4`; damage, cadence and vehicle profile stats retain their previous values.
+`crash` reports a confirmed contact's outward world-space normal and closing speed in m/s (3–60), at most once per vehicle per 30 ticks. The renderer rejects a crash whose discontinuity no longer matches the car and deduplicates event IDs. `projectile-impact` reports a static obstruction hit; `hit` remains confirmed vehicle damage. Neither event permits client damage or collision claims. Shot origin yaw includes the bounded server aim correction; the vehicle's own pose is unchanged.
+
+`arcade-v5` spawns two independent rounds per volley at the physical gun tips (forward 2.45 m, lateral ±0.63 m), each dealing 5 damage. The 12-tick cadence and total 10 damage remain unchanged. Each muzzle has its own assist query and a sweep from the car center to prevent point-blank obstruction bypass. The legacy `projectileId` and `origin` identify the first barrel; optional plural fields describe both. `volleyId` deduplicates the single sound/recoil even across distinct event envelopes. Compact projectile tuples append volley ID, barrel index and damage at slots 11–13; legacy tuples still decode. Client/server gameplay revisions must match.
 
 Wreck authority always supplies its final `position`, `bodyAssetId` and `discontinuityId`; optional fields preserve older event fixtures. Presentation accepts complete metadata before the wrecked snapshot, rejects older lives and cancels debris/audio on respawn. Legacy metadata-free events require an already wrecked snapshot. Flying wreck parts are bounded local effects and have no network state.
 
-`WorldSnapshot.props` and `RenderFrame.props` are optional arrays of `PropState`: `{ entityId, kind, scale, position: {x,y,z}, rotation: {x,y,z,w}, mode: 'fixed'|'dynamic', sleeping, discontinuityId }`. Kinds are barrel/crate/bin/bench/lamp/sign/tree. The server owns every physical transform. Full baselines replace the set; wire `propsPatch: true` merges only changed tuples using `unpackSnapshot(wire, previousProps)`. Omitted props on a patch preserve the baseline, and callers must scope that baseline to the same match. Join, reconnect and resync force full baselines. Fixed/resting objects are silent, with meaningful position/rotation thresholds measured against the last sent state. See [world reactions](WORLD_REACTIONS.md).
+`WorldSnapshot.props` and `RenderFrame.props` are optional arrays of `PropState`: `{ entityId, kind, scale, position: {x,y,z}, rotation: {x,y,z,w}, mode: 'fixed'|'dynamic', sleeping, discontinuityId }`. Kinds are barrel/crate/bin/bench/lamp/sign/tree. The server owns every physical transform. Full baselines replace the set; wire `propsPatch: true` merges only changed tuples using `unpackSnapshot(wire, previousProps)`. Omitted props on a patch preserve the baseline, and callers must scope that baseline to the same match. Join, reconnect and explicit resync force full baselines. Clock/input-backlog recovery preserves the sparse prop cache. Fixed/resting objects are silent, with meaningful position/rotation thresholds measured against the last sent state. See [world reactions](WORLD_REACTIONS.md).
 
 ## 5. Adapter interfaces
 
@@ -216,7 +222,7 @@ interface RenderFrame {
   sampleTimeSeconds: number;
   localEntityId: string | null;
   vehicles: VehicleState[];     // already predicted/interpolated presentation poses
-  projectiles: ProjectileState[];
+  projectiles: Array<ProjectileState & { presentationAgeSeconds?: number }>;
   cameraTarget: PlanarPose | null;
 }
 
@@ -241,6 +247,8 @@ Types referenced but not expanded here (`SessionRequest`, `JoinResult`, `Session
 - `SceneManifest`: map revision, asset catalog revision, environment settings, visual instances, quality variants, and references to shared collision data.
 
 Do not put prediction into `GameRenderer`. `net-client` owns the online prediction controller and exposes its render sample; practice uses a local simulation presentation adapter. The app chooses the session implementation once, not through mode checks spread across every package.
+
+Projectile presentation uses the predicted local car clock (at most six ticks ahead) and buffered remote car clock. It never rewinds an already shown round; confirmed impacts or absence from the latest authoritative state retire it. Presentation clips against world geometry and cannot cause damage. `presentationAgeSeconds` is render-only, never serialized, and bounds fresh tracer length from simulation age. `sampleTimeSeconds` remains a browser clock and must not be used as projectile age. New match/session epoch/life boundaries clear the relevant presentation history.
 
 `selectVehicle` sends a semantic lobby request. The authority accepts only known IDs during the lobby, neutralizes pending input, applies profile health/tuning and publishes a discontinuity to all observers. Countdown and live-round requests cannot change the car or heal it. The browser persists its garage choice independently of a room; it supplies that choice on the next dispatch.
 

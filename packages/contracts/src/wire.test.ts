@@ -2,6 +2,11 @@ import {describe,it,expect} from 'vitest';
 import {packSnapshot,unpackSnapshot,type WorldSnapshot} from './index';
 const snapshot:WorldSnapshot={protocolVersion:1,mapRevision:'map',gameplayRevision:'rules',sessionEpoch:'epoch',serverTick:0,matchId:'match',phase:'lobby',phaseEndsAtTick:null,vehicles:[],projectiles:[],scores:[{playerId:'a',nickname:'Alpha',score:0,wrecks:0,connection:'connected'}],local:null};
 describe('scoreboard latency wire compatibility',()=>{
+  it('roundtrips distinct barrels of one volley and accepts older projectile tuples',()=>{
+    const projectile={entityId:'round-left',ownerEntityId:'car',pose:{x:-.63,z:2.45,yaw:0},velocity:{x:0,z:70,yawRate:0},bornTick:1,expiresTick:40,sourceCommandSequence:9,sourceShotOrdinal:2,volleyId:'volley-2',barrelIndex:0 as const,damage:5};
+    const wire=packSnapshot({...snapshot,projectiles:[projectile]});expect(unpackSnapshot(wire).projectiles[0]).toMatchObject({volleyId:'volley-2',barrelIndex:0,damage:5});
+    wire.shots[0]!.splice(11);expect(unpackSnapshot(wire).projectiles[0]).not.toHaveProperty('volleyId');
+  });
   it('roundtrips complete authoritative prop poses and defaults legacy packets to no props',()=>{
     const props=[{entityId:'barrel-1',kind:'barrel',scale:1,position:{x:1.125,y:2.5,z:-3.25},rotation:{x:0,y:0.6,z:0,w:0.8},mode:'dynamic',sleeping:false,discontinuityId:2}];
     expect(unpackSnapshot(packSnapshot({...snapshot,props} as WorldSnapshot))).toMatchObject({props});
