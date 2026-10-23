@@ -1,10 +1,15 @@
-import { afterAll, afterEach, beforeAll, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { Client, type Room } from '@colyseus/sdk';
 import { matchMaker, type Server } from '@colyseus/core';
 import { createGameServer } from '../../apps/server/src/index.js';
 import { districtMap } from '@fender/content';
 import { GAMEPLAY_REVISION, PROTOCOL_VERSION } from '@fender/contracts';
 import { serverMetrics } from '@fender/net-server';
+
+vi.mock('@colyseus/core', async importOriginal => {
+  const actual = await importOriginal<typeof import('@colyseus/core')>();
+  return { ...actual, matchMaker: { ...actual.matchMaker, getRoomById: vi.fn(actual.matchMaker.getRoomById) } };
+});
 
 const endpoint = 'http://127.0.0.1:2696';
 const options = { nickname: 'Persistent invite', protocolVersion: PROTOCOL_VERSION, mapRevision: districtMap.revision, gameplayRevision: GAMEPLAY_REVISION };
@@ -17,6 +22,7 @@ async function until(predicate: () => boolean) {
 }
 beforeAll(async () => { server = await createGameServer(2696); });
 afterEach(async () => {
+  vi.restoreAllMocks();
   await Promise.all(rooms.splice(0).map(room => { room.reconnection.enabled = false; return room.connection.isOpen ? room.leave(true) : Promise.resolve(); }));
   await until(() => serverMetrics.rooms === 0);
   if (priorLimit === undefined) delete process.env.MAX_ROOMS; else process.env.MAX_ROOMS = priorLimit;
@@ -31,11 +37,24 @@ async function consume(body: Parameters<Client['consumeSeatReservation']>[0]) {
   room.onMessage('snapshot', () => {}); room.onMessage('events', () => {}); room.onMessage('latency-probe', () => {});
   return room;
 }
-it('opens a fresh room from an old invite and preserves that exact invite ID', async () => {
-  const result = await dispatch('Bi4bIat17');
+it.each(['Bi4bIat17', 'z__fyegL'])('opens a fresh room from old invite %s and preserves that exact invite ID', async code => {
+  const result = await dispatch(code);
   expect(result.response.status).toBe(200);
   const room = await consume(result.body);
-  expect(room.roomId).toBe('Bi4bIat17');
+  expect(room.roomId).toBe(code);
+});
+it('recreates the same invite if its last room closes between the lookup and seat reservation', async () => {
+  await consume((await dispatch('Vanished1')).body);
+  const room = matchMaker.getLocalRoomById('Vanished1'), original = matchMaker.getRoomById;
+  vi.spyOn(matchMaker, 'getRoomById').mockImplementationOnce(async code => {
+    const listing = await original(code);
+    await room.disconnect();
+    await until(() => serverMetrics.rooms === 0);
+    return listing;
+  });
+  const recreated = await dispatch('Vanished1');
+  expect(recreated.response.status, 'A valid invite must survive disposal while joining').toBe(200);
+  expect((await consume(recreated.body)).roomId).toBe('Vanished1');
 });
 it('puts simultaneous visitors to one stale invite in one room even with a one-room cap', async () => {
   process.env.MAX_ROOMS = '1';
@@ -46,16 +65,16 @@ it('puts simultaneous visitors to one stale invite in one room even with a one-r
   expect(serverMetrics.rooms).toBe(1);
   expect(matchMaker.getLocalRoomById('Together1').clients.length).toBe(3);
 });
-it('reuses the same link after the server and its in-memory rooms restart', async () => {
-  const first = await consume((await dispatch('Restart01')).body);
+it.each(['Restart01', 'z__fyegL'])('reuses invite %s after the server and its in-memory rooms restart', async code => {
+  const first = await consume((await dispatch(code)).body);
   await first.leave(true); await until(() => serverMetrics.rooms === 0);
   await server.gracefullyShutdown(false); server = await createGameServer(2696);
-  const second = await dispatch('Restart01');
+  const second = await dispatch(code);
   expect(second.response.status).toBe(200);
-  expect((await consume(second.body)).roomId).toBe('Restart01');
+  expect((await consume(second.body)).roomId).toBe(code);
 });
 it('rejects malformed invite IDs without allocating a room', async () => {
-  const result = await dispatch('too-long-to-be-a-room-id');
+  const result = await dispatch('x'.repeat(65));
   expect(result.response.status).toBe(400); expect(serverMetrics.rooms).toBe(0);
 });
 it('preserves genuine capacity errors and allows retrying that invite after a slot opens', async () => {

@@ -4,7 +4,7 @@ import { DrivingRoom, serverMetrics, getRoomMetrics } from '@fender/net-server';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import express from 'express';
-import { isRecord } from '@fender/contracts';
+import { isInviteCode, isRecord } from '@fender/contracts';
 export async function createGameServer(port = Number(process.env.PORT || 2567), host = process.env.HOST || '127.0.0.1') {
   const defaults = `http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:${port},http://127.0.0.1:${port},${process.env.RENDER_EXTERNAL_URL || ''}`;
   const allowed = new Set((process.env.ALLOWED_ORIGINS || defaults).split(',').map(origin => origin.trim()).filter(Boolean));
@@ -36,22 +36,31 @@ export async function createGameServer(port = Number(process.env.PORT || 2567), 
   const dispatch = createEndpoint('/dispatch/:invite', { method: 'POST' }, async ctx => {
     const code = ctx.params.invite, request = ctx.request!, origin = request.headers.get('origin');
     if (origin && !allowed.has(origin)) return Response.json({ code: 403, error: 'Origin not allowed' }, { status: 403 });
-    if (!/^[A-Za-z0-9_-]{9}$/.test(code) || !isRecord(ctx.body)) return Response.json({ code: 400, error: 'Invalid invite code' }, { status: 400 });
+    if (!isInviteCode(code) || !isRecord(ctx.body)) return Response.json({ code: 400, error: 'Invalid invite code' }, { status: 400 });
     if (serverMetrics.draining) return Response.json({ code: 503, error: 'server-shutdown' }, { status: 503 });
     const options = ctx.body;
     try {
-      if (!await matchMaker.getRoomById(code)) {
-        let creating = pendingInvites.get(code);
-        if (!creating) {
-          creating = (async () => {
-            if (!await matchMaker.getRoomById(code)) await matchMaker.createRoom('district', { ...options, inviteCode: code });
-          })().finally(() => pendingInvites.delete(code));
-          pendingInvites.set(code, creating);
-        }
-        await creating;
-      }
       const auth = createAuthContext({ headers: request.headers, req: request });
-      return await matchMaker.joinById(code, options, auth);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          if (!await matchMaker.getRoomById(code)) {
+            let creating = pendingInvites.get(code);
+            if (!creating) {
+              creating = (async () => {
+                if (!await matchMaker.getRoomById(code)) await matchMaker.createRoom('district', { ...options, inviteCode: code });
+              })().finally(() => pendingInvites.delete(code));
+              pendingInvites.set(code, creating);
+            }
+            await creating;
+          }
+          return await matchMaker.joinById(code, options, auth);
+        } catch (error) {
+          const failure = error as { code?: number; message?: string };
+          const vanished = failure.code === ErrorCode.MATCHMAKE_INVALID_ROOM_ID && /not found|disposed/i.test(failure.message ?? '');
+          if (!vanished || attempt === 2) throw error;
+        }
+      }
+      throw new Error('Dispatch unavailable');
     } catch (error) {
       const failure = error as { code?: number; message?: string };
       const code = failure.code ?? 500;

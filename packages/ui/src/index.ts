@@ -45,7 +45,7 @@ const defaults: UiSettings = { masterVolume: .7, musicVolume: .3, effectsVolume:
 const errorMessages: Record<string, string> = {
   'invalid-vehicle': 'Choose a valid garage vehicle and try again.',
   'server-capacity': 'Dispatch is at capacity. Join an existing room or try creating one again shortly.',
-  'room-full': 'All eight units are out on patrol. Try another room.', 'room-missing': 'That dispatch room has closed. Check the code or create a new one.',
+  'room-full': 'All eight units are out on patrol. Try another room.', 'room-missing': 'That invite could not be opened. Check the code or link and try again.',
   'version-mismatch': 'Your game version does not match this room. Refresh and try again.', 'invalid-name': 'Enter a callsign between 1 and 20 characters.',
   'server-shutdown': 'Dispatch is offline for maintenance. Try again shortly.', 'network-error': 'Dispatch could not be reached. Check your connection and retry.',
   'reconnect-expired': 'Your reserved seat expired. Join the room again to return to patrol.',

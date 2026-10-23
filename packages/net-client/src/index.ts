@@ -1,7 +1,7 @@
-import { Client, MatchMakeError, ServerError, type Room, type SeatReservation } from '@colyseus/sdk';
+import { Client, ErrorCode, MatchMakeError, ServerError, type Room, type SeatReservation } from '@colyseus/sdk';
 import { predictVehicle } from '@fender/sim';
 import { ProjectilePresentation } from './projectile-presentation';
-import { GAMEPLAY_REVISION, PROTOCOL_VERSION, unpackSnapshot, type CollisionMap, type GameEvent, type GameSession, type InputCommand, type JoinResult, type LocalAuthorityState, type PropState, type RenderFrame, type SessionRequest, type SessionStatus, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
+import { GAMEPLAY_REVISION, PROTOCOL_VERSION, isInviteCode, isRecord, unpackSnapshot, type CollisionMap, type GameEvent, type GameSession, type InputCommand, type JoinResult, type LocalAuthorityState, type PropState, type RenderFrame, type SessionRequest, type SessionStatus, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
 const clone = <T>(v: T): T => structuredClone(v);
 const wrap = (n: number) => Math.atan2(Math.sin(n), Math.cos(n));
 export function interpolateVehicle(a: VehicleState, b: VehicleState, t: number): VehicleState {
@@ -96,16 +96,24 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
         if (request.mode === 'create') room = await sdk.create('district', options);
         else {
           const invite = request.roomId!.trim();
-          if (/^[A-Za-z0-9_-]{9}$/.test(invite)) {
-            try {
-              const response = await sdk.http.post(`dispatch/${invite}`, { body: options });
-              room = await sdk.consumeSeatReservation(response.data as SeatReservation);
-            } catch (error) {
-              if (error instanceof ServerError) throw new MatchMakeError(error.message, error.code);
-              throw error;
+          if (isInviteCode(invite)) {
+            for (let attempt = 0; attempt < 3; attempt++) {
+              try {
+                const response = await sdk.http.post(`dispatch/${invite}`, { body: options });
+                room = await sdk.consumeSeatReservation(response.data as SeatReservation);
+                break;
+              } catch (error) {
+                const failure = error instanceof ServerError || error instanceof MatchMakeError ? error : null;
+                const code = error instanceof ServerError && isRecord(error.data) && Number.isInteger(error.data.code) ? error.data.code as number : failure?.code;
+                const vanished = failure && (code === ErrorCode.MATCHMAKE_EXPIRED || code === ErrorCode.MATCHMAKE_INVALID_ROOM_ID && /not found|disposed/i.test(failure.message));
+                if (vanished && attempt < 2 && !disposed) continue;
+                if (error instanceof ServerError) throw new MatchMakeError(error.message, code ?? error.code);
+                throw error;
+              }
             }
           } else room = await sdk.joinById(invite, options);
         }
+        if (!room) throw new Error('Dispatch unavailable');
         roomId = room.roomId; playerId = room.sessionId;
         const connection = room.connection, reconnect = connection.reconnect.bind(connection);
         // The SDK's queued retry has no cancellation handle; guard its public transport entry point.

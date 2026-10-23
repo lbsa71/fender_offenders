@@ -21,6 +21,8 @@ Open [the game on port 5173](http://127.0.0.1:5173). Vite serves the client; the
 
 Choose **Hit the streets** for solo practice and the pursuit challenge. Choose **Create room**, copy its invite link, and open that link in another browser context to bring backup; at least two connected players are needed to start a round. Localhost links work on this machine; use the public preview to invite friends on other machines. Production HTTPS and two real secure WebSocket clients have reached a shared round on Render.
 
+Invite links survive empty-room disposal and server restarts: joining lazily recreates the same room code. Legacy eight-character codes are supported alongside current IDs. Joining retries a room that disappears during reservation, without changing the link; genuine full-room or hosting-capacity errors still require a free slot.
+
 ## What is implemented
 
 - A project-authored procedural district, six vehicle body designs, roads and dirt shortcuts, traffic, lighting, shadows, signs, skid marks, combat effects, and synthesized vehicle/action audio.

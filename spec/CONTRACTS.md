@@ -256,6 +256,8 @@ Projectile presentation uses the predicted local car clock (at most six ticks ah
 
 `selectVehicle` sends a semantic lobby request. The authority accepts only known IDs during the lobby, neutralizes pending input, applies profile health/tuning and publishes a discontinuity to all observers. Countdown and live-round requests cannot change the car or heal it. The browser persists its garage choice independently of a room; it supplies that choice on the next dispatch.
 
+`isInviteCode` is the common client/server predicate for URL-safe room IDs of 8–64 characters (`A–Z`, `a–z`, digits, `_`, `-`). Supported IDs always use the lazy `POST /dispatch/:invite` flow; generator-specific exact lengths must not select a join-only path. New rooms preserve the supplied ID. Vanished-room and expired-seat retries are bounded to three attempts and never substitute another invite. Full/locked, authentication and hosting-capacity errors remain failures. An HTTP transport status may differ from the protocol error code in its JSON body; preserve that code for retry decisions.
+
 UI consumes a derived `HudModel` (speed, health, scores, timer, connection, prompts) and emits semantic actions. UI cannot write `WorldSnapshot`. Owner F defines the mapping; UI lane owns its presentation.
 
 Online standings and results display each score's `pingMs` in milliseconds; unavailable values use “—”. Practice omits the ping column. The server's `latency-probe` and client's `latency-pong` both carry `{ nonce: string }`; clients cannot submit a claimed latency value. Compact snapshots normalize omitted latency to `null` for compatibility with older snapshots. Connection status remains visible independently of the ping column.

@@ -62,7 +62,7 @@ describe('room admission accounting and lifecycle diagnostics',()=>{
   it('uses a validated persistent invite code as the SDK room ID',async()=>{
     const room=await create('district',{inviteCode:'KeepLink1'});expect(room.roomId).toBe('KeepLink1');
   });
-  it.each(['invalid!','KeepLink1A',null,42])('rejects malformed inviteCode %s rather than ignoring it',async(inviteCode)=>{
+  it.each(['invalid!','x'.repeat(65),null,42])('rejects malformed inviteCode %s rather than ignoring it',async(inviteCode)=>{
     await expect(create('district',{inviteCode})).rejects.toThrow('Invalid invite code');
   });
   it('reserves at most two slots synchronously while cold physics initialization is pending',async()=>{

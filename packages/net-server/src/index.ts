@@ -3,7 +3,7 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { districtMap, districtProps, VEHICLE_BODIES } from '@fender/content';
 import { createSimulation, initPhysics, type Simulation } from '@fender/sim';
-import { GAMEPLAY_REVISION, PROTOCOL_VERSION, isInputCommand, isRecord, isVehicleBodyId, neutralActions, packSnapshot, sanitizeNickname, type AppliedDriverInput, type InputCommand, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
+import { GAMEPLAY_REVISION, PROTOCOL_VERSION, isInputCommand, isInviteCode, isRecord, isVehicleBodyId, neutralActions, packSnapshot, sanitizeNickname, type AppliedDriverInput, type InputCommand, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
 import { createPropPublisher } from './prop-publisher.js';
 
 interface DriverConnection { epoch: string; entityId: string; queue: InputCommand[]; last: InputCommand | null; ack: number; received: number; lastInputAt: number; connected: boolean; windowStart: number; packets: number; reset?: WorldSnapshot['resetReason']; client: Client; latencyProbe: { nonce: string; sentAt: number } | null; pingMs: number | null; latencyMeasuredAt: number | null; propPublisher:ReturnType<typeof createPropPublisher>; }
@@ -29,7 +29,7 @@ export class DrivingRoom extends Room {
   }
   async onCreate(options?: unknown) {
     if (isRecord(options) && 'inviteCode' in options) {
-      if (typeof options.inviteCode !== 'string' || !/^[A-Za-z0-9_-]{9}$/.test(options.inviteCode)) throw new ServerError(400, 'Invalid invite code');
+      if (!isInviteCode(options.inviteCode)) throw new ServerError(400, 'Invalid invite code');
       this.roomId = options.inviteCode;
     }
     if (serverMetrics.draining || serverMetrics.rooms >= Number(process.env.MAX_ROOMS || 20)) throw new ServerError(503, 'Dispatch capacity reached');

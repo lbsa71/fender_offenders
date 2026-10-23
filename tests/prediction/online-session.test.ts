@@ -147,9 +147,9 @@ describe('real online prediction facade baseline', () => {
     expect(await Promise.race([response, pause(750).then(() => null)])).toEqual({ nonce });
   });
 
-  it('reports a missing room through the status error channel', async () => {
+  it('reports a malformed invite through the status error channel', async () => {
     const value = session(), statuses: SessionStatus[] = []; value.onStatus(s => statuses.push(s));
-    await expect(value.connect({ mode: 'join', roomId: 'missing-prediction-room', nickname: 'Lost' })).rejects.toThrow();
+    await expect(value.connect({ mode: 'join', roomId: 'invalid!prediction', nickname: 'Lost' })).rejects.toThrow();
     expect(statuses.at(-1)).toMatchObject({ state: 'error', reason: 'room-missing' });
   });
 

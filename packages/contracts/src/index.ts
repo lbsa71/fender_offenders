@@ -47,6 +47,8 @@ export interface PlayerScore {
   pingMs?: number | null;
 }
 export interface LatencyProbe { nonce: string }
+/** Legacy and current URL-safe room IDs; never assume the generator's exact length. */
+export const isInviteCode = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(value);
 export interface PursuitState {
   state: 'chasing' | 'arresting' | 'complete'; suspectId: string; progress: number; elapsedTicks: number;
   arrestingPlayerId?: string | null; winnerPlayerId?: string | null;
