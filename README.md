@@ -39,6 +39,10 @@ Cars have distinct armor, speed, acceleration, steering and grip, using the same
 
 Cornering adds cartoon body lean and squash, while visible road humps trigger compression, rebound and short synthesized sounds. These animations preserve the underlying driving pose and collision shape. Reduced-motion preferences and reduced-shake settings suppress the deformation and turntable rotation.
 
+Confirmed crashes squash the coachwork in the impact direction and spring back, with severity-scaled slapstick audio. Gunfire adds recoil, paired muzzle flashes, bright tracers and impact bursts. These effects share bounded pools and audio limits; crashes do not add ram damage.
+
+Firing applies subtle aim assist to a visible opponent or the practice suspect within **4°**, **2.5 m of the original firing line**, and **40 m**. Buildings and nearer cars block selection. The correction happens once when a shot is fired; projectiles retain their straight trajectory, damage and cadence, and the car's heading is unchanged. `arcade-v3` clients and servers must match.
+
 ## Controls
 
 | Action | Keyboard | Standard controller |
@@ -78,7 +82,7 @@ After `pnpm build`, `node dist/server/index.js` serves the production client and
 
 ## Validation and limits
 
-The seven-scenario integrated browser run passed in 1.8 minutes, covering local drive/fire/pause/settings, synthetic controller navigation/disconnect, blur safety, two-client room play, self-contained resource loading, and system-font layout. The run also verified actionable errors after an actual missing-room rejection. Real-socket tests cover authority, combat, respawn, reconnect, round ownership, and ordered latency/jitter/stall behavior. See [the evidence index](spec/EXECUTION_STATUS.md) for commands and scope.
+The garage/profile build passed all 175 headless tests, 10 browser scenarios and the production-container multiplayer smoke in [published CI](https://github.com/lbsa71/fender_offenders/actions/runs/39910016049). Browser coverage includes local drive/fire/pause/settings, synthetic controller navigation/disconnect, blur safety, two-client room play, saved garage selection, self-contained resources and panel layout. Real-socket tests cover authority, combat, respawn, reconnect, round ownership, and ordered latency/jitter/stall behavior. See [the evidence index](spec/EXECUTION_STATUS.md) for current commands and scope.
 
 Human driving/visual approval, actual controllers, Firefox/Safari/macOS coverage, collision-correction traces, OS packet impairment, sustained browser frame budgets, ten-rematch memory stability, multi-room server density, and hosted rollback validation remain open. A short localhost eight-player run is not a capacity or remote-playability claim. Its JSON payload estimate exceeded the starting download budget; actual wire bandwidth is unverified. The free preview initially admits at most two rooms; deployments end active matches.
 

@@ -3,7 +3,7 @@ export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v2';
+export const GAMEPLAY_REVISION = 'arcade-v3';
 export { VEHICLE_BODIES, VEHICLE_PROFILES, getVehicleProfile, isVehicleBodyId } from './vehicle-profiles';
 export type { VehicleBodyId, VehicleProfile } from './vehicle-profiles';
 export type DeviceKind = 'keyboard' | 'gamepad';
@@ -51,6 +51,8 @@ export interface WorldSnapshot {
 }
 export interface EventEnvelope<K extends string, P> { eventId: string; matchId: string; serverTick: number; kind: K; payload: P }
 export type GameEvent =
+  | EventEnvelope<'crash', { vehicleId: string; position: PlanarPose; normal: { x: number; z: number }; speed: number; discontinuityId: number }>
+  | EventEnvelope<'projectile-impact', { projectileId: string; ownerEntityId: string; position: PlanarPose }>
   | EventEnvelope<'shot', { shooterId: string; projectileId: string; sessionEpoch: string; sourceCommandSequence: number; sourceShotOrdinal: number; origin: PlanarPose }>
   | EventEnvelope<'hit', { projectileId: string; targetId: string; damage: number; position: PlanarPose }>
   | EventEnvelope<'wreck', { vehicleId: string; creditedPlayerId: string | null }>

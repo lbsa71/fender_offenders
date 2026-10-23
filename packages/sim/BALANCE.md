@@ -1,5 +1,7 @@
 # Vehicle balance baseline: arcade-v2
 
+The same vehicle stats, damage, cadence and protection rules remain in `arcade-v3`. Its aim assist applies equally to every profile; the measurements below remain the starting vehicle baseline.
+
 Measured 2026-10-23 with the real shared simulation at 60 Hz. Reproduce from the repository root:
 
 ```powershell

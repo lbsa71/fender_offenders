@@ -2,14 +2,16 @@ import { PROTOCOL_VERSION, isDriverActions, isVehicleBodyId, sanitizeNickname, v
 import type { AppliedDriverInput, CollisionMap, DriverActions, DriverRuntimeState, GameEvent, GameplayConfig, LocalAuthorityState, PlanarPose, PlayerScore, ProjectileState, VehicleState, WorldSnapshot } from '@fender/contracts';
 import { DEFAULT_GAMEPLAY_CONFIG, FIXED_DELTA, normalizeGameplay, type SimulationConfig } from './config.js';
 import { box, colliderPolygon, isPoseClear, overlap, segmentPolygon, type Point } from '../physics/geometry.js';
-import { driveVehicle, neutralActions, newDriver, resolveStatic, resolveVehicleContacts } from '../vehicles/controller.js';
+import { driveVehicle, neutralActions, newDriver, resolveStatic, resolveVehicleContacts, type ContactImpact } from '../vehicles/controller.js';
 import { trafficInput, type TrafficRuntime } from '../traffic/traffic.js';
 import { createStaticQueries, type StaticQueries } from '../physics/rapier.js';
 import { maxHealthForVehicle } from '../vehicles/profiles.js';
+import { selectAssistedYaw } from '../combat/aim-assist.js';
 
 interface VehicleRecord {
   vehicle: VehicleState; driver: DriverRuntimeState; epoch: string; sequence: number;
   lastEdgeSequence: number; lastAttacker: string | null; attackerTick: number;
+  nextCrashTick?: number;
   traffic?: TrafficRuntime;
 }
 export interface SimulationOptions {
@@ -133,9 +135,10 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
     if (tick < r.driver.nextFireTick || projectiles.size >= 256) return;
     r.vehicle.protectedUntilTick = tick;
     r.driver.nextFireTick = tick + config.weapon.cooldownTicks; r.driver.shotOrdinal++;
-    const fx = Math.sin(r.vehicle.pose.yaw), fz = Math.cos(r.vehicle.pose.yaw);
+    const yaw = selectAssistedYaw(r.vehicle, allVehicles(), tick, (start, end) => queries.segmentHit(start, end) !== null, pursuit?.suspectId);
+    const fx = Math.sin(yaw), fz = Math.cos(yaw);
     // Start at center: sweeping to the muzzle prevents shooting through a close wall.
-    const pose = clone(r.vehicle.pose);
+    const pose = { ...r.vehicle.pose, yaw };
     const projectile: ProjectileState = { entityId: `${matchId}:projectile:${++counter}`, ownerEntityId: r.vehicle.entityId, pose, velocity: { x: fx * config.weapon.projectileSpeed, z: fz * config.weapon.projectileSpeed, yawRate: 0 }, bornTick: tick, expiresTick: tick + config.weapon.lifetimeTicks, sourceCommandSequence: r.sequence, sourceShotOrdinal: r.driver.shotOrdinal };
     projectiles.set(projectile.entityId, projectile);
     emit({ kind: 'shot', payload: { shooterId: r.vehicle.entityId, projectileId: projectile.entityId, sessionEpoch: r.epoch, sourceCommandSequence: r.sequence, sourceShotOrdinal: r.driver.shotOrdinal, origin: { ...pose, x: pose.x + fx * 2.3, z: pose.z + fz * 2.3 } } });
@@ -154,6 +157,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
       }
       if (fraction !== Infinity) {
         projectiles.delete(p.entityId);
+        if (!target) emit({ kind: 'projectile-impact', payload: { projectileId: p.entityId, ownerEntityId: p.ownerEntityId, position: { x: start.x + (end.x - start.x) * fraction, z: start.z + (end.z - start.z) * fraction, yaw: p.pose.yaw } } });
         if (target && target.vehicle.protectedUntilTick <= tick) {
           const shooter = records.get(p.ownerEntityId);
           if (!shooter || shooter.vehicle.protectedUntilTick > tick) continue;
@@ -230,6 +234,8 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
         else if (phase === 'playing') { phase = 'results'; phaseEnd = null; projectiles.clear(); emit({ kind: 'round-ended', payload: { scores: clone([...scores.values()]) } }); }
       }
       const previous = new Map([...records.values()].map(r => [r.vehicle.entityId, clone(r.vehicle.pose)]));
+      const impacts = new Map<string, ContactImpact>();
+      const observeImpact = (impact: ContactImpact) => { if (impact.speed > (impacts.get(impact.vehicleId)?.speed ?? 0)) impacts.set(impact.vehicleId, impact); };
       for (const r of records.values()) {
         if (r.vehicle.status !== 'active') { if (r.vehicle.respawnAtTick !== null && tick >= r.vehicle.respawnAtTick) { respawn(r); previous.set(r.vehicle.entityId, clone(r.vehicle.pose)); } continue; }
         let actions: DriverActions = neutralActions();
@@ -256,10 +262,16 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
         if (phase === 'results' || phase === 'countdown') actions = { ...neutralActions(), handbrake: true };
         if (actions.sirenToggle) r.vehicle.sirenOn = !r.vehicle.sirenOn;
         if (actions.recover) recovery(r);
-        driveVehicle(r.vehicle, r.driver, actions, map, solids, config);
+        driveVehicle(r.vehicle, r.driver, actions, map, solids, config, observeImpact);
         if (actions.fire && phase === 'playing' && r.vehicle.playerId) fire(r);
       }
-      resolveVehicleContacts(allVehicles(), map, solids);
+      resolveVehicleContacts(allVehicles(), map, solids, observeImpact);
+      if (phase === 'playing') for (const impact of impacts.values()) {
+        const r = records.get(impact.vehicleId);
+        if (!r || impact.speed < 3 || tick < (r.nextCrashTick ?? 0)) continue;
+        r.nextCrashTick = tick + 30;
+        emit({ kind: 'crash', payload: { vehicleId: r.vehicle.entityId, position: clone(r.vehicle.pose), normal: impact.normal, speed: Math.min(60, impact.speed), discontinuityId: r.vehicle.discontinuityId } });
+      }
       if (phase === 'playing') { stepProjectiles(previous); if (mode === 'practice') updatePursuit(); }
     },
     snapshot(forPlayerId) {

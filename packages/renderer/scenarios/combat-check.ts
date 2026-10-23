@@ -1,0 +1,46 @@
+import {chromium} from '@playwright/test';
+import assert from 'node:assert/strict';
+const browser=await chromium.launch({headless:true,channel:'msedge'});
+try{
+ const page=await browser.newPage({viewport:{width:1440,height:900}}),errors:string[]=[],warnings:string[]=[];
+ page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.text().includes('on an instanced mesh has no effect'))warnings.push(m.text());});await page.addInitScript('window.__name=(fn)=>fn');
+ await page.goto('http://127.0.0.1:5184');await page.waitForFunction(()=>!!(window as any).fixture?.gameScene.getTransformNodeByName('body-hero'));
+ const report=await page.evaluate(()=>{
+  const f=(window as any).fixture,issues:string[]=[];f.pause();const hero=f.frame.vehicles[0],peer=f.frame.vehicles[1];
+  hero.velocity={x:0,z:0,yawRate:0};hero.protectedUntilTick=0;peer.protectedUntilTick=0;f.step();f.audioLog.length=0;
+  let ordinal=0;const event=(kind:string,payload:any,id?:string)=>({kind,payload,eventId:id??`event-${++ordinal}`,matchId:'combat-proof',serverTick:600+ordinal});
+  const crash=(id:string,normal:any,speed=22,discontinuityId=hero.discontinuityId)=>event('crash',{vehicleId:id,position:{...(id==='hero'?hero:peer).pose},normal,speed,discontinuityId});
+  const front=crash('hero',{x:0,z:-1});f.renderer.present([front]);f.step(.04);const initial=f.state();
+  if(initial.body.scaleZ>.85)issues.push('confirmed frontal crash does not squash length');
+  if(initial.root.x!==-hero.pose.x||initial.root.z!==hero.pose.z||initial.wheelScale!==1||initial.healthY!==3.51)issues.push('crash deformed authority pose, wheels or health');
+  f.renderer.present([front]);f.step(.04);if(f.audioLog.filter((a:any)=>a.kind==='crash').length!==1)issues.push('crash sound missing or duplicate event replayed');
+  f.renderer.present([crash('hero',{x:0,z:-1})]);if(f.audioLog.filter((a:any)=>a.kind==='crash').length!==1)issues.push('contact cooldown replayed a distinct impact');
+  let overshoot=false;for(let i=0;i<100;i++){f.step();if(f.state().body.scaleZ>1.03)overshoot=true;}if(!overshoot)issues.push('crash lacks spring overshoot');
+  if(Math.abs(f.state().body.scaleZ-1)>.002)issues.push('crash does not settle');
+  f.renderer.present([crash('hero',{x:1,z:0})]);f.step(.04);if(f.state().body.scaleX>.85)issues.push('side crash does not squash width');
+  hero.discontinuityId++;f.step();if(Math.abs(f.state().body.scaleX-1)>.002)issues.push('teleport did not reset crash');
+  const sounds=f.audioLog.length;f.renderer.present([crash('hero',{x:1,z:0},22,hero.discontinuityId-1)]);f.step();if(f.audioLog.length!==sounds)issues.push('stale life crash produced sound');
+  const near=crash('peer',{x:0,z:1},18,peer.discontinuityId);f.renderer.present([near]);const remote=f.audioLog.filter((a:any)=>a.kind==='crash').at(-1);if(!remote||!(remote.volumeScale>0&&remote.volumeScale<1))issues.push('near remote crash lacks attenuated sound');
+  peer.pose.x=100;peer.pose.z=100;peer.discontinuityId++;f.step();const beforeFar=f.audioLog.length;f.renderer.present([crash('peer',{x:0,z:1},18,peer.discontinuityId)]);if(f.audioLog.length!==beforeFar)issues.push('far remote crash was audible');
+  const shot=event('shot',{shooterId:'hero',projectileId:'bullet',sessionEpoch:'fixture',sourceCommandSequence:1,sourceShotOrdinal:0,origin:{x:hero.pose.x+Math.sin(hero.pose.yaw)*2.3,z:hero.pose.z+Math.cos(hero.pose.yaw)*2.3,yaw:hero.pose.yaw}});f.renderer.present([shot]);f.step(.01);
+  if(f.state().body.offsetZ>=-.02)issues.push('confirmed shot lacks bounded body recoil');
+  const visible=(prefix:string)=>f.gameScene.meshes.filter((m:any)=>m.name.startsWith(prefix)&&m.isVisible).length;
+  if(visible('pooled-muzzle-')<2)issues.push('shot lacks punchy paired muzzle flashes');
+  const shotsBefore=f.audioLog.filter((a:any)=>a.kind==='shot').length;f.renderer.present([shot]);if(f.audioLog.filter((a:any)=>a.kind==='shot').length!==shotsBefore)issues.push('shot replayed sound');
+  f.frame.projectiles=[{entityId:'bullet',ownerEntityId:'hero',pose:{x:4,z:-35,yaw:0},velocity:{x:0,z:60,yawRate:0},bornTick:600,expiresTick:720,sourceCommandSequence:1,sourceShotOrdinal:0}];f.step(.01);
+  if(visible('pooled-tracer-core-')!==1||visible('pooled-tracer-trail-')!==1)issues.push('projectile lacks bright core/trail pair');
+  f.renderer.present([event('hit',{projectileId:'bullet',targetId:'hero',damage:20,position:{...hero.pose}})]);f.step(.01);if(visible('pooled-impact-ring-')<1)issues.push('hit lacks readable expanding impact');
+  const ringCount=f.renderer.getStats().impactRings,hitSounds=f.audioLog.filter((a:any)=>a.kind==='hit').length;
+  const wall=event('projectile-impact',{projectileId:'blocked-bullet',ownerEntityId:'hero',position:{x:5,z:-35,yaw:0}});f.renderer.present([wall]);f.step(.01);
+  if(f.renderer.getStats().impactRings<=ringCount||f.audioLog.filter((a:any)=>a.kind==='hit').length!==hitSounds+1)issues.push('authoritative wall impact lacks strike flash/ring/pop');
+  f.renderer.present([wall]);if(f.audioLog.filter((a:any)=>a.kind==='hit').length!==hitSounds+1)issues.push('wall strike replayed sound');
+  const beforeDistant=f.audioLog.length;f.renderer.present([event('shot',{...shot.payload,shooterId:'peer',origin:{...peer.pose}})]);if(f.audioLog.length!==beforeDistant)issues.push('far confirmed shot is audible across city');
+  const lights=f.gameScene.lights.length,meshes=f.gameScene.meshes.length;for(let i=0;i<100;i++)f.renderer.present([event('shot',{...shot.payload,sourceShotOrdinal:i+1})]);f.step(.01);if(f.gameScene.lights.length!==lights||f.gameScene.meshes.length!==meshes)issues.push('burst allocated meshes or lights');
+  f.renderer.setSettings({reducedShake:true,reducedFlash:true});f.renderer.present([crash('hero',{x:0,z:-1})]);f.step();if(Math.abs(f.state().body.scaleZ-1)>.002||Math.abs(f.state().body.offsetZ)>.002)issues.push('reduced motion does not suppress impact/recoil');
+  f.renderer.setSettings({reducedShake:false,reducedFlash:false});const nextMatch={...shot,matchId:'combat-proof-next',eventId:'round-reset'};f.renderer.present([nextMatch]);f.step(.01);const newRound=f.state();
+  if(Math.abs(newRound.body.scaleX-1)>.002)issues.push('new match retained old crash spring');if(f.renderer.getStats().particles>4)issues.push('new match retained retired combat particles');const oldSounds=f.audioLog.length;f.renderer.present([front]);if(f.audioLog.length!==oldSounds)issues.push('retired match event replayed');
+  f.renderer.setGaragePreview('patrol');f.step();f.renderer.setGaragePreview(null);f.step();const beforeReturn=f.audioLog.filter((a:any)=>a.kind==='shot').length;f.renderer.present([{...shot,eventId:'return-to-room-a'}]);f.step(.01);
+  if(f.audioLog.filter((a:any)=>a.kind==='shot').length!==beforeReturn+1)issues.push('return through garage to existing match A was rejected as retired');
+  return{issues,initial,audioSummary:{crashes:f.audioLog.filter((a:any)=>a.kind==='crash'),shots:f.audioLog.filter((a:any)=>a.kind==='shot').length,hits:f.audioLog.filter((a:any)=>a.kind==='hit').length},stats:f.renderer.getStats()};
+ });console.log(JSON.stringify(report));assert.deepEqual(errors,[]);assert.deepEqual(warnings,[]);assert.deepEqual(report.issues,[]);
+}finally{await browser.close();}

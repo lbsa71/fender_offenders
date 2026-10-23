@@ -75,6 +75,13 @@ describe('real Colyseus authority over local WebSockets', () => {
     expect(creator.state!.scores).toHaveLength(1);
   });
 
+  it('requires the revised combat build instead of accepting arcade-v2 clients', async () => {
+    const creator=await peer();let legacy:Room|undefined;
+    try{
+      await expect(new Client(endpoint).joinById(creator.room.roomId,{...options,gameplayRevision:'arcade-v2'}).then(room=>{legacy=room;return 'accepted-legacy-client';})).rejects.toThrow('version-mismatch');
+    }finally{if(legacy){legacy.reconnection.enabled=false;await legacy.leave(true);}}
+  });
+
   it('rejects invalid, duplicate, stale, spoofed and excess input without trusting client state', async () => {
     const a = await peer(), b = await peer(a.room.roomId);
     const rejectedBefore = serverMetrics.rejectedInputs;
@@ -155,6 +162,29 @@ describe('real Colyseus authority over local WebSockets', () => {
     await until(() => b.state!.local!.vehicle.status === 'active', 'three-second authoritative respawn', 4500);
     expect(b.state!.local!.vehicle.discontinuityId).toBe(oldDiscontinuity + 1); expect(b.state!.local!.vehicle.health).toBe(100); expect(b.state!.local!.vehicle.protectedUntilTick).toBeGreaterThan(b.state!.serverTick);
   }, 12000);
+
+  it('broadcasts the same assisted shot and authoritative crash to both real peers', async () => {
+    const a = await peer(), b = await peer(a.room.roomId); combatFixture(a, b);
+    const sim = localSimulation(a), nearMiss = sim.checkpoint();
+    const shooterId = a.state!.local!.vehicle.entityId;
+    nearMiss.state.records.find(record => record.vehicle.playerId === b.room.sessionId)!.vehicle.pose = { x: 6.3, z: 20, yaw: 0 };
+    sim.restore(nearMiss); send(a, { fire: true });
+    await until(() => b.state!.local!.vehicle.health === 90 && [a, b].every(p => p.events.some(event => event.kind === 'shot' && event.payload.shooterId === shooterId)), 'both peers observe a corrected shot and real damage');
+    const shot = a.events.find((event): event is Extract<GameEvent, { kind: 'shot' }> => event.kind === 'shot' && event.payload.shooterId === shooterId)!;
+    expect(shot.payload.origin.yaw).toBeCloseTo(Math.atan2(2.3, 35), 10);
+    expect(b.events.find(event => event.eventId === shot.eventId)).toEqual(shot);
+
+    const wall = sim.checkpoint(), record = wall.state.records.find(record => record.vehicle.entityId === shooterId)!;
+    record.vehicle.pose = { x: districtMap.bounds.maxX - 1, z: 0, yaw: 0 };
+    record.vehicle.velocity = { x: 18, z: 0, yawRate: 0 }; record.vehicle.discontinuityId++;
+    const discontinuityId = record.vehicle.discontinuityId; sim.restore(wall);
+    await until(() => [a, b].every(p => p.events.some(event => event.kind === 'crash' && event.payload.vehicleId === shooterId && event.payload.discontinuityId === discontinuityId)), 'both peers observe the same wall crash');
+    const crash = a.events.find((event): event is Extract<GameEvent, { kind: 'crash' }> => event.kind === 'crash' && event.payload.vehicleId === shooterId && event.payload.discontinuityId === discontinuityId)!;
+    expect(crash.payload.normal).toEqual({ x: -1, z: 0 }); expect(crash.payload.speed).toBeGreaterThan(10);
+    expect(b.events.find(event => event.eventId === crash.eventId)).toEqual(crash);
+    await until(() => a.state!.local!.vehicle.discontinuityId === discontinuityId, 'post-crash authority snapshot');
+    expect(a.state!.local!.vehicle.health).toBe(100); expect(b.state!.local!.vehicle.health).toBe(90);
+  });
 
   it('reconnects a dropped socket with stable identity, new epoch and no queued fire', async () => {
     const a = await peer(), observer = await peer(a.room.roomId);

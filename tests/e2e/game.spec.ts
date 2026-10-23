@@ -28,7 +28,7 @@ test('garage typography and statistics fit inside their desktop panels', async (
   expect(titleOverflow, 'The assigned vehicle name must fit within the garage heading width').toBeLessThanOrEqual(0);
 });
 
-type DebugWindow = Window & { __FENDER_DEBUG__?: { snapshot: WorldSnapshot | null | (() => WorldSnapshot | null) } };
+type DebugWindow = Window & { __FENDER_DEBUG__?: { snapshot: WorldSnapshot | null | (() => WorldSnapshot | null); events?: {kind:string}[]; stats?: {renderer?:{muzzleFlashes?:number;impactRings?:number}} } };
 async function snapshot(page: Page) {
   return page.evaluate(() => { const debug = (window as DebugWindow).__FENDER_DEBUG__; return typeof debug?.snapshot === 'function' ? debug.snapshot() : debug?.snapshot ?? null; });
 }
@@ -52,6 +52,7 @@ test('keyboard practice drives, fires, releases controls on pause and saves sett
   await page.keyboard.down('Space');
   // A shot can expire between publications; held fire is verified through the local driver's authoritative shot ordinal.
   await expect.poll(async () => (await snapshot(page))?.local?.driver.shotOrdinal ?? 0).toBeGreaterThan(0);
+  await expect.poll(()=>page.evaluate(()=>(window as DebugWindow).__FENDER_DEBUG__?.stats?.renderer?.muzzleFlashes??0)).toBeGreaterThan(0);
   await page.keyboard.press('Escape'); await page.keyboard.up('w'); await page.keyboard.up('Space');
   await expect(page.getByRole('heading', { name: 'Taking a breather?' })).toBeVisible();
   await expect(page.getByText('Your local patrol is paused.', { exact: false })).toBeVisible();
@@ -71,6 +72,22 @@ test('keyboard practice drives, fires, releases controls on pause and saves sett
   await expect(page.getByLabel('Reduce flashes')).toBeChecked();
   await expect(page.getByLabel('Graphics')).toHaveValue('medium');
   expect(errors).toEqual([]);
+});
+
+test('a hard driving collision presents a confirmed impact burst without ram damage',async({page})=>{
+  // This drives through several simulation seconds; software GPU frames can be slow.
+  test.setTimeout(90000);
+  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.addInitScript(()=>localStorage.setItem('fender-garage-v1',JSON.stringify({vehicleBodyId:'patrol'})));
+  await practice(page);await page.keyboard.down('w');await page.keyboard.down('d');
+  try{
+    await expect.poll(()=>page.evaluate(()=>{
+      const debug=(window as DebugWindow).__FENDER_DEBUG__;
+      return !!debug?.events?.some(event=>event.kind==='crash')&&(debug.stats?.renderer?.impactRings??0)>0;
+    }),{timeout:60000}).toBe(true);
+    expect((await snapshot(page))!.local!.vehicle.health).toBe(100);
+    expect(errors).toEqual([]);
+  }finally{await page.keyboard.up('w');await page.keyboard.up('d');}
 });
 
 test('a standard controller can start, drive, pause, navigate and safely disconnect', async ({ page }) => {

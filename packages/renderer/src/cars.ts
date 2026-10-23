@@ -11,8 +11,9 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import { MeshBuilder } from './primitives';
 import { newCartoonMotion, type CartoonMotion } from './deformation';
+import {newVehicleFeedback,type VehicleFeedback} from './feedback';
 
-export interface CarVisual { root: TransformNode; suspension: TransformNode; body: TransformNode; bodyAssetId:string; traffic:boolean; motion:CartoonMotion; lastBumpId:string|null;lastBumpAt:number; parts: InstancedMesh[]; sirenRed: InstancedMesh | null; sirenBlue: InstancedMesh | null; health: Mesh; healthBack: Mesh; marker: Mesh; previousX: number; previousZ: number; previousYaw: number; discontinuity: number }
+export interface CarVisual { root: TransformNode; suspension: TransformNode; body: TransformNode; bodyAssetId:string; traffic:boolean; motion:CartoonMotion;feedback:VehicleFeedback;lastCrashAt:number;lastCrashTick:number; lastBumpId:string|null;lastBumpAt:number; parts: InstancedMesh[]; sirenRed: InstancedMesh | null; sirenBlue: InstancedMesh | null; health: Mesh; healthBack: Mesh; marker: Mesh; previousX: number; previousZ: number; previousYaw: number; discontinuity: number }
 
 export class CarFactory {
   private templates = new Map<string, Mesh[]>();
@@ -140,7 +141,7 @@ export class CarFactory {
     const healthBack=MeshBuilder.CreateBox(`${entityId}-health-back`,{width:2.2,height:.09,depth:.2},this.scene);healthBack.position.set(0,3.5,0);healthBack.parent=root;healthBack.material=this.material('health-back','#29464d');
     const health=MeshBuilder.CreateBox(`${entityId}-health`,{width:2,height:.1,depth:.21},this.scene);health.position.set(0,3.51,0);health.parent=root;health.material=this.material('health','#a6ddbd',0,true);
     const marker=MeshBuilder.CreateTorus(`${entityId}-marker`,{diameter:3,thickness:.065,tessellation:40},this.scene);marker.position.y=.08;marker.parent=root;marker.material=this.material('marker','#b9e8da',0,true);
-    return{root,suspension,body:coachwork,bodyAssetId:body,traffic,motion:newCartoonMotion(),lastBumpId:null,lastBumpAt:-10,parts,sirenRed:parts.find((p)=>p.sourceMesh.name==='red-siren')??null,sirenBlue:parts.find((p)=>p.sourceMesh.name==='blue-siren')??null,health,healthBack,marker,previousX:0,previousZ:0,previousYaw:0,discontinuity:-1};
+    return{root,suspension,body:coachwork,bodyAssetId:body,traffic,motion:newCartoonMotion(),feedback:newVehicleFeedback(),lastCrashAt:-10,lastCrashTick:-1,lastBumpId:null,lastBumpAt:-10,parts,sirenRed:parts.find((p)=>p.sourceMesh.name==='red-siren')??null,sirenBlue:parts.find((p)=>p.sourceMesh.name==='blue-siren')??null,health,healthBack,marker,previousX:0,previousZ:0,previousYaw:0,discontinuity:-1};
   }
   dispose():void{this.templates.clear();this.materials.clear();}
 }

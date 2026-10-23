@@ -2,7 +2,8 @@ import {createGameRenderer} from '../src/index';
 import {MotorAudio} from '../src/audio';
 import {EngineStore} from '@babylonjs/core/Engines/engineStore';
 import type {RenderFrame,VehicleState} from '@fender/contracts';
-const cues:string[]=[];
+const cues:string[]=[];const audioLog:Array<{kind:string;strength?:number;volumeScale?:number}>=[];
+const audioProto=MotorAudio.prototype as any;for(const method of ['crash','effect']){const original=audioProto[method];audioProto[method]=function(kind:string|number,volumeScale=1){audioLog.push(method==='crash'?{kind:'crash',strength:kind as number,volumeScale}:{kind:kind as string,volumeScale});original?.call(this,kind,volumeScale);};}
 const proto=MotorAudio.prototype as unknown as {cartoon?:(kind:string)=>void};const original=proto.cartoon;
 proto.cartoon=function(kind:string){cues.push(kind);original?.call(this,kind);};
 const canvas=document.querySelector('canvas')!;
@@ -12,4 +13,4 @@ const frame:RenderFrame={sampleTimeSeconds:10,localEntityId:'hero',vehicles:[car
 let running=true,previous=performance.now();
 function loop(now:number){if(running)renderer.render(frame,Math.min(.05,(now-previous)/1000));previous=now;requestAnimationFrame(loop);}requestAnimationFrame(loop);
 document.querySelector('button')!.onclick=()=>renderer.unlockAudio();
-Object.assign(window,{fixture:{renderer,frame,cues,gameScene,pause:()=>running=false,step:(dt=1/60)=>renderer.render(frame,dt),state:(id='hero')=>{const root=gameScene.getTransformNodeByName(`vehicle-${id}`)!,body=gameScene.getTransformNodeByName(`body-${id}`)!,suspension=gameScene.getTransformNodeByName(`suspension-${id}`)!;return{markerVisible:gameScene.getMeshByName(id+'-marker')?.isVisible,root:{x:root.position.x,z:root.position.z,scaleY:root.scaling.y},body:{scaleX:body.scaling.x,scaleY:body.scaling.y,lean:body.rotation.z},heave:suspension.position.y,paint:root.getChildMeshes().filter(m=>m.material?.name.startsWith('paint-')).map(m=>m.material!.name),healthScale:gameScene.getMeshByName(`${id}-health`)!.scaling.x};}}});
+Object.assign(window,{fixture:{renderer,frame,cues,audioLog,gameScene,pause:()=>running=false,step:(dt=1/60)=>renderer.render(frame,dt),state:(id='hero')=>{const root=gameScene.getTransformNodeByName(`vehicle-${id}`)!,body=gameScene.getTransformNodeByName(`body-${id}`)!,suspension=gameScene.getTransformNodeByName(`suspension-${id}`)!;return{markerVisible:gameScene.getMeshByName(id+'-marker')?.isVisible,root:{x:root.position.x,z:root.position.z,scaleY:root.scaling.y},wheelScale:root.getChildMeshes().find(m=>(m as any).sourceMesh?.metadata?.role==='wheel')?.scaling.x,healthY:gameScene.getMeshByName(id+'-health')!.position.y,body:{scaleX:body.scaling.x,scaleY:body.scaling.y,scaleZ:body.scaling.z,offsetZ:body.position.z,lean:body.rotation.z},heave:suspension.position.y,paint:root.getChildMeshes().filter(m=>m.material?.name.startsWith('paint-')).map(m=>m.material!.name),healthScale:gameScene.getMeshByName(`${id}-health`)!.scaling.x};}}});

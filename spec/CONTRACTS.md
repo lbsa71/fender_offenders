@@ -1,6 +1,6 @@
 # Shared contracts
 
-Status: semantic contract reference for the implemented alpha (`arcade-v2` gameplay). Updated: 2026-10-23. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+Status: semantic contract reference for the implemented alpha (`arcade-v3` gameplay). Updated: 2026-10-23. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
 
 This document defines cross-lane semantics and remaining acceptance expectations. Examples describe semantic TypeScript types, not the compact snapshot wire encoding or installed SDK API. Consumers use the package's public exports; additional validators and the complete proposed fixture catalog remain unfinished rather than implied by these examples.
 
@@ -151,6 +151,13 @@ interface EventEnvelope<TKind extends string, TPayload> {
 }
 
 type GameEvent =
+  | EventEnvelope<"crash", {
+      vehicleId: string; position: PlanarPose; normal: { x: number; z: number };
+      speed: number; discontinuityId: number;
+    }>
+  | EventEnvelope<"projectile-impact", {
+      projectileId: string; ownerEntityId: string; position: PlanarPose;
+    }>
   | EventEnvelope<"shot", {
       shooterId: string; projectileId: string;
       sessionEpoch: string; sourceCommandSequence: number;
@@ -168,6 +175,8 @@ type GameEvent =
 Maintain a bounded per-match event deduplication cache. Predictive effects use `(sessionEpoch, sourceCommandSequence, sourceShotOrdinal, effectKind)` so confirmation can match and suppress a second flash/sound, including when the server briefly holds a previous command during jitter. Shot ordinals are part of restored driver state. Reject or expire unmatched speculative effects; a key is not a promise that a shot will be accepted. Replayed simulation never directly plays audio or creates persistent particles.
 
 Health and scores live in state; an absent cosmetic event cannot corrupt them. Late join does not replay all historical shots/wrecks. State restores the present; events describe new transitions.
+
+`crash` reports a confirmed contact's outward world-space normal and closing speed in m/s (3–60), at most once per vehicle per 30 ticks. The renderer rejects a crash whose discontinuity no longer matches the car and deduplicates event IDs. `projectile-impact` reports a static obstruction hit; `hit` remains confirmed vehicle damage. Neither event permits client damage or collision claims. Shot `origin.yaw` includes the bounded server aim correction; the vehicle's own pose is unchanged. The gameplay revision is `arcade-v3`; damage, cadence and vehicle profile stats retain their previous values.
 
 ## 5. Adapter interfaces
 
