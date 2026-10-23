@@ -13,7 +13,7 @@ export const VEHICLE_PROFILES: Readonly<Record<VehicleBodyId, VehicleProfile>> =
   roadster: profile({ id: 'roadster', name: 'Roadster', role: 'Speed demon', description: 'Fastest on the streets. Fragile armor and a lively rear end.', maxHealth: 80, topSpeed: 28, acceleration: 22, steeringRate: 2.05, grip: 8 }),
   army: profile({ id: 'army', name: 'Army 4×4', role: 'Heavy bruiser', description: 'Takes a beating. Slow acceleration and broad turns demand planning.', maxHealth: 130, topSpeed: 20, acceleration: 14, steeringRate: 1.8, grip: 9.5 }),
   ambulance: profile({ id: 'ambulance', name: 'Ambulance', role: 'Durable dodger', description: 'Sturdy and nimble in tight streets. Gives up straight-line speed.', maxHealth: 110, topSpeed: 22, acceleration: 16, steeringRate: 2.2, grip: 9 }),
-  'fire-chief': profile({ id: 'fire-chief', name: 'Fire Chief', role: 'Street responder', description: 'Grippy and punchy out of corners. A little slower on the straights.', maxHealth: 100, topSpeed: 23, acceleration: 19, steeringRate: 2.0, grip: 9.8 }),
+  'fire-chief': profile({ id: 'fire-chief', name: 'Fire Chief', role: 'Street responder', description: 'Grippy and punchy out of corners. A little slower on the straights.', maxHealth: 100, topSpeed: 23, acceleration: 19, steeringRate: 1.9, grip: 9.8 }),
 });
 export function isVehicleBodyId(value: unknown): value is VehicleBodyId {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(VEHICLE_PROFILES, value);
