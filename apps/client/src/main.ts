@@ -21,6 +21,7 @@ async function boot() {
   let previousTime = performance.now(), accumulator = 0, hudAt = 0, stopped = false, animation = 0;
   let observedEvents: GameEvent[] = [];
   const frameDurations: number[] = [];
+  const canStartDispatch = () => Boolean(snapshot && snapshot.scores[0]?.playerId === playerId && (snapshot.phase === 'results' || snapshot.scores.filter(score => score.connection === 'connected').length >= (mode === 'practice' ? 1 : 2)));
   function present(events: GameEvent[]) { renderer.present(events); observedEvents.push(...events); if (observedEvents.length > 100) observedEvents.splice(0, observedEvents.length - 100); }
   function applySettings(settings: UiSettings) {
     renderer.setSettings(settings);
@@ -38,7 +39,7 @@ async function boot() {
     await leave();
     sequence = 0; clientTick = 0; accumulator = 0; epoch = crypto.randomUUID();
     if (request.mode === 'practice') {
-      local?.dispose(); local = createSimulation(districtMap, { mode: 'practice', trafficCount: 8, pursuit: true, props: districtProps });
+      local?.dispose(); local = createSimulation(districtMap, { mode: 'practice', trafficCount: 8, pursuit: true, campaign: true, props: districtProps });
       playerId = 'local-player'; local.addPlayer({ playerId, nickname: request.nickname, sessionEpoch: epoch, bodyAssetId: request.vehicleBodyId ?? ui.getVehicle() });
       snapshot = local.snapshot(playerId); mode = 'practice'; status = { state: 'playing' }; active = true;
     } else {
@@ -58,21 +59,29 @@ async function boot() {
         return;
       }
     }
-    ui.update({ snapshot, status, mode, localPlayerId: playerId, roomId, error: null });
-    ui.showMenu(null); input?.setEnabled(!ui.isMenuVisible() && !(mode === 'online' && snapshot?.phase === 'lobby'));
+    ui.update({ snapshot, status, mode, localPlayerId: playerId, roomId, error: null, canStart: canStartDispatch() });
+    ui.showMenu(null); input?.setEnabled(!ui.isMenuVisible() && snapshot?.phase !== 'lobby');
   }
   const ui = mountGameUi(root, {
     onPlay: play,
     onResume: () => { void renderer.unlockAudio(); },
     onLeave: () => { void leave(); },
-    onStartRound: () => online?.request('start-round'),
+    onStartRound: () => {
+      if (online) online.request('start-round');
+      else if (local?.startRound(playerId)) { snapshot = local.snapshot(playerId); ui.update({ snapshot }); }
+    },
     onRematch: () => {
       if (mode === 'online') online?.request('rematch');
+      else if (local && snapshot?.campaign) { local.rematch(playerId); snapshot = local.snapshot(playerId); ui.update({ snapshot }); }
       else void play({ mode: 'practice', nickname: snapshot?.scores.find(score => score.playerId === playerId)?.nickname ?? 'Officer Rookie', vehicleBodyId: ui.getVehicle() });
     },
     onSettings: applySettings,
-    onVehicleChange: vehicleBodyId => { if (snapshot?.phase === 'lobby') online?.selectVehicle(vehicleBodyId); },
-    onMenuVisibility: visible => { input?.setEnabled(active && !visible && !(mode === 'online' && snapshot?.phase === 'lobby')); if (visible) online?.neutralize(); },
+    onVehicleChange: vehicleBodyId => {
+      if (snapshot?.phase !== 'lobby') return;
+      if (online) online.selectVehicle(vehicleBodyId);
+      else if (local?.setPlayerVehicle(playerId, vehicleBodyId)) { snapshot = local.snapshot(playerId); ui.update({ snapshot, selectedVehicleBodyId: vehicleBodyId }); }
+    },
+    onMenuVisibility: visible => { input?.setEnabled(active && !visible && snapshot?.phase !== 'lobby'); if (visible) online?.neutralize(); },
   });
   input = createInputSource({ onNeutralize: () => online?.neutralize(), onMenuAction: action => ui.navigate(action) });
   applySettings(ui.getSettings());
@@ -83,7 +92,7 @@ async function boot() {
     if (stopped) return;
     const dt = Math.min(.1, Math.max(0, (now - previousTime) / 1000)); previousTime = now;
     frameDurations.push(dt * 1000); if (frameDurations.length > 600) frameDurations.shift();
-    input!.setEnabled(active && !ui.isMenuVisible() && !(mode === 'online' && snapshot?.phase === 'lobby'));
+    input!.setEnabled(active && !ui.isMenuVisible() && snapshot?.phase !== 'lobby');
     input!.pollMenus();
     if (document.hidden) { animation = requestAnimationFrame(frame); return; }
     const paused = active && mode === 'practice' && ui.isMenuVisible();
@@ -108,14 +117,14 @@ async function boot() {
       renderFrame = { sampleTimeSeconds: now / 1000, vehicles: state.vehicles, projectiles: state.projectiles.map(projectile=>({...projectile,presentationAgeSeconds:Math.max(0,(state.serverTick-projectile.bornTick+1)/60)})), props: state.props, localEntityId: state.local?.vehicle.entityId ?? null, cameraTarget: state.local?.vehicle.pose ?? { x: 4, z: -48, yaw: 0 },
         pursuit: active && state.phase === 'playing' && state.pursuit?.state !== 'complete' ? state.pursuit : undefined };
     }
-    renderer.setGaragePreview(!active || mode === 'online' && snapshot?.phase === 'lobby' ? ui.getVehicle() : null);
+    renderer.setGaragePreview(!active || snapshot?.phase === 'lobby' ? ui.getVehicle() : null);
     if (renderFrame && (!active || ui.isMenuVisible())) renderFrame.pursuit = undefined;
     if (renderFrame) renderer.render(renderFrame, dt);
     ui.setTargetIndicator(active ? renderer.getTargetIndicator() : null);
     if (now - hudAt > 80) {
       hudAt = now; const device = input!.getStatus();
       ui.update({ snapshot: active ? snapshot : null, status, mode, localPlayerId: playerId, roomId, device: device.activeDevice, recoverProgress: device.recoverProgress, unsupportedPad: device.unsupportedPad,
-        canStart: snapshot?.scores.filter(s => s.connection === 'connected').length! >= 2 && snapshot?.scores[0]?.playerId === playerId, pingMs: online?.getStats().rtt,
+        canStart: canStartDispatch(), pingMs: online?.getStats().rtt,
         selectedVehicleBodyId: snapshot?.local && isVehicleBodyId(snapshot.local.vehicle.bodyAssetId) ? snapshot.local.vehicle.bodyAssetId : undefined });
     }
     animation = requestAnimationFrame(frame);
@@ -126,7 +135,7 @@ async function boot() {
       get snapshot() { return snapshot ? structuredClone(snapshot) : null; },
       get events() { return structuredClone(observedEvents); },
       get identity() { return { playerId, roomId, active, mode }; },
-      get garage() { return { vehicleBodyId: ui.getVehicle(), visible: !active || mode === 'online' && snapshot?.phase === 'lobby' }; },
+      get garage() { return { vehicleBodyId: ui.getVehicle(), visible: !active || snapshot?.phase === 'lobby' }; },
       get stats() { return { renderer: renderer.getStats(), network: online?.getStats(), frameDurations: [...frameDurations] }; },
       get input() { return input!.getStatus(); },
     }) });

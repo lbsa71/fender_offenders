@@ -3,7 +3,11 @@ export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v6';
+export const GAMEPLAY_REVISION = 'arcade-v7';
+export type { CampaignState, CampaignOutcome, DispatchOutcome, CampaignTarget, CampaignDispatch } from './campaign-types';
+export { CAMPAIGN_ID, CAMPAIGN_TITLE, CAMPAIGN_TARGETS, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, getCampaignTarget } from './campaign';
+export { getCampaignMugshot } from './campaign-mugshots';
+import type { CampaignState, CampaignOutcome } from './campaign-types';
 export { VEHICLE_BODIES, VEHICLE_PROFILES, getVehicleProfile, isVehicleBodyId } from './vehicle-profiles';
 export type { VehicleBodyId, VehicleProfile } from './vehicle-profiles';
 export type DeviceKind = 'keyboard' | 'gamepad';
@@ -65,6 +69,7 @@ export interface WorldSnapshot {
   local: LocalAuthorityState | null;
   resetReason?: 'join' | 'reconnect' | 'input-backlog' | 'resync';
   pursuit?: PursuitState;
+  campaign?: CampaignState;
 }
 export interface EventEnvelope<K extends string, P> { eventId: string; matchId: string; serverTick: number; kind: K; payload: P }
 export type GameEvent =
@@ -74,8 +79,8 @@ export type GameEvent =
   | EventEnvelope<'hit', { projectileId: string; targetId: string; damage: number; position: PlanarPose }>
   | EventEnvelope<'wreck', { vehicleId: string; creditedPlayerId: string | null; position?: PlanarPose; bodyAssetId?: string; discontinuityId?: number }>
   | EventEnvelope<'respawn', { vehicleId: string; discontinuityId: number }>
-  | EventEnvelope<'round-ended', { scores: PlayerScore[]; winnerPlayerId?: string | null; reason?: 'apprehended' | 'timeout' }>
-  | EventEnvelope<'pursuit-complete', { elapsedTicks: number; bonus: number; playerId?: string; suspectId?: string }>;
+  | EventEnvelope<'round-ended', { scores: PlayerScore[]; winnerPlayerId?: string | null; reason?: 'apprehended' | 'wrecked' | 'timeout' }>
+  | EventEnvelope<'pursuit-complete', { elapsedTicks: number; bonus: number; playerId?: string; suspectId?: string; outcome?: CampaignOutcome }>;
 export interface GameplayConfig {
   revision: string;
   vehicle: { acceleration: number; reverseAcceleration: number; braking: number; topSpeed: number; reverseSpeed: number; drag: number; grip: number; handbrakeGrip: number; steeringRate: number; halfWidth: number; halfLength: number };

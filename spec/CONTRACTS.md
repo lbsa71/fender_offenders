@@ -1,8 +1,16 @@
 # Shared contracts
 
-Status: semantic contract reference for the implemented alpha (`arcade-v6` gameplay). Updated: 2026-10-23. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+Status: semantic contract reference for the implemented alpha (`arcade-v7` gameplay). Updated: 2026-10-23. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
 
 This document defines cross-lane semantics and remaining acceptance expectations. Examples describe semantic TypeScript types, not the compact snapshot wire encoding or installed SDK API. Consumers use the package's public exports; additional validators and the complete proposed fixture catalog remain unfinished rather than implied by these examples.
+
+## Campaign extension
+
+`WorldSnapshot.campaign?: CampaignState` carries `{ campaignId, dispatchIndex, status: 'active' | 'complete', outcomes }`. Indices are zero-based and bounded to the ten authored dispatches. Each ordered outcome is `{ dispatchIndex, outcome: 'arrested' | 'wrecked', playerId, elapsedTicks }`. Only successful dispatches add entries; a timeout leaves the index/outcomes unchanged. A completed tenth stage retains index 9 and sets status complete until the creator requests a new campaign.
+
+`CAMPAIGN_DISPATCHES`, `CAMPAIGN_TARGETS`, `CAMPAIGN_BOSSES`, `getCampaignTarget` and `getCampaignMugshot` expose original static story/portrait content. Each dispatch references a target ID; that target specifies its `VehicleBodyId`. The UI gates `reveal` text by successful outcomes. Shared snapshot encoding roundtrips the full bounded casefile for late join/reconnect; it does not publish portrait or cosmetic transforms. `pursuit-complete.payload.outcome` optionally distinguishes arrest/wreck; `round-ended.payload.reason` additionally accepts `wrecked`. Snapshots remain the durable UI authority.
+
+Production uses explicit campaign mode and retains existing lobby/countdown/playing/results phases. `start-round` and `rematch` retain their transport messages; campaign rematch means next briefing, timeout retry, or final reset. See [campaign semantics](CAMPAIGN.md). Old clients are rejected by the gameplay revision.
 
 ## 1. Conventions and invariants
 

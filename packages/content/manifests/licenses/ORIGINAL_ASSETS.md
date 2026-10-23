@@ -6,4 +6,6 @@ Every runtime car, building, tree, road marking, sign, material and sound is gen
 
 These assets are project-authored works governed by the repository's license; they are not third-party CC0 assets. Generated geometry has no separate binary download, source archive hash or external attribution requirement. Dependency licenses, including Babylon.js, remain separate and must accompany distribution as appropriate.
 
+The campaign's ten character mugshots are also original project-authored SVG paths and palettes in `packages/contracts/src/campaign-mugshots.ts`. Character names, dossiers and The Green Light Racket story are authored in `packages/contracts/src/campaign.ts`. Portraits contain no external images, scripts, fonts or runtime requests and use the repository license.
+
 Cars use Y-up, meter units, front +Z, centered pivots. Building collision footprints use the same authored positions and dimensions as visible walls. Roofs, signs and facade details do not enlarge collision footprints. Trees, sidewalks, markings and street furniture are decorative.

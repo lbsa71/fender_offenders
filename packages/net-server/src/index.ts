@@ -39,7 +39,7 @@ export class DrivingRoom extends Room {
       await initPhysics();
       if (this.disposed) throw new ServerError(503, 'Dispatch creation expired');
       this.setPrivate(true);
-      this.sim = createSimulation(districtMap, { mode: 'multiplayer', matchId: this.roomId, trafficCount: 8, pursuit: true, props: districtProps });
+      this.sim = createSimulation(districtMap, { mode: 'multiplayer', matchId: this.roomId, trafficCount: 8, pursuit: true, campaign: true, props: districtProps });
       this.maxMessagesPerSecond = 100;
       this.onMessage('input', (client, message: unknown) => {
         const driver = this.drivers.get(client.sessionId);

@@ -8,6 +8,8 @@ Build an original browser game carrying the fast, comic police-driving spirit of
 
 The project is Fender Offenders. The working name has not received trademark clearance.
 
+The confirmed progression epic is [a ten-dispatch campaign](CAMPAIGN.md), with four connected ringleaders and six crew encounters. Every target has an assigned car and original mugshot, presented in the dispatch briefing beside the player's motor-pool choices. Arrests and wrecks both advance the campaign; only arrests earn green tracker checks. Successes gradually reveal the connecting story in a shared casefile. This supersedes the original single-round/rematch loop for production games.
+
 ## 2. Product pillars
 
 1. **Driving feels good immediately.** Steering, braking, drifting, impacts, and recovery matter more than realistic suspension.

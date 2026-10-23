@@ -113,6 +113,8 @@ describe('room admission accounting and lifecycle diagnostics',()=>{
     const peer=await create(),room=matchMaker.getLocalRoomById(peer.roomId) as netServer.DrivingRoom;
     const before=snapshots.get(peer.sessionId)!,body=before.local!.vehicle.bodyAssetId;
     const sim=(room as unknown as {sim:Simulation}).sim,checkpoint=sim.checkpoint();
+    // Respawn is gameplay: the campaign intentionally freezes vehicles in the lobby.
+    checkpoint.state.phase='playing';checkpoint.state.phaseEnd=checkpoint.tick+900;
     const vehicle=checkpoint.state.records.find((r)=>r.vehicle.playerId===peer.sessionId)!.vehicle;
     vehicle.status='wrecked';vehicle.respawnAtTick=checkpoint.tick+1;vehicle.protectedUntilTick=0;sim.restore(checkpoint);
     await until(()=>snapshots.get(peer.sessionId)!.local!.vehicle.discontinuityId>before.local!.vehicle.discontinuityId,'authoritative respawn');

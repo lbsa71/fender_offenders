@@ -42,6 +42,8 @@ async function practice(page: Page) {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: "You're on duty." })).toBeVisible();
   await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
+  await page.getByRole('button', { name: 'START DISPATCH' }).click();
+  await expect.poll(async () => (await snapshot(page))?.phase).toBe('playing');
   await expect(page.locator('.fo-hud')).toBeVisible();
   await expect.poll(async () => (await snapshot(page))?.local?.vehicle.status).toBe('active');
 }
@@ -127,6 +129,9 @@ test('a standard controller can start, drive, pause, navigate and safely disconn
   await page.goto('/'); await expect(page.getByRole('heading', { name: "You're on duty." })).toBeVisible();
   await tap(0);
   await expect(page.locator('.fo-hud')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'START DISPATCH' })).toBeVisible();
+  await tap(0);
+  await expect.poll(async () => (await snapshot(page))?.phase).toBe('playing');
   await expect(page.locator('.fo-prompts')).toContainText('LEFT STICK DRIVE');
   await expect(page.locator('.fo-prompts')).toContainText('RT/LT DRIVE/BRAKE');
   await stickY(-1);
@@ -180,21 +185,23 @@ test('two browser clients create, join, start a live round and share confirmed s
     await guest.getByRole('button', { name: 'REPORT TO DISPATCH' }).click();
     await expect(host.locator('[data-scores] li')).toHaveCount(2); await expect(guest.locator('[data-scores] li')).toHaveCount(2);
     for (const viewer of [host, guest]) {
-      await expect(viewer.locator('.fo-scoreboard').getByText('PING / ms', { exact: true })).toBeVisible();
+      await expect(viewer.locator('.fo-campaign-roster').getByText('PING / ms', { exact: true })).toBeVisible();
       for (const nickname of ['Dispatch Host', 'Backup Unit']) {
-        await expect(viewer.locator('[data-scores]').getByLabel(new RegExp(`^${nickname} ping: \\d+ milliseconds$`))).toHaveText(/^\d+ ms$/);
+        await expect(viewer.locator('.fo-campaign-roster').getByLabel(new RegExp(`^${nickname} ping: \\d+ milliseconds$`))).toHaveText(/^\d+ ms$/);
       }
     }
     console.log('Both clients joined the same room');
-    await host.getByRole('button', { name: 'START ROUND' }).click();
+    await host.getByRole('button', { name: 'START DISPATCH' }).click();
     await expect.poll(async () => (await snapshot(host))?.phase).toBe('playing');
     await expect.poll(async () => (await snapshot(guest))?.phase).toBe('playing');
     console.log('Both clients received playing phase');
     const sharedSuspect = (await snapshot(host))!.pursuit!.suspectId;
     expect((await snapshot(guest))!.pursuit!.suspectId).toBe(sharedSuspect);
     for (const viewer of [host, guest]) {
-      await expect(viewer.locator('.fo-pursuit')).toContainText('FIRST TO APPREHEND');
+      await expect(viewer.locator('.fo-pursuit')).toContainText('FIRST TO RESOLVE DISPATCH');
       await expect(viewer.getByRole('img', { name: /^Wanted suspect,/ })).toBeVisible();
+      await expect(viewer.locator('.fo-scoreboard').getByText('PING / ms', { exact: true })).toBeVisible();
+      for (const nickname of ['Dispatch Host', 'Backup Unit']) await expect(viewer.locator('[data-scores]').getByLabel(new RegExp(`^${nickname} ping: \\d+ milliseconds$`))).toHaveText(/^\d+ ms$/);
     }
     await host.keyboard.press('Escape');
     await expect(host.getByText('THE MATCH IS STILL LIVE.', { exact: false })).toBeVisible();

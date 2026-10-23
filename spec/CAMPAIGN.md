@@ -1,0 +1,58 @@
+# Ten-dispatch campaign
+
+Gameplay revision: `arcade-v7`. Campaign content: `green-light-racket-v1`.
+
+Each solo game or multiplayer room runs **The Green Light Racket**, ten dispatches linking four ringleaders and six crew members. Every dispatch has an original target, mugshot, assigned vehicle, briefing, and success reveal. The four ringleaders appear at dispatches 2, 5, 8 and 10. This implements the ten-step/four-boss requirement without padding the campaign with identical unnamed pursuits.
+
+## Player flow
+
+1. Enter a callsign and select solo, create, or join. The saved motor-pool assignment remains intact.
+2. Read the dispatch briefing alongside the target's mugshot, car identification and ten-step tracker. Reassign the player's own car here; the rotating 3D preview still shows the player's vehicle.
+3. Start the dispatch. Solo needs one officer; multiplayer needs two connected officers and the room creator starts it. A three-second countdown locks the motor pool.
+4. Race to arrest the marked target or destroy its car. Player combat remains enabled. The first authoritative resolution wins this dispatch, independent of cumulative combat-point ranking.
+5. Read the outcome and newly revealed clue. An arrest earns three points and a green check; a wreck earns the existing one-point wreck credit and a separate amber result. Both advance the story. Results identify the resolving officer.
+6. The creator opens the next briefing. All players can change their car again before the next dispatch starts. Scores, outcomes and casefile carry forward. A timeout instead retries the same dispatch and reveals no new clue.
+7. The tenth success finishes the campaign and reveals the ending. A new campaign resets the tracker and scores while retaining players, room link and vehicle assignments.
+
+The tracker is shared by the room: a green check means that dispatch ended in an arrest by the named officer. It does not imply that every player earned that arrest. Late joiners and reconnecting players see the same tracker and revealed casefile. Campaign progress is in memory for the current game, not a cross-session save; a server restart can recreate the invite but starts a fresh campaign.
+
+## Authority and lifecycle
+
+`WorldSnapshot.campaign` contains only campaign ID, zero-based current dispatch index, active/complete status and ordered resolutions. A resolution stores dispatch index, `arrested` or `wrecked`, officer ID and elapsed ticks. Authored names, portraits and prose are static shared content, never networked transforms or client-owned mission state.
+
+The simulation enables campaign mode explicitly with `campaign: true, pursuit: true` and an authored lane graph. Practice starts in a briefing lobby. `startRound(playerId)` begins its countdown; `rematch(playerId)` returns results to the next briefing, retries a timeout, or restarts a completed campaign. These operations require the current creator. Generic noncampaign simulation fixtures retain their earlier single-pursuit behavior.
+
+The marked suspect retains one entity ID across dispatches. Each new stage resets its body, profile-scaled health, traffic runtime, arrest timers, projectiles and winner. Players heal/respawn at dispatch start; changing bodies is allowed only in the briefing. Campaign worlds freeze outside live play, including the completed target's wreck, preventing a result from racing a respawn or a second arrest.
+
+Arrest eligibility remains active/connected officer, distance below 8 m, relative speed below 5 m/s and unobstructed static-world line of sight for 180 ticks. Ineligible progress decays by two ticks. Simultaneous arrest finishes use stable player-ID ordering. Projectiles resolve before arrest progress on each tick; a lethal shot on the would-be arrest tick records a wreck once. The target uses its assigned vehicle's armor, while retaining AI lane driving and the existing chase speed limits.
+
+Only completed outcomes unlock story text. The UI can show future tracker slots and target names, but not their success revelations. A timeout has no outcome entry. Checkpoints preserve the campaign and independent arrest timers for deterministic replay. Compact snapshots carry the casefile baseline to existing peers, late joins and reconnects.
+
+## Authored arc (engineering spoilers)
+
+| Dispatch | Target | Assigned car | Connection |
+| --- | --- | --- | --- |
+| 1 | Nico Nickel / Loose Change | Roadster | Stolen meter coins lead to the impound yard |
+| 2 | Mabel Clench / The Clamp | Army 4×4 | First ringleader; towing receipts expose fake permits |
+| 3 | Pip Quill / Carbon Copy | Patrol | Duplicated permits lead to paid-lane sales |
+| 4 | Rosa Reel / Red Tape | Interceptor | Express-lane passes expose the permit chief |
+| 5 | Hector Hush / Hot Stamp | Fire Chief | Second ringleader; closures conceal a fake emergency convoy |
+| 6 | Otis Bell / Spare Siren | Fire Chief | Smuggled sirens reveal staged roadblocks |
+| 7 | Tess Cone / No Vacancy | Army 4×4 | Roadblock orders point to the premium ambulance service |
+| 8 | Dr Iris Vale / Siren Song | Ambulance | Third ringleader; the clinic fronts the Green Light Society |
+| 9 | Juno Slip / Last Receipt | Roadster | The original accounts identify the chairman |
+| 10 | Aldo Ledger / The Chairman | Patrol | Fourth ringleader; the refund key closes the racket |
+
+The original catalog and self-contained SVG portraits live in [campaign content](../packages/contracts/src/campaign.ts) and [mugshots](../packages/contracts/src/campaign-mugshots.ts). They share the six established vehicle designs and add no runtime asset requests.
+
+## Parallel ownership and acceptance
+
+| Lane | Owned work | Required evidence |
+| --- | --- | --- |
+| Shared foundation | Campaign DTOs/exports, wire adapter, revision | Ordered mixed outcomes survive roundtrip; legacy snapshots remain readable |
+| Simulation | Stage lifecycle, target stats, credit and reset | Observed RED before implementation; ten alternating arrest/wreck completions, timeout, permissions, replay |
+| Authored content/art | Ten dossiers, four ringleaders, story and SVG mugshots | Valid references, six vehicle bodies, distinct portraits; native small-size inspection |
+| Interface | Briefing/garage, tracker, results, revealed casefile and menu input | Fixture RED/GREEN, no future reveals, no wreck checks, responsive layout and controller navigation |
+| Integration/operations | App/server composition, real clients, browser flows, CI and deployment | Both peers/late join share progress; real shooting, car changes, actual solo start and live hosted briefing |
+
+Run focused checks with `pnpm exec vitest run packages/contracts/src/campaign.test.ts packages/contracts/src/wire.test.ts packages/sim/src/core/campaign.test.ts tests/integration/campaign.test.ts`, the UI fixture with `node packages/ui/dev/campaign-smoke.mjs`, and the integrated browser suite with `pnpm test:e2e`. Fixture captures are labeled as fixtures; hosted captures establish only the live state actually shown.

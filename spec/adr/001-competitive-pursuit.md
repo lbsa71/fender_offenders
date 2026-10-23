@@ -2,6 +2,8 @@
 
 Date: 2026-10-23. Gameplay revision: `arcade-v6`.
 
+Superseded for production games by the [`arcade-v7` ten-dispatch campaign](../CAMPAIGN.md): destroying the target also finishes a dispatch, with a wreck result rather than an arrest check. The independent arrest, marker and authoritative winner rules below still apply; noncampaign simulation fixtures preserve the earlier single-pursuit behavior.
+
 The user requested the original arcade APB's clearly identified apprehension target, with multiplayer drivers racing to arrest it. This supersedes the earlier free-for-all winner and practice-only pursuit assumptions.
 
 Every production dispatch uses one server-controlled suspect. Ordinary traffic remains unarmed and player combat remains enabled. The existing arrest tuning is retained: distance below 8 m, relative speed below 5 m/s, and 180 qualifying ticks at 60 Hz. World geometry must not obstruct the officer-to-suspect segment. A wrecked suspect can be apprehended, but a projectile hit or wreck alone never completes the objective.

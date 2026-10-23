@@ -3,7 +3,8 @@ import { matchMaker, type Server } from '@colyseus/core';
 import { createGameServer } from '../../apps/server/src/index.js';
 import { createOnlineSession } from '@fender/net-client';
 import { districtMap } from '@fender/content';
-import { neutralActions, type SessionStatus } from '@fender/contracts';
+import { neutralActions, packSnapshot, type SessionStatus } from '@fender/contracts';
+import type { Simulation } from '@fender/sim';
 import { serverMetrics } from '@fender/net-server';
 
 const endpoint = 'ws://127.0.0.1:2691';
@@ -29,6 +30,11 @@ describe('real online prediction facade baseline', () => {
   it('moves the local render frame synchronously before any authoritative acknowledgement', async () => {
     const value = session(), statuses: SessionStatus[] = []; value.onStatus(s => statuses.push(s));
     const join = await value.connect({ mode: 'create', nickname: 'Predictor' });
+    // Campaign briefings freeze movement. Exercise prediction only after authority starts play.
+    const room = matchMaker.getLocalRoomById(join.roomId), sim = (room as unknown as { sim: Simulation }).sim;
+    const playing = sim.checkpoint(); playing.state.phase = 'playing'; playing.state.phaseEnd = playing.tick + 18000; sim.restore(playing);
+    room.clients.find(client => client.sessionId === join.playerId)!.send('snapshot', packSnapshot({ ...sim.snapshot(join.playerId), resetReason: 'resync' }));
+    await until(() => value.getSnapshot()!.phase === 'playing', 'authoritative campaign play begins');
     const snapshot = value.getSnapshot()!, confirmed = structuredClone(snapshot.local!.vehicle.pose), tick = snapshot.serverTick;
     submit(value, 0);
     const frame = value.sampleFrame()!, predicted = frame.vehicles.find(v => v.entityId === frame.localEntityId)!;

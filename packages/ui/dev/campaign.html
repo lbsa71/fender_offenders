@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Campaign UI fixture · Fender Offenders</title><style>html,body{height:100%;margin:0;background:radial-gradient(ellipse at 32% 45%,#688171,#173b38);overflow:hidden}#ui{position:absolute;inset:0}.fixture-label{position:fixed;z-index:50;left:10px;bottom:6px;color:#fff7ce;background:#10282a;padding:4px 7px;font:9px monospace;pointer-events:none}</style></head><body><div id="ui"></div><div class="fixture-label">AUTHORED UI FIXTURE · NOT LIVE GAMEPLAY</div><script type="module">
+import { mountGameUi } from '../src/index.ts';
+import * as catalog from '../../contracts/src/campaign.ts';
+import { getCampaignMugshot } from '../../contracts/src/campaign-mugshots.ts';
+const fixture = { starts: 0, rematches: 0, options: {}, catalog };
+fixture.mugshots = () => catalog.CAMPAIGN_TARGETS.map(target => ({ ...target, svg: getCampaignMugshot(target.id) }));
+const ui = mountGameUi(document.querySelector('#ui'), {
+  onPlay() { fixture.set({ stage: 0, phase: 'lobby', mode: 'practice', outcomes: [] }); },
+  onStartRound() { fixture.starts++; fixture.set({ ...fixture.options, phase: 'countdown' }); },
+  onRematch() { fixture.rematches++; const state = fixture.options; const resolved = state.outcomes?.some(outcome => outcome.dispatchIndex === (state.stage ?? 0)); fixture.set({ ...state, phase: 'lobby', stage: state.complete ? 0 : resolved ? (state.stage ?? 0) + 1 : state.stage ?? 0, outcomes: state.complete ? [] : state.outcomes, complete: false }); },
+});
+fixture.ui = ui;
+fixture.set = (options = {}) => {
+  fixture.options = { ...options };
+  const stage = options.stage ?? 0, dispatch = catalog.CAMPAIGN_DISPATCHES[stage];
+  const target = catalog.getCampaignTarget(dispatch?.targetId ?? 'unknown');
+  const vehicle = { entityId: 'local', playerId: 'you', bodyAssetId: ui.getVehicle(), pose: { x: 0, z: 0, yaw: 0 }, velocity: { x: 0, z: 0, yawRate: 0 }, health: 100, maxHealth: 100, status: 'active', protectedUntilTick: 0, respawnAtTick: null, sirenOn: false, discontinuityId: 0 };
+  const phase = options.phase ?? 'lobby';
+  ui.update({ mode: options.mode ?? 'practice', localPlayerId: 'you', canStart: options.canStart ?? true, roomId: options.mode === 'online' ? 'CASE12345' : null, status: { state: options.status ?? (phase === 'lobby' ? 'lobby' : 'playing') }, error: null,
+    snapshot: { protocolVersion: 1, mapRevision: 'fixture', gameplayRevision: 'fixture', matchId: 'campaign-fixture', sessionEpoch: 'fixture', serverTick: 300, phase, phaseEndsAtTick: phase === 'countdown' ? 480 : 18000,
+      vehicles: [vehicle, { ...vehicle, entityId: 'suspect', playerId: null, bodyAssetId: target.vehicleBodyId }], projectiles: [],
+      scores: [{ playerId: 'you', nickname: 'Officer Rookie', score: 3, wrecks: 0, connection: options.localConnection ?? 'connected', pingMs: 'localPing' in options ? options.localPing : 24 }, { playerId: 'backup', nickname: 'Parking Menace', score: 99, wrecks: 8, connection: 'connected', pingMs: 85 }],
+      local: { vehicle, driver: { resolvedSteering: 0, reverseHoldTicks: 0, nextFireTick: 0, shotOrdinal: 0, nextRecoveryTick: 0, lastDamageTick: null }, lastConsumedSequence: 0 },
+      pursuit: { state: phase === 'results' && options.outcomes?.some(outcome => outcome.dispatchIndex === stage) ? 'complete' : 'chasing', suspectId: 'suspect', progress: 0, elapsedTicks: 300, winnerPlayerId: options.outcomes?.find(outcome => outcome.dispatchIndex === stage)?.playerId ?? null },
+      campaign: { campaignId: catalog.CAMPAIGN_ID || 'green-light-racket', dispatchIndex: stage, status: options.complete ? 'complete' : 'active', outcomes: options.outcomes ?? [] } } });
+};
+window.campaignFixture = fixture;
+document.querySelector('.fixture-label').style.cssText += ';top:76px;bottom:auto';
+</script></body></html>

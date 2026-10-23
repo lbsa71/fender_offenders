@@ -34,6 +34,8 @@ test('garage persists its assignment, changes via keyboard and dispatches that b
   await page.reload(); await expect(page.locator('.fo-garage')).toHaveAttribute('data-vehicle', reassigned!);
   await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
   await expect.poll(async () => (await state(page))?.local?.vehicle.bodyAssetId).toBe(reassigned);
+  await page.getByRole('button', { name: 'START DISPATCH' }).click();
+  await expect.poll(async () => (await state(page))?.phase).toBe('playing');
   await expect(page.locator('[data-text="health"]')).toHaveText('100%');
   await expect(page.getByRole('button', { name: 'REASSIGN VEHICLE', exact: true })).toBeHidden();
   await page.keyboard.press('Escape'); await page.getByRole('button', { name: 'END PATROL' }).click();
@@ -73,7 +75,7 @@ test('online lobby broadcasts a garage reassignment and locks it when countdown 
         await host.setViewportSize(viewport); await frames(host); await host.waitForTimeout(1000); await host.screenshot({ path: `work/garage-lobby-${viewport.width}.png` });
       }
     }
-    await host.getByRole('button', { name: 'START ROUND' }).click();
+    await host.getByRole('button', { name: 'START DISPATCH' }).click();
     await expect(host.getByRole('button', { name: 'REASSIGN VEHICLE', exact: true })).toBeHidden();
     await expect(guest.getByRole('button', { name: 'REASSIGN VEHICLE', exact: true })).toBeHidden();
     expect(await selection(host)).toBe(after);

@@ -3,7 +3,7 @@ import { Client, type Room } from '@colyseus/sdk';
 import { matchMaker } from '@colyseus/core';
 import { createGameServer } from '../../apps/server/src/index';
 import { districtMap } from '@fender/content';
-import { GAMEPLAY_REVISION, PROTOCOL_VERSION, unpackSnapshot, type GameEvent, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
+import { CAMPAIGN_DISPATCHES, getCampaignTarget, GAMEPLAY_REVISION, PROTOCOL_VERSION, unpackSnapshot, type GameEvent, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
 import type { Simulation } from '@fender/sim';
 
 let server: Awaited<ReturnType<typeof createGameServer>>;
@@ -27,9 +27,9 @@ it('assigns one shared wanted suspect to a real multiplayer room and its late jo
   const a = await peer(), b = await peer(a.room.roomId);
   expect(a.state.pursuit, 'Online dispatch must have an apprehension objective').toBeDefined();
   expect(a.state.pursuit!.suspectId).toBe(b.state.pursuit!.suspectId);
-  expect(a.state.vehicles.filter(car => car.bodyAssetId === 'suspect')).toHaveLength(1);
+  expect(a.state.vehicles.find(car => car.entityId === a.state.pursuit!.suspectId)!.bodyAssetId).toBe(getCampaignTarget(CAMPAIGN_DISPATCHES[0]!.targetId).vehicleBodyId);
   expect(b.state.vehicles.some(car => car.entityId === a.state.pursuit!.suspectId)).toBe(true);
-  expect(GAMEPLAY_REVISION).toBe('arcade-v6');
+  expect(GAMEPLAY_REVISION).toBe('arcade-v7');
 });
 
 it('broadcasts the apprehending winner and dispatch completion to both peers even when another driver has more combat points', async () => {

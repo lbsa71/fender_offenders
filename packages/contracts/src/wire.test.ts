@@ -2,6 +2,12 @@ import {describe,it,expect} from 'vitest';
 import {packSnapshot,unpackSnapshot,type WorldSnapshot} from './index';
 const snapshot:WorldSnapshot={protocolVersion:1,mapRevision:'map',gameplayRevision:'rules',sessionEpoch:'epoch',serverTick:0,matchId:'match',phase:'lobby',phaseEndsAtTick:null,vehicles:[],projectiles:[],scores:[{playerId:'a',nickname:'Alpha',score:0,wrecks:0,connection:'connected'}],local:null};
 describe('scoreboard latency wire compatibility',()=>{
+  it('roundtrips ordered campaign resolutions for late joins and reconnects, including a completed tenth dispatch',()=>{
+    const campaign={campaignId:'parking-scheme',dispatchIndex:9,status:'complete' as const,outcomes:Array.from({length:10},(_,dispatchIndex)=>({dispatchIndex,outcome:dispatchIndex%2?'wrecked' as const:'arrested' as const,playerId:dispatchIndex%2?'b':'a',elapsedTicks:180+dispatchIndex}))};
+    const source={...snapshot,campaign};
+    expect(unpackSnapshot(packSnapshot(source))).toHaveProperty('campaign',campaign);
+    expect(unpackSnapshot(packSnapshot(snapshot))).not.toHaveProperty('campaign');
+  });
   it('roundtrips authoritative pursuit identity, independent progress and the apprehending winner',()=>{
     const pursuit={state:'arresting' as const,suspectId:'wanted',progress:.75,elapsedTicks:300,arrestingPlayerId:'b',winnerPlayerId:null,contenders:[{playerId:'a',progress:.25},{playerId:'b',progress:.75}]};
     expect(unpackSnapshot(packSnapshot({...snapshot,pursuit})).pursuit).toEqual(pursuit);

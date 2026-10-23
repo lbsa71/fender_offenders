@@ -75,15 +75,17 @@ describe('real Colyseus authority over local WebSockets', () => {
     expect(creator.state!.scores).toHaveLength(1);
   });
 
-  it('requires the competitive pursuit build instead of accepting arcade-v5 clients', async () => {
+  it('requires the campaign build instead of accepting deployed arcade-v6 clients', async () => {
     const creator=await peer();let legacy:Room|undefined;
     try{
-      await expect(new Client(endpoint).joinById(creator.room.roomId,{...options,gameplayRevision:'arcade-v5'}).then(room=>{legacy=room;return 'accepted-legacy-client';})).rejects.toThrow('version-mismatch');
+      await expect(new Client(endpoint).joinById(creator.room.roomId,{...options,gameplayRevision:'arcade-v6'}).then(room=>{legacy=room;return 'accepted-legacy-client';})).rejects.toThrow('version-mismatch');
     }finally{if(legacy){legacy.reconnection.enabled=false;await legacy.leave(true);}}
   });
 
   it('rejects invalid, duplicate, stale, spoofed and excess input without trusting client state', async () => {
     const a = await peer(), b = await peer(a.room.roomId);
+    // Exercise valid siren actions during gameplay; lobby commands are acknowledged but frozen.
+    const sim=localSimulation(a),playing=sim.checkpoint();playing.state.phase='playing';playing.state.phaseEnd=playing.tick+900;sim.restore(playing);
     const rejectedBefore = serverMetrics.rejectedInputs;
     const valid = command(a, { sirenToggle: true });
     a.room.send('input', { commands: [valid] });
