@@ -1,10 +1,14 @@
 # Shared contracts
 
-Status: semantic contract reference for the implemented alpha (`arcade-v7` gameplay). Updated: 2026-10-23. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+Status: semantic contract reference for the implemented alpha (`arcade-v8` gameplay). Updated: 2026-10-23. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
 
 This document defines cross-lane semantics and remaining acceptance expectations. Examples describe semantic TypeScript types, not the compact snapshot wire encoding or installed SDK API. Consumers use the package's public exports; additional validators and the complete proposed fixture catalog remain unfinished rather than implied by these examples.
 
 ## Campaign extension
+
+The armed-target extension exposes `getBossTactics(dispatchIndex)`, ten immutable `BOSS_TACTICS` profiles and `randomCallsign(random?)`. `WorldSnapshot.grenades?: GrenadeState[]` carries bounded authoritative hazards. Each grenade contains entity/owner IDs, immutable origin/target poses, born/landing/detonation ticks, blast radius and damage. Wire decoding defaults missing legacy grenade fields to an empty roster. `RenderFrame.grenades` and `serverTick` provide presentation data; online sampling advances the hazard clock monotonically and keeps nonplaying campaign phases frozen.
+
+`grenade-thrown` events carry `{ grenade }`; `grenade-exploded` events carry `{ grenadeId, ownerEntityId, position, blastRadius }`. These events drive effects, not client-owned damage. Current snapshots reconstruct warnings for late joins; original throw events are not required. See [boss combat](BOSS_COMBAT.md).
 
 `WorldSnapshot.campaign?: CampaignState` carries `{ campaignId, dispatchIndex, status: 'active' | 'complete', outcomes }`. Indices are zero-based and bounded to the ten authored dispatches. Each ordered outcome is `{ dispatchIndex, outcome: 'arrested' | 'wrecked', playerId, elapsedTicks }`. Only successful dispatches add entries; a timeout leaves the index/outcomes unchanged. A completed tenth stage retains index 9 and sets status complete until the creator requests a new campaign.
 

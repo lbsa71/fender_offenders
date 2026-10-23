@@ -11,6 +11,8 @@ export class MotorAudio {
   private disposed = false;
   private wreckVoices=new Map<OscillatorNode | AudioBufferSourceNode,string>();
   private pendingWreckOwner:string|null=null;
+  private grenadeVoices=new Map<OscillatorNode | AudioBufferSourceNode,string>();
+  private pendingGrenadeOwner:string|null=null;
   volume = .55;
   muted = false;
   constructor(private createContext: () => AudioContext = () => new AudioContext()) {}
@@ -52,9 +54,9 @@ export class MotorAudio {
     const cleanup = () => {
       if (ended) return; ended = true; source.onended = null;
       for (const node of [source, ...nodes]) node.disconnect();
-      this.voices.delete(source);this.wreckVoices.delete(source);
+      this.voices.delete(source);this.wreckVoices.delete(source);this.grenadeVoices.delete(source);
     };
-    this.voices.set(source, cleanup);if(this.pendingWreckOwner!==null)this.wreckVoices.set(source,this.pendingWreckOwner); source.onended = cleanup;
+    this.voices.set(source, cleanup);if(this.pendingWreckOwner!==null)this.wreckVoices.set(source,this.pendingWreckOwner);if(this.pendingGrenadeOwner!==null)this.grenadeVoices.set(source,this.pendingGrenadeOwner);source.onended = cleanup;
     source.start(); source.stop(this.context!.currentTime + length + .015);
   }
   private envelope(gain: GainNode, length: number, scale: number, rattle = false) {
@@ -125,6 +127,24 @@ export class MotorAudio {
   stopWreck(ownerId?:string):void{
     for(const [source,owner]of this.wreckVoices)if(ownerId===undefined||owner===ownerId){source.stop();this.voices.get(source)?.();}
   }
+  /** Original whistle, fuse tick, rubbery landing and five-layer blast; shares the twelve-voice budget. */
+  grenade(kind:'lob'|'land'|'fuse'|'blast',volumeScale=1,ownerId?:string):void{
+    const volume=this.unit(volumeScale);if(!volume||!this.audible())return;
+    this.pendingGrenadeOwner=ownerId??'*';
+    try{
+      if(kind==='lob')this.tone('sine',.66,[[0,1700],[.22,2200],[1,260]],volume*.5);
+      else if(kind==='land'){this.noise(.085,1300,volume*.45);this.tone('triangle',.24,[[0,340],[.2,540],[1,95]],volume*.7);}
+      else if(kind==='fuse')this.tone('square',.065,[[0,1550],[1,750]],volume*.22);
+      else{
+        this.noise(.7,950,volume);
+        this.tone('triangle',.98,[[0,62],[.1,140],[.35,70],[1,30]],volume);
+        this.noise(.32,3600,volume*.7);
+        this.tone('sine',.9,[[0,1900],[.15,2600],[1,120]],volume*.55);
+        this.tone('square',.6,[[0,820],[.2,420],[1,75]],volume*.4,true);
+      }
+    }finally{this.pendingGrenadeOwner=null;}
+  }
+  stopGrenades(ownerId?:string):void{for(const [source,owner]of this.grenadeVoices)if(ownerId===undefined||owner===ownerId){source.stop();this.voices.get(source)?.();}}
   cartoon(kind: 'boing' | 'squeak'): void {
     const boing = kind === 'boing';
     this.tone(boing ? 'triangle' : 'sine', boing ? .24 : .14, [[0, boing ? 105 : 1450], [.2, boing ? 210 : 1050], [1, boing ? 58 : 650]], boing ? .9 : .5);

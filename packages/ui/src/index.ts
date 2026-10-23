@@ -1,4 +1,4 @@
-import { CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, CAMPAIGN_TITLE, getCampaignMugshot, getCampaignTarget, getVehicleProfile, isVehicleBodyId, VEHICLE_BODIES, type CampaignState, type CampaignTarget, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
+import { CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, CAMPAIGN_TITLE, getBossTactics, getCampaignMugshot, getCampaignTarget, getVehicleProfile, isVehicleBodyId, randomCallsign, sanitizeNickname, VEHICLE_BODIES, type CampaignState, type CampaignTarget, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
 import './style.css';
 
 export type MenuAction = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back' | 'pause';
@@ -117,6 +117,9 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const campaignRoster = doc.createElement('section'); campaignRoster.className = 'fo-campaign-roster'; campaignRoster.hidden = true;
   campaignRoster.innerHTML = '<h3>UNITS ON THIS CASE</h3><div class="fo-score-head"><span aria-hidden="true">#</span><span>UNIT</span><span>PING / ms</span><span>PTS</span></div><ol></ol>';
   briefing.querySelector('.fo-campaign-target')!.after(campaignRoster);
+  const tacticsCard = doc.createElement('section'); tacticsCard.className = 'fo-campaign-tactics'; tacticsCard.dataset.campaignTactics = ''; tacticsCard.setAttribute('aria-label', 'Target tactics and counterplay');
+  tacticsCard.innerHTML = '<span class="fo-kicker" data-tactics-rank></span><h4 data-tactics-label></h4><div class="fo-tactics-meta"><span data-tactics-style></span><span data-tactics-weapon></span></div><label class="fo-tactics-difficulty"><span></span><meter min="1" max="10" value="1" aria-label="Target difficulty"></meter></label><p data-tactics-description></p>';
+  briefing.querySelector('.fo-campaign-target')!.after(tacticsCard);
   const campaignResolution = doc.createElement('section'); campaignResolution.className = 'fo-campaign-resolution'; campaignResolution.hidden = true; campaignResolution.setAttribute('aria-label', 'Campaign dispatch resolution');
   campaignResolution.innerHTML = '<h3 class="fo-campaign-resolution-label"></h3><div class="fo-campaign-target"><div class="fo-campaign-portrait" role="img"></div><div><span class="fo-campaign-role"></span><h3 data-campaign-name></h3><strong data-campaign-alias></strong></div></div><ol class="fo-campaign-tracker"></ol><section class="fo-campaign-connections" hidden><h3>FOUR RINGLEADERS. ONE RACKET.</h3><div class="fo-campaign-bosses"></div></section><section class="fo-campaign-evidence"><h3>CASE FILE / EARNED LEADS</h3><ol class="fo-campaign-casefile"></ol><p class="fo-campaign-no-evidence">No new evidence. The suspect escaped; retry this dispatch.</p></section>';
   resultOutcome.after(campaignResolution);
@@ -136,6 +139,13 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     one(selector).before(heading);
   }
   const nickname = one<HTMLInputElement>('[name="nickname"]');
+  const normalizeCallsign = (value: unknown) => { try { return sanitizeNickname(value); } catch { return ''; } };
+  let savedCallsign = '';
+  try { const saved = JSON.parse(view?.localStorage.getItem('fender-callsign-v1') ?? 'null'); savedCallsign = normalizeCallsign(typeof saved === 'string' ? saved : saved?.nickname); } catch { /* An unavailable or malformed store still gets an in-memory identity. */ }
+  nickname.value = savedCallsign || randomCallsign(); nickname.placeholder = 'Make it memorable';
+  const persistCallsign = () => { const name = normalizeCallsign(nickname.value); if (name) try { view?.localStorage.setItem('fender-callsign-v1', JSON.stringify({ nickname: name })); } catch { /* Callsigns also work without storage. */ } return name; };
+  persistCallsign();
+  const reroll = doc.createElement('button'); reroll.type = 'button'; reroll.className = 'fo-reroll-callsign'; reroll.dataset.action = 'reroll-callsign'; reroll.textContent = 'REROLL CALLSIGN'; nickname.closest('.fo-field')!.after(reroll);
   const roomInput = one<HTMLInputElement>('[name="room"]');
   const notify = (message: string) => { const node = one('.fo-notice'); node.textContent = message; node.hidden = !message; };
   const persist = () => { shell.classList.toggle('fo-reduced-motion', settings.reducedShake); try { view?.localStorage.setItem('fender-settings-v1', JSON.stringify(settings)); } catch { /* Optional persistence. */ } callbacks.onSettings?.(structuredClone(settings)); };
@@ -179,6 +189,15 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if (key === campaignViewKey) return; campaignViewKey = key;
     const dispatch = CAMPAIGN_DISPATCHES[campaign.dispatchIndex] ?? CAMPAIGN_DISPATCHES[0]!;
     const target = getCampaignTarget(dispatch.targetId), resolution = campaign.outcomes.find(outcome => outcome.dispatchIndex === campaign.dispatchIndex);
+    const tactics = getBossTactics(campaign.dispatchIndex);
+    tacticsCard.classList.toggle('fo-boss-tactics', target.isBoss); tacticsCard.dataset.drivingStyle = tactics.drivingStyle;
+    tacticsCard.querySelector('[data-tactics-rank]')!.textContent = target.isBoss ? 'RINGLEADER TACTICS' : 'TARGET TACTICS';
+    tacticsCard.querySelector('[data-tactics-label]')!.textContent = tactics.label;
+    tacticsCard.querySelector('[data-tactics-style]')!.textContent = tactics.drivingStyle.replaceAll('-', ' ').toUpperCase();
+    tacticsCard.querySelector('[data-tactics-weapon]')!.textContent = tactics.weapon === 'burst' ? 'FORWARD BURSTS' : tactics.weapon === 'grenades' ? 'MARKED GRENADES' : 'BURSTS + GRENADES';
+    tacticsCard.querySelector('.fo-tactics-difficulty>span')!.textContent = `DIFFICULTY ${tactics.difficulty} / 10`;
+    tacticsCard.querySelector<HTMLMeterElement>('meter')!.value = tactics.difficulty;
+    tacticsCard.querySelector('[data-tactics-description]')!.textContent = tactics.description;
     const complete = campaign.status === 'complete';
     const allOutcomes = [...campaign.outcomes].filter(outcome => CAMPAIGN_DISPATCHES[outcome.dispatchIndex]).sort((a, b) => a.dispatchIndex - b.dispatchIndex);
     briefing.querySelector<HTMLElement>('[data-campaign-title]')!.textContent = CAMPAIGN_TITLE;
@@ -284,8 +303,9 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   }
   async function play(mode: 'practice' | 'create' | 'join') {
     if (pending) return;
-    const name = nickname.value.trim(); const roomId = parseRoom(roomInput.value);
+    const name = persistCallsign(); const roomId = parseRoom(roomInput.value);
     if (!name) { notify('Your unit needs a callsign.'); nickname.focus(); return; }
+    nickname.value = name;
     if (mode === 'join' && !roomId) { notify('Enter a room code or paste an invite link.'); roomInput.focus(); return; }
     pending = true; notify('Contacting dispatch…'); all<HTMLButtonElement>('.fo-home button').forEach(button => { button.disabled = true; });
     updateGarage();
@@ -305,6 +325,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   }
   const change = (event: Event) => {
     const input = event.target as HTMLInputElement | HTMLSelectElement;
+    if (input === nickname) { persistCallsign(); return; }
     const key = input.dataset.setting as keyof UiSettings | undefined;
     if (!key) return;
     const value = input instanceof HTMLInputElement && input.type === 'checkbox' ? input.checked : input.type === 'range' ? Number(input.value) : input.value;
@@ -316,6 +337,12 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if (button.dataset.binding) { bindingAction = button.dataset.binding; button.textContent = 'PRESS A KEY…'; return; }
     switch (button.dataset.action) {
       case 'practice': void play('practice'); break;
+      case 'reroll-callsign': {
+        const current = normalizeCallsign(nickname.value); let next = current;
+        for (let attempt = 0; attempt < 8 && next === current; attempt++) next = randomCallsign();
+        if (next === current) { next = randomCallsign(() => 0); if (next === current) next = randomCallsign(() => 1); }
+        nickname.value = next; persistCallsign(); break;
+      }
       case 'reassign': if (canReassign()) { vehicle = rollVehicle(vehicle); awaitingVehicle = lobby() ? vehicle : null; persistVehicle(); updateGarage(); callbacks.onVehicleChange?.(vehicle); toast('NEW KEYS. SAME QUESTIONABLE DEPARTMENT.'); } break;
       case 'create': void play('create'); break;
       case 'join-toggle': hide('.fo-join', !one('.fo-join').hidden); roomInput.focus(); break;
@@ -450,7 +477,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     const controls = visibleControls(); const focused = doc.activeElement as HTMLElement; let index = controls.indexOf(focused);
     if (action === 'up' || action === 'down') { index = (index + (action === 'down' ? 1 : -1) + controls.length) % controls.length; controls[index]?.focus(); controls[index]?.scrollIntoView({ block: 'nearest' }); }
     else if (action === 'confirm') {
-      if (focused instanceof HTMLInputElement && ['text', ''].includes(focused.type)) { const next = controls[index + 1]; next?.focus(); }
+      if (focused instanceof HTMLInputElement && ['text', ''].includes(focused.type)) { const next = focused === nickname ? one('[data-action="practice"]') : controls[index + 1]; next?.focus(); }
       else focused?.click();
     } else if ((action === 'left' || action === 'right') && focused instanceof HTMLInputElement && focused.type === 'range') {
       focused.value = String(Math.max(Number(focused.min), Math.min(Number(focused.max), Number(focused.value) + (action === 'left' ? -1 : 1) * Number(focused.step || .05)))); focused.dispatchEvent(new Event('input', { bubbles: true }));

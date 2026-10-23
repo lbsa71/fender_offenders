@@ -36,6 +36,8 @@ jobs:
         run: node packages/ui/dev/pursuit-smoke.mjs
       - name: Verify campaign briefing, tracker and story UI
         run: node packages/ui/dev/campaign-smoke.mjs
+      - name: Verify generated callsigns and saved identity
+        run: node packages/ui/dev/callsigns-smoke.mjs
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

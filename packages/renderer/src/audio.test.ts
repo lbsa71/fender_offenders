@@ -126,4 +126,19 @@ describe('original bounded slapstick audio', () => {
     audio.effect('shot'); audio.dispose(); expect(context.nodes.every(node => node.disconnected)).toBe(true); expect(context.closed).toBe(true);
     audio.dispose(); audio.unlock(); expect(Context.instances).toHaveLength(1);
   });
+  it('gives grenades distinct descending lob, short fuse/plonk and layered bass blast within gain limits',()=>{
+    const audio=new MotorAudio();audio.unlock();const context=Context.instances[0]!;
+    let start=context.nodes.length;audio.grenade('lob',1,'g');const lob=context.nodes.slice(start).filter(n=>n.kind==='oscillator');expect(lob.length).toBeGreaterThan(0);expect(lob[0]!.frequency.values.at(-1)).toBeLessThan(lob[0]!.frequency.values[0]!);context.sources.slice(2).forEach(n=>n.finish());
+    start=context.sources.length;audio.grenade('land',1,'g');const land=context.sources.slice(start);expect(land.length).toBeGreaterThanOrEqual(2);expect(land.every(n=>n.stopAt!<.4)).toBe(true);land.forEach(n=>n.finish());
+    start=context.sources.length;audio.grenade('fuse',1,'g');const fuse=context.sources.slice(start);expect(fuse).toHaveLength(1);expect(fuse[0]!.stopAt).toBeLessThan(.12);fuse[0]!.finish();
+    start=context.nodes.length;audio.grenade('blast',1,'g');const blast=context.nodes.slice(start),voices=blast.filter(n=>n.kind==='oscillator'||n.kind==='noise');expect(voices.length).toBeGreaterThanOrEqual(5);expect(voices.some(n=>n.kind==='noise')).toBe(true);expect(voices.some(n=>n.kind==='oscillator'&&n.frequency.values.at(-1)!<90)).toBe(true);expect(blast.filter(n=>n.kind==='gain').flatMap(n=>n.gain.values).every(v=>Number.isFinite(v)&&v<=.055)).toBe(true);audio.dispose();
+  });
+  it('attenuates grenade cues, gates activation/mute/zero and shares the twelve-voice cap',()=>{
+    const audio=new MotorAudio();audio.grenade('blast');expect(Context.instances).toHaveLength(0);audio.unlock();const context=Context.instances[0]!;
+    let start=context.nodes.length;audio.grenade('lob',1);const loud=Math.max(...context.nodes.slice(start).filter(n=>n.kind==='gain').flatMap(n=>n.gain.values));expect(loud).toBeGreaterThan(0);context.sources.slice(2).forEach(n=>n.finish());start=context.nodes.length;audio.grenade('lob',.2);const quiet=Math.max(...context.nodes.slice(start).filter(n=>n.kind==='gain').flatMap(n=>n.gain.values));expect(quiet).toBeCloseTo(loud*.2);
+    const count=context.sources.length;audio.grenade('blast',0);audio.muted=true;audio.grenade('lob');audio.muted=false;audio.volume=0;audio.grenade('land');expect(context.sources).toHaveLength(count);audio.volume=.55;context.sources.slice(2).forEach(n=>n.finish());start=context.sources.length;for(let i=0;i<20;i++){audio.grenade('blast');audio.effect('shot');}expect(context.sources.length-start).toBeLessThanOrEqual(12);audio.dispose();
+  });
+  it('cancels grenade-owner audio on cleanup while preserving unrelated shot and grenade voices',()=>{
+    const audio=new MotorAudio();audio.unlock();const context=Context.instances[0]!,start=context.sources.length;audio.grenade('lob',1,'first');audio.grenade('fuse',1,'first');const first=context.sources.slice(start);expect(first.length).toBeGreaterThan(0);audio.grenade('lob',1,'second');const other=context.sources.at(-1)!;audio.effect('shot');const shot=context.sources.at(-1)!;audio.stopGrenades('first');expect(first.every(n=>n.disconnected)).toBe(true);expect(other.disconnected).toBe(false);expect(shot.disconnected).toBe(false);audio.stopGrenades();expect(other.disconnected).toBe(true);expect(shot.disconnected).toBe(false);audio.dispose();expect(context.nodes.every(n=>n.disconnected)).toBe(true);
+  });
 });

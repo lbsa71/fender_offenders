@@ -12,7 +12,7 @@ const browser = await chromium.launch(existsSync(chromium.executablePath()) ? {}
 const failures = [], errors = [], check = (condition, message) => { if (!condition) failures.push(message); };
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } }); page.on('pageerror', error => errors.push(error.message));
-  await page.goto('http://127.0.0.1:5188/packages/ui/dev/campaign.html'); await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
+  await page.goto('http://127.0.0.1:5188/packages/ui/dev/campaign.html'); await page.getByRole('textbox', { name: 'YOUR CALLSIGN', exact: true }).fill('Officer Rookie'); await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
   const set = options => page.evaluate(options => window.campaignFixture.set(options), options);
   const text = selector => page.locator(selector).evaluateAll(nodes => nodes[0]?.textContent ?? '');
   const setOutcome = (dispatchIndex, outcome = 'arrested', playerId = 'you') => ({ dispatchIndex, outcome, playerId, elapsedTicks: 300 });
@@ -113,6 +113,18 @@ try {
   }
   await set({ stage: 0, phase: 'playing' });
   check(await text('[data-text="timer"]') === '04:55', 'timed practice campaign shows the remaining dispatch clock');
+  for (let stage = 0; stage < 10; stage++) {
+    await set({ stage }); const profile = await page.evaluate(stage => window.campaignFixture.tactics(stage), stage);
+    const tacticsText = await text('[data-campaign-tactics]');
+    check(tacticsText.includes(profile.label) && tacticsText.includes(profile.description), `dispatch ${stage + 1} explains its actual driving/weapon counterplay`);
+    check(tacticsText.includes(`DIFFICULTY ${profile.difficulty} / 10`), `dispatch ${stage + 1} shows its authored difficulty`);
+    check(await page.locator('[data-campaign-tactics]').evaluateAll(nodes => nodes[0]?.getAttribute('data-driving-style')) === profile.drivingStyle, `dispatch ${stage + 1} describes the matching shared driving style`);
+  }
+  if (process.env.CAPTURE_BOSS_COMBAT) {
+    const destination = 'C:/Users/StefanAndersson/Documents/Codex/2026-10-22/if/outputs/boss-combat'; mkdirSync(destination, { recursive: true });
+    for (const stage of [1, 4, 7, 9]) { await page.setViewportSize({ width: 1440, height: 900 }); await set({ stage }); await page.locator('[data-campaign-tactics]').scrollIntoViewIfNeeded(); await page.screenshot({ path: path.join(destination, `dispatch-${stage + 1}-tactics-fixture-1440.png`) }); }
+    await page.setViewportSize({ width: 740, height: 740 }); await set({ stage: 9 }); await page.locator('[data-campaign-tactics]').scrollIntoViewIfNeeded(); await page.screenshot({ path: path.join(destination, 'dispatch-10-tactics-fixture-740.png') });
+  }
   if (process.env.CAPTURE_UI) {
     await page.setViewportSize({ width: 1440, height: 900 });
     for (const [name, options] of [['dispatch-1', { stage: 0 }], ['wreck-resolution', { stage: 1, phase: 'results', outcomes: complete.slice(0, 2) }], ['finale', { stage: 9, phase: 'results', complete: true, outcomes: complete }]]) { await set(options); await page.screenshot({ path: path.join(output, `${name}-fixture-1440.png`) }); }

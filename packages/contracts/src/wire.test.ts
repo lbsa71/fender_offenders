@@ -2,6 +2,15 @@ import {describe,it,expect} from 'vitest';
 import {packSnapshot,unpackSnapshot,type WorldSnapshot} from './index';
 const snapshot:WorldSnapshot={protocolVersion:1,mapRevision:'map',gameplayRevision:'rules',sessionEpoch:'epoch',serverTick:0,matchId:'match',phase:'lobby',phaseEndsAtTick:null,vehicles:[],projectiles:[],scores:[{playerId:'a',nickname:'Alpha',score:0,wrecks:0,connection:'connected'}],local:null};
 describe('scoreboard latency wire compatibility',()=>{
+  it('preserves grenade landing warnings and fuse ticks across a real wire roundtrip, without mutating authority',()=>{
+    const grenade={entityId:'lob-1',ownerEntityId:'boss',origin:{x:3.125,z:4.75,yaw:.25},target:{x:-8.5,z:9.125,yaw:0},bornTick:60,landsAtTick:105,detonatesAtTick:150,blastRadius:6.5,damage:30};
+    const source={...snapshot,grenades:[grenade]};
+    const decoded=unpackSnapshot(packSnapshot(source));
+    expect(decoded).toHaveProperty('grenades',[grenade]);
+    expect(unpackSnapshot(packSnapshot(snapshot))).toHaveProperty('grenades',[]);
+    (decoded as WorldSnapshot & {grenades:typeof grenade[]}).grenades[0]!.target.x=99;
+    expect(grenade.target.x).toBe(-8.5);
+  });
   it('roundtrips ordered campaign resolutions for late joins and reconnects, including a completed tenth dispatch',()=>{
     const campaign={campaignId:'parking-scheme',dispatchIndex:9,status:'complete' as const,outcomes:Array.from({length:10},(_,dispatchIndex)=>({dispatchIndex,outcome:dispatchIndex%2?'wrecked' as const:'arrested' as const,playerId:dispatchIndex%2?'b':'a',elapsedTicks:180+dispatchIndex}))};
     const source={...snapshot,campaign};

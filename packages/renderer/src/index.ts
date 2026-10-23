@@ -24,6 +24,7 @@ import {PropVisuals} from './props';
 import {PedestrianCrowd} from './pedestrians';
 import {WreckEffects} from './wreck-effects';
 import {TargetObjective} from './target-objective';
+import {GrenadeEffects} from './grenade-effects';
 
 export interface RendererSettings {
   quality: 'low' | 'medium' | 'high'; masterVolume: number; effectsVolume: number;
@@ -58,13 +59,13 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
   shadows.getShadowMap()!.refreshRate=1;
   const factory=new CarFactory(scene),cars=new Map<string,CarVisual>(),audio=new MotorAudio(),combat=new CombatEffects(scene),wrecks=new WreckEffects(scene);
   const prefersReducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
-  const props=new PropVisuals(scene),pedestrians=new PedestrianCrowd(scene),objective=new TargetObjective(scene);
+  const props=new PropVisuals(scene),pedestrians=new PedestrianCrowd(scene),objective=new TargetObjective(scene),grenades=new GrenadeEffects(scene);
   let garage:GaragePreview|null=null,garageBody:string|null=null;
   const effectMaterial=(name:string,color:string,emissive=false)=>{const m=new StandardMaterial(name,scene);m.diffuseColor=Color3.FromHexString(color);m.specularColor.set(0,0,0);if(emissive)m.emissiveColor=m.diffuseColor;return m;};
   const spark=effectMaterial('spark','#ffe0a0',true),smoke=effectMaterial('smoke','#798882'),fire=effectMaterial('fire','#f26932',true),skid=effectMaterial('skid','#354a4f');
   const particles:Particle[]=Array.from({length:96},(_,i)=>{const mesh=MeshBuilder.CreateIcoSphere(`pooled-effect-${i}`,{radius:1,subdivisions:0},scene);mesh.material=spark;mesh.isVisible=false;return{mesh,vx:0,vy:0,vz:0,life:0,duration:1,size:1};});
   const marks=Array.from({length:128},(_,i)=>{const mesh=MeshBuilder.CreateBox(`pooled-skid-${i}`,{width:.2,height:.012,depth:.85},scene);mesh.material=skid;mesh.isVisible=false;return{mesh,life:0};});
-  let markIndex=0,particleIndex=0,time=0,shake=0,disposed=false,lastSmoke=0,lastSkid=0,lastFrame:RenderFrame|null=null,frameCpuMs=0,frameDrawCalls=0;
+  let markIndex=0,particleIndex=0,time=0,shake=0,disposed=false,lastSmoke=0,lastSkid=0,lastFrame:RenderFrame|null=null,frameCpuMs=0,frameDrawCalls=0,grenadeTick=0;
   const seen=new Set<string>(),eventQueue:string[]=[],retiredMatches:string[]=[];let activeMatch:string|null=null;
   const seenVolleys=new Set<string>(),volleyQueue:string[]=[],pendingMuzzles:MuzzleRequest[]=[],mountedMuzzles=new Map<string,MuzzleRequest>();
   const gunPoint=new Vector3(),worldGun=new Vector3();
@@ -81,7 +82,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
   }
   function clearWreck(entityId:string):void{wrecks.remove(entityId);audio.stopWreck(entityId);}
   function resetCombatPresentation():void{
-    combat.reset();wrecks.reset();audio.stopWreck();shake=0;seenVolleys.clear();volleyQueue.length=0;pendingMuzzles.length=0;mountedMuzzles.clear();
+    combat.reset();wrecks.reset();grenades.reset();audio.stopWreck();audio.stopGrenades();grenadeTick=0;shake=0;seenVolleys.clear();volleyQueue.length=0;pendingMuzzles.length=0;mountedMuzzles.clear();
     for(const p of particles){p.life=0;p.mesh.isVisible=false;}
     for(const mark of marks){mark.life=0;mark.mesh.isVisible=false;}
     for(const car of cars.values()){car.feedback=newVehicleFeedback();car.lastCrashAt=-10;car.lastCrashTick=-1;car.wreckLife=null;car.explodedLife=null;car.wreckLifeFloor=-1;}
@@ -174,6 +175,11 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     if(time-lastSmoke>.12)lastSmoke=time;if(time-lastSkid>.055)lastSkid=time;
     for(const [id,car]of cars)if(!active.has(id)){removeCar(car);cars.delete(id);}
     renderMuzzles();combat.renderProjectiles(frame.projectiles,dt);combat.update(dt,settings.reducedFlash);wrecks.update(dt,{reducedMotion,reducedFlash:settings.reducedFlash});
+    if(frame.serverTick!==undefined&&Number.isFinite(frame.serverTick))grenadeTick=frame.serverTick;
+    else if(!frame.grenades?.length)grenadeTick=0;
+    else{grenadeTick+=dt*60;for(const g of frame.grenades)grenadeTick=Math.max(grenadeTick,g.bornTick);}
+    grenades.render(frame.grenades??[],grenadeTick,{reducedMotion,reducedFlash:settings.reducedFlash});grenades.update(dt,{reducedMotion,reducedFlash:settings.reducedFlash});
+    grenades.drainCues(cue=>{const volume=combatVolume(cue.position);if(volume>0)audio.grenade(cue.kind,volume,cue.grenadeId);});
     props.render(frame.props??[]);pedestrians.update(frame.vehicles,dt,reducedMotion);
     for(const p of particles)if(p.life>0){p.life-=dt;p.mesh.isVisible=p.life>0;p.mesh.position.x+=p.vx*dt;p.mesh.position.y+=p.vy*dt;p.mesh.position.z+=p.vz*dt;p.vy-=p.mesh.material===smoke?-.3*dt:9*dt;const f=Math.max(0,p.life/p.duration);p.mesh.scaling.setAll(p.size*(p.mesh.material===smoke?2-f:f));p.mesh.visibility=f;}
     for(const mark of marks)if(mark.life>0){mark.life-=dt;mark.mesh.isVisible=mark.life>0;mark.mesh.visibility=Math.min(1,mark.life);}
@@ -203,7 +209,10 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
       }
       const key=`${event.matchId}:${event.eventId}`;if(seen.has(key))continue;seen.add(key);eventQueue.push(key);if(eventQueue.length>512)seen.delete(eventQueue.shift()!);
       if(garageBody)continue;
-      if(event.kind==='crash'){
+      if(event.kind==='grenade-thrown')grenades.noteThrow(event.payload.grenade);
+      else if(event.kind==='grenade-exploded'){
+        const p=event.payload;if(grenades.explode(p.grenadeId,p.position,p.blastRadius,event.serverTick,{reducedMotion:settings.reducedShake||prefersReducedMotion.matches,reducedFlash:settings.reducedFlash}))audio.stopGrenades(p.grenadeId);
+      }else if(event.kind==='crash'){
         const p=event.payload,car=cars.get(p.vehicleId),vehicle=lastFrame?.vehicles.find(v=>v.entityId===p.vehicleId);
         if(!car||!vehicle||vehicle.status!=='active'||p.discontinuityId!==vehicle.discontinuityId||p.discontinuityId!==car.discontinuity||p.speed<3||!Number.isFinite(p.speed)||event.serverTick<=car.lastCrashTick||time-car.lastCrashAt<.22)continue;
         car.feedback=kickImpact(car.feedback,p.normal,vehicle.pose.yaw,p.speed);car.lastCrashAt=time;car.lastCrashTick=event.serverTick;
@@ -244,8 +253,8 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     scene.clearColor=Color4.FromColor3(Color3.FromHexString(manifest.environment.skyColor),1);scene.fogColor=Color3.FromHexString(manifest.environment.fogColor);sun.direction=Vector3.FromArray(manifest.environment.sunDirection);
   }
   function resize(width?:number,height?:number,pixelRatio?:number):void{if(disposed)return;if(width&&height){engine.setSize(Math.max(1,width*(pixelRatio??1)),Math.max(1,height*(pixelRatio??1)));}else engine.resize();}
-  function dispose():void{if(disposed)return;disposed=true;audio.dispose();for(const c of cars.values())removeCar(c);cars.clear();factory.dispose();seen.clear();garage?.dispose();combat.dispose();wrecks.dispose();props.dispose();pedestrians.dispose();objective.dispose();scene.dispose();engine.dispose();}
+  function dispose():void{if(disposed)return;disposed=true;audio.dispose();for(const c of cars.values())removeCar(c);cars.clear();factory.dispose();seen.clear();garage?.dispose();combat.dispose();wrecks.dispose();props.dispose();pedestrians.dispose();objective.dispose();grenades.dispose();scene.dispose();engine.dispose();}
   void loadScene(districtScene);
-  return {render,present,resize,dispose,loadScene,setSettings,setGaragePreview,getTargetIndicator:()=>objective.getIndicator(),unlockAudio:()=>audio.unlock(),getStats:()=>({fps:engine.getFps(),frameCpuMs,drawCalls:frameDrawCalls,activeMeshes:(garageBody&&garage?garage.scene:scene).getActiveMeshes().length,totalMeshes:scene.meshes.length+(garage?.scene.meshes.length??0),particles:particles.filter((p)=>p.life>0).length,garageBody,garageAngle:garage?.getStats().angle??0,...combat.getStats(),...wrecks.getStats(),...props.getStats(),pedestrians:pedestrians.getStats().total,pedestriansRunning:pedestrians.getStats().running,pedestriansVisible:pedestrians.getStats().visible,pedestriansWaiting:pedestrians.getStats().waiting,pedestriansHiddenSafety:pedestrians.getStats().hiddenSafety})};
+  return {render,present,resize,dispose,loadScene,setSettings,setGaragePreview,getTargetIndicator:()=>objective.getIndicator(),unlockAudio:()=>audio.unlock(),getStats:()=>({fps:engine.getFps(),frameCpuMs,drawCalls:frameDrawCalls,activeMeshes:(garageBody&&garage?garage.scene:scene).getActiveMeshes().length,totalMeshes:scene.meshes.length+(garage?.scene.meshes.length??0),particles:particles.filter((p)=>p.life>0).length,garageBody,garageAngle:garage?.getStats().angle??0,...combat.getStats(),...wrecks.getStats(),...grenades.getStats(),...props.getStats(),pedestrians:pedestrians.getStats().total,pedestriansRunning:pedestrians.getStats().running,pedestriansVisible:pedestrians.getStats().visible,pedestriansWaiting:pedestrians.getStats().waiting,pedestriansHiddenSafety:pedestrians.getStats().hiddenSafety})};
 }
 export type FenderRenderer=ReturnType<typeof createGameRenderer>;

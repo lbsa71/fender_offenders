@@ -1,0 +1,43 @@
+# Armed campaign targets and player callsigns
+
+Gameplay revision: `arcade-v8`. This extends the [ten-dispatch campaign](CAMPAIGN.md).
+
+Every campaign target can fight back. Ordinary civilian traffic remains unarmed. The four ringleaders have different driving and attack signatures; crew encounters introduce the same ideas more gently. The briefing names the tactic, shows its difficulty out of ten, and explains the opening a player can exploit.
+
+| Ringleader | Driving | Attack and counterplay |
+| --- | --- | --- |
+| Mabel / The Clamp, dispatch 2 | Deliberate brake checks | Short forward bursts; avoid the bumper, flank, then close during recovery |
+| Hector / Hot Stamp, dispatch 5 | Lane weaving | Lobbed grenades; leave the marked landing area before the fuse expires |
+| Iris / Siren Song, dispatch 8 | Faster serpentine rhythm | Four-volley drive-by bursts; stay off the nose and match speed during recovery |
+| Aldo / The Chairman, dispatch 10 | Interception | Five-volley bursts alternating with grenades; break the firing line and exploit recovery |
+
+## Difficulty and authority
+
+The [ten authored profiles](../packages/contracts/src/boss-tactics.ts) use difficulty 1–10, shorter attack windups and recovery periods, quicker escape lines, larger grenade zones and more demanding bursts. The opening target fires one cautious volley with a long pause. The finale combines previously introduced attacks. Player vehicle profiles, collision shapes, weapon cadence and arrest conditions retain their existing rules; progression does not secretly weaken a player's car.
+
+AI selects active, connected officers using authoritative positions and visibility. It observes range, line of sight, protection, weapon alignment, windup, burst cadence and recovery. AI bullets are real projectiles emitted from the forward gun tips, with authoritative damage and the existing world/car sweep tests. AI can wreck an officer but cannot earn player points or resolve its own dispatch. Only a player arrest or credited player destruction resolves the target.
+
+Grenades publish a fixed origin and landing point, launch/landing/detonation ticks, radius and damage. A throw cannot home onto a player after its landing warning appears. The authored fuse lasts 90 ticks (1.5 seconds); blast radii stay at or below 6 m and maximum center damage at or below 34 health. Damage falls off with distance, respects world obstruction and protected cars, and is applied once by the authority. Multiple readable, avoidable attacks create the ramp instead of an unavoidable single hit.
+
+Lobby, countdown, results, wrecked/respawning targets and absent eligible officers do not initiate attacks. Dispatch completion, timeout, retry and campaign reset clear outstanding hazards. Checkpoints retain AI runtime and active grenade state so replay reproduces attacks and outcomes. Late joiners and reconnects reconstruct a warning from the current snapshot, without needing its original throw event.
+
+## Presentation and networking
+
+`GrenadeState` is engine-independent. Compact wire tuples carry the fixed trajectory/timing; they do not send cosmetic flight transforms. Local practice supplies the exact simulation tick. Online presentation advances a monotonic authority clock and retires expired warnings, preserving the frozen campaign phases.
+
+The renderer draws the lob, fuse and blast-area warning from authority. Explosion events produce pooled cartoon blast, smoke, rings and original synthesized sound; event deduplication and retired grenade IDs prevent repeated blasts or stale warning resurrection. Reduced flashes and motion, volume limits, match changes, garage entry and disposal follow the existing presentation lifecycle.
+
+## Callsigns
+
+[Original callsign generation](../packages/contracts/src/callsigns.ts) combines twelve first words and twelve second words into 144 clean names of at most twenty characters, such as `Captain Waffle` or `Squeaky Hubcap`. A fresh browser gets a random name. **Reroll callsign** selects another; typing a custom name overrides the generated choice.
+
+The browser saves `{ nickname }` under `fender-callsign-v1`. Generated, rerolled and custom choices survive reload and leaving a dispatch. Missing, malformed or unavailable storage still permits an in-memory name. The existing authoritative nickname validation remains in force. Changing the home field affects the next join; it does not add an in-match rename command.
+
+## Parallel implementation and evidence
+
+- Simulation owns authored tactics, AI decisions, real bullets/grenades, damage and checkpoint lifecycle.
+- Rendering owns pooled trajectory/warning/blast visuals, original sound and native scenario checks.
+- UI owns saved random callsigns, reroll, briefing tactics and their fixtures.
+- Foundation owns shared DTOs, compact wire, app/online clocks, real multiplayer tests, compatibility revision, documentation and publishing.
+
+Every behavior lane follows observed RED–GREEN–refactor. Focused wire/clock tests verify hazard reconstruction, monotonic timing, expiry and frozen phases. Simulation tests verify attacks, protection, cover, connected-officer selection, cadence, all four driving signatures, progression and deterministic replay. Real SDK checks verify shared boss shots/damage and the same grenade warning/explosion for peers and a late joiner. Native rendering checks distinguish authored fixtures from hosted gameplay. The callsign browser scenario exercises generated/rerolled/custom identity through a real solo dispatch.

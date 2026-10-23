@@ -3,8 +3,10 @@
 import { mountGameUi } from '../src/index.ts';
 import * as catalog from '../../contracts/src/campaign.ts';
 import { getCampaignMugshot } from '../../contracts/src/campaign-mugshots.ts';
+import { getBossTactics } from '../../contracts/src/boss-tactics.ts';
 const fixture = { starts: 0, rematches: 0, options: {}, catalog };
 fixture.mugshots = () => catalog.CAMPAIGN_TARGETS.map(target => ({ ...target, svg: getCampaignMugshot(target.id) }));
+fixture.tactics = getBossTactics;
 const ui = mountGameUi(document.querySelector('#ui'), {
   onPlay() { fixture.set({ stage: 0, phase: 'lobby', mode: 'practice', outcomes: [] }); },
   onStartRound() { fixture.starts++; fixture.set({ ...fixture.options, phase: 'countdown' }); },

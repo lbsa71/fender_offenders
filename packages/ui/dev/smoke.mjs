@@ -12,6 +12,8 @@ page.on('pageerror', error => errors.push(error.message));
 try {
   await page.goto('http://127.0.0.1:5181/packages/ui/dev/index.html');
   await page.getByRole('heading', { name: "You're on duty." }).waitFor();
+  await page.getByRole('textbox', { name: 'YOUR CALLSIGN', exact: true }).fill('Officer Rookie');
+  await page.getByRole('button', { name: 'HIT THE STREETS' }).focus();
   if (process.env.CAPTURE_UI) { await page.evaluate(() => document.fonts.ready); await page.screenshot({ path: 'packages/ui/dev/menu-preview.png' }); }
   await page.keyboard.press('Enter');
   await page.locator('.fo-hud').waitFor({ state: 'visible' });

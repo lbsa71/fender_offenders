@@ -8,6 +8,8 @@ Read [PRODUCT_SPEC.md](spec/PRODUCT_SPEC.md), [ARCHITECTURE.md](spec/ARCHITECTUR
 
 The progression epic adds a [ten-dispatch campaign](spec/CAMPAIGN.md). Its parallel lanes are campaign authority, authored story/portraits, briefing UI, and foundation/network integration. Freeze DTOs first, then allow the three feature lanes to work independently against the catalog and snapshot shapes. Integrate observed strict-TDD evidence before running real-client, browser, production-container and hosted checks. The campaign document records exact lifecycle rules, file ownership and acceptance; the original milestone gates below remain unchanged.
 
+The [armed-target extension](spec/BOSS_COMBAT.md) uses three independent feature lanes after freezing grenade DTOs and tactics exports: simulation/attack rules, grenade presentation/audio, and callsign/briefing UI. Foundation owns compact snapshots, online/practice presentation clocks, real two-client/late-join tests, compatibility and publishing. Each lane must report its observed failing tests and passing handoff; foundation verifies the real adapters before deployment.
+
 ## 1. Execution rules
 
 1. Establish contracts and a runnable workspace first. Keep M0 small: it unlocks parallel work and retires the largest physics/network risks.

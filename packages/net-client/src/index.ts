@@ -185,12 +185,14 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       const estimatedTick = snapshot.serverTick + (now - lastSnapshotAt + rtt / 2) * .06;
       // A late arrival may lower the clock estimate; pause playback rather than rewind it.
       playbackTick = Math.max(playbackTick ?? -Infinity, estimatedTick - 6);
+      const hazardTick = frozenCampaign(snapshot) ? snapshot.serverTick : Math.max(estimatedTick, playbackTick + 6);
       const vehicles = remoteAt(playbackTick);
       if (predicted) {
         const vehicle = clone(predicted.vehicle); vehicle.pose.x += correctionX; vehicle.pose.z += correctionZ;
         const index = vehicles.findIndex(v => v.entityId === vehicle.entityId); if (index >= 0) vehicles[index] = vehicle; else vehicles.push(vehicle);
       }
       return { sampleTimeSeconds: now / 1000, vehicles, projectiles: projectilePresentation.sample(predicted?.vehicle.entityId??null,estimatedTick,playbackTick), props: propsAt(playbackTick), localEntityId: predicted?.vehicle.entityId ?? null, cameraTarget: vehicles.find(v => v.playerId === playerId)?.pose ?? null,
+        serverTick: hazardTick, grenades: snapshot.phase === 'playing' ? clone((snapshot.grenades ?? []).filter(grenade => grenade.detonatesAtTick > hazardTick)) : [],
         pursuit: snapshot.phase === 'playing' && snapshot.pursuit?.state !== 'complete' ? clone(snapshot.pursuit) : undefined };
     },
     getSnapshot: () => snapshot,

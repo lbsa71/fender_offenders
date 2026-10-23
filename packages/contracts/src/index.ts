@@ -3,10 +3,13 @@ export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v7';
+export const GAMEPLAY_REVISION = 'arcade-v8';
 export type { CampaignState, CampaignOutcome, DispatchOutcome, CampaignTarget, CampaignDispatch } from './campaign-types';
 export { CAMPAIGN_ID, CAMPAIGN_TITLE, CAMPAIGN_TARGETS, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, getCampaignTarget } from './campaign';
 export { getCampaignMugshot } from './campaign-mugshots';
+export { randomCallsign } from './callsigns';
+export { BOSS_TACTICS, getBossTactics } from './boss-tactics';
+export type { BossTactics } from './boss-tactics';
 import type { CampaignState, CampaignOutcome } from './campaign-types';
 export { VEHICLE_BODIES, VEHICLE_PROFILES, getVehicleProfile, isVehicleBodyId } from './vehicle-profiles';
 export type { VehicleBodyId, VehicleProfile } from './vehicle-profiles';
@@ -44,6 +47,12 @@ export interface ProjectileState {
   volleyId?: string; barrelIndex?: 0 | 1; damage?: number;
 }
 export type RenderProjectileState = ProjectileState & { presentationAgeSeconds?: number };
+/** Authority chooses a fixed landing point; clients draw the lob and fuse warning. */
+export interface GrenadeState {
+  entityId: string; ownerEntityId: string; origin: PlanarPose; target: PlanarPose;
+  bornTick: number; landsAtTick: number; detonatesAtTick: number;
+  blastRadius: number; damage: number;
+}
 export interface PlayerScore {
   playerId: string; nickname: string; score: number; wrecks: number;
   connection: 'connected' | 'reconnecting';
@@ -66,6 +75,7 @@ export interface WorldSnapshot {
   phase: 'lobby' | 'countdown' | 'playing' | 'results'; phaseEndsAtTick: number | null;
   vehicles: VehicleState[]; projectiles: ProjectileState[]; scores: PlayerScore[];
   props?: PropState[];
+  grenades?: GrenadeState[];
   local: LocalAuthorityState | null;
   resetReason?: 'join' | 'reconnect' | 'input-backlog' | 'resync';
   pursuit?: PursuitState;
@@ -75,6 +85,8 @@ export interface EventEnvelope<K extends string, P> { eventId: string; matchId: 
 export type GameEvent =
   | EventEnvelope<'crash', { vehicleId: string; position: PlanarPose; normal: { x: number; z: number }; speed: number; discontinuityId: number }>
   | EventEnvelope<'projectile-impact', { projectileId: string; ownerEntityId: string; position: PlanarPose }>
+  | EventEnvelope<'grenade-thrown', { grenade: GrenadeState }>
+  | EventEnvelope<'grenade-exploded', { grenadeId: string; ownerEntityId: string; position: PlanarPose; blastRadius: number }>
   | EventEnvelope<'shot', { shooterId: string; projectileId: string; sessionEpoch: string; sourceCommandSequence: number; sourceShotOrdinal: number; origin: PlanarPose; projectileIds?: string[]; origins?: PlanarPose[]; volleyId?: string }>
   | EventEnvelope<'hit', { projectileId: string; targetId: string; damage: number; position: PlanarPose }>
   | EventEnvelope<'wreck', { vehicleId: string; creditedPlayerId: string | null; position?: PlanarPose; bodyAssetId?: string; discontinuityId?: number }>
@@ -107,6 +119,9 @@ export interface RenderFrame {
   sampleTimeSeconds: number; localEntityId: string | null;
   vehicles: VehicleState[]; projectiles: RenderProjectileState[]; cameraTarget: PlanarPose | null;
   props?: PropState[];
+  grenades?: GrenadeState[];
+  /** Presentation clock in authority ticks, buffered online and exact in practice. */
+  serverTick?: number;
   pursuit?: PursuitState;
 }
 export interface SessionRequest {

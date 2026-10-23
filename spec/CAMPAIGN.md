@@ -1,6 +1,8 @@
 # Ten-dispatch campaign
 
-Gameplay revision: `arcade-v7`. Campaign content: `green-light-racket-v1`.
+Gameplay revision: `arcade-v8`. Campaign content: `green-light-racket-v1`.
+
+Campaign targets now use [distinct armed tactics](BOSS_COMBAT.md), including grenade attacks and a ten-step difficulty ramp. Briefings explain their driving style, weapon and counterplay. This extends the progression lifecycle below.
 
 Each solo game or multiplayer room runs **The Green Light Racket**, ten dispatches linking four ringleaders and six crew members. Every dispatch has an original target, mugshot, assigned vehicle, briefing, and success reveal. The four ringleaders appear at dispatches 2, 5, 8 and 10. This implements the ten-step/four-boss requirement without padding the campaign with identical unnamed pursuits.
 

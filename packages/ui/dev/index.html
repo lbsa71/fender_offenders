@@ -5,7 +5,7 @@ import { createInputSource } from '../../input/src/index.ts';
 const snapshot = { protocolVersion:1,mapRevision:'fixture',gameplayRevision:'fixture',sessionEpoch:'fixture',serverTick:0,matchId:'fixture',phase:'playing',phaseEndsAtTick:18000,vehicles:[],projectiles:[],scores:[{playerId:'you',nickname:'Officer Rookie',score:3,wrecks:1,connection:'connected'},{playerId:'rival',nickname:'Parking Menace',score:2,wrecks:2,connection:'connected'}],local:null };
 let input;
 const ui = mountGameUi(document.querySelector('#ui'), {
-  onPlay(request){window.lastPlay=request;ui.update({snapshot,localPlayerId:'you',mode:request.mode==='practice'?'practice':'online',roomId:request.mode==='practice'?null:'TEST01',status:{state:'playing'}});},
+  onPlay(request){window.lastPlay=request;snapshot.scores.find(score=>score.playerId==='you').nickname=request.nickname;ui.update({snapshot,localPlayerId:'you',mode:request.mode==='practice'?'practice':'online',roomId:request.mode==='practice'?null:'TEST01',status:{state:'playing'}});},
   onMenuVisibility(visible){input?.setEnabled(!visible);},
   onSettings(settings){input?.setSettings(settings);},
   onRematch(){ui.update({snapshot:{...snapshot,phase:'countdown',phaseEndsAtTick:180}});},

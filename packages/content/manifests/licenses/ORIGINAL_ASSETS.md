@@ -8,4 +8,6 @@ These assets are project-authored works governed by the repository's license; th
 
 The campaign's ten character mugshots are also original project-authored SVG paths and palettes in `packages/contracts/src/campaign-mugshots.ts`. Character names, dossiers and The Green Light Racket story are authored in `packages/contracts/src/campaign.ts`. Portraits contain no external images, scripts, fonts or runtime requests and use the repository license.
 
+Grenade bodies, fuse smoke, blast warning patterns, explosion geometry and throw/fuse/blast sounds are original procedural source in `packages/renderer/src/grenade-effects.ts` and `audio.ts`. No new third-party media or recordings were added with armed campaign targets.
+
 Cars use Y-up, meter units, front +Z, centered pivots. Building collision footprints use the same authored positions and dimensions as visible walls. Roofs, signs and facade details do not enlarge collision footprints. Trees, sidewalks, markings and street furniture are decorative.
