@@ -68,7 +68,7 @@ Keep authoritative and rendered positions distinct. A correction changes simulat
 - Server schedules from a monotonic clock, accumulates elapsed time, and steps fixed ticks.
 - Cap catch-up work per event-loop turn (initial cap: four ticks). Record backlog and overload. Never replace the fixed delta with a larger one to catch up.
 - Sustained overload must stop new admissions and mark the room unhealthy; do not silently let clients run seconds ahead.
-- Browser uses a fixed-step accumulator for predicted movement and independent rendering interpolation.
+- Browser uses a fixed-step accumulator for predicted movement and independent rendering interpolation. Online, one frame runs at most four input ticks. Practice runs the authoritative simulation locally, so one frame may catch up a full quarter second (fifteen ticks) rather than let a slow or software-rendered machine play in slow motion; backlog beyond that is dropped (`apps/client/src/pacing.ts`).
 - A hidden/suspended browser neutralizes input. On resume, request current state; discard stale prediction backlog instead of simulating every missed frame.
 
 ### Vehicle model

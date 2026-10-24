@@ -5,6 +5,7 @@ import { createInputSource, type InputSettings } from '@fender/input';
 import { mountGameUi, type UiSettings } from '@fender/ui';
 import { createOnlineSession } from '@fender/net-client';
 import { isVehicleBodyId, neutralActions, type GameEvent, type RenderFrame, type SessionRequest, type SessionStatus, type WorldSnapshot } from '@fender/contracts';
+import { planFrame } from './pacing';
 import './style.css';
 
 async function boot() {
@@ -18,7 +19,7 @@ async function boot() {
   let input: ReturnType<typeof createInputSource> | undefined;
   let snapshot: WorldSnapshot | null = null, status: SessionStatus = { state: 'idle' };
   let active = false, mode: 'practice' | 'online' = 'practice', playerId = '', roomId = '', sequence = 0, clientTick = 0, epoch = '';
-  let previousTime = performance.now(), accumulator = 0, hudAt = 0, stopped = false, animation = 0;
+  let previousTime = performance.now(), previousFrameAt = previousTime, accumulator = 0, hudAt = 0, stopped = false, animation = 0;
   let observedEvents: GameEvent[] = [];
   const frameDurations: number[] = [];
   const canStartDispatch = () => Boolean(snapshot && snapshot.scores[0]?.playerId === playerId && (snapshot.phase === 'results' || snapshot.scores.filter(score => score.connection === 'connected').length >= (mode === 'practice' ? 1 : 2)));
@@ -86,7 +87,7 @@ async function boot() {
   input = createInputSource({ onNeutralize: () => online?.neutralize(), onMenuAction: action => ui.navigate(action) });
   applySettings(ui.getSettings());
   const resize = () => renderer.resize(); window.addEventListener('resize', resize);
-  const visibility = () => { accumulator = 0; previousTime = performance.now(); input?.resetHeldState(); if (document.hidden) online?.neutralize(); };
+  const visibility = () => { accumulator = 0; previousTime = previousFrameAt = performance.now(); input?.resetHeldState(); if (document.hidden) online?.neutralize(); };
   document.addEventListener('visibilitychange', visibility);
   function frame(now: number) {
     if (stopped) return;
@@ -96,10 +97,9 @@ async function boot() {
     input!.pollMenus();
     if (document.hidden) { animation = requestAnimationFrame(frame); return; }
     const paused = active && mode === 'practice' && ui.isMenuVisible();
-    if (paused) accumulator = 0; else accumulator += dt;
-    let steps = 0;
-    while (accumulator >= 1 / 60 && steps++ < 4) {
-      accumulator -= 1 / 60; clientTick++;
+    const plan = planFrame(accumulator, (now - previousFrameAt) / 1000, paused ? 'paused' : online ? 'online' : 'local'); previousFrameAt = now; accumulator = plan.accumulator;
+    for (let step = 0; step < plan.steps; step++) {
+      clientTick++;
       const actions = active ? input!.sample() : neutralActions();
       if (online && active && snapshot) {
         const command = { sessionEpoch: epoch, sequence: sequence++, clientTick, actions }; online.submit(command);
@@ -110,7 +110,6 @@ async function boot() {
         const events = local.drainEvents(); if (active) { snapshot = local.snapshot(playerId); present(events); }
       }
     }
-    if (accumulator > .25) accumulator = 0;
     let renderFrame: RenderFrame | null = online?.sampleFrame(now) ?? null;
     if (!renderFrame && local) {
       const state = local.snapshot(active ? playerId : 'preview');
