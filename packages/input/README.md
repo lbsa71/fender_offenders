@@ -1,5 +1,7 @@
 # Input adapter
 
+Reviewed: 2026-10-24 for `arcade-v8`. *A released accelerator should stay released, even when the paperwork loses focus.*
+
 `createInputSource(options)` implements the shared `InputSource` contract. It starts disabled. The app enables it after a session starts and disables it while menus are visible. Call `pollMenus()` once per animation frame, including while gameplay is paused, and call `sample()` once per simulation tick. Sampling also polls devices, so contract-only consumers still receive gamepad input.
 
 Pass `onNeutralize` to send immediate session neutralization on blur, hidden tab, controller loss, menu entry, or settings changes. Returning focus, reconnecting a controller, or closing menus does not replay held controls. Keyboard input needs a new press; a controller must return to neutral. The adapter removes all listeners on `dispose()`.
@@ -8,4 +10,8 @@ Pass `onNeutralize` to send immediate session neutralization on blur, hidden tab
 
 The left stick steers horizontally and drives longitudinally: forward requests throttle; backward requests brake/reverse. Stick Y uses the configured stick dead zone. Right/left triggers remain throttle/brake alternatives. Concurrent inputs combine by their maximum strength, so using a stick and trigger together cannot boost an action beyond its normalized range. The simulation still owns the deliberate brake-to-reverse transition.
 
-`InputController` is the pure device state machine used by the browser adapter and unit tests. Run `pnpm test -- packages/input/src/input.test.ts` for the 13 safety/normalization scenarios, including stick-Y throttle/reverse, dead zones, trigger coexistence and held-stick focus/disconnect safety. Browser-level controller testing uses injected standard-mapped gamepads; no physical controller has been tested by this implementation session.
+`InputController` is the pure device state machine used by the browser adapter and unit tests. Run `pnpm exec vitest run packages/input/src/input.test.ts` for safety/normalization coverage, including stick-Y throttle/reverse, dead zones, trigger coexistence and held-stick focus/disconnect safety. Browser-level controller testing uses injected standard-mapped gamepads; physical-controller acceptance remains open.
+
+The bicycle tyre controller belongs to simulation: handbrake/power/flick can initiate a drift, centered stick holds its angle and counter-steer trims it. Input keeps one normalized action contract for every car and device. Campaign briefings are menus, so garage/start navigation must not leak into throttle/fire. The app may run fifteen local catch-up ticks in a frame but only four online input ticks; `sample()` consumes each edge once across those steps.
+
+Next acceptance is real-controller hotplug, remap/focus recovery and a complete campaign drive on named browser/OS combinations. See [the acceptance queue](../../IMPLEMENTATION_PLAN.md#next-acceptance-work). Synthetic backup is useful; the actual gamepad still has to report for duty.

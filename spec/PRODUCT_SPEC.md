@@ -1,6 +1,8 @@
 # Product specification
 
-Status: proposed implementation baseline. Updated: 2026-10-22.
+Status: product baseline for the implemented `arcade-v8` alpha and remaining release acceptance. Updated: 2026-10-24. [Execution status](EXECUTION_STATUS.md) records dated evidence; requirements below do not imply completed acceptance.
+
+*Ten dispatches. Six cars. One district with a very relaxed attitude toward insurance premiums.*
 
 ## 1. Intent and confirmed requirements
 
@@ -35,17 +37,17 @@ Targets now [fight back with distinct driving and weapon tactics](BOSS_COMBAT.md
 | --- | --- | --- |
 | M1 visual/driving slice | One finished intersection, one car, keyboard/gamepad, collisions, camera, placeholder-to-finished comparison | Prove handling and achievable visual quality |
 | M2 network/combat slice | Two players, one weapon, damage, respawn, reconciliation, room join | Prove fast action over a real network |
-| M3 feature-complete alpha | 2–8 players, complete district, round loop, traffic, three car skins/bodies, local practice and pursuit challenge | Establish a complete repeatable game |
+| M3 feature-complete alpha | 2–8 players, complete district, six vehicle profiles, traffic/props/crowds, ten-dispatch solo/competitive campaign, armed targets and saved callsigns | Accept the integrated repeatable game; human/device gates remain open |
 | M4 release candidate | Performance budgets, compatibility, onboarding, resilience, license audit, staging run | Prove the build is usable and shippable |
 
 ## 5. Core loop
 
 1. Open the game and activate audio/input with an intentional start action.
-2. Enter a nickname; choose Practice, Create room, or Join room.
-3. Drive, drift, dodge traffic, and use shortcuts.
-4. In multiplayer, shoot rivals, survive, and score wrecks.
-5. Respawn quickly after a wreck and rejoin the action.
-6. See round results and rematch without recreating the room.
+2. Keep, reroll or type a callsign; choose Hit the streets, Create room or Join room. Callsigns and the assigned garage car persist in this browser.
+3. Read the target dossier, tactics, assigned car and earned casefile. Reassign the player's car if desired, then start the dispatch; online needs two connected players and the creator's request.
+4. Drive, drift, dodge traffic and marked grenades, and arrest or wreck the shared target. Multiplayer rivals can also shoot one another; the first target resolution wins the dispatch.
+5. Respawn quickly after an officer's wreck and rejoin the action. Arrests earn three points and green checks; credited target wrecks earn one point and amber marks. Both advance the story.
+6. Read results and the earned clue. The creator opens the next briefing in the same game/room; timeouts retry, and the tenth success offers a fresh campaign.
 
 First release has no account gate, persistent economy, paid items, skill matchmaking, or unlock grind.
 
@@ -59,7 +61,9 @@ First release has no account gate, persistent economy, paid items, skill matchma
 - Avoid uncontrolled rollovers or long sequences where the player cannot act. A reset action recovers a stuck car through a server-authorized safe placement.
 - Body lean, wheel spin, suspension bounce, and small visual hops are cosmetic and do not alter authoritative hit shapes.
 
-Initial tuning hypotheses, not promised outcomes: city driving top speed around 24 m/s, forward weapon range around 45 m, and a starting car footprint around 4.3 m by 1.9 m. Tune speed against visibility and street width before tuning pursuit difficulty.
+Current defaults: patrol top speed 28 m/s, paired forward projectiles at 70 m/s with a 0.65-second lifetime, and a shared 4.3 m by 1.9 m collision footprint. Six shared profiles scale speed, acceleration, steering, grip and armor. The bicycle tyre model keeps ordinary cornering grippy and uses handbrake/power/flick entry with stick-controlled drift; counter-steering trims the drift and lifting exits it. See [measured balance and its limits](../packages/sim/BALANCE.md). Human handling and visibility acceptance remain required.
+
+Practice advances fixed 60 Hz ticks with up to fifteen catch-up steps per rendered frame; online samples at most four input ticks per frame. Pausing practice discards accumulated time. These bounds keep slow-frame recovery finite; they do not promise real-time play under arbitrary sustained overload.
 
 ## 7. Input behavior
 
@@ -92,10 +96,10 @@ All devices produce the same action structure. Gameplay never reads raw DOM even
 
 - Private, invite-link rooms; 2–8 players. A lone player may wait or practice while the room is in the lobby.
 - The room creator can request a start when two players are connected. The server owns the transition and validates the request.
-- Three-second countdown, up to five minutes of pursuit, results when an officer apprehends the suspect or time expires, then rematch/lobby.
+- Three-second countdown, up to five minutes of pursuit, then results on arrest, credited target wreck or timeout. Next briefing advances after success, retries after timeout, and resets after the completed campaign.
 - Mid-round joins enter as a spawned participant if capacity permits. Late joins receive a full authoritative state and current round timer.
 - Creator departure does not kill the match. The server assigns lobby control to the longest-connected remaining player.
-- Drivers compete to apprehend one shared AI suspect first while retaining player-versus-player shooting. Teams and cooperative missions are deferred.
+- Drivers compete to resolve one shared armed AI target first while retaining player-versus-player shooting. The room shares the ten-step tracker and earned clues; scores carry between dispatches. Teams and cooperative missions are deferred.
 
 ### Weapon and damage
 
@@ -116,7 +120,7 @@ All devices produce the same action structure. Gameplay never reads raw DOM even
 - Give two seconds of visible spawn protection; firing ends it early. Protected cars cannot deal damage until protection ends.
 - Wreck visuals are short-lived cosmetic effects. Disable the wrecked car's weapon and dynamic collision immediately; do not create permanent roadblocks.
 - Stuck-car recovery has a cooldown and cannot be used while taking damage or to teleport across the map. Server rules own eligibility and location.
-- The first completed arrest wins the dispatch and awards three points. Combat score does not override that winner. Timeout has no winner. Results show the apprehending driver separately from combat standings, wrecks suffered, and connection state.
+- The first completed arrest or credited destruction of the campaign target wins the dispatch. Arrest awards three points; target destruction retains one-point wreck credit. Combat standings do not override the resolving officer. Timeout has no winner or new clue. Results distinguish arrest/wreck outcomes and show standings, wrecks suffered and connection state.
 
 ## 9. District, traffic, and pursuit challenge
 
@@ -127,9 +131,9 @@ All devices produce the same action structure. Gameplay never reads raw DOM even
 - Traffic follows a small authored lane graph. No general-purpose city pathfinding is required.
 - Start with 8 AI vehicles, with a performance cap of 16 for the first district. The server owns traffic in online rooms.
 - Traffic can collide but does not shoot. It must recover from jams without blocking a route indefinitely.
-- Practice and online dispatches identify one AI suspect. An active connected officer must stay within 8 m, below 5 m/s relative speed, with clear world line of sight for three seconds. Each officer owns their progress, which decays when ineligible. Shooting or wrecking the target alone does not complete the dispatch.
+- Practice and online campaign dispatches identify one armed AI suspect. An active connected officer must stay strictly within 8 m, below 5 m/s relative speed, with clear world line of sight for three seconds. Each officer owns progress, which decays when ineligible. Arrest or credited target destruction completes the campaign dispatch; the legacy noncampaign fixture retains arrest-only completion.
 - The suspect has a persistent world marker and labeled camera-relative screen-edge guidance. Markers clear for menus, disconnected sessions and completed dispatches. Existing replicated vehicle poses drive presentation; no cosmetic marker transforms are transmitted.
-- Cosmetic evasive pedestrians are implemented; enterable buildings and a larger open world remain deferred.
+- Server-owned loose props and toppled lamps/signs/trees use separate 3D physics without feeding impulses or damage back to cars. Twenty-four local cosmetic pedestrians avoid rendered vehicles and cannot be injured. See [world reactions](WORLD_REACTIONS.md); enterable buildings and a larger open world remain deferred.
 
 ## 10. Presentation and feedback
 
@@ -157,4 +161,4 @@ All devices produce the same action structure. Gameplay never reads raw DOM even
 
 ## 12. Non-goals for this plan
 
-MMO infrastructure, real car simulation, destructible buildings, humanoid combat, real vehicle branding, persistent progression, voice chat, public user-generated content, split screen, mobile controls, and a custom rendering engine are outside scope. Changes to these assumptions require a product/architecture decision and updated task dependencies.
+MMO infrastructure, realistic vehicle simulation, destructible buildings, humanoid combat, real vehicle branding, cross-session campaign saves, voice chat, public user-generated content, split screen, mobile controls, and a custom rendering engine are outside scope. Browser-local callsigns, garage and settings are implemented; campaign progress remains in memory. Changes to these assumptions require a product/architecture decision and updated task dependencies. The city council has declined to fund an MMO this quarter.

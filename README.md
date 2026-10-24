@@ -8,6 +8,8 @@ Fender Offenders is a playable browser arcade driving and vehicle-combat alpha i
 
 This is a playable alpha, not a release candidate. [Execution status](spec/EXECUTION_STATUS.md) records all 49 implementation tasks, observed checks, and remaining acceptance gates. Fender Offenders remains a working name without trademark clearance.
 
+Documentation reviewed: **2026-10-24**, against `c817f97` (`arcade-v8`, protocol 1). The latest merged fixes keep the WANTED badge's style cost from growing during a dispatch and let slow practice frames catch up as many as fifteen fixed ticks. Online input stays capped at four ticks per frame. The paperwork is catching up with the patrol car.
+
 ## Run locally
 
 Use Node.js **22.12 or newer** and **pnpm 11.25.0**. Dependency versions are recorded in [package.json](package.json) and locked in [pnpm-lock.yaml](pnpm-lock.yaml). The implementation session used Node.js 25.8.1 on Windows 11.
@@ -98,9 +100,13 @@ After `pnpm build`, `node dist/server/index.js` serves the production client and
 
 ## Validation and limits
 
-The armed campaign build passed all **460 headless tests across 53 files** and **14 game browser scenarios** locally. Five UI browser fixtures pass, including random/custom callsigns, tactics for every target and existing campaign/garage/connectivity flows. Real clients verify boss bullet damage, shared grenade warnings and explosions, late-join hazards and unchanged campaign authority. Native grenade checks cover trajectory, fixed radius, fuse, blast, sound deduplication, reduced effects, cleanup and the legacy-clock fallback; original audio synthesis was checked offline for volume and cancellation. A normal-input SDK driving probe also approached the opening target and observed return fire. CI runs the complete browser suite, campaign/callsign fixtures and deployable-container smoke. See [the evidence index](spec/EXECUTION_STATUS.md) for commands and scope.
+The 2026-10-24 documentation review reran **465 headless tests across 54 files**, plus type/documentation/boundary and authored-asset checks, all passing. A separate audit verified all **25 Markdown artifacts**, their local links/anchors and all nine GPL package declarations. Playwright discovery lists **15 browser scenarios across six files**; those were not executed in this review. No gameplay behavior changed, so no artificial RED phase was required.
+
+Historical implementation evidence includes the 2026-10-23 armed-campaign run of 460 headless tests and 14 browser scenarios, five UI fixtures, real boss-combat clients, native grenade checks and an SDK driving probe. The 2026-10-24 pacing commit records 465 headless tests and 12 practice browser scenarios passing; the badge fix records its style-recalculation regression. See [the evidence index](spec/EXECUTION_STATUS.md) for dates and scope. CI is configured to run the complete browser suite, campaign/callsign/pursuit fixtures and production-container smoke.
 
 Human driving/visual approval, actual controllers, Firefox/Safari/macOS coverage, collision-correction traces, OS packet impairment, sustained browser frame budgets, ten-rematch memory stability, multi-room server density, and hosted rollback validation remain open. A short localhost eight-player run is not a capacity or remote-playability claim. Its JSON payload estimate exceeded the starting download budget; actual wire bandwidth is unverified. The free preview initially admits at most two rooms; deployments end active matches.
+
+The [next-work queue](IMPLEMENTATION_PLAN.md#next-acceptance-work) prioritizes those acceptance gaps, plus contract/fixture completion, accessibility and dependency-license review. Original project work is distributed under GPL v3 or later; the remaining distribution audit covers dependency terms, notices and release packaging. More flashing lights will not close these gates, although the motor pool has submitted a strongly worded suggestion.
 
 ## Working agreements and design
 
@@ -115,3 +121,12 @@ Use the ownership map and task register in [the implementation plan](IMPLEMENTAT
 - [Art and assets](spec/ART_AND_ASSETS.md): original asset policy, provenance, and sourcing guidance.
 - [Original runtime asset record](packages/content/manifests/licenses/ORIGINAL_ASSETS.md): project-authored geometry/materials/audio; dependency-license review remains separate.
 - [Decision register](spec/DECISIONS.md): accepted requirements and defaults.
+- [Contributors](CONTRIBUTORS.md): Stefan Andersson, Wictor Stenseke, Claude Code, and OpenAI Codex—the people and AI assistance behind the dispatch desk.
+
+## License
+
+Copyright (C) 2026 Fender Offenders contributors.
+
+Unless a file states otherwise, the original code, documentation, procedural art, story content and synthesized audio in this repository are licensed under the **GNU General Public License, version 3 or any later version** (`GPL-3.0-or-later`). You may redistribute and modify that work under those terms. It is provided without warranty, including implied warranties of merchantability or fitness for a particular purpose. See [LICENSE](LICENSE) for the full terms and [GNU's licensing guidance](https://www.gnu.org/licenses/gpl-howto.en.html) for background.
+
+Third-party dependencies retain their own licenses and notices; the project license does not replace them. See [asset provenance](packages/content/manifests/licenses/ORIGINAL_ASSETS.md) and [contributors](CONTRIBUTORS.md).

@@ -1,10 +1,35 @@
 # Execution status and evidence
 
-Updated: 2026-10-23. This ledger covers the 49 tasks in [the plan](../IMPLEMENTATION_PLAN.md). The playable alpha is deployed at [fender-offenders.onrender.com](https://fender-offenders.onrender.com). Release-candidate acceptance remains incomplete.
+Updated: 2026-10-24 against `c817f97`. This ledger covers the 49 tasks in [the plan](../IMPLEMENTATION_PLAN.md). The recorded public preview is [fender-offenders.onrender.com](https://fender-offenders.onrender.com); live availability and its current deployed commit were not rechecked in this documentation review. Release-candidate acceptance remains incomplete.
 
-`Implemented` means the principal code path exists with the evidence cited here; it does not waive outstanding release gates. `Partial` means code exists but a named deliverable or acceptance check remains. `Open` means the deciding gate has not been demonstrated. The plan retains its original acceptance definitions.
+*Evidence locker: please label the date before pinning a green tick to the corkboard.*
 
-## Observed baseline
+`Implemented` means the principal code path exists with the evidence cited here; it does not waive outstanding release gates. `Partial` means code exists but a named deliverable or acceptance check remains. `Open` means the deciding gate has not been demonstrated. The plan retains task IDs/dependencies and gates while reflecting the delivered campaign/profile/art choices.
+
+## Current state and latest merged work
+
+Production uses protocol 1, `arcade-v8`, map `sunset-borough-1` and campaign `green-light-racket-v1`. Six shared car profiles, a ten-dispatch armed campaign, callsigns, reusable invites, sparse rigid scenery, cosmetic pedestrians and authoritative multiplayer are integrated. [Contributors](../CONTRIBUTORS.md) credits Stefan Andersson, Wictor Stenseke, Claude Code and OpenAI Codex. Original repository work is now [GPL-3.0-or-later](../LICENSE), with all nine workspace manifests declaring that license; dependency/release-package audit remains open.
+
+| Change | Recorded evidence | Source / reproduce |
+| --- | --- | --- |
+| WANTED badge style cost, PR #2 | `18a29ee` records a browser RED from 1.19 to 3.81 ms per style recalc, beyond the 2 ms bound. Removing the continually retargeted position transition made the regression and affected browser/UI/type checks pass. This is a Chromium regression bound, not a sustained GPU budget. | `git show 18a29ee`; [browser regression](../tests/e2e/target-badge-performance.spec.ts) |
+| Practice frame pacing, PR #3 | `3792241` records passing baseline coverage, then the intended slow-frame failure: four ticks instead of fifteen. Practice now permits a quarter-second/fifteen-tick catch-up; online retains four input ticks. The commit records 465 headless tests, 12 practice browser scenarios, typecheck/docs checks and a scoped CPU-throttle comparison. | `git show 3792241`; [five pacing tests](../tests/client/pacing.test.ts), [pacing implementation](../apps/client/src/pacing.ts) |
+| Current integration point | PR #2 merged in `ec7d40f`; PR #3 merged in `c817f97` on 2026-10-24. No later feature delivery is assumed. | `git log -5 --oneline` |
+
+## Checks observed during the 2026-10-24 documentation review
+
+- `pnpm test`: **465 tests passed across 54 files** in 20.27 seconds in this checkout. This establishes current green coverage, not a new historical red phase.
+- `pnpm exec playwright test --list`: **15 browser scenarios across six files** discovered. This command did not execute them; the browser results below belong to their dated implementation checkpoints.
+- `git shortlog -sne --all` and co-author trailers were reviewed for credits; tool naming follows the project owner's instruction.
+- `pnpm check`: typecheck, documentation links, all **49 task dependencies** and simulation import boundaries passed.
+- `pnpm assets:check`: authored content checks passed for **27 buildings, eight clear spawns and eight lane nodes**; source hashes were printed. This is not a dependency-license audit.
+- A repository-wide Markdown audit passed for **25 artifacts**, including local link targets/heading anchors, all **nine GPL package declarations**, complete GPL text and coverage of every tracked Markdown file. `git diff --check` also passed.
+
+This change updates documentation, contributor acknowledgments and licensing metadata; no gameplay code changes or artificial red phase are required under [AGENTS.md](../AGENTS.md). The prose acceptance criterion is accurate current behavior, explicit historical/remaining gates, reproducible commands with known portability limits, and light dispatch humor outside literal contracts/license terms. The documentation/source review and link checks establish that scope; no visual assets were changed or rerendered.
+
+## Historical implementation evidence through 2026-10-23
+
+The table preserves results reported by earlier implementation handoffs. Counts and measurements belong to those checkpoints and must not be added together or advertised as a fresh full-suite run. The initial 23/13/12-test and seven-browser rows are early baselines; later campaign and combat rows extend them.
 
 | Evidence | Observed scope | Reproduce / source |
 | --- | --- | --- |
@@ -72,7 +97,7 @@ Updated: 2026-10-23. This ledger covers the 49 tasks in [the plan](../IMPLEMENTA
 
 The live-load JSON snapshot payload estimate was about **67.5 KB/s per client**, exceeding the starting <50 KB/s download budget. This is not captured WebSocket/TCP wire bandwidth or upstream traffic. The bandwidth budget is **not verified**. The 20 Hz publication target also needs an isolated sustained run. One room does not establish production server density.
 
-Development environment: Intel Core i7-1355U, Intel Iris Xe, Windows 11 Pro 10.0.26300, graphics driver 32.0.101.7085, Node.js 25.8.1. Browser behavior tests use the shipped low graphics preset at 960×640; typography retains 1440×900 and render tools record their own settings. Trace screencasts are disabled to avoid repeated WebGL readbacks on software-rendered CI; DOM/action/network traces and failure screenshots remain. Physical-device performance acceptance is separate. Exact release-browser versions, power mode, production build identity, and formal approved target/minimum-device reports remain outstanding. Dependency versions are in [package.json](../package.json) and [the lockfile](../pnpm-lock.yaml).
+Historical measurement environment: Intel Core i7-1355U, Intel Iris Xe, Windows 11 Pro 10.0.26300, graphics driver 32.0.101.7085, Node.js 25.8.1. These identify the earlier measurements, not a newly approved reference device. Browser behavior tests use the shipped low graphics preset at 960×640; typography retains 1440×900 and render tools record their own settings. Trace screencasts are disabled to avoid repeated WebGL readbacks on software-rendered CI; DOM/action/network traces and failure screenshots remain. Physical-device performance acceptance is separate. Exact release-browser versions, power mode, production build identity, and formal approved target/minimum-device reports remain outstanding. Dependency versions are in [package.json](../package.json) and [the lockfile](../pnpm-lock.yaml).
 
 ## Task ledger
 
@@ -82,11 +107,11 @@ Development environment: Intel Core i7-1355U, Intel Iris Xe, Windows 11 Pro 10.0
 | --- | --- | --- |
 | F00 | Implemented | Workspace, TypeScript/Vite, app roots, environment sample and test/check/build scripts exist. Published GitHub CI passes validation and the production-container multiplayer smoke. |
 | F01 | Partial | DTOs/config/adapters, input/map checks and compact wire snapshots exist. Complete schema/collection validation and fixture compatibility matrix remain. |
-| F02 | Partial | Authored map and executable sim/render/browser/network fixtures unblock consumers. Proposed versioned `test-support` fixture catalog is incomplete. |
+| F02 | Partial | Authored map and executable sim/render/browser/network fixtures unblock consumers. Proposed versioned `test-support` catalog is incomplete; several native capture tools retain Edge/original-machine path requirements. |
 | F03 | Implemented | Practice/online composition, adapter wiring, cleanup and fatal-start display are integrated; debug getters are development-only. |
 | F04 | Partial | Browser practice and synthetic-controller flow pass. Real controller and human handling acceptance remain. |
 | F05 | Partial | Real combat/respawn tests and two-context browser round/scoreboard flow pass. Human remote combat and contact-correction traces remain. |
-| F06 | Partial | District, traffic, pursuit, bodies, round loop, settings and reconnect code exist. Full human eight-player walkthrough and unresolved gates remain. |
+| F06 | Partial | District/traffic/props/crowds, six profiles, armed ten-dispatch campaign, callsigns, settings and reconnect are integrated. Full human campaign/eight-player walkthrough and unresolved gates remain. |
 | F07 | Open | Release-candidate/P01–P10 evidence and validated public operation are incomplete. |
 
 ### Simulation and driving
@@ -127,7 +152,7 @@ Development environment: Intel Core i7-1355U, Intel Iris Xe, Windows 11 Pro 10.0
 
 | ID | State | Evidence / remaining work |
 | --- | --- | --- |
-| A01 | Partial | Original geometry/materials/synthesized audio replace archive sourcing; provenance exists. Dependency/distribution-license audit remains. |
+| A01 | Partial | Original geometry/materials/synthesized audio replace archive sourcing; provenance and GPL-3.0-or-later license exist. Dependency compatibility/notices and release-package audit remain. |
 | A02 | Partial | Shared district colliders/spawns/surfaces/lanes and visual layout exist with validation tools. Full collision overlay/alignment acceptance remains. |
 | A03 | Partial | Procedural car/intersection detail and six body designs exist. No GLB/Blender pipeline is claimed; approved render/asset-budget evidence remains. |
 | A04 | Partial | District/loop/dirt shortcuts/traffic bodies/original audio exist. Optimized low variants and full performance/provenance audit remain. |
@@ -138,8 +163,8 @@ Development environment: Intel Core i7-1355U, Intel Iris Xe, Windows 11 Pro 10.0
 | --- | --- | --- |
 | U01 | Partial | Keyboard/standard-pad normalization, edges, focus/device status and disconnect safety pass unit/browser emulation. Actual hardware is untested. |
 | U02 | Partial | Persisted keyboard remap/sensitivity/dead zones, ramp, pad menus and recovery hold work. Real hotplug/focus/device matrix remains. |
-| U03 | Implemented | Callsign/practice/create/join, loading/errors and invite links are integrated; safe rendering/browser flows and real missing-room actionable-error regression pass. |
-| U04 | Implemented | Confirmed-state HUD projects health/speed/timer/standings/prompts/connection/recovery without owning gameplay truth. |
+| U03 | Implemented | Saved random/custom callsign, solo/create/join, loading/errors and reusable invites are integrated. Current browser regressions cover malformed errors and the reported eight-character invite; earlier missing-room copy evidence is historical. |
+| U04 | Implemented | Confirmed-state HUD projects health/speed/timer/standings/connection/recovery plus local arrest progress and target guidance. Badge updates avoid per-frame CSS transition retargeting; sustained performance remains Q05. |
 | U05 | Partial | Online neutralization/local pause/reconnect/results/rematch and volume/reduced-effects settings exist. Human accessibility/onboarding/hardware remain; no soundtrack/haptics acceptance is claimed. |
 
 ### Gameplay and combat
@@ -149,7 +174,7 @@ Development environment: Intel Core i7-1355U, Intel Iris Xe, Windows 11 Pro 10.0
 | G01 | Implemented | Authoritative cadence/sweeps/wall blocking/owner immunity/single-hit removal have headless/socket evidence. Full rotating-target continuous collision is outside this implementation. |
 | G02 | Implemented | Health/credit/wreck/respawn/protection/blocked-spawn retry/recovery eligibility have deterministic and real-socket tests. |
 | G03 | Implemented | Lobby/countdown/playing/results/rematch/ties/creator reassignment/late join have sim/socket evidence. |
-| G04 | Partial | Practice interception/arrest/award and suspect respawn are tested and integrated. Human keyboard/controller completion remains. |
+| G04 | Partial | Shared campaign arrests/credited wrecks, armed tactics, target reset, timeout retry and finale have headless/socket/browser evidence. Human ten-dispatch keyboard/controller completion and difficulty acceptance remain. |
 | G05 | Open | Formal human handling/combat/spawn fairness playtest and recorded balance decisions remain. Ram damage stays disabled. |
 
 ### Quality and operations
@@ -170,5 +195,7 @@ Development environment: Intel Core i7-1355U, Intel Iris Xe, Windows 11 Pro 10.0
 [AGENTS.md](../AGENTS.md) requires strict test-first red–green–refactor for new behavior and fixes. Earlier implementation is not represented as historical TDD. Observed later cycles include server safety braking (three socket speed failures, then green), UI self-contained resources (Google Fonts request failed before import removal), system-font containment (38 px overflow failed before fallback fix), and actionable session errors (the real missing-room browser test first displayed a raw SDK error, then passed after the app preserved the typed reason). Other lanes retain focused regression evidence. Final aggregate counts must come from the final integrated run; do not sum speculative tests.
 
 Release still requires physical-controller hotplug/remap/focus checks, named Windows/macOS/browser coverage, human driving/visual/combat review, collision-correction histograms under defined network profiles, OS packet impairment, production browser frame/cold-load/input-latency/memory reports, sustained eight-player/multi-room capacity, full license review and compatible release/rollback validation.
+
+Claim work in [the ordered acceptance queue](../IMPLEMENTATION_PLAN.md#next-acceptance-work). Keep the 49-task ledger intact; feature extensions and two narrow performance fixes do not automatically promote F06/F07 or Q05/Q08. The siren may be loud, but the release evidence still needs to be audible.
 
 The public preview runs on the connected Free Render service in Frankfurt. The hosted smoke verified production HTML/readiness, two secure WebSocket players and a shared live round, then exited cleanly. A real browser created a hosted room and rendered the district. Exact-origin admission was checked remotely (own origin 200; unrelated origin 403). The smoke cleanup regression first observed SDK retries after a proxy-style 1001 close, then passed after reconnect was disabled before intentional leave. Initial deployment was a Blueprint-triggered build; subsequent automatic deployments are configured to wait for CI. Staging rollback remains unverified. See [operations](../infra/README.md).

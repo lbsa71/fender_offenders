@@ -1,6 +1,8 @@
 # Wrecks, physical scenery and pedestrians
 
-Reactive scenery and a cosmetic crowd were introduced in `arcade-v4`. The current `arcade-v6` build retains this world behavior alongside the drift controller, paired gunfire and competitive pursuit; scenery adds no vehicle damage and does not change the default three-second respawn.
+Reviewed: 2026-10-24. Reactive scenery and a cosmetic crowd were introduced in `arcade-v4`. The current `arcade-v8` build retains this behavior alongside the drift controller, paired gunfire and armed campaign; scenery adds no vehicle damage and does not change the default three-second respawn.
+
+*The bins have physics. The pedestrians have excellent self-preservation. The paperwork has neither.*
 
 ## Authority and physics
 
@@ -8,7 +10,7 @@ Reactive scenery and a cosmetic crowd were introduced in `arcade-v4`. The curren
 
 The authority steps this separate 3D world at 60 Hz. Kinematic vehicle proxies push the props. Forces do not feed back into the planar arcade vehicle controller, so scenery cannot cause additional local prediction corrections or change a car's handling. Prop collisions cause no damage, oil hazards or weapon bonuses. Pedestrians never participate in this physics world.
 
-The hard limits are 192 props and 24 active vehicle proxies per simulation. Speeds, spin and out-of-bounds recovery are bounded. Full Rapier snapshots and handle mappings belong to trusted simulation checkpoints; clients cannot supply checkpoint state, transforms or impulses. Round restart resets scenery; joining an existing round receives its current state. A server restart creates fresh scenery along with the fresh match.
+The hard limits are 192 props and 24 active vehicle proxies per simulation. Speeds, spin and out-of-bounds recovery are bounded. Full Rapier snapshots and handle mappings belong to trusted simulation checkpoints; clients cannot supply checkpoint state, transforms or impulses. Dispatch start resets scenery; joining an existing dispatch receives its current state. Campaign intermissions freeze the world. A server restart creates fresh scenery and a fresh campaign under the reusable invite.
 
 Snapshots include kind, scale, 3D body position, quaternion, fixed/dynamic mode, sleeping state and discontinuity. Online presentation interpolates position and normalized shortest-arc rotation on the shared buffered clock. It freezes when snapshots stop rather than inventing continuing physics. Reset/discontinuity cancels interpolation. Babylon reflects the shared X axis exactly once at its adapter boundary.
 
@@ -18,7 +20,7 @@ Joining, reconnecting and explicit client resync requests send a full prop basel
 
 The compact wire marker `propsPatch: true` identifies partial updates. Clients merge them into the same match's previous prop state before storing/interpolating a coherent snapshot. A full baseline replaces the previous set, including an empty baseline. Legacy snapshots without props decode as empty. Reliable ordered WebSocket delivery carries the patches; reconnect/resync replaces any prior baseline. Pedestrians, flying wreck parts, smoke and explosions are local presentation and send no transform updates.
 
-The synthetic benchmark `node node_modules/tsx/dist/cli.mjs packages/sim/props-bench.ts` measures 192 props, eight scripted players and eight traffic cars over 1,200 ticks after 120 ticks of warmup. Its initial sparse-publication run measured approximately 2.51–2.52 KB per encoded snapshot versus 11.44–11.88 KB with repeated full prop state: 78–79% less total encoded payload, averaging about two changed prop tuples per packet. This is Colyseus MessagePack payload, excluding WebSocket/TLS framing and reconnect baselines; it is not a remote wire capture or a capacity claim. At 20 Hz the sample still uses roughly 50 KB/s per client, so the broader bandwidth gate remains open.
+The synthetic benchmark `node node_modules/tsx/dist/cli.mjs packages/sim/props-bench.ts` measures 192 props, eight scripted players and eight traffic cars over 1,200 ticks after 120 ticks of warmup. Its recorded 2026-10-23 sparse-publication run measured approximately 2.51–2.52 KB per encoded snapshot versus 11.44–11.88 KB with repeated full prop state: 78–79% less total encoded payload, averaging about two changed prop tuples per packet. This historical MessagePack result excludes WebSocket/TLS framing and reconnect baselines; it is not a current armed-campaign wire capture or capacity claim. At 20 Hz the sample still uses roughly 50 KB/s per client, so the broader bandwidth gate remains open.
 
 ## Wreck presentation
 
@@ -52,3 +54,5 @@ node node_modules/tsx/dist/cli.mjs packages/renderer/scenarios/world-check.ts
 ```
 
 The physical street fixture intentionally places all prop kinds in the car's path to make contact and toppling reproducible. Its layout is a test scene, not the shipping district. Screenshots prove rendering and scripted behavior; they do not establish human visual approval, production frame budgets or hosted capacity. Existing release gates remain in [execution status](EXECUTION_STATUS.md).
+
+`world-check.ts` currently requires the Edge browser channel and writes to an original-machine absolute output directory. See [renderer portability notes](../packages/renderer/README.md) before running native capture tools elsewhere. F02/Q01 owns portable fixture paths; Q05 owns sustained frame/memory/wire evidence with the complete campaign. Please let the benches tumble before claiming the budget is stable.

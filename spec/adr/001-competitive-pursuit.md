@@ -1,8 +1,12 @@
 # Competitive suspect apprehension
 
-Date: 2026-10-23. Gameplay revision: `arcade-v6`.
+Date: 2026-10-23. Original gameplay revision: `arcade-v6`. Historical decision reviewed: 2026-10-24; current gameplay is `arcade-v8`.
+
+*Archived dispatch order: preserve the evidence, but check the latest briefing before chasing anybody.*
 
 Superseded for production games by the [`arcade-v7` ten-dispatch campaign](../CAMPAIGN.md): destroying the target also finishes a dispatch, with a wreck result rather than an arrest check. The independent arrest, marker and authoritative winner rules below still apply; noncampaign simulation fixtures preserve the earlier single-pursuit behavior.
+
+`arcade-v8` additionally [arms campaign targets](../BOSS_COMBAT.md). The arrest-only and wrecked-suspect wording below records the original decision; it is not the production campaign completion rule. The current implementation and remaining acceptance are indexed in [execution status](../EXECUTION_STATUS.md).
 
 The user requested the original arcade APB's clearly identified apprehension target, with multiplayer drivers racing to arrest it. This supersedes the earlier free-for-all winner and practice-only pursuit assumptions.
 

@@ -1,6 +1,8 @@
 # Shared contracts
 
-Status: semantic contract reference for the implemented alpha (`arcade-v8` gameplay). Updated: 2026-10-23. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+Status: semantic contract reference for the implemented alpha (`arcade-v8` gameplay, protocol 1, map `sunset-borough-1`). Updated: 2026-10-24. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+
+*The contracts are the traffic lights. Please resist interpreting red as an optional decoration.*
 
 This document defines cross-lane semantics and remaining acceptance expectations. Examples describe semantic TypeScript types, not the compact snapshot wire encoding or installed SDK API. Consumers use the package's public exports; additional validators and the complete proposed fixture catalog remain unfinished rather than implied by these examples.
 
@@ -20,6 +22,7 @@ Production uses explicit campaign mode and retains existing lobby/countdown/play
 
 - Distances: meters. Time: integer server ticks at 60 Hz; seconds only for configuration/display.
 - World: right-handed, X right, Y up, Z forward at yaw zero. Configure Babylon's right-handed mode and verify import orientation with an asymmetric fixture.
+- Current Babylon adapters reflect shared X once at the presentation boundary; use the existing conversion consistently for cars, scenery, pedestrians and target projection.
 - Yaw: radians, positive rotates forward toward +X. Steering +1 means right. At yaw zero, front is +Z. Establish this with tests rather than relying on default model orientation.
 - World road plane: X/Z; physical vehicle center Y remains fixed for the initial model.
 - Physics and rendering conversion happens at adapter edges. Shared types contain numeric values, not engine classes.
@@ -141,12 +144,16 @@ interface WorldSnapshot {
   vehicles: VehicleState[];
   projectiles: ProjectileState[];
   scores: PlayerScore[];
+  props?: PropState[];
+  grenades?: GrenadeState[];
   local: LocalAuthorityState | null;
   resetReason?: "join" | "reconnect" | "input-backlog" | "resync";
+  pursuit?: PursuitState;
+  campaign?: CampaignState;
 }
 ```
 
-These DTOs are the logical projection of authoritative state. Colyseus may encode them as schema deltas. A reconstruction layer must deliver coherent snapshots with a single tick identity; do not expose half-applied patches to prediction/rendering.
+These DTOs are the logical projection of authoritative state. The current adapter uses compact snapshots plus sparse prop patches, rather than a parallel equivalent schema stream. A reconstruction layer delivers coherent snapshots with a single tick identity; do not expose half-applied patches to prediction/rendering.
 
 `SimulationCheckpoint` is an opaque simulation-owned object containing physics state, controller state, RNG state, counters, and active gameplay entities. It must not be confused with a bandwidth-reduced `WorldSnapshot`. M0 defines checkpoint versioning and confirms that restore+replay reproduces the scenario. Prediction restore may need reconstruction of the small local prediction world.
 
@@ -166,6 +173,10 @@ interface EventEnvelope<TKind extends string, TPayload> {
 }
 
 type GameEvent =
+  | EventEnvelope<"grenade-thrown", { grenade: GrenadeState }>
+  | EventEnvelope<"grenade-exploded", {
+      grenadeId: string; ownerEntityId: string; position: PlanarPose; blastRadius: number;
+    }>
   | EventEnvelope<"crash", {
       vehicleId: string; position: PlanarPose; normal: { x: number; z: number };
       speed: number; discontinuityId: number;
@@ -184,8 +195,14 @@ type GameEvent =
     }>
   | EventEnvelope<"wreck", { vehicleId: string; creditedPlayerId: string | null; position?: PlanarPose; bodyAssetId?: string; discontinuityId?: number }>
   | EventEnvelope<"respawn", { vehicleId: string; discontinuityId: number }>
-  | EventEnvelope<"round-ended", { scores: PlayerScore[] }>
-  | EventEnvelope<"pursuit-complete", { elapsedTicks: number; bonus: number }>;
+  | EventEnvelope<"round-ended", {
+      scores: PlayerScore[]; winnerPlayerId?: string | null;
+      reason?: "apprehended" | "wrecked" | "timeout";
+    }>
+  | EventEnvelope<"pursuit-complete", {
+      elapsedTicks: number; bonus: number; playerId?: string; suspectId?: string;
+      outcome?: CampaignOutcome;
+    }>;
 ```
 
 Maintain a bounded per-match event deduplication cache. Predictive effects use `(sessionEpoch, sourceCommandSequence, sourceShotOrdinal, effectKind)` so confirmation can match and suppress a second flash/sound, including when the server briefly holds a previous command during jitter. Shot ordinals are part of restored driver state. Reject or expire unmatched speculative effects; a key is not a promise that a shot will be accepted. Replayed simulation never directly plays audio or creates persistent particles.
@@ -236,6 +253,10 @@ interface RenderFrame {
   vehicles: VehicleState[];     // already predicted/interpolated presentation poses
   projectiles: Array<ProjectileState & { presentationAgeSeconds?: number }>;
   cameraTarget: PlanarPose | null;
+  props?: PropState[];
+  grenades?: GrenadeState[];
+  serverTick?: number;         // authority presentation clock, not browser wall time
+  pursuit?: PursuitState;
 }
 
 interface GameRenderer {
@@ -247,24 +268,26 @@ interface GameRenderer {
 }
 ```
 
-`step()` keys inputs by vehicle entity ID. Input admission belongs to the server/session adapter, which attaches trusted command identity before simulation. AI/server-generated input cannot masquerade as a player command; a projectile produced by AI would require a separate source kind before armed AI is introduced. Replay must retain original command identities.
+`step()` keys inputs by vehicle entity ID. Input admission belongs to the server/session adapter, which attaches trusted command identity before simulation. Armed campaign AI is already implemented inside simulation-owned target runtime: its projectile owner is the target entity, with no player score identity. AI/server-generated actions cannot masquerade as an admitted player command. Replay retains the original player identities and checkpointed AI runtime.
 
-Types referenced but not expanded here (`SessionRequest`, `JoinResult`, `SessionStatus`, `SceneManifest`, `SimulationCheckpoint`) must be concrete public exports in F01, with fixtures and validation where they cross a trust boundary. Required fields are specified below; F01 must not leave production-facing `any` or ambiguous placeholders.
+Types referenced but not expanded here are concrete exports: `SessionRequest`, `JoinResult`, `SessionStatus` and `SceneManifest` in contracts; `Simulation`/`SimulationCheckpoint` in sim; the renderer facade in renderer. Complete validator/fixture coverage remains F01/F02 work. Import actual public types rather than copying these excerpts into a second local interface.
 
-- `SessionRequest`: mode `practice | create | join`, bounded nickname, room ID when joining, optional validated `vehicleBodyId`, protocol/content versions, optional reconnect credential handled by the network adapter. Omission retains server random assignment for legacy/tool callers; clients cannot supply profile tuning values.
+- `SessionRequest`: mode `practice | create | join`, bounded nickname, room ID when joining, optional validated `vehicleBodyId` and protocol/content versions. Reconnect credentials stay inside the SDK adapter, not this public request shape. Omission of a vehicle retains server random assignment for legacy/tool callers; clients cannot supply profile tuning values.
 - `JoinResult`: player ID, room ID, current session epoch, accepted content versions, first state, local entity ID if spawned.
 - `SessionStatus`: `idle | connecting | lobby | playing | reconnecting | disconnected | error`, with typed reason and optional retry delay.
 - Join error reasons: `room-full`, `room-missing`, `version-mismatch`, `invalid-name`, `invalid-vehicle`, `server-shutdown`, `server-capacity`, `network-error`, `reconnect-expired`.
 - `SimulationCheckpoint`: opaque versioned local data, including tick and source scenario identity; never accepted from an untrusted client.
 - `SceneManifest`: map revision, asset catalog revision, environment settings, visual instances, quality variants, and references to shared collision data.
 
-Do not put prediction into `GameRenderer`. `net-client` owns the online prediction controller and exposes its render sample; practice uses a local simulation presentation adapter. The app chooses the session implementation once, not through mode checks spread across every package.
+Do not put prediction into `GameRenderer`. `net-client` owns online prediction and render sampling. The app currently composes practice directly from local `Simulation` snapshots/events and supplies exact tick/age fields; there is no shipped practice `GameSession` wrapper. Mode selection belongs to app composition, not checks spread across every package.
 
 Projectile presentation uses the predicted local car clock (at most six ticks ahead) and buffered remote car clock. It never rewinds an already shown round; confirmed impacts or absence from the latest authoritative state retire it. Presentation clips against world geometry and cannot cause damage. `presentationAgeSeconds` is render-only, never serialized, and bounds fresh tracer length from simulation age. `sampleTimeSeconds` remains a browser clock and must not be used as projectile age. New match/session epoch/life boundaries clear the relevant presentation history.
 
-`PursuitState` contains `state: 'chasing'|'arresting'|'complete'`, `suspectId`, leading `progress` and `elapsedTicks`, plus optional `arrestingPlayerId`, `winnerPlayerId` (nullable) and `contenders: Array<{playerId,progress}>`. Every contender owns independent progress. Clients must show the local contender's progress, not a rival's leading progress. The first qualifying arrest ends the dispatch; simultaneous completions resolve by stable player ID. `pursuit-complete` adds optional `playerId`/`suspectId`; `round-ended` adds optional `winnerPlayerId`/`reason: 'apprehended'|'timeout'`. State carries the result for late join/reconnect. Combat score does not determine the pursuit winner. See [the rule decision](adr/001-competitive-pursuit.md).
+`PursuitState` contains `state: 'chasing'|'arresting'|'complete'`, `suspectId`, leading `progress` and `elapsedTicks`, plus optional `arrestingPlayerId`, `winnerPlayerId` (nullable) and `contenders: Array<{playerId,progress}>`. Every contender owns independent progress; clients show the local contender's progress. The first qualifying arrest ends the dispatch, with stable player-ID tie resolution. Campaign mode additionally resolves credited target destruction; projectile resolution precedes arrest progress on the same tick. `pursuit-complete` carries optional player/suspect/outcome fields; `round-ended.reason` accepts `apprehended`, `wrecked` or `timeout`. State carries the result for late join/reconnect. Combat standings cannot override the resolving officer. See [the original decision](adr/001-competitive-pursuit.md) and [current campaign lifecycle](CAMPAIGN.md).
 
 `RenderFrame.pursuit` is included only while a dispatch is playing and its objective is incomplete. `TargetIndicator` is a render-only `{x,y,angle,offscreen,distanceMeters}` value: normalized canvas-relative X/Y, clockwise-from-up radians and planar distance to the local car. `renderer.getTargetIndicator()` uses the actual camera and sampled suspect pose; `ui.setTargetIndicator()` updates the existing badge each frame and gates its visibility by menu/session lifecycle. Neither value is serialized or accepted as gameplay authority.
+
+Badge positioning applies directly, without retargeting a CSS position transition on every frame. `tests/e2e/target-badge-performance.spec.ts` guards bounded Chromium style cost. App pacing remains separate: up to fifteen local simulation ticks or four online input ticks per frame, covered by `tests/client/pacing.test.ts`. Neither presentation rule changes 60 Hz authority or input admission limits.
 
 `selectVehicle` sends a semantic lobby request. The authority accepts only known IDs during the lobby, neutralizes pending input, applies profile health/tuning and publishes a discontinuity to all observers. Countdown and live-round requests cannot change the car or heal it. The browser persists its garage choice independently of a room; it supplies that choice on the next dispatch.
 
@@ -301,9 +324,11 @@ interface CollisionMap {
 }
 ```
 
-Surface polygons affect grip/effects only through shared rules; they are not automatically solid colliders. Map validator rejects missing references, invalid polygons, nonfinite values, inconsistent shape fields, blocked spawns, and unreachable required routes. Fixtures must include asphalt-to-dirt transitions and an asymmetric turn.
+Surface polygons affect grip/effects through shared rules; they are not automatically solid colliders. Current `validateMap` checks spawn presence, duplicate collider IDs, finite collider poses, box extents and lane-edge references. Simulation construction adds geometry/config checks; `assets:check` separately checks authored building alignment, spawn clearance, shortcut samples and lane connectivity. Complete schema/collection validation and required-route reachability remain F01/F02/A02 work. Fixtures must include asphalt-to-dirt transitions and an asymmetric turn.
 
 ### Asset record
+
+Current original assets use the source inventory and GPL-3.0-or-later notice in [the runtime asset record](../packages/content/manifests/licenses/ORIGINAL_ASSETS.md). A complete per-asset catalog remains acceptance work. The fields below apply to a future expanded catalog; external archive fields are inapplicable to source-generated geometry and must not be fabricated.
 
 Every runtime asset record includes:
 
@@ -315,6 +340,8 @@ Every runtime asset record includes:
 Do not mark a candidate `verified` based only on a search result. Store evidence from the supplied archive/page and record any discrepancy.
 
 ## 7. Fixtures that unlock parallel lanes
+
+This named/versioned catalog is planned. Current executable scenarios live under package `dev/`/`scenarios/` directories and `tests/`; no `packages/test-support` package is shipped. Some native capture scripts still require Edge and contain original-machine paths, so fixture portability is part of F02/Q01 acceptance.
 
 | Fixture | Must contain | Consumers |
 | --- | --- | --- |

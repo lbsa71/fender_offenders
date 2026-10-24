@@ -1,6 +1,8 @@
 # Quality, performance, and operations
 
-Status: quality/release gates with partial local-alpha evidence. Updated: 2026-10-22. [Execution status](EXECUTION_STATUS.md) is the observed evidence index; unrun gates below remain requirements, not results.
+Status: quality/release gates with partial `arcade-v8` alpha evidence. Updated: 2026-10-24. [Execution status](EXECUTION_STATUS.md) separates historical implementation results from current review checks; unrun gates below remain requirements.
+
+*A green test run is excellent news. It still cannot plug in a controller or sign a release form.*
 
 ## 1. Test principles
 
@@ -22,7 +24,7 @@ The root scripts below exist in [package.json](../package.json). `test:network` 
 | `pnpm test:integration` | Real room/client lifecycle, prediction/combat state, reconnect |
 | `pnpm test:e2e` | Browser keyboard flow, lobby, match, settings, focus loss |
 | `pnpm test:integration` with `tests/integration` | Real ordered TCP-delay/jitter/stall harness; full packet-loss/correction profiles remain open |
-| `pnpm test:load` | Bot clients, configured room/player counts, CPU/bandwidth report |
+| `pnpm test:load` | Eight SDK clients in one room, configurable duration and snapshot payload estimate; separate sim benchmarks measure step cost, and multi-room capacity remains open |
 | `pnpm test:deploy` | Production HTTP/readiness plus two real multiplayer WebSocket clients at `TEST_SERVER_URL`; does not imply hosted validation |
 | `pnpm exec tsx tools/assets/render-smoke.ts` | Renderer fixture capture/resource checks after starting its preview server; approved visual/performance gates remain open |
 | `pnpm assets:check` | Current authored map/content invariants; complete distribution-license and asset-budget audit remains open |
@@ -36,13 +38,19 @@ Vitest and Playwright are installed and versioned in the root manifest/lockfile.
 | --- | --- |
 | Input | Keyboard ramp, analog dead zones, two triggers, remap persistence, edge consumption, unplug/replug, focus loss, hidden tab, menu neutralization |
 | Driving | Accel/brake/reverse, 30/60/144 fps render independence, dirt grip, wall/corner collision, glancing car contact, stuck recovery |
+| Frame pacing | Fifteen-tick practice catch-up for a 250 ms frame, four-tick online cap, sub-step remainder, pause reset and excessive-backlog drop |
 | Checkpoints | Save/restore/replay through a turn, contact, shot, damage timer, respawn, and traffic interaction |
 | Authority | Client position/damage spoof ignored; NaN/Infinity/oversize/out-of-range inputs rejected; no speedup from extra commands |
 | Combat | Swept hit on fast/moving target, wall occlusion, owner immunity, duplicate event, fire cadence, spawn protection, simultaneous lethal hits |
 | Round | Start validation, late join, creator departure, countdown, timer end, draw, results/rematch, empty-room expiry |
+| Campaign | Ten dispatches/four ringleaders, independent arrest progress, credited target wreck, arrest/wreck marks, cumulative score, timeout retry, earned-only clues, creator-only progression, late join/reconnect and finale reset |
+| Armed targets | Ten authored tactics, protected/connected-officer selection, bounded burst cadence, fixed grenade landing/fuse/radius, cover/falloff, exactly-once damage, hazard cleanup and checkpoint replay |
+| Garage/callsigns | Six shared profiles, briefing-only reassignment, saved random/custom identity, malformed/unavailable storage and authoritative selection locks |
 | Network | Duplicate/old sequence, input queue overflow, missing snapshots, burst delay, exhausted history, reconnect/epoch change |
 | Assets | Missing file, wrong map hash, wrong orientation, blocked spawn, unresolved lane edge, absent license, placeholder leakage |
 | Presentation | Event dedup, no replay audio, correction offset decay, discontinuity snap, occlusion fade, reduced effects |
+| Reactive world | One-way car/prop interaction, sparse same-match baselines, quiet sleeping objects, wreck lifecycle and safe local pedestrian avoidance |
+| HUD cost | Repeated target-badge positioning must keep style recalculation bounded for a live dispatch; Chromium CDP regression is separate from sustained frame-budget acceptance |
 | Operations | Healthy start, port conflict, capacity limit, graceful drain, shutdown message, rollback/content compatibility |
 
 ## 4. Reference hardware and browser matrix
@@ -105,9 +113,11 @@ Use identical scripted inputs for client/server replay where appropriate. Keep p
 
 Every report records commit/build identity, config/map versions, commands, environment, and observed limitations. Evidence belongs in an agreed artifact store or `reports/` metadata; large videos and binary traces should not bloat normal Git history.
 
+The 2026-10-24 documentation review reran 465 headless tests across 54 files. Playwright discovery lists 15 browser scenarios across six files; discovery is not execution. PR #2 records a failing then passing badge-cost regression, and PR #3 records the intended four-versus-fifteen pacing failure followed by passing affected checks. Those narrow fixes do not establish the five-minute frame/network/memory budgets above. Keep the stopwatch; retire the victory confetti until the measured scenario finishes.
+
 ## 8. Deployment design
 
-The prepared [Render blueprint](../render.yaml) targets one Docker web service serving the versioned client and persistent game-server process together. [GitHub CI](../.github/workflows/ci.yml) is configured to check/build/test the game and smoke-test the production image before checks-passed auto-deploy. No connected-account setup, published workflow result, public service, staging TLS/WSS or rollback success is inferred from those files. Alternate static/CDN plus persistent-server hosting remains possible through the endpoint configuration; see [the runbook](../infra/README.md).
+The [Render blueprint](../render.yaml) configures one Free Docker web service in Frankfurt serving the client and persistent game-server process together, with two rooms and checks-passed auto-deploy from `main`. Prior hosted HTML/readiness, exact-origin and two-client WSS checks are recorded in [execution status](EXECUTION_STATUS.md); this documentation review does not revalidate the live service or latest deployed commit. [GitHub CI](../.github/workflows/ci.yml) is configured to run check/test/assets/build, the full browser suite, pursuit/campaign/callsign UI fixtures and then production-container smoke. Alternate hosting remains possible through endpoint configuration; see [the runbook](../infra/README.md).
 
 Required configuration:
 
@@ -121,8 +131,8 @@ Use HTTPS/WSS. Validate nicknames/room IDs and render user text safely. Treat ro
 ## 9. Admission, health, drain, and rollback
 
 - Liveness indicates process health; readiness indicates ability to accept new rooms/players.
-- Admission considers measured room load and memory, not just process uptime.
-- During deployment, stop new room admissions, allow active rooms to finish within a bounded drain window, and communicate shutdown if the deadline is reached.
+- Current admission enforces `MAX_ROOMS` and counts pending creation. Measured load/memory-aware admission is follow-up work; current readiness is not a capacity report.
+- Current shutdown marks readiness false and stops rooms. A finish-current-dispatch drain window and its shutdown communication remain a required operational acceptance step.
 - Persist no match state in the initial release. Restarted matches end cleanly rather than attempting an untested recovery.
 - Publish client/server/content as a compatible release set. Keep the previous set available for rollback.
 - On version mismatch, prompt a reload or reconnect to compatible content; do not enter a room with different collision geometry.
@@ -142,7 +152,11 @@ Dev-only overlay: sim/render ticks, server time estimate, local authoritative/pr
 - [ ] M0–M4 gates passed on the integrated build; no placeholder adapter satisfies a gate.
 - [ ] Known browser/controller limits are documented in the player-facing support notes.
 - [ ] Assets and audio have provenance/license records; original branding is ready for release.
+- [x] Original repository distribution terms are GPL-3.0-or-later; the full license and workspace metadata are present, with contributor credits.
+- [ ] Dependency compatibility/notices and source/license inclusion in release packages are audited.
 - [ ] Capacity and network behavior measured; room admission configured below observed limits.
 - [ ] Reconnect, shutdown, content mismatch, and rollback tested in staging.
 - [ ] Accessibility settings and neutralization behavior tested.
 - [ ] Working title/branding clearance completed for intended markets before public launch.
+
+Use [the ordered acceptance queue](../IMPLEMENTATION_PLAN.md#next-acceptance-work) to claim this work under the existing task IDs. Do not reopen optional GLB/WebGPU work merely to give the checklist more scenery.

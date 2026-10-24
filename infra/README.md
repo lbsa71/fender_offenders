@@ -1,8 +1,12 @@
 # Hosting and continuous delivery
 
+Reviewed: 2026-10-24 against `c817f97` (`arcade-v8`). Configuration below is verified from repository files; hosted/dashboard observations are historical, recorded on 2026-10-22/23 in [execution status](../spec/EXECUTION_STATUS.md). This review did not redeploy or probe the live service.
+
+*The server is allowed to sleep. It is not allowed to dream up passing rollback evidence.*
+
 The live preview is **[fender-offenders.onrender.com](https://fender-offenders.onrender.com)**. The root [`render.yaml`](../render.yaml) defines its free Docker web service in Frankfurt for `lbsa71/fender_offenders`, branch `main`. It serves the browser game and multiplayer WebSocket endpoint at one HTTPS URL. `autoDeployTrigger: checksPass` waits for GitHub checks before automatic deployments.
 
-The Render GitHub app is scoped to this repository. The service dashboard confirms Free, Frankfurt, `/ready` health checks and **After CI Checks Pass**. Hosted smoke validation passed HTML/readiness, two real secure WebSocket clients, a shared live round and client cleanup. A real browser created a room and rendered the district; the hosted endpoint returned 200 for its own origin and 403 for an unrelated origin. These checks do not establish full Internet playability or capacity.
+The recorded Render setup scoped its GitHub app to this repository. At that check, the dashboard showed Free, Frankfurt, `/ready` health checks and **After CI Checks Pass**. Hosted smoke validation passed HTML/readiness, two real secure WebSocket clients, a shared live round and client cleanup. A real browser created a room and rendered the district; the hosted endpoint returned 200 for its own origin and 403 for an unrelated origin. These dated checks do not establish current availability, latest-build deployment, full Internet playability or capacity.
 
 ## Initial Render setup
 
@@ -12,7 +16,7 @@ Future pushes to `main` run validation before Render deploys them. Pull requests
 
 Render supplies `RENDER_EXTERNAL_URL`; the server admits that exact origin. It does not trust arbitrary `onrender.com` domains. For custom domains, set `ALLOWED_ORIGINS` to the full comma-separated list of desired HTTPS origins; it replaces the default list. Leave `VITE_SERVER_URL` unset for same-origin hosting. The Blueprint sets `HOST=0.0.0.0`, `PORT=10000` and an initial two-room cap. This cap is provisional, not a measured capacity claim.
 
-The free service sleeps after 15 idle minutes and may take about a minute to wake. Review monthly usage/billing limits before sharing widely. Keep the Free plan unless the project owner explicitly chooses an upgrade. Matches and scores live in memory, so restarts/deployments end them.
+The 2026-10-22 hosting review recorded free-service sleep after 15 idle minutes and roughly a minute to wake. Recheck the provider's current plan/usage limits before changing hosting or sharing widely. Keep the Free plan unless the project owner explicitly chooses an upgrade. Campaign outcomes, matches and scores live in memory, so restarts/deployments end them; callsigns, garage and settings remain in browser storage.
 
 Official references checked 2026-10-22: [Blueprint fields/CI gating](https://render.com/docs/blueprint-spec), [WebSockets](https://render.com/docs/websocket), [environment variables](https://render.com/docs/environment-variables), [free-tier limits](https://render.com/docs/free).
 
@@ -40,7 +44,7 @@ Local development: `pnpm dev` starts Vite on 5173 and the authoritative Colyseus
 
 Production build: `pnpm build`, then `node dist/server/index.js`. This serves the built client and WebSocket game service on the same port. Set `HOST`, `PORT`, and `ALLOWED_ORIGINS` explicitly. For example the allowed browser origin for a same-port localhost test is `http://127.0.0.1:2567`.
 
-Container packaging: `docker compose -f infra/compose.yaml up --build`. The supplied compose file binds port2567 only to localhost. The Docker image has been built and its running HTML/readiness/two-player WebSocket smoke passed locally on Linux/Node22 and on the Render preview. See the execution status for the scope of each check.
+Container packaging: `docker compose -f infra/compose.yaml up --build`. The supplied compose file binds port 2567 only to localhost. Earlier Docker/hosted HTML/readiness/two-player WebSocket checks are recorded in the execution ledger; the image was not rebuilt by this documentation review.
 
 For a public host, configure a domain and TLS reverse proxy (example Caddyfile supplied), allow that exact HTTPS browser origin, and bind the game process only where the proxy can reach it. The client derives the same-origin endpoint in production. A separate CDN client may use `VITE_SERVER_URL` at build time.
 
@@ -53,9 +57,12 @@ Before public release:
 - Validate TLS/WSS, origin rejection, startup, shutdown and previous-version rollback in staging.
 - Retain a complete matching client/server/content build. Never mix map or gameplay revisions.
 - Record the environment and unresolved gates in `spec/EXECUTION_STATUS.md`.
+- Audit dependency notices, corresponding source and [GPL-3.0-or-later](../LICENSE) inclusion in release artifacts. The current Docker runtime stage copies `package.json`, `node_modules` and `dist`; it does not yet package the repository license/source set. Source licensing is established; release-package compliance remains Q07 work.
 
 ## Rollback
 
 Keep the prior healthy deployment if a new build or health check fails. Roll back a complete client/server/content set in Render; never mix map/protocol versions. Free-service rollback availability follows Render's current limits. Hosted rollback and finish-current-round draining remain unverified operational gates.
 
 Check [the execution status](../spec/EXECUTION_STATUS.md) for observed evidence and remaining release gates.
+
+The latest practice pacing and badge-cost fixes are local code changes, not new hosted capacity evidence. Use [the acceptance queue](../IMPLEMENTATION_PLAN.md#next-acceptance-work) for sustained eight-player/multi-room measurements and staging rollback. A two-room cap is a speed limit, not a dyno certificate.

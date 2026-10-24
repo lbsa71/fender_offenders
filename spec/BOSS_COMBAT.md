@@ -1,6 +1,8 @@
 # Armed campaign targets and player callsigns
 
-Gameplay revision: `arcade-v8`. This extends the [ten-dispatch campaign](CAMPAIGN.md).
+Status: implemented; human difficulty and audiovisual approval remain open. Reviewed: 2026-10-24. Gameplay revision: `arcade-v8`. This extends the [ten-dispatch campaign](CAMPAIGN.md).
+
+*The suspects have read the equipment budget. Regrettably, they found the grenade column.*
 
 Every campaign target can fight back. Ordinary civilian traffic remains unarmed. The four ringleaders have different driving and attack signatures; crew encounters introduce the same ideas more gently. The briefing names the tactic, shows its difficulty out of ten, and explains the opening a player can exploit.
 
@@ -41,3 +43,5 @@ The browser saves `{ nickname }` under `fender-callsign-v1`. Generated, rerolled
 - Foundation owns shared DTOs, compact wire, app/online clocks, real multiplayer tests, compatibility revision, documentation and publishing.
 
 Every behavior lane follows observed RED–GREEN–refactor. Focused wire/clock tests verify hazard reconstruction, monotonic timing, expiry and frozen phases. Simulation tests verify attacks, protection, cover, connected-officer selection, cadence, all four driving signatures, progression and deterministic replay. Real SDK checks verify shared boss shots/damage and the same grenade warning/explosion for peers and a late joiner. Native rendering checks distinguish authored fixtures from hosted gameplay. The callsign browser scenario exercises generated/rerolled/custom identity through a real solo dispatch.
+
+See [the dated evidence ledger](EXECUTION_STATUS.md) for the implementation runs and 2026-10-24 verification. Remaining work is human difficulty/counterplay review across all six cars, physical-controller completion, effects accessibility/audio review and sustained browser/network budgets. Native capture tools currently require Edge and some retain original-machine output/import paths; [renderer notes](../packages/renderer/README.md) record those portability limits. A six-metre warning circle is a gameplay promise; a screenshot directory is not a performance certificate.

@@ -1,6 +1,8 @@
 # Ten-dispatch campaign
 
-Gameplay revision: `arcade-v8`. Campaign content: `green-light-racket-v1`.
+Status: implemented; human difficulty/controller acceptance remains open. Reviewed: 2026-10-24. Gameplay revision: `arcade-v8`. Campaign content: `green-light-racket-v1`.
+
+*The Green Light Society promised faster traffic. Apparently they meant faster getaway cars.*
 
 Campaign targets now use [distinct armed tactics](BOSS_COMBAT.md), including grenade attacks and a ten-step difficulty ramp. Briefings explain their driving style, weapon and counterplay. This extends the progression lifecycle below.
 
@@ -58,3 +60,7 @@ The original catalog and self-contained SVG portraits live in [campaign content]
 | Integration/operations | App/server composition, real clients, browser flows, CI and deployment | Both peers/late join share progress; real shooting, car changes, actual solo start and live hosted briefing |
 
 Run focused checks with `pnpm exec vitest run packages/contracts/src/campaign.test.ts packages/contracts/src/wire.test.ts packages/sim/src/core/campaign.test.ts tests/integration/campaign.test.ts`, the UI fixture with `node packages/ui/dev/campaign-smoke.mjs`, and the integrated browser suite with `pnpm test:e2e`. Fixture captures are labeled as fixtures; hosted captures establish only the live state actually shown.
+
+The armed build's implementation evidence is dated in [execution status](EXECUTION_STATUS.md). The 2026-10-24 pacing follow-up allows fifteen local fixed ticks per slow practice frame, with a separate four-input-tick online cap; menus and nonplaying campaign presentation retain their freeze rules. The badge update also avoids a per-frame position transition. Next acceptance is a complete human campaign run on keyboard and physical controllers, late-join/reconnect review and measured five-minute performance—not another round of story scaffolding. The casefile is ready; the clipboard still needs signatures.
+
+The UI capture script contains original-machine output paths. Consult [UI fixture notes](../packages/ui/README.md) before enabling captures in another checkout; those old directories are historical artifacts, not required repository locations.

@@ -1,6 +1,8 @@
 # Architecture
 
-Status: architecture and acceptance targets for the implemented local alpha. Updated: 2026-10-23. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
+Status: architecture and acceptance targets for the implemented `arcade-v8` alpha. Updated: 2026-10-24 against `c817f97`. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
+
+*One authority drives the rules. Everyone else gets a dashboard, not a spare steering wheel.*
 
 The current code uses Babylon WebGL rendering, a custom Colyseus session/prediction facade, source-generated procedural art, and bounded planar vehicle contacts with Rapier WASM projectile/map queries. Sections describing a dynamic Rapier vehicle controller, GLB pipeline, WebGPU or complete operational recovery remain design targets unless the ledger explicitly records evidence. Public implementations are in `packages/`; app roots own composition. The full contact-correction, device/browser and hosting acceptance matrices are not complete.
 
@@ -38,7 +40,7 @@ The authoritative server has no renderer, DOM, or Babylon dependency. The browse
 | net-server | contracts, sim | Room authority, input validation, state publication, reconnect |
 | ui | contracts | DOM menus/HUD/settings, semantic UI actions |
 | content | contracts | Validated runtime catalog, collision maps, asset/provenance records |
-| test-support | contracts; sim only for replay helpers | Fixtures, fake adapters, test clocks, network profiles |
+| test-support (planned) | contracts; sim only for replay helpers | Proposed central fixture catalog; current fixtures live with packages and under `tests/` |
 | apps/client | Public APIs of client-facing packages | Composition, scheduling, lifecycle, error boundary |
 | apps/server | net-server, content | Process startup, rooms, shutdown, health checks |
 
@@ -66,20 +68,20 @@ Keep authoritative and rendered positions distinct. A correction changes simulat
 
 - One logical simulation tick is `1 / 60` second. Do not integrate with render frame delta.
 - Server schedules from a monotonic clock, accumulates elapsed time, and steps fixed ticks.
-- Cap catch-up work per event-loop turn (initial cap: four ticks). Record backlog and overload. Never replace the fixed delta with a larger one to catch up.
-- Sustained overload must stop new admissions and mark the room unhealthy; do not silently let clients run seconds ahead.
+- Server catch-up is capped at four fixed ticks per event-loop turn; larger backlogs trigger bounded clock/input recovery. Never replace the fixed delta with a larger one to catch up.
+- Load-sensitive admission and sustained-overload health reporting remain operational acceptance work. Current room admission uses the configured room cap; `/ready` must not be read as proof that a five-minute load budget passed.
 - Browser uses a fixed-step accumulator for predicted movement and independent rendering interpolation. Online, one frame runs at most four input ticks. Practice runs the authoritative simulation locally, so one frame may catch up a full quarter second (fifteen ticks) rather than let a slow or software-rendered machine play in slow motion; backlog beyond that is dropped (`apps/client/src/pacing.ts`).
 - A hidden/suspended browser neutralizes input. On resume, request current state; discard stale prediction backlog instead of simulating every missed frame.
 
 ### Vehicle model
 
-Initial implementation uses Rapier rigid bodies constrained to planar translation and yaw. Apply acceleration, drag, lateral grip, and steering through a custom arcade controller. Use simple convex/cuboid car colliders and static map blockers. Configure body rotation/translation locks explicitly and test them.
+Vehicles use shared bounded planar geometry and impulses, with oriented rectangular footprints and two movement substeps. Rapier handles static projectile queries and the separate 3D scenery world. A headless Rapier feasibility fixture covers planar body locks, contact and restoration; dynamic Rapier vehicle bodies are not the shipped controller.
 
-The controller tunes forward/reverse acceleration, braking, speed-sensitive steering, lateral traction, handbrake grip, drag, and collision recovery. Store these values in a versioned data object. Never hardcode divergent handling in renderer and server.
+The bicycle tyre controller computes front/rear slip forces with speed-sensitive steering lock. Handbrake, power or a flick can break rear grip; a bounded drift servo gives stick-controlled angle and counter-steer recovery. Default patrol top speed/acceleration are 28/26; the six profiles scale shared tuning. Forward/reverse braking, drag and recovery remain shared rules. Never hardcode divergent handling in renderer and server.
 
 The implemented planar controller reads the six shared vehicle profiles from `contracts`. Profile ratios scale configured speed, acceleration, steering and grip; maximum health scales the configured baseline. Authority, practice and local prediction use the same controller. Traffic retains baseline tuning. Weapons, collision dimensions, braking/reverse rules and spawn protection are equal across player profiles. Profiles were introduced in `arcade-v2`; `arcade-v3` adds the narrow aim-assist rule below. Mismatching clients must refresh. Measured trade-offs and the limits of the starting balance guard are recorded in [the balance report](../packages/sim/BALANCE.md).
 
-The UI rolls a garage vehicle on the first visit and saves its ID in browser storage. Home and pre-round online lobbies offer a different random assignment, show profile stats and render a separate rotating garage scene. The join request carries only a validated body ID; the server derives all stats. Lobby reassignment is authoritative, broadcasts to observers, resets stationary driver state and locks at countdown. Respawn and reconnect preserve the selected profile.
+The UI rolls a garage vehicle on the first visit and saves its ID in browser storage. Home and every campaign briefing offer a different random assignment, show profile stats and render a separate rotating garage scene. The join request carries only a validated body ID; the server derives all stats. Lobby reassignment is authoritative, broadcasts to observers, resets stationary driver state and locks at countdown. Respawn and reconnect preserve the selected profile.
 
 Cartoon motion belongs entirely to presentation. The renderer keeps authoritative planar pose on the root, suspension bounce/pitch on a child and coachwork lean/squash on another child, leaving wheels and HUD markers outside body scaling. Shared decorative road-bump locations drive segment-crossing cues; damped lean and bounded compression/rebound never alter collision, prediction or health. Local squeaks/boings have cooldowns and respect effects volume/mute. Reduced motion or reduced shake suppresses deformation, its cues and garage rotation.
 
@@ -89,17 +91,17 @@ Avoid assuming a rigid-body snapshot alone captures the whole game: include game
 
 ### Predicting contacts
 
-For the first multiplayer version, the client predicts its own car against static geometry and time-aligned kinematic proxies of nearby remote cars. The server simulates actual dynamic contacts. This deliberately produces occasional disagreement at car-to-car impacts.
+The client predicts its own car against static geometry and time-aligned kinematic proxies of nearby remote cars. The server applies shared bounded two-car separation/impulses. The predictor's kinematic response can disagree with that two-body outcome; measured collision-correction acceptance remains open.
 
 The M0/M2 experiment must quantify the disagreement, restoring the local body's pose/velocities and controller state at the acknowledged point, then replaying remaining commands. Proxies must be restored/interpolated to the matching replay time, not copied from the newest render frame. Do not use a partial body restore that preserves incompatible stale solver/contact state: either rebuild the small prediction world or use a validated full snapshot/restore strategy.
 
-If this fails the playability gate, simplify physical contacts to bounded deterministic planar separation/impulses implemented in shared rules while retaining Rapier queries for static geometry. Record the decision. Full-world rollback of all traffic and effects is outside the initial scope.
+The bounded planar fallback is already selected; it does not waive the playability gate. Improve replay/proxy time alignment and collect correction traces before tuning smoothing. Full-world rollback of all traffic and effects is outside scope.
 
 ## 5. Networking
 
 ### Transport and protocol
 
-Colyseus provides room lifecycle and state synchronization. Use its WebSocket transport initially. Keep domain state and adapter interfaces independent of the installed Colyseus API. Evaluate current compatible releases in M0, pin them, and write a small real room/client example before building the full integration.
+Colyseus provides room lifecycle and WebSocket transport. The pinned adapter publishes compact domain snapshots; it does not run a parallel equivalent schema stream. A custom session/prediction facade owns reconciliation. Installed versions are recorded in the root manifest/lockfile; domain interfaces remain independent of SDK APIs.
 
 Baseline: 60 Hz sim, 30 Hz batches of up to two newly generated input commands, 20 Hz authoritative state publication. Batching and schema delta transport are implementation details; each semantic snapshot still needs a server tick and local input acknowledgment. Do not send a second full snapshot stream alongside an equivalent schema stream.
 
@@ -141,7 +143,7 @@ The server probes each connected player approximately once per second with an op
 
 Use visible projectiles and swept collision at server tick rate. Test a relative-motion sweep for moving targets, and treat teleport/respawn as discontinuities. This reduces tunneling and makes the first weapon understandable without hitscan rewind.
 
-At firing, the authority considers active unprotected opponents or the explicitly identified practice suspect within a 4° cone, 2.5 m lateral distance from the original ray and 40 m total range. Sort by smallest angular correction, then distance and stable entity ID. Rapier segment queries reject world occlusion; shared car-box segments reject nearer vehicles, including protected cars and civilians. The chosen yaw sets the projectile and shot-event origin only. Cars are not steered, projectiles do not home or lead targets, and weapons retain their cadence, damage and lifetime. All player profiles and input devices use the same assist.
+At firing, the authority considers active unprotected opponents or the explicitly identified suspect in either mode within a 4° cone, 2.5 m lateral distance from the original ray and 40 m total range. Each barrel spawns at its physical tip and independently selects a correction, sorted by angle, distance and stable entity ID. Rapier segment queries reject world occlusion; shared car-box segments reject nearer vehicles, including protected cars and civilians. A center-to-muzzle sweep prevents point-blank obstruction bypass. Each round deals 5 damage; the paired volley retains 10 total damage at 12-tick cadence. Cars are not steered and projectiles do not home or lead targets.
 
 Static projectile hits emit `projectile-impact` at the swept contact point for wall sparks. Existing shot/hit/wreck events drive the bounded presentation effects and original Web Audio synthesis; presentation never changes health or projectile collision.
 
@@ -183,9 +185,11 @@ The integration lane owns app entrypoints. Other lanes expose factories behind c
 - Networking: `createGameSession()` / server room factory.
 - UI: `mountGameUi()`.
 
-Use a simulation-backed practice session implementing the same `GameSession` facade as online mode. Render/UI lanes initially consume recorded frames; net-client uses a fake input stream; simulation uses a tiny collision fixture. This allows development before all production adapters exist.
+The app currently composes a local `Simulation` directly for practice and `createOnlineSession()` for multiplayer. Both supply shared snapshots/events/render frames to the same UI and renderer, but there is no shipped practice `GameSession` wrapper. Recorded frames, scripted inputs and tiny maps support isolated adapter work; a future common wrapper must preserve the real lifecycle coverage.
 
-Debug pages/scenarios must be discoverable through one dev-only scenario picker. Each lane owns its scenario module; integration owns the registry. Do not require every lane to edit the same app file.
+Dev scenarios currently have explicit entrypoints under package `dev/` and `scenarios/` directories. A unified picker remains a foundation/fixture target. Keep these pages out of the production bundle and avoid requiring every lane to edit the same app file.
+
+Production app/server roots explicitly enable campaign pursuit. Authority owns ten-stage outcomes, target tactics, bullet/grenade damage and phase transitions; static catalogs supply story and inline portraits. Practice and online freeze gameplay presentation outside live campaign play. Grenade warnings use exact practice ticks or a monotonic online authority clock; projectiles use local prediction or buffered remote clocks. See [campaign](CAMPAIGN.md), [boss combat](BOSS_COMBAT.md) and [contracts](CONTRACTS.md).
 
 ## 8. Deployment and persistence
 
@@ -204,4 +208,4 @@ Keep room admission configuration, allowed origins, timeouts, and build identity
 - [Colyseus documentation](https://docs.colyseus.io/).
 - [Colyseus prediction/reconciliation](https://docs.colyseus.io/netcode/client-prediction).
 
-These references guide implementation; sample APIs are not a dependency lock. Verify the selected versions in M0.
+These references are background, not a dependency lock or a fresh compatibility audit. Use the pinned manifest, source and real-adapter tests for the current implementation. The architecture has enough moving parts without letting the documentation invent another reconciler.

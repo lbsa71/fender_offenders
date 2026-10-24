@@ -1,4 +1,8 @@
-# Vehicle balance baseline: arcade-v5
+# Vehicle balance: current profiles and historical measurements
+
+Reviewed: 2026-10-24. Current gameplay is `arcade-v8`; the numerical report below remains the measured 2026-10-23 `arcade-v5` tyre/volley baseline. Profile anchors and controller defaults still match source, but campaign tactics and grenades were added afterward. These figures were not regenerated during this documentation review.
+
+*The army car brings armor. The roadster brings excuses about why armor was slowing it down.*
 
 These measurements were regenerated after merging the tyre-force and drift model from PR #1 (working tree based on `3f6227c`). The default patrol configuration now uses a 28 m/s forward cap, acceleration 26, speed-sensitive steering lock and front/rear tyre forces. The shared profile ratios, paired weapons and narrow aim assist remain part of the `arcade-v5` baseline.
 
@@ -68,6 +72,8 @@ The tests reject any profile that equals or exceeds another in every authored st
 Effective armor uses `ceil(HP / 10) × 10`, matching the measured full-volley budget when both barrels land. The weights use authored profile ratios and are explicit design assumptions, not an estimate of win probability. They do not quantify the nonlinear drift response or the new absolute room defaults. The budget cannot express map geometry, aiming, collisions, escape routes, player skill, or interactions between stats. A smaller turn-path radius in different drift states is also not proof of better common-speed steering.
 
 The suite verifies all six authority/prediction pairs under custom tuning, real shots-to-wreck and respawn, equal weapon/protection rules, checkpoint replay, scaled-health serialization/respawn, lobby selection restrictions, actual speed/acceleration/turning outcomes and lateral recovery. It does not claim automated proof of human fairness, a duel win-rate matrix, or equivalence across all browser runtimes. Human multiplayer driving, aiming and map-specific match comparisons remain necessary before stronger balance claims.
+
+Current campaign targets use assigned body armor plus separate authored driving/attack profiles. The empty-arena player-volley table is not a boss difficulty curve: it excludes AI bursts, cover, grenades and arrest windows. Next acceptance compares all six player cars through the ten dispatches on keyboard and physical controllers, then in multiplayer. Record any tuning change with a fresh measured report and relevant RED/GREEN evidence; do not give the spreadsheet a medal for winning a duel it never entered.
 
 ## Observed TDD cycle
 
