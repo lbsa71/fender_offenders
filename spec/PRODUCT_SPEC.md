@@ -104,6 +104,7 @@ All devices produce the same action structure. Gameplay never reads raw DOM even
 ### Weapon and damage
 
 - Two forward-facing barrels fire one paired volley. Holding Fire repeats at a server-controlled cadence.
+- Only player and villain cars display those guns. Civilian spectator traffic remains visibly unarmed; targets retain their assigned body rather than being classified as civilians solely because they are AI.
 - Current baseline: profile-dependent health, two 5-damage rounds per volley, 5 volleys/second, projectile speed 70 m/s, lifetime 0.65 seconds. These values belong in a versioned gameplay configuration.
 - Infinite ammunition for the initial mode. Heat/reload systems require a later playtest decision.
 - The server creates authoritative projectiles, sweeps their paths against collision geometry, applies hits once, and emits events.
@@ -142,6 +143,7 @@ All devices produce the same action structure. Gameplay never reads raw DOM even
 - Emphasize steering response, tire noise, skid marks, sirens, muzzle flashes, tracer motion, impacts, and brief wreck effects.
 - Do not obscure roads with heavy bloom, depth of field, excessive smoke, or constant camera shake.
 - Provide independent master/music/effects volume, reduced shake, and reduced flash settings.
+- A wreck breaks every original assembled car component into separate local rigid fragments: tires, hubs, trim, lights, variant equipment and permitted guns keep their own geometry/materials. The bounded debris world supports gravity, spin and road/building/fragment contacts; it adds no damage or vehicle/pedestrian collision. Reduced motion suppresses fragments, and respawn/lifecycle cleanup removes their bodies.
 - Keyboard/gamepad prompt changes, mute state, reconnect state, and round status must be understandable without opening developer tools.
 
 ## 11. Acceptance criteria

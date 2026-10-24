@@ -33,9 +33,10 @@ The authoritative server has no renderer, DOM, or Babylon dependency. The browse
 | Package | Allowed runtime dependencies within workspace | Owns |
 | --- | --- | --- |
 | contracts | None | DTOs, validation, protocol/config versions, adapter interfaces |
-| sim | contracts | Vehicle controller, collision world, combat, traffic, game rules |
+| physics | None | Single initialization promise for the pinned Rapier WASM runtime; each adapter owns its own worlds |
+| sim | contracts, physics | Vehicle controller, collision world, combat, traffic, game rules |
 | input | contracts | Device sampling, mappings, dead zones, focus/disconnect behavior |
-| renderer | contracts | Babylon objects, materials, camera, audio, VFX, render interpolation |
+| renderer | contracts, content, physics | Babylon objects, materials, camera, audio, VFX, render interpolation and cosmetic debris physics |
 | net-client | contracts, sim | Transport adapter, clock estimate, prediction history, reconciliation |
 | net-server | contracts, sim | Room authority, input validation, state publication, reconnect |
 | ui | contracts | DOM menus/HUD/settings, semantic UI actions |
@@ -171,7 +172,9 @@ Split world data into a shared collision/navigation map and a client presentatio
 
 Server loads colliders, spawns, lane graph, gameplay zones, shared rigid-prop definitions and needed tuning. Client loads visual models/materials, sound, and the same collision map. Instance repeated meshes/materials where useful. Use stable asset IDs rather than source filenames in gameplay rules.
 
-The separate Rapier scenery world uses gravity and full rigid-body rotations, with kinematic authority car proxies pushing loose props and releasing anchored lamps/signs/trees. It does not feed forces into planar arcade driving. Trusted checkpoints retain its complete native state. Prop replication sends an initial baseline and then meaningful changes; client presentation merges patches and interpolates them on the existing buffered clock. Wreck debris and a safety-checked local pedestrian crowd remain purely cosmetic, with no transform traffic or combat state. [World reactions](WORLD_REACTIONS.md) records the lifecycle and safety contracts.
+The separate authority Rapier scenery world uses gravity and full rotations, with car proxies pushing props and releasing anchored lamps/signs/trees. It does not feed forces into planar driving. Trusted checkpoints retain native state; replication sends an initial baseline and then meaningful changes. Presentation merges patches and interpolates them on the buffered clock.
+
+Wreck debris uses another, client-only Rapier world. Car construction retains each original component alongside intact material batches; every fragment gets its own bounded rigid body and local ground/building/fragment contacts. No debris transforms, damage or impulses enter authority. `@fender/physics` owns a single WASM initialization promise shared by both adapters so starting or disposing one world cannot reinitialize another's runtime. Cosmetic pedestrians remain outside both physics worlds. [World reactions](WORLD_REACTIONS.md) records lifecycle, limits and safety.
 
 The server advertises protocol, map, and gameplay config versions at join. A mismatching client loads the matching immutable content or fails with an actionable message. Silent collision-map mismatch is a release blocker.
 

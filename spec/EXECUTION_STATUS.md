@@ -1,6 +1,6 @@
 # Execution status and evidence
 
-Updated: 2026-10-24 against `c817f97`. This ledger covers the 49 tasks in [the plan](../IMPLEMENTATION_PLAN.md). The recorded public preview is [fender-offenders.onrender.com](https://fender-offenders.onrender.com); live availability and its current deployed commit were not rechecked in this documentation review. Release-candidate acceptance remains incomplete.
+Updated: 2026-10-24. The documentation baseline is `c5b1161`, following game integration `c817f97`; the car presentation follow-up below is included in this source revision. This ledger covers the 49 tasks in [the plan](../IMPLEMENTATION_PLAN.md). The recorded public preview is [fender-offenders.onrender.com](https://fender-offenders.onrender.com); live availability and its current deployed commit were not rechecked here. Release-candidate acceptance remains incomplete.
 
 *Evidence locker: please label the date before pinning a green tick to the corkboard.*
 
@@ -8,13 +8,28 @@ Updated: 2026-10-24 against `c817f97`. This ledger covers the 49 tasks in [the p
 
 ## Current state and latest merged work
 
-Production uses protocol 1, `arcade-v8`, map `sunset-borough-1` and campaign `green-light-racket-v1`. Six shared car profiles, a ten-dispatch armed campaign, callsigns, reusable invites, sparse rigid scenery, cosmetic pedestrians and authoritative multiplayer are integrated. [Contributors](../CONTRIBUTORS.md) credits Stefan Andersson, Wictor Stenseke, Claude Code and OpenAI Codex. Original repository work is now [GPL-3.0-or-later](../LICENSE), with all nine workspace manifests declaring that license; dependency/release-package audit remains open.
+Production uses protocol 1, `arcade-v8`, map `sunset-borough-1` and campaign `green-light-racket-v1`. Six shared car profiles, a ten-dispatch armed campaign, callsigns, reusable invites, sparse rigid scenery, cosmetic pedestrians and authoritative multiplayer are integrated. [Contributors](../CONTRIBUTORS.md) credits Stefan Andersson, Wictor Stenseke, Claude Code and OpenAI Codex. Original repository work is [GPL-3.0-or-later](../LICENSE); all ten current workspace manifests, including the new shared physics initialization package, declare that license. Dependency/release-package audit remains open.
 
 | Change | Recorded evidence | Source / reproduce |
 | --- | --- | --- |
 | WANTED badge style cost, PR #2 | `18a29ee` records a browser RED from 1.19 to 3.81 ms per style recalc, beyond the 2 ms bound. Removing the continually retargeted position transition made the regression and affected browser/UI/type checks pass. This is a Chromium regression bound, not a sustained GPU budget. | `git show 18a29ee`; [browser regression](../tests/e2e/target-badge-performance.spec.ts) |
 | Practice frame pacing, PR #3 | `3792241` records passing baseline coverage, then the intended slow-frame failure: four ticks instead of fifteen. Practice now permits a quarter-second/fifteen-tick catch-up; online retains four input ticks. The commit records 465 headless tests, 12 practice browser scenarios, typecheck/docs checks and a scoped CPU-throttle comparison. | `git show 3792241`; [five pacing tests](../tests/client/pacing.test.ts), [pacing implementation](../apps/client/src/pacing.ts) |
 | Current integration point | PR #2 merged in `ec7d40f`; PR #3 merged in `c817f97` on 2026-10-24. No later feature delivery is assumed. | `git log -5 --oneline` |
+
+## Car presentation follow-up
+
+The original documentation, credits and GPL changes were committed and pushed to `main` as `c5b1161`. The following car implementation and its accompanying notes form a separate, independently reviewable follow-up. Protocol/gameplay revisions and authoritative damage/scoring are unchanged.
+
+| Area | Observed RED before change | Delivered behavior and checks |
+| --- | --- | --- |
+| Guns and target identity | The new geometry test found 24 gun-tip vertices on a civilian instead of zero. After hiding those guns, the native browser check failed because AI villains were still rendered as civilians. | Civilian `traffic-*` templates omit guns; player/villain templates retain both barrels. Villains retain their assigned body without playing-only pursuit guidance. All 22 car tests and native role checks pass. |
+| Exact component breakup | Seven car-catalog cases first failed for the absent actual-assembly API. Four focused physics cases then reported zero physical pieces/bodies instead of a full assembly, or no civilian fragments. | Every authored shape/material is retained before intact batching; 40–58 components receive independent local bodies. Real Rapier checks verify floor/wall/fragment contacts, bounded visual reuse, variant details and cleanup. The native ambulance fixture shows all 58 pieces/bodies. |
+| Early accessibility and adapter sharing | A focused cold-start reduction test retained 58 visible pieces instead of zero. Native integration also found 116 duplicate source components for 58 fragments when effects owned a second car factory. | Reduced motion applies before WASM readiness and leaves no bodies. The renderer supplies its existing factory/map; native source/fragment counts match. All 123 renderer tests pass. |
+| Shared WASM startup | The full browser run initially passed 14/15 cases but practice focus recovery hit a native scenery `unreachable` error. A focused real-world boundary test then observed two WASM initialization calls instead of one. | `@fender/physics` supplies a shared initialization promise to simulation and local debris. The real existing scenery world remains valid through debris startup/disposal. The regression passes, and the affected real practice browser scenario passed three consecutive repetitions. |
+
+After the startup fix, `pnpm test` passed **479 tests across 56 files**, and `pnpm test:e2e` passed **all 15 browser scenarios** together in 1.7 minutes. `pnpm check`, `pnpm assets:check` and `pnpm build` passed. The build retains the large-client-chunk advisory. One earlier concurrent run timed out waiting for a socket acknowledgment; its 12-test facade suite passed in isolation, and subsequent full runs passed. The browser count includes the actual practice blur/focus flow that initially exposed the startup conflict, real two-client play and the badge-cost regression.
+
+Native acceptance captures were generated and inspected with `wreck-capture.ts work/assembly-breakup`: original tires/hubs/trim and body pieces visibly separate, tumble and land, then disappear before the intact respawn. The scripted native lifecycle check passes duplicate/stale-life handling, late snapshots, leave/garage/respawn, reduced settings and disposal with zero retained debris bodies. These are controlled fixture views, not hosted gameplay or sustained performance approval. R04/R05/Q05 release gates remain open.
 
 ## Checks observed during the 2026-10-24 documentation review
 

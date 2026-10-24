@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { NullEngine } from '@babylonjs/core/Engines/nullEngine';
 import { Scene } from '@babylonjs/core/scene';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VEHICLE_BODIES } from '@fender/content';
 import { CarFactory, type CarVisual } from './cars';
 import * as CarPresentation from './cars';
@@ -21,6 +23,48 @@ function paint(car: CarVisual, name: string) {
 }
 
 describe('original procedural vehicle bodies', () => {
+  it.each([...VEHICLE_BODIES, 'traffic-sedan'])('retains every authored %s component for an exact physical breakup', body => {
+    const traffic = body === 'traffic-sedan';
+    const intact = factory.create('assembly', body, traffic);
+    const breakup = Reflect.get(factory, 'breakupParts') as (body: string, traffic: boolean) => readonly Mesh[];
+    expect(breakup, 'the car factory must expose its actual assembly instead of generic replacement debris').toBeTypeOf('function');
+    const components = breakup.call(factory, body, traffic);
+    expect(components.length).toBeGreaterThanOrEqual(40);
+    expect(components.filter(m => m.metadata.componentName === 'tire')).toHaveLength(4);
+    expect(components.filter(m => m.metadata.componentName === 'gun')).toHaveLength(traffic ? 0 : 2);
+    expect(new Set(components.map(m => m.metadata.componentId)).size).toBe(components.length);
+    const vertices = (meshes: readonly Mesh[], transform: boolean) => meshes.flatMap(mesh => {
+      const data = mesh.getVerticesData('position')!;
+      mesh.computeWorldMatrix(true);
+      return Array.from({ length: data.length / 3 }, (_, index) => {
+        const v = Vector3.FromArray(data, index * 3);
+        const p = transform ? Vector3.TransformCoordinates(v, mesh.getWorldMatrix()) : v;
+        return [p.x, p.y, p.z].map(n => n.toFixed(4)).join(',');
+      });
+    }).sort();
+    expect(vertices(components, true)).toEqual(vertices(intact.parts.map(p => p.sourceMesh), false));
+    expect(components.every(m => !m.isVisible && m.material !== null)).toBe(true);
+    expect(breakup.call(factory, body, traffic)).toBe(components);
+  });
+  it('keeps civilian traffic unarmed while retaining both physical gun barrels on player and villain cars', () => {
+    const barrelTips = (car: CarVisual) => car.parts.flatMap(part => {
+      const vertices = part.sourceMesh.getVerticesData('position') ?? [];
+      const tips: number[] = [];
+      for (let i = 0; i < vertices.length; i += 3) {
+        const x = vertices[i]!, y = vertices[i + 1]!, z = vertices[i + 2]!;
+        if (Math.abs(x) > .56 && Math.abs(x) < .70 && y > 1.10 && y < 1.24 && z > 2.4) tips.push(x);
+      }
+      return tips;
+    });
+    expect(barrelTips(factory.create('civilian', 'traffic-sedan', true)), 'spectator cars must have no gun-tip geometry').toHaveLength(0);
+    for (const body of VEHICLE_BODIES) {
+      const tips = barrelTips(factory.create(`officer-${body}`, body, false));
+      expect(tips.some(x => x < 0), `${body} left barrel`).toBe(true);
+      expect(tips.some(x => x > 0), `${body} right barrel`).toBe(true);
+    }
+    expect(barrelTips(factory.create('villain', 'suspect', false)).length).toBeGreaterThan(0);
+    expect(barrelTips(factory.create('second-civilian', 'traffic-sedan', true))).toHaveLength(0);
+  });
   it('puts both modeled gun tips at the shared physical forward2.45/lateral0.63/worldheight1.20 positions',()=>{
     const car=factory.create('gun-measure','patrol',false),navy=car.parts.find(m=>m.parent===car.body&&m.sourceMesh.material?.name==='navy')!.sourceMesh,vertices=navy.getVerticesData('position')!;
     for(const side of [-1,1]){const gun:number[][]=[];for(let i=0;i<vertices.length;i+=3){const x=vertices[i]!,y=vertices[i+1]!,z=vertices[i+2]!;if(x*side>.56&&x*side<.70&&y>1.10&&y<1.24&&z>.9)gun.push([x,y,z]);}

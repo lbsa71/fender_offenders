@@ -8,6 +8,8 @@ Status: acceptance plan for the playable `arcade-v8` alpha. Updated: 2026-10-24 
 
 The district, six distinct vehicle profiles, ten-dispatch campaign, armed bosses, reusable invites, callsigns, physical props and cosmetic crowds are integrated. PRs #2 and #3 also delivered bounded badge styling and fifteen-tick practice catch-up; neither closes the sustained performance gate. Work now focuses on proving and tightening the existing game.
 
+The car presentation follow-up adds unarmed civilian geometry and breakup of every original car component into bounded client-side rigid fragments. R owns geometry/effects/native scenarios; F owns the shared `@fender/physics` initialization adapter and dependency wiring; Q owns the real mixed-world startup regression. This extends R04/R05 acceptance without changing gameplay/network DTOs or closing the sustained performance gate. [The ledger](spec/EXECUTION_STATUS.md#car-presentation-follow-up) records observed RED/GREEN and publication scope.
+
 | Order | Work / existing tasks | Lead lanes | Evidence needed |
 | --- | --- | --- | --- |
 | 1 | Driving, combat and visual acceptance: F04–F06, S02, G04/G05, Q02 | S/G/U/R with F/Q | Human solo/campaign and multiplayer walkthroughs; physical controllers, drift/counter-steer, arrest windows, garage and readable effects on named hardware. |
@@ -41,7 +43,7 @@ The [armed-target extension](spec/BOSS_COMBAT.md) is also implemented: simulatio
 
 | Lane | Responsibility | Primary write ownership | Public handoff |
 | --- | --- | --- | --- |
-| F — Foundation/integration | Workspace, contracts, app wiring, decisions, integration | Root manifests/config/lockfile, `packages/contracts/**`, `apps/**`, `spec/CONTRACTS.md`, shared export surfaces | Versioned APIs, runnable composition, integration reports |
+| F — Foundation/integration | Workspace, contracts, shared physics startup, app wiring, decisions, integration | Root manifests/config/lockfile, `packages/contracts/**`, `packages/physics/**`, `apps/**`, `spec/CONTRACTS.md`, shared export surfaces | Versioned APIs, runnable composition, integration reports |
 | S — Simulation/driving | Fixed-step physics, handling, prediction state, traffic | `packages/sim/src/core/**`, `vehicles/**`, `physics/**`, `traffic/**`; matching unit tests | Simulation factory, checkpoints, collision/map adapters |
 | N — Networking | Room authority, transport, prediction, reconnect | `packages/net-client/**`, `packages/net-server/**`; network integration test helpers | Session facade, room factory, version/ack semantics |
 | R — Rendering/audio | Babylon scene, camera, lighting, VFX, sound | `packages/renderer/**`; render scenario modules | Renderer adapter, render profiles, visual captures |

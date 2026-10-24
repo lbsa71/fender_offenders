@@ -1,5 +1,5 @@
 import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { InstancedMesh } from '@babylonjs/core/Meshes/instancedMesh';
 import '@babylonjs/core/Meshes/instancedMesh';
 import type { Material } from '@babylonjs/core/Materials/material';
@@ -19,6 +19,7 @@ export interface CarVisual { entityId:string;wreckLifeFloor:number;wreckParts:In
 
 export class CarFactory {
   private templates = new Map<string, Mesh[]>();
+  private assemblies = new Map<string, Mesh[]>();
   private materials = new Map<string, Material>();
   private charredTemplate:Mesh|null=null;
   constructor(private scene: Scene) {}
@@ -36,14 +37,28 @@ export class CarFactory {
     return m;
   }
 
+  private bodyType(body:string,traffic:boolean):string{return traffic||body==='suspect'?'traffic':body==='army'||body==='ambulance'||body==='fire-chief'?body:body.includes('roadster')?'roadster':body.includes('interceptor')?'interceptor':'patrol';}
+  private key(body:string,traffic:boolean):string{return `${this.bodyType(body,traffic)}:${traffic?'civilian':'armed'}`;}
+  /** Exact authored components, centered for rigid-body use; intact cars still use material batches. */
+  breakupParts(body:string,traffic:boolean):readonly Mesh[]{this.template(body,traffic);return this.assemblies.get(this.key(body,traffic))!;}
+
   private template(body: string, traffic: boolean): Mesh[] {
-    const type=traffic?'traffic':body==='army'||body==='ambulance'||body==='fire-chief'?body:body.includes('roadster')?'roadster':body.includes('interceptor')?'interceptor':'patrol';
-    const cached=this.templates.get(type);if(cached)return cached;
+    const type=this.bodyType(body,traffic),key=this.key(body,traffic);
+    const cached=this.templates.get(key);if(cached)return cached;
+    const assembly:Mesh[]=[];
     const parts=new Map<string,{material:Material;meshes:Mesh[];role:'body'|'wheel'}>();
     const colors=VEHICLE_PAINT_COLORS;
     const paint=this.material(`paint-${type}`,colors[type]!, .4);
     const navy=this.material('navy','#234953',.3),glass=this.material('glass','#244653',.65),rubber=this.material('rubber','#263438'),chrome=this.material('chrome','#adb8ae',.8),headlight=this.material('headlight','#ffe4a1',0,true),tail=this.material('tail','#e87354',0,true);
-    const add=(mesh:Mesh,m:Material,role:'body'|'wheel'='body')=>{mesh.material=m;const key=`${m.name}/${role}`;const group=parts.get(key)??{material:m,meshes:[],role};group.meshes.push(mesh);parts.set(key,group);return mesh;};
+    const add=(mesh:Mesh,m:Material,role:'body'|'wheel'='body')=>{
+      mesh.material=m;
+      const componentName=mesh.name,fragment=mesh.clone(`assembly-${key}-${componentName}-${assembly.length}`,null,true)!;
+      fragment.bakeCurrentTransformIntoVertices(true,true);
+      const center=fragment.getBoundingInfo().boundingBox.center.clone();
+      fragment.bakeTransformIntoVertices(Matrix.Translation(-center.x,-center.y,-center.z));fragment.position.copyFrom(center);
+      fragment.metadata={role,componentName,componentId:`${componentName}-${assembly.length}`};fragment.isVisible=false;fragment.isPickable=false;assembly.push(fragment);
+      const groupKey=`${m.name}/${role}`,group=parts.get(groupKey)??{material:m,meshes:[],role};group.meshes.push(mesh);parts.set(groupKey,group);return mesh;
+    };
     const box=(name:string,x:number,y:number,z:number,w:number,h:number,d:number,m:Material)=>{const mesh=MeshBuilder.CreateBox(name,{width:w,height:h,depth:d},this.scene);mesh.position.set(x,y,z);return add(mesh,m);};
     const hull=(name:string,rings:Array<[number,number,number,number]>,m:Material)=>{
       const positions:number[]=[],indices:number[]=[];
@@ -84,7 +99,7 @@ export class CarFactory {
     for(const s of [-1,1]){
       box('headlamp',s*.67,.9,length-.02,.43,.25,.08,headlight);
       box('taillamp',s*.64,.9,-length+.02,.52,.2,.08,tail);
-      box('gun',s*.63,1.17,1.925,.13,.13,1.05,navy);
+      if(!traffic)box('gun',s*.63,1.17,1.925,.13,.13,1.05,navy);
     }
     box('plate',0,.69,-length-.15,.45,.16,.03,headlight);
     const lightbar=(y:number,z:number)=>{
@@ -133,7 +148,7 @@ export class CarFactory {
     else if(sporty){box('racing-stripe',0,1.16,1.25,.25,.03,1.1,navy);box('racing-stripe',0,1.16,-1.55,.25,.03,.7,navy);}
     const meshes:Mesh[]=[];
     for(const {material:m,meshes:list,role} of parts.values()){const merged=Mesh.MergeMeshes(list,true,true,undefined,false,false);if(merged){merged.material=m;merged.isVisible=false;merged.name=m.name;merged.metadata={role};merged.receiveShadows=true;meshes.push(merged);}}
-    this.templates.set(type,meshes);return meshes;
+    this.templates.set(key,meshes);this.assemblies.set(key,assembly);return meshes;
   }
 
   private charred():Mesh{
@@ -156,7 +171,7 @@ export class CarFactory {
     const marker=MeshBuilder.CreateTorus(`${entityId}-marker`,{diameter:3,thickness:.065,tessellation:40},this.scene);marker.position.y=.08;marker.parent=root;marker.material=this.material('marker','#b9e8da',0,true);
     return{entityId,root,wreckParts,wreckLife:null,explodedLife:null,wreckLifeFloor:-1,suspension,body:coachwork,bodyAssetId:body,traffic,motion:newCartoonMotion(),feedback:newVehicleFeedback(),lastCrashAt:-10,lastCrashTick:-1,lastBumpId:null,lastBumpAt:-10,parts,sirenRed:parts.find((p)=>p.sourceMesh.name==='red-siren')??null,sirenBlue:parts.find((p)=>p.sourceMesh.name==='blue-siren')??null,health,healthBack,marker,previousX:0,previousZ:0,previousYaw:0,discontinuity:-1};
   }
-  dispose():void{this.templates.clear();this.materials.clear();this.charredTemplate=null;}
+  dispose():void{for(const meshes of [...this.templates.values(),...this.assemblies.values()])for(const mesh of meshes)mesh.dispose();this.charredTemplate?.dispose();for(const material of this.materials.values())material.dispose();this.templates.clear();this.assemblies.clear();this.materials.clear();this.charredTemplate=null;}
 }
 
 /** Native instances support boolean visibility; status never mutates shared source/material alpha. */

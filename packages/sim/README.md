@@ -4,6 +4,8 @@ Reviewed: 2026-10-24 for `arcade-v8`. *Sixty ticks per second, with no allowance
 
 `await initPhysics()` once before calling `createSimulation(map, options)` in either browser or server. This initializes the pinned Rapier 0.21.0 WASM module. The simulation has no DOM, rendering, transport, wall-clock, or audio dependency.
 
+The implementation delegates WASM startup to `@fender/physics`, whose single promise is also used by the renderer's cosmetic debris adapter. Each world remains separately owned; debris initialization/disposal cannot invalidate authority scenery. `tests/integration/physics-startup.test.ts` checks this boundary with real native worlds. The public simulation initialization API is unchanged.
+
 ```ts
 await initPhysics();
 const sim = createSimulation(map, { mode: 'practice', trafficCount: 8, seed: 42, pursuit: true, campaign: true });

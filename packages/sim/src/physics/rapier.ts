@@ -1,11 +1,12 @@
 import RAPIER from '@dimforge/rapier3d-compat';
+import { initPhysics as initializeRuntime } from '@fender/physics';
 import type { CollisionMap } from '@fender/contracts';
 import type { Point } from './geometry.js';
 
 let initialized = false;
 let initialization: Promise<void> | undefined;
 export function initPhysics(): Promise<void> {
-  return initialization ??= RAPIER.init().then(() => { initialized = true; });
+  return initialization ??= initializeRuntime().then(() => { initialized = true; });
 }
 
 export interface StaticQueries { segmentHit(start: Point, end: Point): number | null; dispose(): void }

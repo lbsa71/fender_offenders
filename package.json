@@ -27,6 +27,7 @@
     "@fender/contracts": "workspace:*",
     "@fender/content": "workspace:*",
     "@fender/sim": "workspace:*",
+    "@fender/physics": "workspace:*",
     "@fender/input": "workspace:*",
     "@fender/ui": "workspace:*",
     "@fender/renderer": "workspace:*",

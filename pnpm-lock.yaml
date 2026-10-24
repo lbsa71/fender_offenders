@@ -38,6 +38,9 @@ importers:
       '@fender/net-server':
         specifier: workspace:*
         version: link:packages/net-server
+      '@fender/physics':
+        specifier: workspace:*
+        version: link:packages/physics
       '@fender/renderer':
         specifier: workspace:*
         version: link:packages/renderer
@@ -117,17 +120,29 @@ importers:
         specifier: workspace:*
         version: link:../sim
 
+  packages/physics:
+    dependencies:
+      '@dimforge/rapier3d-compat':
+        specifier: 0.21.0
+        version: 0.21.0
+
   packages/renderer:
     dependencies:
       '@babylonjs/core':
         specifier: 9.32.0
         version: 9.32.0
+      '@dimforge/rapier3d-compat':
+        specifier: 0.21.0
+        version: 0.21.0
       '@fender/content':
         specifier: workspace:*
         version: link:../content
       '@fender/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@fender/physics':
+        specifier: workspace:*
+        version: link:../physics
 
   packages/sim:
     dependencies:
@@ -137,6 +152,9 @@ importers:
       '@fender/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@fender/physics':
+        specifier: workspace:*
+        version: link:../physics
 
   packages/ui:
     dependencies:

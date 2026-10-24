@@ -50,6 +50,8 @@ Vitest and Playwright are installed and versioned in the root manifest/lockfile.
 | Assets | Missing file, wrong map hash, wrong orientation, blocked spawn, unresolved lane edge, absent license, placeholder leakage |
 | Presentation | Event dedup, no replay audio, correction offset decay, discontinuity snap, occlusion fade, reduced effects |
 | Reactive world | One-way car/prop interaction, sparse same-match baselines, quiet sleeping objects, wreck lifecycle and safe local pedestrian avoidance |
+| Car assembly breakup | Civilian/player/villain gun roles, exact component geometry/materials, independent rigid fragments, road/wall/fragment contacts, bounded pools, immediate reduced motion and zero-body cleanup |
+| Physics startup | Simulation and local debris share one WASM initialization; independent worlds remain valid through initialization/disposal; live practice startup remains usable |
 | HUD cost | Repeated target-badge positioning must keep style recalculation bounded for a live dispatch; Chromium CDP regression is separate from sustained frame-budget acceptance |
 | Operations | Healthy start, port conflict, capacity limit, graceful drain, shutdown message, rollback/content compatibility |
 

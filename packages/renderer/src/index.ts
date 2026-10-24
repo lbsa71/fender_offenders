@@ -57,7 +57,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
   for(const m of scene.meshes){m.unfreezeWorldMatrix();m.parent=mapRoot;m.freezeWorldMatrix();}
   for(const m of city)if(m.getBoundingInfo().boundingBox.maximumWorld.y>3)shadows.addShadowCaster(m);
   shadows.getShadowMap()!.refreshRate=1;
-  const factory=new CarFactory(scene),cars=new Map<string,CarVisual>(),audio=new MotorAudio(),combat=new CombatEffects(scene),wrecks=new WreckEffects(scene);
+  const factory=new CarFactory(scene),cars=new Map<string,CarVisual>(),audio=new MotorAudio(),combat=new CombatEffects(scene),wrecks=new WreckEffects(scene,factory,map);
   const prefersReducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
   const props=new PropVisuals(scene),pedestrians=new PedestrianCrowd(scene),objective=new TargetObjective(scene),grenades=new GrenadeEffects(scene);
   let garage:GaragePreview|null=null,garageBody:string|null=null;
@@ -135,8 +135,9 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     const active=new Set<string>();let cameraJump=false;
     for(const v of frame.vehicles){
       active.add(v.entityId);let car=cars.get(v.entityId);
-      if(car&&(car.bodyAssetId!==v.bodyAssetId||car.traffic!==(v.playerId===null))){removeCar(car);cars.delete(v.entityId);car=undefined;}
-      if(!car){car=factory.create(v.entityId,v.bodyAssetId,v.playerId===null);cars.set(v.entityId,car);for(const part of [...car.parts,...car.wreckParts])shadows.addShadowCaster(part);}
+      const traffic=v.playerId===null&&v.bodyAssetId.startsWith('traffic');
+      if(car&&(car.bodyAssetId!==v.bodyAssetId||car.traffic!==traffic)){removeCar(car);cars.delete(v.entityId);car=undefined;}
+      if(!car){car=factory.create(v.entityId,v.bodyAssetId,traffic);cars.set(v.entityId,car);for(const part of [...car.parts,...car.wreckParts])shadows.addShadowCaster(part);}
       const speed=Math.hypot(v.velocity.x,v.velocity.z),isLocal=v.entityId===frame.localEntityId;
       const discontinuity=car.discontinuity!==v.discontinuityId;
       if(isLocal&&discontinuity)cameraJump=true;
@@ -250,6 +251,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
   }
   async function loadScene(manifest:SceneManifest):Promise<void>{
     if(manifest.mapRevision!==map.revision)throw new Error(`Renderer map mismatch: ${manifest.mapRevision}`);
+    await wrecks.ready;
     scene.clearColor=Color4.FromColor3(Color3.FromHexString(manifest.environment.skyColor),1);scene.fogColor=Color3.FromHexString(manifest.environment.fogColor);sun.direction=Vector3.FromArray(manifest.environment.sunDirection);
   }
   function resize(width?:number,height?:number,pixelRatio?:number):void{if(disposed)return;if(width&&height){engine.setSize(Math.max(1,width*(pixelRatio??1)),Math.max(1,height*(pixelRatio??1)));}else engine.resize();}

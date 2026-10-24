@@ -26,7 +26,11 @@ The synthetic benchmark `node node_modules/tsx/dist/cli.mjs packages/sim/props-b
 
 Confirmed wreck metadata carries the final pose, car body and vehicle discontinuity. It can arrive before the corresponding snapshot. It cannot wreck a newer respawned life. Legacy events without metadata require an already wrecked snapshot. Duplicate events and repeated notifications for the same life do not replay the explosion.
 
-Wheels and body panels are cosmetic; they cannot damage cars or pedestrians. The renderer uses fixed pools, cancels them on respawn, entity removal, garage entry, match change and disposal, and restores the intact model only for its next active life. Late joiners see the current charred wreck without replaying an old explosion. Reduced motion suppresses flying/tumbling and reduced flashes suppress the bright burst; audio follows the existing unlock, mute, volume and distance rules.
+Every original car component becomes a separate cosmetic fragment, using the actual cached geometry/material: 40–58 pieces per car rather than ten generic replacements. A separate client Rapier world provides gravity, spin, conservative cuboid colliders, street/building contact and fragment collisions. Contacts between fragments begin after a 160 ms separation interval. Eight pooled visual sequences cap active bodies at 464; physics steps at 60 Hz with at most six catch-up ticks per update. This world shares only WASM initialization with simulation through `@fender/physics`; it shares no authority bodies or impulses.
+
+Fragments cannot damage or collide with cars or pedestrians and send no transforms. Body/collider resources are allocated at breakup and released within 2.6 seconds or on respawn, entity removal, garage entry, match change and disposal. Intact geometry returns only for the next active life. Late joiners see the current charred wreck without replaying an explosion. Reduced motion removes flying pieces and their bodies immediately, including during initialization; reduced flash suppresses the bright burst. Audio follows existing unlock, mute, volume and distance rules. Tiny hubcaps now get their own physics; the claims department remains unmoved.
+
+Only player and villain cars carry modeled guns. `traffic-*` body IDs select unarmed civilian geometry; a null player ID alone cannot classify a campaign target as civilian. Target bodies/weapons remain stable when the playing-only guidance field is absent. This is presentation behavior and changes no combat DTOs or gameplay revision.
 
 ## Pedestrian safety
 
@@ -54,5 +58,7 @@ node node_modules/tsx/dist/cli.mjs packages/renderer/scenarios/world-check.ts
 ```
 
 The physical street fixture intentionally places all prop kinds in the car's path to make contact and toppling reproducible. Its layout is a test scene, not the shipping district. Screenshots prove rendering and scripted behavior; they do not establish human visual approval, production frame budgets or hosted capacity. Existing release gates remain in [execution status](EXECUTION_STATUS.md).
+
+For the actual assembly breakup, run `pnpm exec vitest run packages/renderer/src/cars.test.ts packages/renderer/src/wreck-breakup.test.ts tests/integration/physics-startup.test.ts`, then `pnpm exec tsx packages/renderer/scenarios/breakup-check.ts` and `wreck-check.ts` against the same scenario server. `wreck-capture.ts work/assembly-breakup` records the native timeline. See [renderer acceptance and initialization notes](../packages/renderer/README.md#pooled-cartoon-wreck-sequence).
 
 `world-check.ts` currently requires the Edge browser channel and writes to an original-machine absolute output directory. See [renderer portability notes](../packages/renderer/README.md) before running native capture tools elsewhere. F02/Q01 owns portable fixture paths; Q05 owns sustained frame/memory/wire evidence with the complete campaign. Please let the benches tumble before claiming the budget is stable.

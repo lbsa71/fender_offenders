@@ -5,6 +5,7 @@
   "private": true,
   "name": "@fender/sim",
   "dependencies": {
+    "@fender/physics": "workspace:*",
     "@fender/contracts": "workspace:*",
     "@dimforge/rapier3d-compat": "0.21.0"
   },

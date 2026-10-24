@@ -5,6 +5,8 @@
   "private": true,
   "name": "@fender/renderer",
   "dependencies": {
+    "@fender/physics": "workspace:*",
+    "@dimforge/rapier3d-compat": "0.21.0",
     "@fender/contracts": "workspace:*",
     "@babylonjs/core": "9.32.0",
     "@fender/content": "workspace:*"
