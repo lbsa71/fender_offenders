@@ -56,7 +56,7 @@ export class PropVisuals {
     }
     this.templates.set(kind, templates); return templates;
   }
-  render(states: readonly PropState[]): void {
+  render(states: readonly PropState[], lampGlow = 0): void {
     if (this.disposed) return;
     const alive = new Set<string>(); this.dynamic = 0;
     for (const state of states.slice(0, 192)) {
@@ -75,6 +75,7 @@ export class PropVisuals {
       if (state.mode === 'dynamic') this.dynamic++;
     }
     for (const [id, visual] of this.instances) if (!alive.has(id)) { visual.root.dispose(); this.instances.delete(id); }
+    this.materials.get('#f0d69d')?.emissiveColor.set(.7 * lampGlow, .5 * lampGlow, .22 * lampGlow);
   }
   getStats() { return { props: this.instances.size, dynamicProps: this.dynamic }; }
   reset(): void { for (const visual of this.instances.values()) visual.root.dispose(); this.instances.clear(); this.dynamic = 0; }

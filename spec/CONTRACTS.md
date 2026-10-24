@@ -263,6 +263,7 @@ interface RenderFrame {
 
 interface GameRenderer {
   loadScene(scene: SceneManifest): Promise<void>;
+  setDispatch(dispatchId: string | null): void;
   render(frame: RenderFrame, frameDeltaSeconds: number): void;
   present(events: GameEvent[]): void;
   resize(width: number, height: number, pixelRatio: number): void;
@@ -288,6 +289,8 @@ Projectile presentation uses the predicted local car clock (at most six ticks ah
 `PursuitState` contains `state: 'chasing'|'arresting'|'complete'`, `suspectId`, leading `progress` and `elapsedTicks`, plus optional `arrestingPlayerId`, `winnerPlayerId` (nullable) and `contenders: Array<{playerId,progress}>`. Every contender owns independent progress; clients show the local contender's progress. The first qualifying arrest ends the dispatch, with stable player-ID tie resolution. Campaign mode additionally resolves credited target destruction; projectile resolution precedes arrest progress on the same tick. `pursuit-complete` carries optional player/suspect/outcome fields; `round-ended.reason` accepts `apprehended`, `wrecked` or `timeout`. State carries the result for late join/reconnect. Combat standings cannot override the resolving officer. See [the original decision](adr/001-competitive-pursuit.md) and [current campaign lifecycle](CAMPAIGN.md).
 
 `RenderFrame.pursuit` is included only while a dispatch is playing and its objective is incomplete. `TargetIndicator` is a render-only `{x,y,angle,offscreen,distanceMeters}` value: normalized canvas-relative X/Y, clockwise-from-up radians and planar distance to the local car. `renderer.getTargetIndicator()` uses the actual camera and sampled suspect pose; `ui.setTargetIndicator()` updates the existing badge each frame and gates its visibility by menu/session lifecycle. Neither value is serialized or accepted as gameplay authority.
+
+`renderer.setDispatch(id | null)` selects cosmetic noon/dusk/night atmosphere from the existing campaign catalog ID. App composition derives it from `snapshot.campaign.dispatchIndex` in both modes, including briefing/results, and supplies null outside a campaign. This adds no snapshot, checkpoint, protocol or gameplay-revision field. Local street spotlights use only upright lamp `PropState` poses; caps are two/one/zero on high/medium/low, and no local light casts shadows. [Graphics polish](GRAPHICS_POLISH.md) defines the authored schedule and subsequent visual work.
 
 Badge positioning applies directly, without retargeting a CSS position transition on every frame. `tests/e2e/target-badge-performance.spec.ts` guards bounded Chromium style cost. App pacing remains separate: up to fifteen local simulation ticks or four online input ticks per frame, covered by `tests/client/pacing.test.ts`. Neither presentation rule changes 60 Hz authority or input admission limits.
 

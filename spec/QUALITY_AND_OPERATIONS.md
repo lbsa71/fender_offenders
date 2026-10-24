@@ -73,6 +73,8 @@ If WebGPU initialization fails, reconstruct the renderer using WebGL2 and the sa
 
 Measure in a production build after warmup, over a five-minute route/combat scenario. Include eight player vehicles, configured traffic, shots, smoke, shadows, and UI. Record percentiles, not just average fps.
 
+The [graphics polish plan](GRAPHICS_POLISH.md) adds all three dispatch atmospheres and a capped two/one/zero high/medium/low street-light budget. Its native `environment-check.ts` fixture records same-camera captures, browser/device/source metadata, resource reuse and low-night readability. Combine future water/reflections/flares with full component wrecks in the sustained action trace; isolated attractive stills do not establish Q05. Human visual acceptance, moving-camera shimmer/occlusion and the named-device matrix remain required.
+
 | Metric | Initial target / gate |
 | --- | --- |
 | Target-device frame interval | Median at or below 16.7 ms; p95 at or below 20 ms; investigate repeated >50 ms stalls |

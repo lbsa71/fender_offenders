@@ -1,6 +1,6 @@
 # Execution status and evidence
 
-Updated: 2026-10-24. The documentation baseline is `c5b1161`, following game integration `c817f97`; the car presentation follow-up below is included in this source revision. This ledger covers the 49 tasks in [the plan](../IMPLEMENTATION_PLAN.md). The recorded public preview is [fender-offenders.onrender.com](https://fender-offenders.onrender.com); live availability and its current deployed commit were not rechecked here. Release-candidate acceptance remains incomplete.
+Updated: 2026-10-24. Documentation/credits/GPL were pushed in `c5b1161`, and the car presentation follow-up was pushed in `0a20a97`. The dispatch atmosphere foundation below extends that baseline. This ledger covers the 49 tasks in [the plan](../IMPLEMENTATION_PLAN.md). The recorded public preview is [fender-offenders.onrender.com](https://fender-offenders.onrender.com); live availability and its current deployed commit were not rechecked here. Release-candidate acceptance remains incomplete.
 
 *Evidence locker: please label the date before pinning a green tick to the corkboard.*
 
@@ -14,7 +14,7 @@ Production uses protocol 1, `arcade-v8`, map `sunset-borough-1` and campaign `gr
 | --- | --- | --- |
 | WANTED badge style cost, PR #2 | `18a29ee` records a browser RED from 1.19 to 3.81 ms per style recalc, beyond the 2 ms bound. Removing the continually retargeted position transition made the regression and affected browser/UI/type checks pass. This is a Chromium regression bound, not a sustained GPU budget. | `git show 18a29ee`; [browser regression](../tests/e2e/target-badge-performance.spec.ts) |
 | Practice frame pacing, PR #3 | `3792241` records passing baseline coverage, then the intended slow-frame failure: four ticks instead of fifteen. Practice now permits a quarter-second/fifteen-tick catch-up; online retains four input ticks. The commit records 465 headless tests, 12 practice browser scenarios, typecheck/docs checks and a scoped CPU-throttle comparison. | `git show 3792241`; [five pacing tests](../tests/client/pacing.test.ts), [pacing implementation](../apps/client/src/pacing.ts) |
-| Current integration point | PR #2 merged in `ec7d40f`; PR #3 merged in `c817f97` on 2026-10-24. No later feature delivery is assumed. | `git log -5 --oneline` |
+| Campaign integration before presentation follow-ups | PR #2 merged in `ec7d40f`; PR #3 merged in `c817f97` on 2026-10-24. The separately recorded car/atmosphere work below follows this checkpoint. | `git log --oneline` |
 
 ## Car presentation follow-up
 
@@ -30,6 +30,18 @@ The original documentation, credits and GPL changes were committed and pushed to
 After the startup fix, `pnpm test` passed **479 tests across 56 files**, and `pnpm test:e2e` passed **all 15 browser scenarios** together in 1.7 minutes. `pnpm check`, `pnpm assets:check` and `pnpm build` passed. The build retains the large-client-chunk advisory. One earlier concurrent run timed out waiting for a socket acknowledgment; its 12-test facade suite passed in isolation, and subsequent full runs passed. The browser count includes the actual practice blur/focus flow that initially exposed the startup conflict, real two-client play and the badge-cost regression.
 
 Native acceptance captures were generated and inspected with `wreck-capture.ts work/assembly-breakup`: original tires/hubs/trim and body pieces visibly separate, tumble and land, then disappear before the intact respawn. The scripted native lifecycle check passes duplicate/stale-life handling, late snapshots, leave/garage/respawn, reduced settings and disposal with zero retained debris bodies. These are controlled fixture views, not hosted gameplay or sustained performance approval. R04/R05/Q05 release gates remain open.
+
+## Dispatch atmosphere foundation
+
+The owner retained the blocky Minecraft/Lego-like miniature style and requested richer fog, shadows, directed light, water and restrained flares. [The graphics plan](GRAPHICS_POLISH.md) fixes a five-step sequence with ownership, all ten dispatch themes, quality/accessibility limits and explicit acceptance. This revision implements the atmosphere step; puddles/pond/pool, reflections, flares and further surface/shadow polish remain planned.
+
+Observed RED: the new native browser fixture found identical fog colors for noon and dusk. After authored atmosphere profiles, the real practice briefing regression then reported `environmentDispatchId: null` instead of `loose-change`; app wiring now derives the existing catalog ID from the authoritative campaign index in both modes. No wire or gameplay revision changes were needed. The focused real practice and two-browser online tests pass, confirming the opening theme in briefing and play. Later theme transitions are exercised by the native fixture; a complete live ten-dispatch visual walkthrough remains open.
+
+The seven deterministic environment checks cover all ten assignments, safe fallback, fog/key/fill, nearest upright lamps, reflected rotated/scaled heads, quality caps, no additional shadows, baseline-load ordering and disposal. The native check uses authored district prop placements and produces same-camera noon/dusk/night views, overview haze views and a readable low-night view. The inspected high views retain chunky silhouettes, warm dusk and blue night fill with localized warm lamp pools. Fog softens distant blocks. Low remains legible with no spotlights or shadows. Repeated dispatch changes retain 3,351 meshes, 140 materials and four lights in the fixture; high has at most two enabled local lights, medium one and low zero. Fixture draw calls were 190 noon and 203 dusk/night in these sampled views, not sustained production measurements.
+
+Reproduce with [the native atmosphere check](../packages/renderer/scenarios/environment-check.ts); local captures and detailed browser/device/source metadata are written to `work/dispatch-environments`. Human visual approval, combined eight-player/wreck/water performance, and the release browser/device matrix remain open. The fixture is a useful lighting inspection, not a self-issued driving license.
+
+Final atmosphere verification: `pnpm test` passed **486 tests across 57 files** in 19.17 seconds; `pnpm test:e2e` passed **all 15 browser scenarios** together in 1.8 minutes. `pnpm check`, `pnpm assets:check`, `pnpm build` and `git diff --check` passed. A full local Markdown audit checked **26 artifacts and 260 local links/anchors**. The build retains its existing large-client-chunk advisory. Native environment checks passed with no page errors and inspected high/low captures. These results extend the car checkpoint above; do not add their test counts together.
 
 ## Checks observed during the 2026-10-24 documentation review
 
@@ -158,9 +170,9 @@ Historical measurement environment: Intel Core i7-1355U, Intel Iris Xe, Windows 
 | --- | --- | --- |
 | R01 | Partial | Babylon facade, right-handed WebGL, resize, quality and cleanup exist. Art is source-generated; full backend/context failure handling remains. |
 | R02 | Partial | Elevated smoothed/look-ahead camera, wheel/body presentation and local marker exist. Human reverse/turn/occlusion review remains. |
-| R03 | Partial | Authored city/car surfaces, glass, lightbar, shadows and repeatable captures exist. Approved reference and controlled production frame/load budget remain. |
+| R03 | Partial | Authored city/car surfaces, glass, lightbar, noon/dusk/night atmosphere, directional shadows and repeatable captures exist. The graphics plan sequences water/flares/surface finish; approved reference and controlled production frame/load budget remain. |
 | R04 | Partial | Bounded tracer/effect/skid pools, audio and event dedup exist; renderer smoke checks duplicate presentation. Human audio/visual approval and profiling remain. |
-| R05 | Partial | District, presets and bounded effects are integrated. LOD/occlusion expectations, eight-player frame budgets and ten-rematch GPU/memory proof remain. |
+| R05 | Partial | District, presets, bounded effects and two/one/zero high/medium/low street lights are integrated. Water/reflections/flares, LOD/occlusion expectations, eight-player frame budgets and ten-rematch GPU/memory proof remain. |
 | R06 | Open | WebGPU is not enabled. Full WebGL2 browser/context-loss recovery matrix remains; WebGL2 is the current path. |
 
 ### Art and content

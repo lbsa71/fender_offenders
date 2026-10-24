@@ -6,6 +6,8 @@ Status: implemented; human difficulty/controller acceptance remains open. Review
 
 Campaign targets now use [distinct armed tactics](BOSS_COMBAT.md), including grenade attacks and a ten-step difficulty ramp. Briefings explain their driving style, weapon and counterplay. This extends the progression lifecycle below.
 
+Dispatch lighting follows the authored noon/dusk/night [graphics schedule](GRAPHICS_POLISH.md#authored-dispatch-schedule). Practice and online select it from the existing shared campaign index during briefing, play and results. Atmosphere changes presentation only; target rules and progression stay unchanged. Water and subtle flares remain later graphics steps. Dispatch has finally learned to book the night shift.
+
 Each solo game or multiplayer room runs **The Green Light Racket**, ten dispatches linking four ringleaders and six crew members. Every dispatch has an original target, mugshot, assigned vehicle, briefing, and success reveal. The four ringleaders appear at dispatches 2, 5, 8 and 10. This implements the ten-step/four-boss requirement without padding the campaign with identical unnamed pursuits.
 
 ## Player flow

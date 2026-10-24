@@ -1,6 +1,6 @@
 # Decision register
 
-Updated: 2026-10-24 against `c817f97`. Requirements, current defaults and unresolved acceptance are distinguished below. [Execution status](EXECUTION_STATUS.md) owns observed evidence.
+Updated: 2026-10-24 following `0a20a97` and the dispatch atmosphere foundation. Requirements, current defaults and unresolved acceptance are distinguished below. [Execution status](EXECUTION_STATUS.md) owns observed evidence.
 
 *Decisions belong here so the next shift need not interrogate the glove compartment.*
 
@@ -20,7 +20,8 @@ Updated: 2026-10-24 against `c817f97`. Requirements, current defaults and unreso
 | D22 | Production games use The Green Light Racket, ten dispatches with four ringleaders, shared casefile, arrest/wreck progression and timeout retry | Confirmed progression requirement, implemented in `b23617a`; [campaign](CAMPAIGN.md) extends D21 with credited target-wreck completion |
 | D23 | Campaign targets use authored driving, bursts and fixed-landing grenades; players receive saved random/custom callsigns | Armed-target extension implemented in `597bab6`; [combat and callsigns](BOSS_COMBAT.md) |
 | D24 | Contributor acknowledgments use Claude Code and OpenAI Codex as AI tool names, alongside all recorded human authors | Project-owner instruction, 2026-10-24; [credits](../CONTRIBUTORS.md) |
-| D28 | Modeled guns belong to player/villain cars; wrecks should break the car's actual assembled parts into individual physical fragments | Project-owner instruction, 2026-10-24; local renderer follow-up under R04/R05, with client-only physics and unchanged authority rules |
+| D28 | Modeled guns belong to player/villain cars; wrecks should break the car's actual assembled parts into individual physical fragments | Project-owner instruction, 2026-10-24; pushed as `0a20a97` under R04/R05, with client-only physics and unchanged authority rules |
+| D29 | Keep the Minecraft/Lego-like cutesy forms and add subtle fog, shadows, directed light, water and flares, with noon/dusk/night dispatch settings | Project-owner direction, 2026-10-24; [sequenced graphics plan](GRAPHICS_POLISH.md). Atmosphere is implemented; water/flares/further surface finish and acceptance remain open |
 
 ## Chosen defaults, revisable through implementation evidence
 

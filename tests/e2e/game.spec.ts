@@ -186,6 +186,7 @@ test('two browser clients create, join, start a live round and share confirmed s
     await expect(host.locator('[data-scores] li')).toHaveCount(2); await expect(guest.locator('[data-scores] li')).toHaveCount(2);
     for (const viewer of [host, guest]) {
       await expect(viewer.locator('.fo-campaign-roster').getByText('PING / ms', { exact: true })).toBeVisible();
+      await expect.poll(() => viewer.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.renderer.environmentDispatchId)).toBe('loose-change');
       for (const nickname of ['Dispatch Host', 'Backup Unit']) {
         await expect(viewer.locator('.fo-campaign-roster').getByLabel(new RegExp(`^${nickname} ping: \\d+ milliseconds$`))).toHaveText(/^\d+ ms$/);
       }
@@ -199,6 +200,7 @@ test('two browser clients create, join, start a live round and share confirmed s
     expect((await snapshot(guest))!.pursuit!.suspectId).toBe(sharedSuspect);
     for (const viewer of [host, guest]) {
       await expect(viewer.locator('.fo-pursuit')).toContainText('FIRST TO RESOLVE DISPATCH');
+      await expect.poll(() => viewer.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.renderer.environmentTheme)).toBe('noon');
       await expect(viewer.getByRole('img', { name: /^Wanted suspect,/ })).toBeVisible();
       await expect(viewer.locator('.fo-scoreboard').getByText('PING / ms', { exact: true })).toBeVisible();
       for (const nickname of ['Dispatch Host', 'Backup Unit']) await expect(viewer.locator('[data-scores]').getByLabel(new RegExp(`^${nickname} ping: \\d+ milliseconds$`))).toHaveText(/^\d+ ms$/);

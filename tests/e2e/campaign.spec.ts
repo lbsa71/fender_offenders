@@ -7,6 +7,7 @@ test('a solo campaign starts at a briefing with a boss dossier and motor pool be
   const state = () => page.evaluate(() => (window as Window & { __FENDER_DEBUG__?: { snapshot: WorldSnapshot } }).__FENDER_DEBUG__?.snapshot);
   await expect.poll(async () => (await state())?.phase).toBe('lobby');
   expect((await state())?.campaign).toMatchObject({ dispatchIndex: 0, status: 'active', outcomes: [] });
+  await expect.poll(() => page.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.renderer.environmentDispatchId)).toBe('loose-change');
   await expect(page.getByRole('region', { name: 'Campaign dispatch briefing' })).toContainText('The Green Light Racket');
   await expect(page.locator('.fo-campaign-briefing .fo-campaign-portrait')).toBeVisible();
   await expect(page.locator('.fo-campaign-briefing [data-campaign-name]')).toHaveText('Nico Nickel');
@@ -22,4 +23,5 @@ test('a solo campaign starts at a briefing with a boss dossier and motor pool be
   await expect.poll(async () => (await state())?.phase).toBe('playing');
   await expect(page.getByRole('button', { name: 'REASSIGN VEHICLE' })).toBeHidden();
   await expect(page.getByRole('img', { name: /^Wanted suspect,/ })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.renderer.environmentTheme)).toBe('noon');
 });

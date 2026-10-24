@@ -24,6 +24,8 @@ That appearance is an asset choice, not a Babylon constraint. More sculpted mesh
 
 A polished miniature city with believable materials, readable forms, and comic action. Use the actual elevated gameplay camera to judge every asset. Favor coherent silhouettes and lighting over detail visible only in a close-up asset viewer.
 
+The owner's selected direction keeps the Minecraft/Lego-like cutesy block forms. [Graphics polish](GRAPHICS_POLISH.md) adds authored noon/dusk/night dispatch atmospheres first, followed by puddles/pond/pool water, subtle occluded flares and material/shadow refinement. Preserve the simple geometry and friendly palette; high-end details should add depth without overwhelming the toy city. The atmosphere slice uses existing fog/shadows and a two/one/zero high/medium/low local-lamp budget; advanced water/reflections/flares remain planned.
+
 Initial reference scene: one four-way intersection, a police car and rival car, one house, one commercial facade, pavement, a dirt shoulder/shortcut, street lights/signs, and a few restrained props. Capture it in warm afternoon light and a neutral overcast setup before selecting the final palette.
 
 Cars receive the most attention: proportions, wheel placement, beveled edges, paint response, glass, lights, decals, and readable damage. Buildings establish scale and atmosphere but should not hide routes or rivals. Dirt and asphalt need visible material differences without noisy high-frequency textures.

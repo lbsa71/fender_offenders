@@ -19,7 +19,7 @@ Targets now [fight back with distinct driving and weapon tactics](BOSS_COMBAT.md
 1. **Driving feels good immediately.** Steering, braking, drifting, impacts, and recovery matter more than realistic suspension.
 2. **Action stays readable.** Players can see upcoming turns, incoming attacks, damaged cars, and escape routes from the elevated camera.
 3. **Joining friends is easy.** A room link and nickname lead quickly to a match.
-4. **The city looks deliberately made.** Consistent scale, materials, lighting, silhouettes, and sound take priority over raw asset count.
+4. **The city looks deliberately made.** Keep the cutesy Minecraft/Lego-like miniature forms. Consistent scale, materials, lighting, silhouettes, and sound take priority over raw asset count. [Graphics polish](GRAPHICS_POLISH.md) adds noon/dusk/night dispatch atmospheres, then subtle water, flares and surface/shadow finish with readable low-quality fallbacks.
 5. **Comedy comes from the situation.** Sirens, traffic violations, bureaucratic score messages, and spectacular vehicle mishaps provide the tone.
 
 ## 3. Intended audience and platform

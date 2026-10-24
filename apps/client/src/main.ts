@@ -4,7 +4,7 @@ import { createSimulation, initPhysics, type Simulation } from '@fender/sim';
 import { createInputSource, type InputSettings } from '@fender/input';
 import { mountGameUi, type UiSettings } from '@fender/ui';
 import { createOnlineSession } from '@fender/net-client';
-import { isVehicleBodyId, neutralActions, type GameEvent, type RenderFrame, type SessionRequest, type SessionStatus, type WorldSnapshot } from '@fender/contracts';
+import { CAMPAIGN_DISPATCHES, isVehicleBodyId, neutralActions, type GameEvent, type RenderFrame, type SessionRequest, type SessionStatus, type WorldSnapshot } from '@fender/contracts';
 import { planFrame } from './pacing';
 import './style.css';
 
@@ -116,6 +116,7 @@ async function boot() {
       renderFrame = { sampleTimeSeconds: now / 1000, serverTick: state.serverTick, grenades: active && state.phase === 'playing' ? state.grenades ?? [] : [], vehicles: state.vehicles, projectiles: state.projectiles.map(projectile=>({...projectile,presentationAgeSeconds:Math.max(0,(state.serverTick-projectile.bornTick+1)/60)})), props: state.props, localEntityId: state.local?.vehicle.entityId ?? null, cameraTarget: state.local?.vehicle.pose ?? { x: 4, z: -48, yaw: 0 },
         pursuit: active && state.phase === 'playing' && state.pursuit?.state !== 'complete' ? state.pursuit : undefined };
     }
+    renderer.setDispatch(active && snapshot?.campaign ? CAMPAIGN_DISPATCHES[snapshot.campaign.dispatchIndex]?.id ?? null : null);
     renderer.setGaragePreview(!active || snapshot?.phase === 'lobby' ? ui.getVehicle() : null);
     if (renderFrame && (!active || ui.isMenuVisible())) renderFrame.pursuit = undefined;
     if (renderFrame) renderer.render(renderFrame, dt);

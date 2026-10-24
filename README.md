@@ -8,7 +8,7 @@ Fender Offenders is a playable browser arcade driving and vehicle-combat alpha i
 
 This is a playable alpha, not a release candidate. [Execution status](spec/EXECUTION_STATUS.md) records all 49 implementation tasks, observed checks, and remaining acceptance gates. Fender Offenders remains a working name without trademark clearance.
 
-Documentation reviewed: **2026-10-24**, against `c817f97` (`arcade-v8`, protocol 1). The latest merged fixes keep the WANTED badge's style cost from growing during a dispatch and let slow practice frames catch up as many as fifteen fixed ticks. Online input stays capped at four ticks per frame. The paperwork is catching up with the patrol car.
+Documentation reviewed: **2026-10-24**, following `0a20a97` (`arcade-v8`, protocol 1). Civilian cars are unarmed and wrecks split into their original physical components. Earlier fixes bound WANTED badge styling and let slow practice frames catch up as many as fifteen fixed ticks; online input stays capped at four. The paperwork is catching up with the patrol car.
 
 ## Run locally
 
@@ -28,6 +28,7 @@ Invite links survive empty-room disposal and server restarts: joining lazily rec
 ## What is implemented
 
 - A project-authored procedural district, six vehicle body designs, roads and dirt shortcuts, traffic, lighting, shadows, signs, skid marks, combat effects, and synthesized vehicle/action audio.
+- Authored noon, dusk and night dispatch lighting with colored distance fog, directional sun/moon shadows and bounded warm street lights. The [graphics polish plan](spec/GRAPHICS_POLISH.md) preserves the blocky toy-town style; water, reflections and subtle flares are next steps.
 - Shared fixed-step driving, deliberate brake-to-reverse behavior, drifting, collisions, stuck recovery, and a suspect-apprehension objective in practice and multiplayer.
 - **The Green Light Racket**: ten dispatches, four connected ringleaders and six crew members, original mugshots, assigned target cars, a shared campaign tracker and a story revealed through successful pursuits. Arrest or destroy the target to advance; only arrests earn green checks.
 - Armed campaign targets with distinct driving styles, burst fire, grenade lobs and progressively tougher tactics. Briefings explain the threat and counterplay; marked grenade landing areas give players time to dodge.
@@ -121,6 +122,7 @@ Use the ownership map and task register in [the implementation plan](IMPLEMENTAT
 - [Contracts](spec/CONTRACTS.md): semantic interfaces; executable exports live in `packages/contracts`.
 - [Quality and operations](spec/QUALITY_AND_OPERATIONS.md): performance/network/device/release gates.
 - [Art and assets](spec/ART_AND_ASSETS.md): original asset policy, provenance, and sourcing guidance.
+- [Graphics polish](spec/GRAPHICS_POLISH.md): dispatch lighting schedule, water/flares/surface sequence, quality limits and visual acceptance.
 - [Original runtime asset record](packages/content/manifests/licenses/ORIGINAL_ASSETS.md): project-authored geometry/materials/audio; dependency-license review remains separate.
 - [Decision register](spec/DECISIONS.md): accepted requirements and defaults.
 - [Contributors](CONTRIBUTORS.md): Stefan Andersson, Wictor Stenseke, Claude Code, and OpenAI Codex—the people and AI assistance behind the dispatch desk.
