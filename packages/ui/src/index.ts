@@ -254,6 +254,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     targetBadge.hidden = !allowed || !indicator || ![indicator.x, indicator.y, indicator.angle, indicator.distanceMeters].every(Number.isFinite);
     if (targetBadge.hidden || !indicator) return;
     targetBadge.dataset.offscreen = String(indicator.offscreen);
+    // The position is applied directly every frame. The former CSS left/top transition was retargeted on each
+    // write, which made Blink's style recalculation grow for the whole dispatch and read as worsening frame drops.
     targetBadge.style.setProperty('--target-x', `${Math.max(0, Math.min(1, indicator.x)) * 100}%`);
     targetBadge.style.setProperty('--target-y', `${Math.max(0, Math.min(1, indicator.y)) * 100}%`);
     targetAngle += Math.atan2(Math.sin(indicator.angle - targetAngle), Math.cos(indicator.angle - targetAngle));
