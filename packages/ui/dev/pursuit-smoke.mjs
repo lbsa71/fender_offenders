@@ -50,7 +50,7 @@ try {
       ['south', { x: .5, y: 1, angle: Math.PI }], ['west', { x: 0, y: .5, angle: -Math.PI / 2 }],
     ]) {
       await indicate({ ...indicator, offscreen: true, distanceMeters: 123.2 });
-      await page.waitForTimeout(110); // The accepted border movement eases over 85ms.
+      await page.waitForTimeout(110); // Position applies immediately (no CSS transition); the wait only lets layout settle after the resize.
       const bounds = await page.locator('.fo-target-indicator').count() ? await page.locator('.fo-target-indicator').boundingBox() : null;
       check(Boolean(bounds && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= viewport.width && bounds.y + bounds.height <= viewport.height), `${name} indicator is entirely inside ${viewport.width}x${viewport.height}`);
       if (bounds) {
