@@ -280,7 +280,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     // The position is applied directly every frame. The former CSS left/top transition was retargeted on each
     // write, which made Blink's style recalculation grow for the whole dispatch and read as worsening frame drops.
     targetBadge.style.setProperty('--target-x', `${Math.max(0, Math.min(1, indicator.x)) * 100}%`);
-    const safeY=indicator.offscreen && (indicator.x<.35||shellWidth<=740) ? Math.max(indicator.y,Math.min(.65,(shellWidth<=740?390:340)/shellHeight)) : indicator.y;
+    const safeY=indicator.offscreen && indicator.x<.35 ? Math.max(indicator.y,Math.min(.65,(shellWidth<=740?390:340)/shellHeight)) : indicator.y;
     targetBadge.style.setProperty('--target-y', `${Math.max(0, Math.min(1, safeY)) * 100}%`);badgeAnchor={x:indicator.x,y:safeY};
     targetAngle += Math.atan2(Math.sin(indicator.angle - targetAngle), Math.cos(indicator.angle - targetAngle));
     targetBadge.style.setProperty('--target-angle', `${targetAngle}rad`);

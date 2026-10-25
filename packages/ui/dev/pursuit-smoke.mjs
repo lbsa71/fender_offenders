@@ -45,6 +45,9 @@ try {
 
   for (const viewport of [{ width: 1440, height: 900 }, { width: 960, height: 640 }, { width: 520, height: 580 }]) {
     await page.setViewportSize(viewport);
+    // Observe the same settled dimensions as the application's next frame,
+    // rather than racing the ResizeObserver's cached shell measurements.
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     for (const [name, indicator] of [
       ['north', { x: .5, y: 0, angle: 0 }], ['east', { x: 1, y: .5, angle: Math.PI / 2 }],
       ['south', { x: .5, y: 1, angle: Math.PI }], ['west', { x: 0, y: .5, angle: -Math.PI / 2 }],
