@@ -27,6 +27,9 @@ test('assigns a room URL before entry, retains it on reload, and allocates only 
   await expect.poll(async()=>(await state(page))?.phase).toBe('playing');
 });
 test('pauses alone, resumes when backup joins live, and returns to the same campaign',async({browser,baseURL})=>{
+  // Two real scenes plus the intentional notice delay need a total budget
+  // matching the other two-browser flow. Individual expectations stay at 12 s.
+  test.setTimeout(90000);
   const aContext=await createGameContext(browser),bContext=await createGameContext(browser);
   try{
     const a=await aContext.newPage(),b=await bContext.newPage();await a.goto(baseURL!);

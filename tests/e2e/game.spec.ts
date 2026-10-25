@@ -97,10 +97,12 @@ test('a hard driving collision presents a confirmed impact burst without ram dam
   await page.addInitScript(()=>localStorage.setItem('fender-garage-v1',JSON.stringify({vehicleBodyId:'patrol'})));
   await practice(page);await page.keyboard.down('w');await page.keyboard.down('d');
   try{
-    await expect.poll(()=>page.evaluate(()=>{
+    // The burst can expire between cross-process polls. Observe every real
+    // browser frame so a short, actually rendered impact cannot be skipped.
+    await page.waitForFunction(()=>{
       const debug=(window as DebugWindow).__FENDER_DEBUG__;
       return !!debug?.events?.some(event=>event.kind==='crash')&&(debug.stats?.renderer?.impactRings??0)>0;
-    }),{timeout:60000}).toBe(true);
+    },undefined,{polling:'raf',timeout:60000});
     expect((await snapshot(page))!.local!.vehicle.health).toBe(100);
     expect(errors).toEqual([]);
   }finally{await page.keyboard.up('w');await page.keyboard.up('d');}
