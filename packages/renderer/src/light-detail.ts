@@ -75,10 +75,10 @@ export class LightDetail {
 
   update(frame: RenderFrame, cars: ReadonlyMap<string, CarVisual>, lampSources: readonly { position: Vector3 }[], strength: number, quality: 'low' | 'medium' | 'high', reducedFlash: boolean): void {
     if (this.disposed) return;
-    this.reset();
+    for (const mesh of this.glints) mesh.isVisible = false;
     for (const material of this.windows) material.emissiveColor.set(.46 * strength, .24 * strength, .085 * strength);
-    if (strength <= 0) return;
-    const camera = this.scene.activeCamera; if (!camera) return;
+    if (strength <= 0) { this.setHeadlightCount(0); return; }
+    const camera = this.scene.activeCamera; if (!camera) { this.setHeadlightCount(0); return; }
     const candidates = frame.vehicles.filter(v => v.status === 'active' && cars.get(v.entityId)?.wreckLife !== v.discontinuityId)
       .sort((a, b) => Number(b.entityId === frame.localEntityId) - Number(a.entityId === frame.localEntityId) || Math.hypot(-a.pose.x - camera.position.x, a.pose.z - camera.position.z) - Math.hypot(-b.pose.x - camera.position.x, b.pose.z - camera.position.z));
     const cap = quality === 'low' ? 0 : quality === 'medium' ? 1 : 2;
@@ -89,8 +89,9 @@ export class LightDetail {
       const matrix = car.body.getWorldMatrix(), light = this.headlights[i]!;
       light.position.copyFrom(Vector3.TransformCoordinates(new Vector3(0, .9, 2.22), matrix));
       light.direction.copyFrom(Vector3.TransformNormal(new Vector3(0, -.12, 1), matrix)).normalize();
-      light.intensity = 1.1 * strength; light.setEnabled(true); sources.push(light.position);
+      light.intensity = 1.1 * strength; sources.push(light.position);
     }
+    this.setHeadlightCount(sources.length);
     if (quality === 'low' || reducedFlash) return;
     const planes = Frustum.GetPlanes(camera.getViewMatrix().multiply(camera.getProjectionMatrix()));
     const visible = [...lampSources.map(s => s.position), ...sources]
@@ -100,7 +101,16 @@ export class LightDetail {
       const mesh = this.glints[i]!; mesh.position.copyFrom(visible[i]!); mesh.visibility = strength * .65; mesh.isVisible = true;
     }
   }
-  reset(): void { for (const light of this.headlights) { light.intensity = 0; light.setEnabled(false); } for (const mesh of this.glints) mesh.isVisible = false; }
+  private setHeadlightCount(count: number): void {
+    // Changing membership invalidates every receiver's light/shader defines in Babylon.
+    // Moving an existing cone only needs uniform updates.
+    for (let i = 0; i < this.headlights.length; i++) {
+      const light = this.headlights[i]!, enabled = i < count;
+      if (!enabled) light.intensity = 0;
+      if (light.isEnabled() !== enabled) light.setEnabled(enabled);
+    }
+  }
+  reset(): void { this.setHeadlightCount(0); for (const mesh of this.glints) mesh.isVisible = false; }
   getStats() { return { headlightLights: this.headlights.filter(l => l.isEnabled()).length, sourceGlints: this.glints.filter(m => m.isVisible).length, fullScreenBloomPasses: 0 }; }
   dispose(): void {
     if (this.disposed) return; this.reset(); this.disposed = true;

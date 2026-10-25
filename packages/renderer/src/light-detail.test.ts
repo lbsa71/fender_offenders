@@ -9,6 +9,7 @@ import { districtMap } from '@fender/content';
 import type { CollisionMap, RenderFrame, VehicleState } from '@fender/contracts';
 import { LightDetail, sourceIsVisible } from './light-detail';
 import { CarFactory } from './cars';
+import { MeshBuilder } from './primitives';
 
 let engine: NullEngine, scene: Scene, camera: FreeCamera, detail: LightDetail, factory: CarFactory;
 const map: CollisionMap = { ...districtMap, colliders: [] };
@@ -68,4 +69,25 @@ it('budgets actual shadowless headlight cones and cleans up on wreck, respawn, g
   detail.update(active, cars, [], 1, 'high', false); detail.reset(); expect(detail.getStats()).toMatchObject({ headlightLights: 0, sourceGlints: 0 });
   const halo = scene.textures.find(t => t.name === 'source-halo');
   car.root.dispose(); factory.dispose(); detail.dispose(); detail.dispose(); expect(scene.lights).toHaveLength(0); expect(scene.textures).not.toContain(halo);
+});
+it('moves an active headlight without invalidating unchanged receiver shaders', () => {
+  const receiver = MeshBuilder.CreateBox('headlight-receiver', { size: 2 }, scene);
+  receiver.material = new StandardMaterial('receiver', scene);
+  const car = factory.create('officer', 'patrol', false);
+  const vehicle: VehicleState = { entityId: 'officer', playerId: 'officer', bodyAssetId: 'patrol', pose: { x: 0, z: 0, yaw: 0 }, velocity: { x: 0, z: 0, yawRate: 0 }, health: 100, status: 'active', protectedUntilTick: 0, respawnAtTick: null, sirenOn: false, discontinuityId: 0 };
+  const cars = new Map([['officer', car]]), active = { ...frame, vehicles: [vehicle] };
+  detail.update(active, cars, [], .55, 'medium', false); scene.render();
+  const defines = receiver.subMeshes![0]!.materialDefines!;
+  expect(defines.isDirty).toBe(false);
+  const initialPosition = detail.headlights[0]!.position.clone(), transitions: boolean[] = [];
+  detail.headlights[0]!.onEnabledStateChangedObservable.add(enabled => transitions.push(enabled));
+  car.root.position.x += 3;
+  detail.update(active, cars, [], 1, 'medium', false);
+  expect(detail.headlights[0]!.position.x).toBeCloseTo(initialPosition.x + 3);
+  expect(detail.headlights[0]!.intensity).toBeCloseTo(1.1);
+  expect(defines.isDirty, 'moving a steady light must not rebuild material defines').toBe(false);
+  expect(transitions).toEqual([]);
+  detail.update(active, cars, [], 0, 'medium', false);
+  expect(detail.getStats().headlightLights).toBe(0);
+  expect(defines.isDirty, 'removing a light must still invalidate its receivers').toBe(true);
 });

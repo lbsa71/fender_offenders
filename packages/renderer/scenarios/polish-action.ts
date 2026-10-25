@@ -6,9 +6,13 @@ import { districtMap, districtProps } from '@fender/content';
 import { VEHICLE_BODIES, type VehicleState, type RenderFrame, type GameEvent } from '@fender/contracts';
 import { createGameRenderer } from '../src/index';
 
-const quality = new URLSearchParams(location.search).get('quality') === 'low' ? 'low' : 'medium';
+const parameters = new URLSearchParams(location.search);
+const quality = parameters.get('quality') === 'low' ? 'low' : 'medium';
 const renderer = createGameRenderer(document.querySelector('canvas')!, districtMap, { quality, muted: true });
 const scene = EngineStore.LastCreatedScene!, instrumentation = new EngineInstrumentation(scene.getEngine()); instrumentation.captureGPUFrameTime = true;
+// Cost ablation only: keep the same scene, pools, source halos and quality, but exclude
+// headlight cones from receiver shaders. Never used by the production app.
+if (parameters.get('headlights') === 'off') for (const light of scene.lights) if (light.name.startsWith('car-headlight-')) light.excludeWithLayerMask = 0xffffffff;
 const players: VehicleState[] = Array.from({ length: 8 }, (_, i) => ({ entityId: `officer-${i}`, playerId: `officer-${i}`, bodyAssetId: VEHICLE_BODIES[i % VEHICLE_BODIES.length]!, pose: { x: i % 2 ? -4 : 4, z: -60 + i * 7, yaw: 0 }, velocity: { x: 0, z: 8, yawRate: 0 }, health: 100, status: 'active', protectedUntilTick: 0, respawnAtTick: null, sirenOn: true, discontinuityId: 0 }));
 const traffic: VehicleState[] = Array.from({ length: 8 }, (_, i) => ({ ...players[i]!, entityId: `traffic-${i}`, playerId: null, bodyAssetId: 'traffic-sedan', pose: { x: i % 2 ? -76 : 76, z: -65 + i * 17, yaw: 0 }, sirenOn: false }));
 const frame: RenderFrame = { sampleTimeSeconds: 0, serverTick: 0, vehicles: [...players, ...traffic], projectiles: [], grenades: [], props: districtProps.map(p => ({ ...p, scale: p.scale ?? 1, rotation: { x: 0, y: Math.sin((p.yaw ?? 0) / 2), z: 0, w: Math.cos((p.yaw ?? 0) / 2) }, mode: 'fixed', sleeping: true, discontinuityId: 0 })), localEntityId: players[0]!.entityId, cameraTarget: players[0]!.pose };
