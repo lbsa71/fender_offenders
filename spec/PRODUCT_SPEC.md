@@ -107,6 +107,7 @@ All devices produce the same action structure. Gameplay never reads raw DOM even
 - Only player and villain cars display those guns. Civilian spectator traffic remains visibly unarmed; targets retain their assigned body rather than being classified as civilians solely because they are AI.
 - Current baseline: profile-dependent health, two 5-damage rounds per volley, 5 volleys/second, projectile speed 70 m/s, lifetime 0.65 seconds. These values belong in a versioned gameplay configuration.
 - Infinite ammunition for the initial mode. Heat/reload systems require a later playtest decision.
+- Accepted gun volleys have noticeable driving recoil: sustained fire reduces speed, steering response and grip. The handling penalty builds while firing and recovers after release; there is no random steering reversal. Authority and prediction share this rule in the current `arcade-v9` worktree. See the [fresh recoil measurements](../packages/sim/BALANCE.md#gun-recoil-2026-10-25). Grenade throws retain their existing behavior.
 - The server creates authoritative projectiles, sweeps their paths against collision geometry, applies hits once, and emits events.
 - Buildings and solid obstacles block shots. Dirt, lane paint, and cosmetic debris do not.
 - Shots cannot damage their owner. Other drivers remain damageable during the pursuit.

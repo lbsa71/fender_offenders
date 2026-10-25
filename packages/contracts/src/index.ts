@@ -3,7 +3,7 @@ export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v8';
+export const GAMEPLAY_REVISION = 'arcade-v9';
 export type { CampaignState, CampaignOutcome, DispatchOutcome, CampaignTarget, CampaignDispatch } from './campaign-types';
 export { CAMPAIGN_ID, CAMPAIGN_TITLE, CAMPAIGN_TARGETS, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, getCampaignTarget } from './campaign';
 export { getCampaignMugshot } from './campaign-mugshots';
@@ -39,6 +39,8 @@ export interface VehicleState {
 export interface DriverRuntimeState {
   resolvedSteering: number; reverseHoldTicks: number; nextFireTick: number;
   shotOrdinal: number; nextRecoveryTick: number; lastDamageTick: number | null;
+  /** Accepted-volley handling load and prediction clock. Omitted legacy values default to zero. */
+  recoilStrength?: number; simulatedTick?: number;
 }
 export interface LocalAuthorityState { vehicle: VehicleState; driver: DriverRuntimeState; lastConsumedSequence: number }
 export interface ProjectileState {

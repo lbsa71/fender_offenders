@@ -42,3 +42,23 @@ it.each([{phase:'lobby' as const,campaign:false},{phase:'playing' as const,campa
  transport.initial=packSnapshot(state(scenario.phase,scenario.campaign));const session=createOnlineSession('ws://campaign-prediction',map);
  try{await session.connect({mode:'create',nickname:'Live prediction'});submit(session);expect(localPose(session).z).toBeGreaterThan(0);expect(session.getSnapshot()!.local!.vehicle.pose.z).toBe(0);}finally{await session.dispose();}
 });
+it('uses the snapshot clock for recoil cadence when a legacy local baseline omits the prediction tick',async()=>{
+ const initial=state();initial.local!.driver.nextFireTick=108;
+ transport.initial=packSnapshot(initial);const session=createOnlineSession('ws://campaign-prediction',map);
+ try{
+  await session.connect({mode:'create',nickname:'Recoil clock'});
+  const speed=()=>session.sampleFrame()!.vehicles.find(v=>v.entityId==='local')!.velocity.z;
+  for(let sequence=0;sequence<7;sequence++)session.submit({sessionEpoch:'epoch',sequence,clientTick:sequence,actions:{...neutralActions(),fire:true}});
+  expect(speed()).toBeGreaterThan(18);const before=speed();
+  session.submit({sessionEpoch:'epoch',sequence:7,clientTick:7,actions:{...neutralActions(),fire:true}});
+  expect(speed()).toBeLessThan(before-2.5);
+ }finally{await session.dispose();}
+});
+it('allows noncampaign lobby driving without predicting a gun kick before play',async()=>{
+ transport.initial=packSnapshot(state('lobby',false));const session=createOnlineSession('ws://campaign-prediction',map);
+ try{
+  await session.connect({mode:'create',nickname:'Safe lobby gun'});
+  session.submit({sessionEpoch:'epoch',sequence:0,clientTick:0,actions:{...neutralActions(),fire:true}});
+  expect(session.sampleFrame()!.vehicles.find(v=>v.entityId==='local')!.velocity.z).toBeGreaterThan(19);
+ }finally{await session.dispose();}
+});

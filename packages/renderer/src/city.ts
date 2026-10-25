@@ -16,6 +16,9 @@ export function buildCity(scene: Scene): Mesh[] {
     const key = color + glow;
     let m = materials.get(key);
     if (!m) { m = new StandardMaterial(key, scene); m.diffuseColor = Color3.FromHexString(color); m.specularColor.set(.03, .03, .03); if (glow) m.emissiveColor = m.diffuseColor.scale(.55); materials.set(key, m); }
+    if(color==='#4d6268'){m.specularColor.set(.09,.09,.09);m.specularPower=48;}
+    else if(color==='#bd9b6f'){m.specularColor.set(.018,.018,.018);m.specularPower=10;}
+    else if(color==='#c8c6ac'){m.specularColor.set(.04,.04,.04);m.specularPower=24;}
     return m;
   };
   const add = (mesh: Mesh, color: string) => {

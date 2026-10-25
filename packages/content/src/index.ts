@@ -60,6 +60,7 @@ export const districtMap: CollisionMap = {
 };
 
 export { VEHICLE_BODIES } from '@fender/contracts';
+export { DISTRICT_WATER } from './water';
 export const ASSET_PROVENANCE = {
   revision: 'original-procedural-1',
   creator: 'Fender Offenders project',

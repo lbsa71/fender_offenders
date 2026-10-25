@@ -8,6 +8,7 @@ import { createStaticQueries, type StaticQueries } from '../physics/rapier.js';
 import { maxHealthForVehicle } from '../vehicles/profiles.js';
 import { selectAssistedYaw } from '../combat/aim-assist.js';
 import { getVolleyOrigins } from '../combat/volleys.js';
+import { applyVolleyRecoil } from '../combat/recoil.js';
 import { createPropPhysics, type PropPhysicsCheckpoint } from '../physics/props.js';
 import { newBossAi, stepBossAi, type BossAiRuntime } from '../missions/boss-ai.js';
 
@@ -181,8 +182,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
   };
   const fire = (r: VehicleRecord, tactics?: BossTactics) => {
     if (tick < r.driver.nextFireTick || projectiles.size > 254) return;
-    r.vehicle.protectedUntilTick = tick;
-    r.driver.nextFireTick = tick + (tactics?.burstIntervalTicks ?? config.weapon.cooldownTicks); r.driver.shotOrdinal++;
+    applyVolleyRecoil(r.vehicle, r.driver, tick, config, tactics?.burstIntervalTicks);
     const volleyId=`${matchId}:volley:${counter+1}`;
     const origins=getVolleyOrigins(r.vehicle.pose).map(pose=>({...pose,yaw:tactics?pose.yaw:selectAssistedYaw({...r.vehicle,pose},allVehicles(),tick,(start,end)=>queries.segmentHit(start,end)!==null,pursuit?.suspectId)}));
     const rounds=origins.map((pose,barrelIndex):ProjectileState=>({entityId:`${matchId}:projectile:${++counter}`,ownerEntityId:r.vehicle.entityId,pose,velocity:{x:Math.sin(pose.yaw)*config.weapon.projectileSpeed,z:Math.cos(pose.yaw)*config.weapon.projectileSpeed,yawRate:0},bornTick:tick,expiresTick:tick+config.weapon.lifetimeTicks,sourceCommandSequence:r.sequence,sourceShotOrdinal:r.driver.shotOrdinal,volleyId,barrelIndex:barrelIndex as 0|1,damage:(tactics?.bulletDamage??config.weapon.damage)/2}));
@@ -391,6 +391,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
         if (phase === 'results' || phase === 'countdown') actions = { ...neutralActions(), handbrake: true };
         if (actions.sirenToggle) r.vehicle.sirenOn = !r.vehicle.sirenOn;
         if (actions.recover) recovery(r);
+        r.driver.simulatedTick = tick;
         driveVehicle(r.vehicle, r.driver, actions, map, solids, config, observeImpact);
         if (actions.fire && phase === 'playing' && (r.vehicle.playerId || aiTactics)) fire(r, aiTactics);
         if (grenadeTarget && aiTactics && phase === 'playing') throwGrenade(r, grenadeTarget, aiTactics);
@@ -435,9 +436,12 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
   };
 }
 
-export function predictVehicle(map: CollisionMap, vehicle: VehicleState, driver: DriverRuntimeState, actions: DriverActions, proxies: VehicleState[] = [], config?: GameplayConfig): { vehicle: VehicleState; driver: DriverRuntimeState } {
+export function predictVehicle(map: CollisionMap, vehicle: VehicleState, driver: DriverRuntimeState, actions: DriverActions, proxies: VehicleState[] = [], config?: GameplayConfig, serverTick?: number): { vehicle: VehicleState; driver: DriverRuntimeState } {
   const predicted = clone(vehicle), runtime = clone(driver), solids = map.colliders.filter(c => c.layer === 'world-solid').map(colliderPolygon);
-  driveVehicle(predicted, runtime, actions, map, solids, normalizeGameplay(config));
+  const tuning = normalizeGameplay(config), tick = serverTick ?? (runtime.simulatedTick ?? 0) + 1;
+  runtime.simulatedTick = tick;
+  driveVehicle(predicted, runtime, actions, map, solids, tuning);
+  if (predicted.status === 'active' && actions.fire && tick >= runtime.nextFireTick) applyVolleyRecoil(predicted, runtime, tick, tuning);
   // Proxies are samples at the replay tick. Contact separation moves only the predicted car.
   for (const proxy of proxies) if (proxy.entityId !== predicted.entityId && proxy.status === 'active') {
     const push = overlap(box(predicted.pose), box(proxy.pose));

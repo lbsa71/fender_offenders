@@ -2,6 +2,12 @@ import {describe,it,expect} from 'vitest';
 import {packSnapshot,unpackSnapshot,type WorldSnapshot} from './index';
 const snapshot:WorldSnapshot={protocolVersion:1,mapRevision:'map',gameplayRevision:'rules',sessionEpoch:'epoch',serverTick:0,matchId:'match',phase:'lobby',phaseEndsAtTick:null,vehicles:[],projectiles:[],scores:[{playerId:'a',nickname:'Alpha',score:0,wrecks:0,connection:'connected'}],local:null};
 describe('scoreboard latency wire compatibility',()=>{
+  it('preserves recoil load and the prediction tick in the local authority baseline',()=>{
+    const vehicle={entityId:'recoil-car',playerId:'a',bodyAssetId:'patrol',pose:{x:0,z:0,yaw:0},velocity:{x:0,z:15,yawRate:0},health:100,status:'active' as const,protectedUntilTick:0,respawnAtTick:null,sirenOn:false,discontinuityId:0};
+    const driver={resolvedSteering:.2,reverseHoldTicks:0,nextFireTick:132,shotOrdinal:4,nextRecoveryTick:0,lastDamageTick:null,recoilStrength:.75,simulatedTick:120};
+    const source={...snapshot,vehicles:[vehicle],local:{vehicle,driver,lastConsumedSequence:42}};
+    expect(unpackSnapshot(packSnapshot(source)).local!.driver).toEqual(driver);
+  });
   it('preserves grenade landing warnings and fuse ticks across a real wire roundtrip, without mutating authority',()=>{
     const grenade={entityId:'lob-1',ownerEntityId:'boss',origin:{x:3.125,z:4.75,yaw:.25},target:{x:-8.5,z:9.125,yaw:0},bornTick:60,landsAtTick:105,detonatesAtTick:150,blastRadius:6.5,damage:30};
     const source={...snapshot,grenades:[grenade]};

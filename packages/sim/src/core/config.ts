@@ -8,7 +8,7 @@ const INTERNAL_DEFAULTS = {
   // Lateral handling is a mass-normalised bicycle model: tyre force = -corneringStiffness * slipAngle, capped by grip (m/s^2).
   // Handbrake or power drops rear grip; past driftEntryAngle a servo holds a stick-controlled drift angle (see controller.ts).
   vehicle: { maxSpeed: 28, reverseSpeed: 8, acceleration: 26, reverseAcceleration: 9, braking: 36, drag: 0.45, corneringStiffness: 60, frontGrip: 18, rearGrip: 20, handbrakeGrip: 3, throttleGripLoss: 0.5, steerLock: 0.6, steerLockFalloff: 40, cgToFront: 1.1, cgToRear: 1.1, yawInertia: 1, yawDamping: 4, slipSpeedFloor: 5, handbrakeDecel: 9, driftSteerGain: 3, driftServoRate: 12, driftSteerWindow: 0.3, driftAngle: 0.65, driftEntryAngle: 0.22, driftEntryWidth: 0.1, kinematicBlendSpeed: 6, steeringResponse: 14, reverseHoldTicks: 15 },
-  weapon: { damage: 10, cooldownTicks: 12, projectileSpeed: 70, lifetimeTicks: 39 },
+  weapon: { damage: 10, cooldownTicks: 12, projectileSpeed: 70, lifetimeTicks: 39, recoilImpulse: 3.4, recoilBuildup: .32, recoilRecovery: .8, recoilSteeringLoss: .4, recoilGripLoss: .15 },
   rules: { health: 100, respawnTicks: 180, protectionTicks: 120, recoveryCooldownTicks: 600, recoveryDamageDelayTicks: 180, creditTicks: 300, countdownTicks: 180, roundTicks: 18000, maxPlayers: 8, maxTraffic: 16, arrestTicks: 180 },
 };
 

@@ -1,8 +1,31 @@
 # Vehicle balance: current profiles and historical measurements
 
-Reviewed: 2026-10-24. Current gameplay is `arcade-v8`; the numerical report below remains the measured 2026-10-23 `arcade-v5` tyre/volley baseline. Profile anchors and controller defaults still match source, but campaign tactics and grenades were added afterward. These figures were not regenerated during this documentation review.
+Reviewed: 2026-10-25. The current worktree adds gun recoil as `arcade-v9`. The new recoil measurements below are fresh; the later numerical driving/combat report remains the measured 2026-10-23 `arcade-v5` tyre/volley baseline. Campaign tactics, grenades and recoil were added afterward. Historical figures were not silently regenerated or promoted.
 
 *The army car brings armor. The roadster brings excuses about why armor was slowing it down.*
+
+## Gun recoil: 2026-10-25
+
+An accepted paired volley now removes up to 3.4 m/s of forward speed on the default patrol. The kick scales with the car's configured acceleration relative to 26 m/s², so the faster profiles also pay a useful firing cost. It applies once per volley, preserves the current muzzle poses, and cannot propel a stationary or reversing car. Cooldown, projectile-cap and phase rejection do not apply a kick.
+
+Each accepted volley adds 0.32 to a bounded 0–1 handling load. It decays by 0.8 per second: full recovery takes at most 1.25 seconds after the last shot. At full load, steering lock is reduced by 40% and front/rear grip limits by 15%. Steering direction remains under player control; there is no random yaw kick. Respawn and car reassignment clear the load. Authority and local prediction share the same rules and cadence state; checkpoints and local snapshot baselines retain the load and prediction tick. Client/server builds must both use `arcade-v9`.
+
+Measured at 60 Hz in an empty asphalt arena, using three seconds of full-throttle warmup followed by seven seconds of held fire. Speeds are the mean over the final two seconds. Reproduce with `pnpm exec tsx packages/sim/recoil-balance.ts`.
+
+| Body | Clean cruise m/s | Held-fire cruise m/s | Speed lost |
+| --- | ---: | ---: | ---: |
+| Patrol | 28.00 | 20.10 | 28.2% |
+| Interceptor | 30.33 | 22.28 | 26.6% |
+| Roadster | 32.67 | 24.46 | 25.1% |
+| Army | 23.33 | 15.74 | 32.5% |
+| Ambulance | 25.67 | 17.92 | 30.2% |
+| Fire chief | 26.83 | 21.02 | 21.6% |
+
+The patrol's common-speed steering check starts at 12 m/s, applies half steering for 0.3 seconds, and compares a rested car against one that fired for two seconds. Turn angle falls from 13.66° to 9.68° (29.1% less); after recovery the response matches the rested car again. These controlled results establish the intended cost, not human balance approval. Dispatch recommends short bursts; the accelerator has submitted a formal complaint about continuous fire.
+
+Observed RED before implementation: the first volley lost 0 m/s, all six held-fire cars retained their clean speeds, and hot/rested steering angles were identical. A real room's client prediction also showed only ordinary coasting instead of an immediate kick. Shared accepted-volley recoil, recoverable steering/grip load and prediction cadence made those focused checks pass. A subsequent six-body constraint exposed insufficient fire-chief speed cost with the initial 3.2 coefficient; increasing it to 3.4 met the same unchanged bound. Additional checks cover inactive phases, exhausted projectile capacity, no reverse propulsion, legacy snapshot clocks, serialization, respawn and exact checkpoint replay.
+
+## Historical baseline below
 
 These measurements were regenerated after merging the tyre-force and drift model from PR #1 (working tree based on `3f6227c`). The default patrol configuration now uses a 28 m/s forward cap, acceleration 26, speed-sensitive steering lock and front/rear tyre forces. The shared profile ratios, paired weapons and narrow aim assist remain part of the `arcade-v5` baseline.
 

@@ -28,7 +28,11 @@ export class CarFactory {
     let m=this.materials.get(id);
     if (!m) {
       if (metal) {
-        const p=new PBRMaterial(id,this.scene);p.albedoColor=Color3.FromHexString(color);p.metallic=metal;p.roughness=.28;p.clearCoat.isEnabled=true;p.clearCoat.intensity=.8;p.clearCoat.roughness=.18;m=p;
+        const p=new PBRMaterial(id,this.scene);p.albedoColor=Color3.FromHexString(color);
+        const paint=id.startsWith('paint-'),glass=id==='glass';
+        p.metallic=glass?0:paint?.08:metal;p.roughness=glass?.12:paint?.38:.25;
+        p.clearCoat.isEnabled=paint;p.clearCoat.intensity=.65;p.clearCoat.roughness=.2;
+        if(glass)p.indexOfRefraction=1.5;m=p;
       } else {
         const s=new StandardMaterial(id,this.scene);s.diffuseColor=Color3.FromHexString(color);s.specularColor.set(.14,.14,.14);if(glow)s.emissiveColor=Color3.FromHexString(color).scale(.9);m=s;
       }

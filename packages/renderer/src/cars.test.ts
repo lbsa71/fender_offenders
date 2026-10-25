@@ -23,6 +23,13 @@ function paint(car: CarVisual, name: string) {
 }
 
 describe('original procedural vehicle bodies', () => {
+  it('distinguishes dielectric glass, coated paint and metal instead of giving every surface the same response', () => {
+    factory.create('finish', 'patrol', false);
+    const paint = scene.getMaterialByName('paint-patrol') as PBRMaterial, glass = scene.getMaterialByName('glass') as PBRMaterial, chrome = scene.getMaterialByName('chrome') as PBRMaterial;
+    expect(glass.roughness).toBeLessThan(paint.roughness!);
+    expect(glass.metallic).toBe(0); expect(paint.metallic).toBeLessThan(.2); expect(chrome.metallic).toBeGreaterThan(.6);
+    expect(paint.clearCoat.isEnabled).toBe(true); expect(glass.clearCoat.isEnabled).toBe(false);
+  });
   it.each([...VEHICLE_BODIES, 'traffic-sedan'])('retains every authored %s component for an exact physical breakup', body => {
     const traffic = body === 'traffic-sedan';
     const intact = factory.create('assembly', body, traffic);

@@ -1,6 +1,6 @@
 # Shared contracts
 
-Status: semantic contract reference for the implemented alpha (`arcade-v8` gameplay, protocol 1, map `sunset-borough-1`). Updated: 2026-10-25. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+Status: semantic contract reference for the implemented alpha, with the current worktree's `arcade-v9` recoil follow-up (protocol 1, map `sunset-borough-1`). Updated: 2026-10-25. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md). This does not claim deployment of the worktree.
 
 *The contracts are the traffic lights. Please resist interpreting red as an optional decoration.*
 
@@ -99,6 +99,8 @@ interface DriverRuntimeState {
   shotOrdinal: number;       // restored with controller state for replay-safe effects
   nextRecoveryTick: number;
   lastDamageTick: number | null;
+  recoilStrength?: number;   // accepted-volley handling load, clamped to 0–1
+  simulatedTick?: number;    // last predicted/authoritative movement tick
 }
 
 interface LocalAuthorityState {
@@ -206,6 +208,8 @@ type GameEvent =
 ```
 
 Maintain a bounded per-match event deduplication cache. Predictive effects use `(sessionEpoch, sourceCommandSequence, sourceShotOrdinal, effectKind)` so confirmation can match and suppress a second flash/sound, including when the server briefly holds a previous command during jitter. Shot ordinals are part of restored driver state. Reject or expire unmatched speculative effects; a key is not a promise that a shot will be accepted. Replayed simulation never directly plays audio or creates persistent particles.
+
+`arcade-v9` adds physical gun recoil: one accepted paired volley reduces forward speed and increases a temporary steering/grip load. It does not add damage, change cadence or consume a second kick per barrel. Rejected volleys do not apply authoritative recoil. `DriverRuntimeState.recoilStrength` and `simulatedTick` travel in the existing local-controller object and are checkpointed. Legacy omitted values default to zero; online prediction uses the snapshot tick as its clock baseline. Prediction runs the same accepted-volley math and cooldown without creating projectile/damage authority, then reconciles rejected predictions. Non-playing phases cannot predict a gun kick. Version checks reject the old gameplay build even though the additive local fields leave protocol 1 and existing projectile tuples unchanged.
 
 Health and scores live in state; an absent cosmetic event cannot corrupt them. Late join does not replay all historical shots/wrecks. State restores the present; events describe new transitions.
 

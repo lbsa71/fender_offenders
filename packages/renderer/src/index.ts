@@ -26,6 +26,9 @@ import {WreckEffects} from './wreck-effects';
 import {TargetObjective} from './target-objective';
 import {GrenadeEffects} from './grenade-effects';
 import {DispatchEnvironment} from './environment';
+import {WetSurfaces} from './wet-surfaces';
+import {LightDetail} from './light-detail';
+import {ContactShading} from './contact-shading';
 
 export interface RendererSettings {
   quality: 'low' | 'medium' | 'high'; masterVolume: number; effectsVolume: number;
@@ -59,6 +62,9 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
   for(const m of city)if(m.getBoundingInfo().boundingBox.maximumWorld.y>3)shadows.addShadowCaster(m);
   shadows.getShadowMap()!.refreshRate=1;
   const environment=new DispatchEnvironment(scene,sun,hemi);
+  const water=new WetSurfaces(scene);
+  const lightDetail=new LightDetail(scene,map);
+  const contacts=new ContactShading(scene);
   const factory=new CarFactory(scene),cars=new Map<string,CarVisual>(),audio=new MotorAudio(),combat=new CombatEffects(scene),wrecks=new WreckEffects(scene,factory,map);
   const prefersReducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
   const props=new PropVisuals(scene),pedestrians=new PedestrianCrowd(scene),objective=new TargetObjective(scene),grenades=new GrenadeEffects(scene);
@@ -95,7 +101,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     const selected=bodyAssetId===null?null:getVehicleProfile(bodyAssetId).id;
     if(selected===garageBody)return;
     if(selected&&garageBody===null){activeMatch=null;retiredMatches.length=0;seen.clear();eventQueue.length=0;resetCombatPresentation();props.reset();pedestrians.reset();}
-    garageBody=selected;
+    garageBody=selected;lightDetail.reset();contacts.reset();
     if(selected){objective.hide();garage??=createGaragePreview(engine,settings.quality);garage.setBody(selected);}else garage?.setBody(null);
   }
   function setSettings(next:RendererOptions):void{
@@ -195,7 +201,9 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     if(shake>0){if(!reducedMotion){eye.x+=(Math.random()-.5)*shake;eye.z+=(Math.random()-.5)*shake;}shake=Math.max(0,shake-dt*3);}
     camera.position.copyFrom(eye);camera.setTarget(new Vector3(target.x,0,target.z+4));
     objective.update(frame,time,reducedMotion);
-    environment.update(frame.props??[]);
+    environment.update(frame.props??[]);water.update(dt,settings.quality,reducedMotion);
+    lightDetail.update(frame,cars,environment.lighting.sources,environment.lampGlow,settings.quality,settings.reducedFlash);
+    contacts.update(frame.vehicles);
     const drawStart=engine._drawCalls.current;engine.beginFrame();scene.render();objective.project(canvas.clientWidth,canvas.clientHeight);engine.endFrame();frameCpuMs=performance.now()-cpuStart;frameDrawCalls=engine._drawCalls.current-drawStart;
   }
   function combatVolume(position:{x:number;z:number},ownShot=false):number{
@@ -258,8 +266,8 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     if(!disposed)environment.loadBaseline(manifest.environment);
   }
   function resize(width?:number,height?:number,pixelRatio?:number):void{if(disposed)return;if(width&&height){engine.setSize(Math.max(1,width*(pixelRatio??1)),Math.max(1,height*(pixelRatio??1)));}else engine.resize();}
-  function dispose():void{if(disposed)return;disposed=true;audio.dispose();for(const c of cars.values())removeCar(c);cars.clear();factory.dispose();seen.clear();garage?.dispose();combat.dispose();wrecks.dispose();props.dispose();pedestrians.dispose();objective.dispose();grenades.dispose();environment.dispose();scene.dispose();engine.dispose();}
+  function dispose():void{if(disposed)return;disposed=true;audio.dispose();for(const c of cars.values())removeCar(c);cars.clear();factory.dispose();seen.clear();garage?.dispose();combat.dispose();wrecks.dispose();props.dispose();pedestrians.dispose();objective.dispose();grenades.dispose();contacts.dispose();lightDetail.dispose();water.dispose();environment.dispose();scene.dispose();engine.dispose();}
   void loadScene(districtScene);
-  return {render,present,resize,dispose,loadScene,setSettings,setGaragePreview,setDispatch:(id:string|null)=>environment.setDispatch(id),getTargetIndicator:()=>objective.getIndicator(),unlockAudio:()=>audio.unlock(),getStats:()=>({fps:engine.getFps(),frameCpuMs,drawCalls:frameDrawCalls,activeMeshes:(garageBody&&garage?garage.scene:scene).getActiveMeshes().length,totalMeshes:scene.meshes.length+(garage?.scene.meshes.length??0),particles:particles.filter((p)=>p.life>0).length,garageBody,garageAngle:garage?.getStats().angle??0,...environment.getStats(),...combat.getStats(),...wrecks.getStats(),...grenades.getStats(),...props.getStats(),pedestrians:pedestrians.getStats().total,pedestriansRunning:pedestrians.getStats().running,pedestriansVisible:pedestrians.getStats().visible,pedestriansWaiting:pedestrians.getStats().waiting,pedestriansHiddenSafety:pedestrians.getStats().hiddenSafety})};
+  return {render,present,resize,dispose,loadScene,setSettings,setGaragePreview,setDispatch:(id:string|null)=>environment.setDispatch(id),getTargetIndicator:()=>objective.getIndicator(),unlockAudio:()=>audio.unlock(),getStats:()=>({fps:engine.getFps(),frameCpuMs,drawCalls:frameDrawCalls,activeMeshes:(garageBody&&garage?garage.scene:scene).getActiveMeshes().length,totalMeshes:scene.meshes.length+(garage?.scene.meshes.length??0),particles:particles.filter((p)=>p.life>0).length,garageBody,garageAngle:garage?.getStats().angle??0,...environment.getStats(),...water.getStats(),...lightDetail.getStats(),...contacts.getStats(),...combat.getStats(),...wrecks.getStats(),...grenades.getStats(),...props.getStats(),pedestrians:pedestrians.getStats().total,pedestriansRunning:pedestrians.getStats().running,pedestriansVisible:pedestrians.getStats().visible,pedestriansWaiting:pedestrians.getStats().waiting,pedestriansHiddenSafety:pedestrians.getStats().hiddenSafety})};
 }
 export type FenderRenderer=ReturnType<typeof createGameRenderer>;

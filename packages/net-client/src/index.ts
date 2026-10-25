@@ -73,7 +73,8 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       predicted = clone(next.local);
       if (pending.length > 180) { pending = []; room?.send('resync'); }
       if (!frozen) for (const entry of pending) {
-        const result = predictVehicle(map, predicted.vehicle, predicted.driver, entry.command.actions, remoteAt(entry.estimatedTick).filter(v => v.entityId !== predicted!.vehicle.entityId));
+        const actions = next.phase === 'playing' ? entry.command.actions : { ...entry.command.actions, fire: false };
+        const result = predictVehicle(map, predicted.vehicle, predicted.driver, actions, remoteAt(entry.estimatedTick).filter(v => v.entityId !== predicted!.vehicle.entityId), undefined, Math.max(next.serverTick, predicted.driver.simulatedTick ?? 0) + 1);
         predicted.vehicle = result.vehicle; predicted.driver = result.driver;
       }
       if (oldPose && !reset && !frozen) {
@@ -151,7 +152,8 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       pending.push({ command, estimatedTick }); outgoing.push(command);
       if (outgoing.length > 12 || pending.length > 180) { outgoing = []; pending = []; room?.send('resync'); return; }
       if (!frozenCampaign(snapshot) && (snapshot.phase === 'playing' || snapshot.phase === 'lobby')) {
-        const result = predictVehicle(map, predicted.vehicle, predicted.driver, command.actions, remoteAt(estimatedTick).filter(v => v.entityId !== predicted!.vehicle.entityId));
+        const actions = snapshot.phase === 'playing' ? command.actions : { ...command.actions, fire: false };
+        const result = predictVehicle(map, predicted.vehicle, predicted.driver, actions, remoteAt(estimatedTick).filter(v => v.entityId !== predicted!.vehicle.entityId), undefined, Math.max(snapshot.serverTick, predicted.driver.simulatedTick ?? 0) + 1);
         predicted.vehicle = result.vehicle; predicted.driver = result.driver;
       }
     },

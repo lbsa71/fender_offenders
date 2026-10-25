@@ -4,7 +4,7 @@ import { box, clamp, nearPolygon, overlap, pointInPolygon, wrapAngle, HALF_LENGT
 import { tuningForVehicle } from './profiles.js';
 
 export const neutralActions = (): DriverActions => ({ steer: 0, throttle: 0, brakeReverse: 0, handbrake: false, fire: false, sirenToggle: false, recover: false });
-export const newDriver = (): DriverRuntimeState => ({ resolvedSteering: 0, reverseHoldTicks: 0, nextFireTick: 0, shotOrdinal: 0, nextRecoveryTick: 0, lastDamageTick: null });
+export const newDriver = (): DriverRuntimeState => ({ resolvedSteering: 0, reverseHoldTicks: 0, nextFireTick: 0, shotOrdinal: 0, nextRecoveryTick: 0, lastDamageTick: null, recoilStrength: 0, simulatedTick: 0 });
 export interface ContactImpact { vehicleId: string; normal: { x: number; z: number }; speed: number }
 export type ImpactObserver = (impact: ContactImpact) => void;
 
@@ -20,6 +20,9 @@ export function surfaceAt(map: CollisionMap, pose: Point): 'asphalt' | 'dirt' | 
 export function driveVehicle(vehicle: VehicleState, driver: DriverRuntimeState, actions: DriverActions, map: CollisionMap, solids: Point[][], config: SimulationConfig = normalizeGameplay(), onImpact?: ImpactObserver): void {
   if (vehicle.status !== 'active') return;
   const tune = tuningForVehicle(config, vehicle), dt = FIXED_DELTA;
+  driver.recoilStrength = Math.max(0, (driver.recoilStrength ?? 0) - config.weapon.recoilRecovery * dt);
+  const recoilSteering = 1 - driver.recoilStrength * config.weapon.recoilSteeringLoss;
+  const recoilGrip = 1 - driver.recoilStrength * config.weapon.recoilGripLoss;
   driver.resolvedSteering += clamp(actions.steer - driver.resolvedSteering, -tune.steeringResponse * dt, tune.steeringResponse * dt);
   const fx = Math.sin(vehicle.pose.yaw), fz = Math.cos(vehicle.pose.yaw), rx = fz, rz = -fx;
   let forward = vehicle.velocity.x * fx + vehicle.velocity.z * fz;
@@ -33,7 +36,7 @@ export function driveVehicle(vehicle: VehicleState, driver: DriverRuntimeState, 
   forward *= Math.exp(-tune.drag * dt);
   forward = clamp(forward, -tune.reverseSpeed, tune.maxSpeed * (surface === 'grass' ? 0.65 : 1));
   // Steering lock shrinks with speed so full stick is usable on the highway.
-  const delta = driver.resolvedSteering * tune.steerLock / (1 + Math.abs(forward) / tune.steerLockFalloff);
+  const delta = driver.resolvedSteering * tune.steerLock * recoilSteering / (1 + Math.abs(forward) / tune.steerLockFalloff);
   const a = tune.cgToFront, b = tune.cgToRear, floor = tune.slipSpeedFloor;
   let omega = vehicle.velocity.yawRate;
   // Tyre slip angles in each tyre's own frame; the speed floor keeps crawling stable.
@@ -43,9 +46,9 @@ export function driveVehicle(vehicle: VehicleState, driver: DriverRuntimeState, 
   const slipRear = Math.atan2(side - omega * b, Math.max(Math.abs(forward), floor));
   // Rear grip drops under power or handbrake; that is what starts and feeds a drift. Power-over scales with lock so a
   // gentle fast corner keeps grip while full lock plus throttle breaks the rear loose.
-  const frontCap = tune.frontGrip * gripScale;
+  const frontCap = tune.frontGrip * gripScale * recoilGrip;
   const powerLoss = tune.throttleGripLoss * actions.throttle * (0.5 + 0.5 * Math.abs(driver.resolvedSteering));
-  const rearCap = (actions.handbrake ? tune.handbrakeGrip : tune.rearGrip * (1 - powerLoss)) * gripScale;
+  const rearCap = (actions.handbrake ? tune.handbrakeGrip : tune.rearGrip * (1 - powerLoss)) * gripScale * recoilGrip;
   const frontForce = clamp(-tune.corneringStiffness * slipFront, -frontCap, frontCap) * Math.cos(delta);
   const rearForce = clamp(-tune.corneringStiffness * slipRear, -rearCap, rearCap);
   // Physics alone makes a counter-steered drift a knife edge, so once the rear is well past its grip the yaw is servoed toward

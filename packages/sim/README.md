@@ -1,6 +1,6 @@
 # Shared simulation
 
-Reviewed: 2026-10-24 for `arcade-v8`. *Sixty ticks per second, with no allowance for creative accounting.*
+Reviewed: 2026-10-25 for the current worktree's `arcade-v9` recoil follow-up. *Sixty ticks per second, with no allowance for creative accounting.*
 
 `await initPhysics()` once before calling `createSimulation(map, options)` in either browser or server. This initializes the pinned Rapier 0.21.0 WASM module. The simulation has no DOM, rendering, transport, wall-clock, or audio dependency.
 
@@ -27,7 +27,7 @@ The factory exposes `addPlayer`, `removePlayer`, `setConnection`, `setPlayerVehi
 
 Player bodies share six profiles in `@fender/contracts`: maximum health, forward speed, acceleration, steering and grip scale room overrides relative to patrol. Civilian traffic keeps baseline values; campaign targets receive their assigned profile armor and authored tactics. `setPlayerVehicle(playerId, bodyId)` accepts known bodies only in campaign/multiplayer briefings, resets velocity/controller/health and increments discontinuity without adding protection. Legacy noncampaign practice allows changes while active, but a wreck cannot select its way back to life. See [BALANCE.md](BALANCE.md) for dated measurements and automated guardrail limits.
 
-`predictVehicle(map, vehicle, driver, actions, proxies?, gameplayConfig?)` advances one tick, returns fresh vehicle/controller state, and never emits combat or presentation events. Supply remote proxies from the matching replay tick. Its bounded kinematic contact response deliberately differs from a two-body authoritative contact. `restoreAuthority` is a convenience rebuild for a simulation-backed predictor; the pure helper is preferable for local movement prediction.
+`predictVehicle(map, vehicle, driver, actions, proxies?, gameplayConfig?, serverTick?)` advances one tick, returns fresh vehicle/controller state, and never emits combat or presentation events. Supply remote proxies from the matching replay tick. The optional tick defaults to the driver's last simulated tick plus one; the online facade supplies the snapshot/replay clock explicitly. Shared accepted-volley recoil updates speed, recoverable steering/grip load, firing cooldown and shot ordinal. Phase gating and shot acceptance remain authoritative; the facade disables predicted firing outside play and reconciles rejected predictions. Its bounded kinematic contact response deliberately differs from a two-body authoritative contact. `restoreAuthority` is a convenience rebuild for a simulation-backed predictor; the pure helper is preferable for local movement prediction.
 
 ## Physics decision and measured scope
 
