@@ -1,3 +1,4 @@
+import { disposeTestRooms } from '../support/rooms';
 import { afterAll, afterEach, beforeAll, expect, it } from 'vitest';
 import { Client, type Room } from '@colyseus/sdk';
 import { matchMaker } from '@colyseus/core';
@@ -20,7 +21,7 @@ async function peer(roomId?: string) {
   return { room, states, events, get state() { return states.at(-1)!; } };
 }
 beforeAll(async () => { server = await createGameServer(2718); });
-afterEach(async () => { await Promise.all(rooms.splice(0).map(room => room.connection.isOpen ? room.leave(true) : Promise.resolve())); });
+afterEach(async () => { await disposeTestRooms(); await Promise.all(rooms.splice(0).map(room => room.connection.isOpen ? room.leave(true) : Promise.resolve())); });
 afterAll(async () => { await server?.gracefullyShutdown(false); });
 
 it('assigns one shared wanted suspect to a real multiplayer room and its late joiner', async () => {
@@ -29,7 +30,7 @@ it('assigns one shared wanted suspect to a real multiplayer room and its late jo
   expect(a.state.pursuit!.suspectId).toBe(b.state.pursuit!.suspectId);
   expect(a.state.vehicles.find(car => car.entityId === a.state.pursuit!.suspectId)!.bodyAssetId).toBe(getCampaignTarget(CAMPAIGN_DISPATCHES[0]!.targetId).vehicleBodyId);
   expect(b.state.vehicles.some(car => car.entityId === a.state.pursuit!.suspectId)).toBe(true);
-  expect(GAMEPLAY_REVISION).toBe('arcade-v8');
+  expect(GAMEPLAY_REVISION).toBe('arcade-v9');
 });
 
 it('broadcasts the apprehending winner and dispatch completion to both peers even when another driver has more combat points', async () => {

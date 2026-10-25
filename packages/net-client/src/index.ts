@@ -4,7 +4,7 @@ import { ProjectilePresentation } from './projectile-presentation';
 import { GAMEPLAY_REVISION, PROTOCOL_VERSION, isInviteCode, isRecord, unpackSnapshot, type CollisionMap, type GameEvent, type GameSession, type InputCommand, type JoinResult, type LocalAuthorityState, type PropState, type RenderFrame, type SessionRequest, type SessionStatus, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
 const clone = <T>(v: T): T => structuredClone(v);
 const wrap = (n: number) => Math.atan2(Math.sin(n), Math.cos(n));
-const frozenCampaign = (state: WorldSnapshot) => Boolean(state.campaign) && state.phase !== 'playing';
+const frozenCampaign = (state: WorldSnapshot) => state.paused === true || Boolean(state.campaign) && state.phase !== 'playing';
 export function interpolateVehicle(a: VehicleState, b: VehicleState, t: number): VehicleState {
   if (a.discontinuityId !== b.discontinuityId || a.status !== b.status) return clone(b);
   const v = clone(b); v.pose.x = a.pose.x + (b.pose.x - a.pose.x) * t; v.pose.z = a.pose.z + (b.pose.z - a.pose.z) * t; v.pose.yaw = a.pose.yaw + wrap(b.pose.yaw - a.pose.yaw) * t; return v;
@@ -20,6 +20,8 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
   let rtt = 0, correctionX = 0, correctionZ = 0, lastRenderAt = performance.now(), lastSnapshotAt = performance.now();
   let playbackTick: number | null = null;
   let corrections = 0, maxCorrection = 0, receivedBytes = 0, sentBytes = 0;
+  let activityAt = -Infinity;
+  let presence = { menuOpen: false, hidden: false };
   const snapshotListeners = new Set<(s: WorldSnapshot) => void>(), eventListeners = new Set<(events: GameEvent[]) => void>(), statusListeners = new Set<(s: SessionStatus) => void>();
   const status = (s: SessionStatus) => { state = s; statusListeners.forEach(fn => fn(s)); };
   function remoteAt(tick: number): VehicleState[] {
@@ -58,11 +60,12 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
     });
   }
   function receive(wire: WireSnapshot) {
+    if(state.reason==='idle-timeout')return;
     const next = unpackSnapshot(wire, wire.m === snapshot?.matchId ? snapshot?.props : undefined); receivedBytes += JSON.stringify(wire).length;
     if (snapshot && next.serverTick < snapshot.serverTick && next.matchId === snapshot.matchId && next.sessionEpoch === snapshot.sessionEpoch) return;
     if (next.resetReason === 'resync' && !wire.propsPatch) latestFullResync = next;
     const frozen = frozenCampaign(next);
-    const reset = next.resetReason || next.matchId !== snapshot?.matchId || next.sessionEpoch !== snapshot?.sessionEpoch || next.local?.vehicle.discontinuityId !== snapshot?.local?.vehicle.discontinuityId || frozen && next.phase !== snapshot?.phase;
+    const reset = next.resetReason || next.paused !== snapshot?.paused || next.matchId !== snapshot?.matchId || next.sessionEpoch !== snapshot?.sessionEpoch || next.local?.vehicle.discontinuityId !== snapshot?.local?.vehicle.discontinuityId || frozen && next.phase !== snapshot?.phase;
     const oldPose = predicted?.vehicle.pose;
     snapshot = next; lastSnapshotAt = performance.now();projectilePresentation.receive(next,Boolean(reset));
     if (reset) { pending = []; outgoing = []; history = []; correctionX = correctionZ = 0; playbackTick = null; }
@@ -82,7 +85,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
         if (distance < 3) { correctionX += dx; correctionZ += dz; } else correctionX = correctionZ = 0;
       }
     }
-    status({ state: next.phase === 'lobby' ? 'lobby' : 'playing' });
+    status({ ...state, state: next.phase === 'lobby' ? 'lobby' : 'playing' });
     snapshotListeners.forEach(fn => fn(next));
   }
   function flush() {
@@ -96,9 +99,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       status({ state: 'connecting' });
       try {
         const options = { nickname: request.nickname, protocolVersion: PROTOCOL_VERSION, mapRevision: map.revision, gameplayRevision: GAMEPLAY_REVISION, ...(request.vehicleBodyId ? { vehicleBodyId: request.vehicleBodyId } : {}) };
-        if (request.mode === 'create') room = await sdk.create('district', options);
-        else {
-          const invite = request.roomId!.trim();
+          const invite = request.roomId.trim();
           if (isInviteCode(invite)) {
             for (let attempt = 0; attempt < 3; attempt++) {
               try {
@@ -115,7 +116,6 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
               }
             }
           } else room = await sdk.joinById(invite, options);
-        }
         if (!room) throw new Error('Dispatch unavailable');
         roomId = room.roomId; playerId = room.sessionId;
         const connection = room.connection, reconnect = connection.reconnect.bind(connection);
@@ -125,10 +125,18 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
         room.onMessage('snapshot', receive);
         room.onMessage('events', (events: GameEvent[]) => { projectilePresentation.present(events);eventListeners.forEach(fn => fn(events)); });
         room.onMessage('latency-probe', (message: { nonce: string }) => { room!.send('latency-pong', { nonce: message.nonce }); });
+        room.onMessage('idle-warning', (message: { remainingMs: number | null }) => status({ ...state, idleRemainingMs: message.remainingMs ?? undefined }));
+        room.onMessage('room-notice', (message: { message: string }) => status({ ...state, message: message.message }));
+        room.onMessage('session-ended', (message: { reason: string }) => {
+          if(message.reason!=='idle-timeout')return;
+          room!.reconnection.enabled=false;outgoing=[];pending=[];
+          clearInterval(flushTimer);clearInterval(pingTimer);
+          status({state:'disconnected',reason:'idle-timeout'});
+        });
         room.onMessage('pong', (message: { sent: number }) => { const measured = performance.now() - message.sent; rtt = rtt ? .8 * rtt + .2 * measured : measured; });
-        room.onDrop(() => { if (disposed) return; pending = []; outgoing = []; status({ state: 'reconnecting', message: 'Reconnecting to dispatch…' }); });
-        room.onReconnect(() => { pending = []; outgoing = []; room!.reconnection.enqueuedMessages.length = 0; room!.send('resync'); });
-        room.onLeave(() => { if (!disposed) status({ state: 'disconnected', reason: 'reconnect-expired' }); });
+        room.onDrop(() => { if (disposed || state.reason==='idle-timeout') return; pending = []; outgoing = []; status({ state: 'reconnecting', message: 'Reconnecting to dispatch…' }); });
+        room.onReconnect(() => { pending = []; outgoing = []; room!.reconnection.enqueuedMessages.length = 0; room!.send('presence',presence);room!.send('resync'); });
+        room.onLeave(() => { if (!disposed) status({ state: 'disconnected', reason: state.reason==='idle-timeout'?'idle-timeout':'reconnect-expired' }); });
         room.onError((_code, message) => status({ state: 'error', reason: 'network-error', message }));
         const first = await new Promise<WorldSnapshot>((resolve, reject) => {
           const timer = setTimeout(() => { snapshotListeners.delete(listener); reject(new Error('Dispatch did not send a world')); }, 10000);
@@ -146,7 +154,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       }
     },
     submit(command) {
-      if (!snapshot || !predicted || disposed || state.state === 'reconnecting' || state.state === 'disconnected') return;
+      if (!snapshot || snapshot.paused || !predicted || disposed || state.state === 'reconnecting' || state.state === 'disconnected') return;
       const estimatedTick = snapshot.serverTick + (performance.now() - lastSnapshotAt + rtt / 2) * .06;
       pending.push({ command, estimatedTick }); outgoing.push(command);
       if (outgoing.length > 12 || pending.length > 180) { outgoing = []; pending = []; room?.send('resync'); return; }
@@ -156,6 +164,8 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       }
     },
     neutralize() { outgoing = []; pending = []; room?.send('neutralize'); },
+    setPresence(menuOpen, hidden) { presence={menuOpen,hidden};outgoing = []; pending = []; room?.send('presence',presence); },
+    activity() { const now=performance.now();if(now-activityAt>=1000){activityAt=now;room?.send('activity');} },
     request(action) { if (action === 'leave') { void api.dispose(); } else room?.send(action); },
     selectVehicle(vehicleBodyId) { if (!disposed && snapshot?.phase === 'lobby') room?.send('select-vehicle', { vehicleBodyId }); },
     onSnapshot(fn) { snapshotListeners.add(fn); return () => snapshotListeners.delete(fn); },
@@ -182,9 +192,9 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       if (!snapshot) return null;
       const dt = Math.min(.1, (now - lastRenderAt) / 1000); lastRenderAt = now;
       correctionX *= Math.exp(-dt * 20); correctionZ *= Math.exp(-dt * 20);
-      const estimatedTick = snapshot.serverTick + (now - lastSnapshotAt + rtt / 2) * .06;
+      const estimatedTick = snapshot.paused ? snapshot.serverTick : snapshot.serverTick + (now - lastSnapshotAt + rtt / 2) * .06;
       // A late arrival may lower the clock estimate; pause playback rather than rewind it.
-      playbackTick = Math.max(playbackTick ?? -Infinity, estimatedTick - 6);
+      playbackTick = snapshot.paused ? snapshot.serverTick : Math.max(playbackTick ?? -Infinity, estimatedTick - 6);
       const hazardTick = frozenCampaign(snapshot) ? snapshot.serverTick : Math.max(estimatedTick, playbackTick + 6);
       const vehicles = remoteAt(playbackTick);
       if (predicted) {

@@ -1,9 +1,9 @@
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v8';
+export const GAMEPLAY_REVISION = 'arcade-v9';
 export type { CampaignState, CampaignOutcome, DispatchOutcome, CampaignTarget, CampaignDispatch } from './campaign-types';
 export { CAMPAIGN_ID, CAMPAIGN_TITLE, CAMPAIGN_TARGETS, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, getCampaignTarget } from './campaign';
 export { getCampaignMugshot } from './campaign-mugshots';
@@ -80,6 +80,8 @@ export interface WorldSnapshot {
   resetReason?: 'join' | 'reconnect' | 'input-backlog' | 'resync';
   pursuit?: PursuitState;
   campaign?: CampaignState;
+  /** Server-owned simulation pause; transport and wall-clock cleanup remain live. */
+  paused?: boolean;
 }
 export interface EventEnvelope<K extends string, P> { eventId: string; matchId: string; serverTick: number; kind: K; payload: P }
 export type GameEvent =
@@ -125,7 +127,7 @@ export interface RenderFrame {
   pursuit?: PursuitState;
 }
 export interface SessionRequest {
-  mode: 'practice' | 'create' | 'join'; nickname: string; roomId?: string;
+  nickname: string; roomId: string;
   protocolVersion?: number; mapRevision?: string; gameplayRevision?: string;
   vehicleBodyId?: import('./vehicle-profiles').VehicleBodyId;
 }
@@ -134,16 +136,19 @@ export interface JoinResult {
   protocolVersion: number; mapRevision: string; gameplayRevision: string;
   firstState: WorldSnapshot; localEntityId: string | null;
 }
-export type SessionError = 'room-full' | 'room-missing' | 'server-capacity' | 'version-mismatch' | 'invalid-name' | 'invalid-vehicle' | 'server-shutdown' | 'network-error' | 'reconnect-expired';
+export type SessionError = 'room-full' | 'room-missing' | 'server-capacity' | 'version-mismatch' | 'invalid-name' | 'invalid-vehicle' | 'server-shutdown' | 'network-error' | 'reconnect-expired' | 'idle-timeout';
 export interface SessionStatus {
   state: 'idle' | 'connecting' | 'lobby' | 'playing' | 'reconnecting' | 'disconnected' | 'error';
   reason?: SessionError; message?: string; retryDelay?: number;
+  idleRemainingMs?: number;
 }
 export interface GameSession {
   connect(request: SessionRequest): Promise<JoinResult>;
   submit(command: InputCommand): void; neutralize(): void;
   request(action: 'start-round' | 'rematch' | 'leave'): void;
   selectVehicle(bodyId: import('./vehicle-profiles').VehicleBodyId): void;
+  setPresence(menuOpen: boolean, hidden: boolean): void;
+  activity(): void;
   onSnapshot(callback: (snapshot: WorldSnapshot) => void): () => void;
   onEvents(callback: (events: GameEvent[]) => void): () => void;
   onStatus(callback: (status: SessionStatus) => void): () => void;

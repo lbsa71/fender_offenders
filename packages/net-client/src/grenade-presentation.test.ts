@@ -4,13 +4,14 @@ import { createOnlineSession } from './index';
 
 const transport=vi.hoisted(()=>({handlers:new Map<string,(message:unknown)=>void>(),initial:null as unknown}));
 vi.mock('@colyseus/sdk',()=>({Client:class{
- async create(){return{roomId:'grenade-clock',sessionId:'local',reconnection:{enqueuedMessages:[]},connection:{isOpen:true,reconnect(){},close(){}},onMessage(type:string,handler:(value:unknown)=>void){transport.handlers.set(type,handler);},onDrop(){},onReconnect(){},onLeave(){},onError(){},send(type:string){if(type==='resync')transport.handlers.get('snapshot')!({...transport.initial as WireSnapshot,reset:'resync'});},async leave(){return 4000;},removeAllListeners(){transport.handlers.clear();}};}
+ http={post:async()=>({data:{}})};
+  async consumeSeatReservation(){return{roomId:'grenade-clock',sessionId:'local',reconnection:{enqueuedMessages:[]},connection:{isOpen:true,reconnect(){},close(){}},onMessage(type:string,handler:(value:unknown)=>void){transport.handlers.set(type,handler);},onDrop(){},onReconnect(){},onLeave(){},onError(){},send(type:string){if(type==='resync')transport.handlers.get('snapshot')!({...transport.initial as WireSnapshot,reset:'resync'});},async leave(){return 4000;},removeAllListeners(){transport.handlers.clear();}};}
 }}));
 const map:CollisionMap={id:'grenades',revision:'grenades',bounds:{minX:-200,maxX:200,minZ:-200,maxZ:200},colliders:[],surfaces:[],spawns:[],laneNodes:[],laneEdges:[]};
 const grenade:GrenadeState={entityId:'grenade-1',ownerEntityId:'boss',origin:{x:4,z:0,yaw:0},target:{x:4,z:20,yaw:0},bornTick:60,landsAtTick:105,detonatesAtTick:150,blastRadius:6,damage:30};
 const state=(tick=100,phase:WorldSnapshot['phase']='playing'):WorldSnapshot=>({protocolVersion:1,mapRevision:map.revision,gameplayRevision:GAMEPLAY_REVISION,sessionEpoch:'epoch',serverTick:tick,matchId:'grenade-clock',phase,phaseEndsAtTick:null,vehicles:[],projectiles:[],scores:[],local:null,grenades:[structuredClone(grenade)],campaign:{campaignId:CAMPAIGN_ID,dispatchIndex:4,status:'active',outcomes:[]}});
 const sessions:ReturnType<typeof createOnlineSession>[]=[];
-async function connect(snapshot=state()) { vi.useFakeTimers({toFake:['setInterval','clearInterval','performance']}); transport.initial=packSnapshot(snapshot);const session=createOnlineSession('ws://grenade-clock',map);sessions.push(session);await session.connect({mode:'create',nickname:'Sgt. Sideways'});return session; }
+async function connect(snapshot=state()) { vi.useFakeTimers({toFake:['setInterval','clearInterval','performance']}); transport.initial=packSnapshot(snapshot);const session=createOnlineSession('ws://grenade-clock',map);sessions.push(session);await session.connect({roomId: crypto.randomUUID(),nickname:'Sgt. Sideways'});return session; }
 afterEach(async()=>{await Promise.all(sessions.splice(0).map(session=>session.dispose()));vi.useRealTimers();transport.handlers.clear();});
 
 it('reconstructs a late join grenade warning and clock from authority without a throw event',async()=>{

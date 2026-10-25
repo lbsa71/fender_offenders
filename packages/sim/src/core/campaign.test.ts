@@ -39,9 +39,10 @@ it('requires an explicit pursuit and a usable lane graph for campaign mode',()=>
  expect(()=>createSimulation(arena(),{campaign:true,pursuit:false})).toThrow(/pursuit/i);
  const noLanes=arena();noLanes.laneNodes=[];noLanes.laneEdges=[];expect(()=>createSimulation(noLanes,{campaign:true,pursuit:true})).toThrow(/lane/i);
 });
-it('requires the creator and connected officer minimum to start or advance',()=>{
+it('allows any connected officer to start alone and rejects duplicate or disconnected requests',()=>{
  const solo=simulation();campaign(solo);expect(solo.startRound('intruder')).toBe(false);solo.setConnection('a','reconnecting');expect(solo.startRound('a')).toBe(false);solo.setConnection('a','connected');start(solo);
- const multi=simulation({mode:'multiplayer'});expect(multi.startRound('a')).toBe(false);multi.addPlayer({playerId:'b',nickname:'Officer B'});multi.setConnection('b','reconnecting');expect(multi.startRound('a')).toBe(false);multi.setConnection('b','connected');expect(multi.startRound('b')).toBe(false);expect(multi.startRound('a')).toBe(true);
+ const multi=simulation({mode:'multiplayer'});expect(multi.startRound('a')).toBe(true);expect(multi.startRound('a')).toBe(false);
+ const guest=simulation({mode:'multiplayer'});guest.addPlayer({playerId:'b',nickname:'Officer B'});guest.setConnection('b','reconnecting');expect(guest.startRound('b')).toBe(false);guest.setConnection('b','connected');expect(guest.startRound('b')).toBe(true);guest.removePlayer('a');expect(guest.snapshot().phase).toBe('countdown');guest.removePlayer('b');expect(guest.snapshot().phase).toBe('countdown');
 });
 it('uses the authored target body/profile health and keeps one marked suspect with a stable entity ID',()=>{
  const sim=simulation({config:{...DEFAULT_GAMEPLAY_CONFIG,maxHealth:200}});const state=campaign(sim),target=contracts.getCampaignTarget(contracts.CAMPAIGN_DISPATCHES[state.dispatchIndex]!.targetId)!;
@@ -63,7 +64,8 @@ it('resolves a lethal player volley as wrecked once, preserves the attacker cred
  const sim=simulation({mode:'multiplayer'});sim.addPlayer({playerId:'b',nickname:'Officer B'});campaign(sim);start(sim);sim.drainEvents();resolve(sim,'wrecked','b');
  expect(campaign(sim).outcomes).toMatchObject([{dispatchIndex:0,outcome:'wrecked',playerId:'b'}]);expect(sim.snapshot().pursuit!.winnerPlayerId).toBe('b');expect(sim.snapshot().scores.find(s=>s.playerId==='b')!.score).toBe(1);
  const events=sim.drainEvents();expect(events.filter(e=>e.kind==='pursuit-complete')).toMatchObject([{payload:{outcome:'wrecked',bonus:1,playerId:'b'}}]);expect(events.filter(e=>e.kind==='round-ended')).toMatchObject([{payload:{reason:'wrecked',winnerPlayerId:'b'}}]);
- const target=sim.snapshot().vehicles.find(v=>v.entityId===sim.snapshot().pursuit!.suspectId)!;ticks(sim,400);expect(sim.snapshot().vehicles.find(v=>v.entityId===target.entityId)).toEqual(target);expect(campaign(sim).outcomes).toHaveLength(1);expect(sim.drainEvents().filter(e=>e.kind==='respawn'||e.kind==='pursuit-complete'||e.kind==='round-ended')).toEqual([]);expect(sim.rematch('b')).toBe(false);
+ const target=sim.snapshot().vehicles.find(v=>v.entityId===sim.snapshot().pursuit!.suspectId)!;ticks(sim,400);expect(sim.snapshot().vehicles.find(v=>v.entityId===target.entityId)).toEqual(target);expect(campaign(sim).outcomes).toHaveLength(1);expect(sim.drainEvents().filter(e=>e.kind==='respawn'||e.kind==='pursuit-complete'||e.kind==='round-ended')).toEqual([]);
+ sim.removePlayer('b');expect(campaign(sim).outcomes[0]).toMatchObject({playerId:'b',callsign:'Officer B'});expect(sim.rematch('b')).toBe(false);expect(sim.rematch('a')).toBe(true);expect(sim.rematch('a')).toBe(false);expect(campaign(sim).dispatchIndex).toBe(1);
 });
 it('wins with wreck classification over an arrest that would finish in the same tick',()=>{
  const sim=simulation();campaign(sim);start(sim);const {officerId}=prepare(sim,'wrecked');const c=sim.checkpoint();c.state.records.find(r=>r.vehicle.playerId==='a')!.vehicle.pose={x:0,z:-5.5,yaw:0};c.state.contenderTicks=[['a',179]];c.state.pursuit!.progress=179/180;sim.restore(c);

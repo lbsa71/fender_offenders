@@ -9,8 +9,8 @@ const consentedCloseCodes: number[] = [];
 const createdRoomIds: string[] = [];
 const dispatchRequests: string[] = [];
 class ProxyCloseRoom extends DrivingRoom {
-  override async onCreate() {
-    await super.onCreate();
+  override async onCreate(options?: unknown) {
+    await super.onCreate(options);
     createdRoomIds.push(this.roomId);
     const sim = (this as unknown as { sim: Simulation }).sim;
     const start = sim.startRound.bind(sim);
@@ -62,7 +62,7 @@ it('exits successfully after smoke assertions even when a proxy changes intentio
     while (!output.includes('Production smoke passed:') && performance.now() < deadline && exitCode === undefined) await new Promise(resolve => setTimeout(resolve, 20));
     expect(output, 'The real smoke must finish its two-player round assertions first').toContain('Production smoke passed:');
     expect(output, 'The real smoke must verify both players latency for every observer').toContain('per-player ping');
-    expect(dispatchRequests, 'The guest must consume the public invite reservation for the existing host room').toEqual([`/dispatch/${createdRoomIds[0]}`]);
+    expect(dispatchRequests, 'Both officers use the unified public invite route').toEqual([`/dispatch/${createdRoomIds[0]}`, `/dispatch/${createdRoomIds[0]}`]);
     const cleanupDeadline = performance.now() + 2000;
     while (exitCode === undefined && performance.now() < cleanupDeadline) await new Promise(resolve => setTimeout(resolve, 20));
     expect(consentedCloseCodes).toHaveLength(2);

@@ -142,7 +142,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
     if (!pursuit || pursuit.state === 'complete' || phase !== 'playing') return;
     if (campaign) {
       if (campaign.outcomes.some(result => result.dispatchIndex === campaign!.dispatchIndex)) return;
-      campaign.outcomes.push({ dispatchIndex: campaign.dispatchIndex, outcome, playerId: winner, elapsedTicks });
+      campaign.outcomes.push({ dispatchIndex: campaign.dispatchIndex, outcome, playerId: winner, callsign: scores.get(winner)!.nickname, elapsedTicks });
       if (campaign.outcomes.length === CAMPAIGN_DISPATCHES.length) campaign.status = 'complete';
     }
     pursuit.state = 'complete'; pursuit.winnerPlayerId = winner; pursuit.elapsedTicks = elapsedTicks;
@@ -313,7 +313,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
     removePlayer(playerId) {
       check(); const r = recordForPlayer(playerId); if (r) { records.delete(r.vehicle.entityId); for (const p of projectiles.values()) if (p.ownerEntityId === r.vehicle.entityId) projectiles.delete(p.entityId); }
       scores.delete(playerId); if (creator === playerId) creator = scores.keys().next().value ?? null;
-      if (phase === 'countdown' && scores.size < (mode === 'practice' && campaign ? 1 : 2)) { phase = 'lobby'; phaseEnd = null; }
+      if (!campaign && phase === 'countdown' && scores.size < 2) { phase = 'lobby'; phaseEnd = null; }
     },
     setConnection(playerId, connection) { check(); const score = scores.get(playerId); if (score) score.connection = connection; },
     setPlayerVehicle(playerId, bodyId) {
@@ -330,7 +330,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
     startRound(requesterId) {
       check();
       const connected = [...scores.values()].filter(score => score.connection === 'connected').length;
-      if (phase !== 'lobby' || mode !== 'multiplayer' && !campaign || (campaign ? connected : scores.size) < (mode === 'practice' ? 1 : 2) || (campaign ? requesterId !== creator : requesterId !== undefined && requesterId !== creator)) return false;
+      if (phase !== 'lobby' || mode !== 'multiplayer' && !campaign || (campaign ? connected < 1 || !requesterId || scores.get(requesterId)?.connection !== 'connected' : scores.size < 2 || requesterId !== undefined && requesterId !== creator)) return false;
       phase = 'countdown'; phaseEnd = tick + config.rules.countdownTicks;
       propPhysics?.reset();
       if (!campaign) for (const score of scores.values()) { score.score = 0; score.wrecks = 0; }
@@ -339,7 +339,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
       return true;
     },
     rematch(requesterId) {
-      check(); if (mode !== 'multiplayer' && !campaign || phase !== 'results' || (campaign ? requesterId !== creator : requesterId !== undefined && requesterId !== creator)) return false;
+      check(); if (mode !== 'multiplayer' && !campaign || phase !== 'results' || (campaign ? !requesterId || scores.get(requesterId)?.connection !== 'connected' : requesterId !== undefined && requesterId !== creator)) return false;
       if (campaign) {
         if (campaign.status === 'complete') {
           campaign = { campaignId: CAMPAIGN_ID, dispatchIndex: 0, status: 'active', outcomes: [] };

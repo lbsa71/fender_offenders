@@ -1,3 +1,4 @@
+import { disposeTestRooms } from '../support/rooms';
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { Client, type Room } from '@colyseus/sdk';
 import { createGameServer } from '../../apps/server/src/index.js';
@@ -23,7 +24,7 @@ async function peer(body: unknown, roomId?: string) {
   return { room, get state() { return state!; } };
 }
 beforeAll(async () => { server = await createGameServer(2710); });
-afterEach(async () => {
+afterEach(async () => { await disposeTestRooms();
   await Promise.all(sessions.splice(0).map(session => session.dispose()));
   await Promise.all(peers.splice(0).map(room => room.connection.isOpen ? room.leave(true) : Promise.resolve()));
 });
@@ -31,7 +32,7 @@ afterAll(async () => { await server?.gracefullyShutdown(false); });
 
 it('dispatches the saved garage body through the real prediction facade', async () => {
   const session = createOnlineSession(endpoint, districtMap); sessions.push(session);
-  const joined = await session.connect({ mode: 'create', nickname: 'Army driver', vehicleBodyId: 'army' });
+  const joined = await session.connect({ roomId: crypto.randomUUID(), nickname: 'Army driver', vehicleBodyId: 'army' });
   expect(joined.firstState.local!.vehicle.bodyAssetId).toBe('army');
   expect(joined.firstState.local!.vehicle.health).toBe(130);
 });

@@ -1,6 +1,6 @@
 # Shared contracts
 
-Status: semantic contract reference for the implemented alpha (`arcade-v8` gameplay, protocol 1, map `sunset-borough-1`). Updated: 2026-10-25. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+Status: semantic contract reference for the implemented alpha (`arcade-v9` gameplay, protocol 2, map `sunset-borough-1`). Updated: 2026-10-25. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
 
 *The contracts are the traffic lights. Please resist interpreting red as an optional decoration.*
 
@@ -12,7 +12,7 @@ The armed-target extension exposes `getBossTactics(dispatchIndex)`, ten immutabl
 
 `grenade-thrown` events carry `{ grenade }`; `grenade-exploded` events carry `{ grenadeId, ownerEntityId, position, blastRadius }`. These events drive effects, not client-owned damage. Current snapshots reconstruct warnings for late joins; original throw events are not required. See [boss combat](BOSS_COMBAT.md).
 
-`WorldSnapshot.campaign?: CampaignState` carries `{ campaignId, dispatchIndex, status: 'active' | 'complete', outcomes }`. Indices are zero-based and bounded to the ten authored dispatches. Each ordered outcome is `{ dispatchIndex, outcome: 'arrested' | 'wrecked', playerId, elapsedTicks }`. Only successful dispatches add entries; a timeout leaves the index/outcomes unchanged. A completed tenth stage retains index 9 and sets status complete until the creator requests a new campaign.
+`WorldSnapshot.campaign?: CampaignState` carries `{ campaignId, dispatchIndex, status: 'active' | 'complete', outcomes }`. Indices are zero-based and bounded to the ten authored dispatches. Each ordered outcome is `{ dispatchIndex, outcome: 'arrested' | 'wrecked', playerId, callsign, elapsedTicks }`. Credited callsigns survive participant departure. Only successful dispatches add entries; a timeout leaves the index/outcomes unchanged. A completed tenth stage retains index 9 and sets status complete until a connected member requests a new campaign.
 
 `CAMPAIGN_DISPATCHES`, `CAMPAIGN_TARGETS`, `CAMPAIGN_BOSSES`, `getCampaignTarget` and `getCampaignMugshot` expose original static story/portrait content. Each dispatch references a target ID; that target specifies its `VehicleBodyId`. The UI gates `reveal` text by successful outcomes. Shared snapshot encoding roundtrips the full bounded casefile for late join/reconnect; it does not publish portrait or cosmetic transforms. `pursuit-complete.payload.outcome` optionally distinguishes arrest/wreck; `round-ended.payload.reason` additionally accepts `wrecked`. Snapshots remain the durable UI authority.
 
@@ -150,6 +150,7 @@ interface WorldSnapshot {
   resetReason?: "join" | "reconnect" | "input-backlog" | "resync";
   pursuit?: PursuitState;
   campaign?: CampaignState;
+  paused?: boolean; // authoritative pause; transport and cleanup continue
 }
 ```
 
@@ -243,6 +244,8 @@ interface GameSession {
   neutralize(): void;
   request(action: "start-round" | "rematch" | "leave"): void;
   selectVehicle(bodyId: VehicleBodyId): void;
+  setPresence(menuOpen: boolean, hidden: boolean): void;
+  activity(): void;
   onSnapshot(callback: (snapshot: WorldSnapshot) => void): () => void;
   onEvents(callback: (events: GameEvent[]) => void): () => void;
   onStatus(callback: (status: SessionStatus) => void): () => void;
@@ -275,14 +278,14 @@ interface GameRenderer {
 
 Types referenced but not expanded here are concrete exports: `SessionRequest`, `JoinResult`, `SessionStatus` and `SceneManifest` in contracts; `Simulation`/`SimulationCheckpoint` in sim; the renderer facade in renderer. Complete validator/fixture coverage remains F01/F02 work. Import actual public types rather than copying these excerpts into a second local interface.
 
-- `SessionRequest`: mode `practice | create | join`, bounded nickname, room ID when joining, optional validated `vehicleBodyId` and protocol/content versions. Reconnect credentials stay inside the SDK adapter, not this public request shape. Omission of a vehicle retains server random assignment for legacy/tool callers; clients cannot supply profile tuning values.
+- `SessionRequest`: required room ID and bounded nickname, optional validated `vehicleBodyId` and protocol/content versions. Reconnect credentials stay inside the SDK adapter, not this public request shape. Omission of a vehicle retains server random assignment for legacy/tool callers; clients cannot supply profile tuning values.
 - `JoinResult`: player ID, room ID, current session epoch, accepted content versions, first state, local entity ID if spawned.
-- `SessionStatus`: `idle | connecting | lobby | playing | reconnecting | disconnected | error`, with typed reason and optional retry delay.
-- Join error reasons: `room-full`, `room-missing`, `version-mismatch`, `invalid-name`, `invalid-vehicle`, `server-shutdown`, `server-capacity`, `network-error`, `reconnect-expired`.
+- `SessionStatus`: `idle | connecting | lobby | playing | reconnecting | disconnected | error`, with typed reason, optional retry delay and `idleRemainingMs` for a warning.
+- Join/session error reasons: `room-full`, `room-missing`, `version-mismatch`, `invalid-name`, `invalid-vehicle`, `server-shutdown`, `server-capacity`, `network-error`, `reconnect-expired`, `idle-timeout`.
 - `SimulationCheckpoint`: opaque versioned local data, including tick and source scenario identity; never accepted from an untrusted client.
 - `SceneManifest`: map revision, asset catalog revision, environment settings, visual instances, quality variants, and references to shared collision data.
 
-Do not put prediction into `GameRenderer`. `net-client` owns online prediction and render sampling. The app currently composes practice directly from local `Simulation` snapshots/events and supplies exact tick/age fields; there is no shipped practice `GameSession` wrapper. Mode selection belongs to app composition, not checks spread across every package.
+Do not put prediction into `GameRenderer`. `net-client` owns prediction and render sampling for every playable room, including one officer. Local simulations remain for the menu preview and isolated fixtures. `WorldSnapshot.paused` passes through compact snapshots and freezes prediction, interpolation, projectiles and hazard clocks. `presence` reports boolean menu/hidden state; rate-limited `activity` reports deliberate interaction. `idle-warning` sets or clears warning state, and `session-ended` with `idle-timeout` prevents automatic reconnect. See [room sessions](ROOM_SESSIONS.md) for retention, admission and wall-clock policy.
 
 Projectile presentation uses the predicted local car clock (at most six ticks ahead) and buffered remote car clock. It never rewinds an already shown round; confirmed impacts or absence from the latest authoritative state retire it. Presentation clips against world geometry and cannot cause damage. `presentationAgeSeconds` is render-only, never serialized, and bounds fresh tracer length from simulation age. `sampleTimeSeconds` remains a browser clock and must not be used as projectile age. New match/session epoch/life boundaries clear the relevant presentation history.
 

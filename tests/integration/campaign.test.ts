@@ -1,3 +1,4 @@
+import { disposeTestRooms } from '../support/rooms';
 import { afterAll, afterEach, beforeAll, expect, it } from 'vitest';
 import { Client, type Room } from '@colyseus/sdk';
 import { matchMaker } from '@colyseus/core';
@@ -36,7 +37,7 @@ function stageArrest(sim: Simulation, winner: string) {
   sim.restore(checkpoint);
 }
 beforeAll(async () => { server = await createGameServer(2721); });
-afterEach(async () => { await Promise.all(rooms.splice(0).map(room => room.connection.isOpen ? room.leave(true) : Promise.resolve())); });
+afterEach(async () => { await disposeTestRooms(); await Promise.all(rooms.splice(0).map(room => room.connection.isOpen ? room.leave(true) : Promise.resolve())); });
 afterAll(async () => { await server?.gracefullyShutdown(false); });
 
 it('starts real rooms with the same campaign briefing and the assigned target car', async () => {
@@ -46,13 +47,29 @@ it('starts real rooms with the same campaign briefing and the assigned target ca
   expect(host.state.vehicles.find(vehicle => vehicle.entityId === host.state.pursuit!.suspectId)!.bodyAssetId).toBe(getCampaignTarget(CAMPAIGN_DISPATCHES[0]!.targetId).vehicleBodyId);
 });
 
-it('shares an arrest, restricts progression to the host, preserves scores and garage choices, and restores the casefile for a late joiner', async () => {
+it('retains a real solo resolution through an empty room and lets returning officers advance with backup', async () => {
+  const solo=await peer(),id=solo.room.roomId;
+  stageArrest(authority(id),solo.room.sessionId);
+  await until(()=>solo.state.phase==='results','Solo officer resolves the dispatch');
+  const earned=structuredClone(solo.state.campaign);
+  expect(earned!.outcomes).toMatchObject([{dispatchIndex:0,outcome:'arrested',callsign:'Campaign officer 1'}]);
+  await solo.room.leave(true);
+  const returning=await peer(id);
+  expect(returning.state.campaign).toEqual(earned);expect(returning.state.phase).toBe('results');
+  returning.room.send('rematch');
+  await until(()=>returning.state.campaign!.dispatchIndex===1,'Returning officer advances retained campaign');
+  const backup=await peer(id);
+  expect(backup.state.campaign).toEqual(returning.state.campaign);
+  expect(backup.state.campaign!.outcomes[0]!.callsign).toBe('Campaign officer 1');
+});
+
+it('shares an arrest, allows any connected officer to progress, preserves scores and garage choices, and restores the casefile for a late joiner', async () => {
   const host = await peer(), guest = await peer(host.room.roomId), sim = authority(host.room.roomId);
   expect(host.state.campaign).toBeDefined(); stageArrest(sim, guest.room.sessionId);
   await until(() => host.state.phase === 'results' && guest.state.phase === 'results', 'Shared campaign arrest');
   expect(host.state.campaign!.outcomes).toMatchObject([{ dispatchIndex: 0, outcome: 'arrested', playerId: guest.room.sessionId }]);
   expect(guest.state.campaign).toEqual(host.state.campaign);
-  guest.room.send('rematch'); await new Promise(resolve => setTimeout(resolve, 120)); expect(host.state.phase).toBe('results');
+  guest.room.send('rematch'); await until(() => host.state.phase === 'lobby', 'Guest advances the shared case');
   host.room.send('rematch'); await until(() => host.state.phase === 'lobby' && host.state.campaign!.dispatchIndex === 1, 'Next campaign briefing');
   const late = await peer(host.room.roomId);
   expect(late.state.campaign).toEqual(host.state.campaign); expect(late.state.scores.find(score => score.playerId === guest.room.sessionId)!.score).toBe(3);

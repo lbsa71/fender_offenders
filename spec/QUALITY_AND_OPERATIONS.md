@@ -1,6 +1,6 @@
 # Quality, performance, and operations
 
-Status: quality/release gates with partial `arcade-v8` alpha evidence. Updated: 2026-10-25. [Execution status](EXECUTION_STATUS.md) separates historical implementation results from current review checks; unrun gates below remain requirements.
+Status: quality/release gates with partial `arcade-v9` / protocol 2 alpha evidence. Updated: 2026-10-25. [Execution status](EXECUTION_STATUS.md) separates historical implementation results from current review checks; unrun gates below remain requirements.
 
 *A green test run is excellent news. It still cannot plug in a controller or sign a release form.*
 
@@ -42,8 +42,8 @@ Vitest and Playwright are installed and versioned in the root manifest/lockfile.
 | Checkpoints | Save/restore/replay through a turn, contact, shot, damage timer, respawn, and traffic interaction |
 | Authority | Client position/damage spoof ignored; NaN/Infinity/oversize/out-of-range inputs rejected; no speedup from extra commands |
 | Combat | Swept hit on fast/moving target, wall occlusion, owner immunity, duplicate event, fire cadence, spawn protection, simultaneous lethal hits |
-| Round | Start validation, late join, creator departure, countdown, timer end, draw, results/rematch, empty-room expiry |
-| Campaign | Ten dispatches/four ringleaders, independent arrest progress, credited target wreck, arrest/wreck marks, cumulative score, timeout retry, earned-only clues, creator-only progression, late join/reconnect and finale reset |
+| Round | Start validation, late join, participant departure, countdown, timer end, draw, results/rematch, empty-room expiry |
+| Campaign | Ten dispatches/four ringleaders, independent arrest progress, credited target wreck, arrest/wreck marks, cumulative score, timeout retry, earned-only clues, connected-member progression, late join/reconnect and finale reset |
 | Armed targets | Ten authored tactics, protected/connected-officer selection, bounded burst cadence, fixed grenade landing/fuse/radius, cover/falloff, exactly-once damage, hazard cleanup and checkpoint replay |
 | Garage/callsigns | Six shared profiles, briefing-only reassignment, saved random/custom identity, malformed/unavailable storage and authoritative selection locks |
 | Network | Duplicate/old sequence, input queue overflow, missing snapshots, burst delay, exhausted history, reconnect/epoch change |
@@ -164,3 +164,7 @@ Dev-only overlay: sim/render ticks, server time estimate, local authoritative/pr
 - [ ] Working title/branding clearance completed for intended markets before public launch.
 
 Use [the ordered acceptance queue](../IMPLEMENTATION_PLAN.md#next-acceptance-work) to claim this work under the existing task IDs. Do not reopen optional GLB/WebGPU work merely to give the checklist more scenery.
+
+## Unified room acceptance
+
+Protocol 2 / `arcade-v9` uses the same authoritative room for 1–8 players. Verify solo start followed by live backup joining; menus pause only a lone connected officer. Controlled wall-clock tests cover the 14-minute idle warning, 15-minute intentional disconnect and empty-room expiry. Capacity eviction must spare connected players, reconnect reservations and unconsumed seats. Retained worlds count toward the existing provisional room cap; no new measured-capacity claim follows from cleanup correctness. Test teardown explicitly disposes owned rooms. [Lifecycle and storage](ROOM_SESSIONS.md) records defaults and the future persistence boundary.

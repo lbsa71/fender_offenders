@@ -5,6 +5,7 @@ import * as catalog from '../../contracts/src/campaign.ts';
 import { getCampaignMugshot } from '../../contracts/src/campaign-mugshots.ts';
 import { getBossTactics } from '../../contracts/src/boss-tactics.ts';
 const fixture = { starts: 0, rematches: 0, options: {}, catalog };
+const fixtureUrl=new URL(location.href);if(!fixtureUrl.searchParams.has('room')){fixtureUrl.searchParams.set('room','CampaignFixture1');history.replaceState(null,'',fixtureUrl);}
 fixture.mugshots = () => catalog.CAMPAIGN_TARGETS.map(target => ({ ...target, svg: getCampaignMugshot(target.id) }));
 fixture.tactics = getBossTactics;
 const ui = mountGameUi(document.querySelector('#ui'), {

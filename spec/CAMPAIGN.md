@@ -1,6 +1,6 @@
 # Ten-dispatch campaign
 
-Status: implemented; human difficulty/controller acceptance remains open. Reviewed: 2026-10-24. Gameplay revision: `arcade-v8`. Campaign content: `green-light-racket-v1`.
+Status: implemented; human difficulty/controller acceptance remains open. Reviewed: 2026-10-25. Gameplay revision: `arcade-v9` (protocol 2). Campaign content: `green-light-racket-v1`.
 
 *The Green Light Society promised faster traffic. Apparently they meant faster getaway cars.*
 
@@ -8,25 +8,25 @@ Campaign targets now use [distinct armed tactics](BOSS_COMBAT.md), including gre
 
 Dispatch lighting follows the authored noon/dusk/night [graphics schedule](GRAPHICS_POLISH.md#authored-dispatch-schedule). Practice and online select it from the existing shared campaign index during briefing, play and results. Atmosphere changes presentation only; target rules and progression stay unchanged. Water and subtle flares remain later graphics steps. Dispatch has finally learned to book the night shift.
 
-Each solo game or multiplayer room runs **The Green Light Racket**, ten dispatches linking four ringleaders and six crew members. Every dispatch has an original target, mugshot, assigned vehicle, briefing, and success reveal. The four ringleaders appear at dispatches 2, 5, 8 and 10. This implements the ten-step/four-boss requirement without padding the campaign with identical unnamed pursuits.
+Each 1–8-player server room runs **The Green Light Racket**, ten dispatches linking four ringleaders and six crew members. Every dispatch has an original target, mugshot, assigned vehicle, briefing, and success reveal. The four ringleaders appear at dispatches 2, 5, 8 and 10. This implements the ten-step/four-boss requirement without padding the campaign with identical unnamed pursuits.
 
 ## Player flow
 
-1. Enter a callsign and select solo, create, or join. The saved motor-pool assignment remains intact.
+1. Open a room URL (assigned randomly when absent), enter a callsign and choose Hit the streets. The saved motor-pool assignment remains intact.
 2. Read the dispatch briefing alongside the target's mugshot, car identification and ten-step tracker. Reassign the player's own car here; the rotating 3D preview still shows the player's vehicle.
-3. Start the dispatch. Solo needs one officer; multiplayer needs two connected officers and the room creator starts it. A three-second countdown locks the motor pool.
+3. Start the dispatch. Any connected officer can start, including the room’s sole player. A three-second countdown locks the motor pool.
 4. Race to arrest the marked target or destroy its car. Player combat remains enabled. The first authoritative resolution wins this dispatch, independent of cumulative combat-point ranking.
 5. Read the outcome and newly revealed clue. An arrest earns three points and a green check; a wreck earns the existing one-point wreck credit and a separate amber result. Both advance the story. Results identify the resolving officer.
-6. The creator opens the next briefing. All players can change their car again before the next dispatch starts. Scores, outcomes and casefile carry forward. A timeout instead retries the same dispatch and reveals no new clue.
+6. Any connected officer opens the next briefing. All players can change their car again before the next dispatch starts. Scores, outcomes and casefile carry forward. A timeout instead retries the same dispatch and reveals no new clue.
 7. The tenth success finishes the campaign and reveals the ending. A new campaign resets the tracker and scores while retaining players, room link and vehicle assignments.
 
-The tracker is shared by the room: a green check means that dispatch ended in an arrest by the named officer. It does not imply that every player earned that arrest. Late joiners and reconnecting players see the same tracker and revealed casefile. Campaign progress is in memory for the current game, not a cross-session save; a server restart can recreate the invite but starts a fresh campaign.
+The tracker is shared by the room: a green check means that dispatch ended in an arrest by the named officer. It does not imply that every player earned that arrest. Late joiners and reconnecting players see the same tracker and revealed casefile. Campaign progress belongs to the room. Empty rooms pause for up to 15 minutes, with earlier reclamation at capacity. Returning resumes that campaign; expiry or a server restart recreates the invite with a fresh campaign. See [room sessions](ROOM_SESSIONS.md).
 
 ## Authority and lifecycle
 
-`WorldSnapshot.campaign` contains only campaign ID, zero-based current dispatch index, active/complete status and ordered resolutions. A resolution stores dispatch index, `arrested` or `wrecked`, officer ID and elapsed ticks. Authored names, portraits and prose are static shared content, never networked transforms or client-owned mission state.
+`WorldSnapshot.campaign` contains only campaign ID, zero-based current dispatch index, active/complete status and ordered resolutions. A resolution stores dispatch index, `arrested` or `wrecked`, officer ID, immutable credited callsign and elapsed ticks. Attribution remains after the officer leaves. Authored names, portraits and prose are static shared content, never networked transforms or client-owned mission state.
 
-The simulation enables campaign mode explicitly with `campaign: true, pursuit: true` and an authored lane graph. Practice starts in a briefing lobby. `startRound(playerId)` begins its countdown; `rematch(playerId)` returns results to the next briefing, retries a timeout, or restarts a completed campaign. These operations require the current creator. Generic noncampaign simulation fixtures retain their earlier single-pursuit behavior.
+The simulation enables campaign mode explicitly with `campaign: true, pursuit: true` and an authored lane graph. Production rooms start in a briefing (the existing internal `lobby` phase). `startRound(playerId)` begins its countdown; `rematch(playerId)` returns results to the next briefing, retries a timeout, or restarts a completed campaign. These operations require a connected member and admit one valid phase transition; no creator privilege or two-player minimum applies. Generic noncampaign simulation fixtures retain their earlier single-pursuit behavior.
 
 The marked suspect retains one entity ID across dispatches. Each new stage resets its body, profile-scaled health, traffic runtime, arrest timers, projectiles and winner. Players heal/respawn at dispatch start; changing bodies is allowed only in the briefing. Campaign worlds freeze outside live play, including the completed target's wreck, preventing a result from racing a respawn or a second arrest.
 

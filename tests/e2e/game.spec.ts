@@ -65,7 +65,7 @@ test('keyboard practice drives, fires, releases controls on pause and saves sett
   await page.keyboard.press('Escape'); await page.keyboard.up('w'); await page.keyboard.up('Space');
   await expect(page.getByRole('heading', { name: 'Taking a breather?' })).toBeVisible();
   await expect(page.locator('.fo-target-indicator')).toBeHidden();
-  await expect(page.getByText('Your local patrol is paused.', { exact: false })).toBeVisible();
+  await expect(page.getByText('Your patrol is paused while you are alone.', { exact: false })).toBeVisible();
   const pausedTick = (await snapshot(page))!.serverTick;
   await page.waitForTimeout(150);
   expect((await snapshot(page))!.serverTick).toBe(pausedTick);
@@ -176,13 +176,13 @@ test('two browser clients create, join, start a live round and share confirmed s
   const host = await hostContext.newPage(); const guest = await guestContext.newPage();
   try {
     await host.goto(baseURL!); await host.getByRole('textbox', { name: 'YOUR CALLSIGN' }).fill('Dispatch Host');
-    await host.getByRole('button', { name: 'CREATE ROOM' }).click();
+    await host.getByRole('button', { name: 'HIT THE STREETS' }).click();
     await expect(host.locator('.fo-invite')).toBeVisible();
     const invite = await host.locator('[data-text="room"]').innerText(); const roomId = invite.replace(/^\s*\/\s*/, '').trim(); expect(roomId).not.toBe('');
     console.log(`Created private room ${roomId}`);
     await guest.goto(`${baseURL}/?room=${encodeURIComponent(roomId)}`);
     await guest.getByRole('textbox', { name: 'YOUR CALLSIGN' }).fill('Backup Unit');
-    await guest.getByRole('button', { name: 'REPORT TO DISPATCH' }).click();
+    await guest.getByRole('button', { name: 'HIT THE STREETS' }).click();
     await expect(host.locator('[data-scores] li')).toHaveCount(2); await expect(guest.locator('[data-scores] li')).toHaveCount(2);
     for (const viewer of [host, guest]) {
       await expect(viewer.locator('.fo-campaign-roster').getByText('PING / ms', { exact: true })).toBeVisible();
@@ -206,7 +206,7 @@ test('two browser clients create, join, start a live round and share confirmed s
       for (const nickname of ['Dispatch Host', 'Backup Unit']) await expect(viewer.locator('[data-scores]').getByLabel(new RegExp(`^${nickname} ping: \\d+ milliseconds$`))).toHaveText(/^\d+ ms$/);
     }
     await host.keyboard.press('Escape');
-    await expect(host.getByText('THE MATCH IS STILL LIVE.', { exact: false })).toBeVisible();
+    await expect(host.getByText('THE DISPATCH IS LIVE.', { exact: false })).toBeVisible();
     const tick = (await snapshot(host))!.serverTick;
     await expect.poll(async () => (await snapshot(host))!.serverTick).toBeGreaterThan(tick + 10);
     await expect(host.locator('[data-scores]')).toContainText('Backup Unit');

@@ -1,3 +1,4 @@
+import { disposeTestRooms } from '../support/rooms';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { Client, type Room } from '@colyseus/sdk';
 import { matchMaker, type Server } from '@colyseus/core';
@@ -49,7 +50,7 @@ function combatFixture(a: Peer, b: Peer) {
 
 let server: Server;
 beforeAll(async () => { server = await createGameServer(2677, '127.0.0.1'); }, 15000);
-afterEach(async () => {
+afterEach(async () => { await disposeTestRooms();
   await Promise.allSettled(peers.splice(0).map(p => p.room.connection.isOpen ? p.room.leave(true) : Promise.resolve()));
   await until(() => serverMetrics.rooms === 0, 'all rooms disposed', 12000);
 }, 15000);
@@ -211,9 +212,9 @@ describe('real Colyseus authority over local WebSockets', () => {
     a.sequence = 0; send(a, { sirenToggle: true }); await until(() => a.state!.local!.lastConsumedSequence === 0, 'new epoch starts at sequence zero');
   }, 10000);
 
-  it('keeps creator authority through countdown, late join, creator departure, results and rematch', async () => {
+  it('keeps shared authority through countdown, late join, departure, results and rematch', async () => {
     const a = await peer(), b = await peer(a.room.roomId);
-    b.room.send('start-round'); await pause(100); expect(b.state!.phase).toBe('lobby');
+    b.room.send('start-round'); await until(() => b.state!.phase === 'countdown', 'Any connected officer starts');
     a.room.send('start-round'); await until(() => a.state!.phase === 'countdown', 'creator starts countdown');
     const sim = localSimulation(a), countdown = sim.checkpoint(); countdown.state.phaseEnd = countdown.tick + 3; sim.restore(countdown);
     await until(() => a.state!.phase === 'playing', 'authoritative countdown transition');
@@ -222,7 +223,7 @@ describe('real Colyseus authority over local WebSockets', () => {
     const ending = sim.checkpoint(); ending.state.phaseEnd = ending.tick + 3; sim.restore(ending);
     await until(() => b.state!.phase === 'results' && late.state!.phase === 'results', 'both peers see round results');
     expect(b.state!.scores.map(s => s.score)).toEqual([0, 0]); expect(b.events.filter(e => e.kind === 'round-ended')).toHaveLength(1);
-    late.room.send('rematch'); await pause(100); expect(b.state!.phase).toBe('results');
+    late.room.send('rematch'); await until(() => b.state!.phase === 'lobby', 'Late joiner advances');
     b.room.send('rematch'); await until(() => b.state!.phase === 'lobby', 'oldest remaining participant controls rematch');
     b.room.send('start-round'); await until(() => late.state!.phase === 'countdown', 'same room starts rematch');
   });

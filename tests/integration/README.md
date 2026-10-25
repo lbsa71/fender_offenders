@@ -1,6 +1,6 @@
 # Live room integration evidence
 
-Reviewed: 2026-10-24 for `arcade-v8`. *Real sockets, real authority, and no accepting a client's handwritten claim that it has 900 horsepower.*
+Reviewed: 2026-10-25 for `arcade-v9` / protocol 2. *Real sockets, real authority, and no accepting a client's handwritten claim that it has 900 horsepower.*
 
 Run from the repository root:
 
@@ -21,14 +21,14 @@ The real-room scenarios verify:
 - Input backlog is bounded and discarded-command acknowledgments/reset reasons reach the client. A stalled sender cannot leave its automatic weapon firing indefinitely.
 - Ten paired volleys produce twenty unique 5-damage hits and one patrol wreck/point, with at least twelve ticks between volleys; the victim respawns after three real seconds with fresh protection and a discontinuity increment.
 - Terminating an established server-side WebSocket triggers the SDK's real reconnect flow. Other clients see a reconnect reservation; identity is retained, epoch changes, stale epoch commands are rejected and the fresh epoch can start at sequence zero.
-- Only the creator starts a round, late joins receive its current phase/protection, creator departure preserves the room, tied results stay tied, and the oldest remaining player controls rematch.
+- Any connected member starts a campaign dispatch, including alone; late joins receive its current phase/protection, creator departure preserves the room, tied results stay tied, and any connected member can advance campaign results.
 - Delayed/jittered reliable traffic with a 550 ms byte-stream stall retains ordered authoritative ticks, bounded speed, fire cadence and post-neutralization safety.
 
 Combat/lifecycle tests place cars and shorten round transitions through a **trusted in-process server checkpoint fixture**. They never authorize client positions, health, damage or hit claims. Inputs, snapshots, acknowledgments, reconnects and events still traverse real sockets. The three-second wreck respawn uses actual elapsed server time. Full five-minute round progression is separately covered by the deterministic 18,600-tick benchmark in `packages/sim/bench.ts`; the real room lifecycle fixture does not wait five wall-clock minutes.
 
 The TCP proxy introduces 45 ± 15 ms per-direction delay and one 550 ms stall in both directions. It queues bytes in order and does not discard messages. This tests reliable transport latency/backlog behavior. It is not packet-loss emulation, a substitute for OS-level TCP impairment, a browser correction trace, a remote geographic network, or a human playability test. The separate echo regression proves that timer granularity cannot reorder same-deadline chunks in the harness.
 
-Current integration files also verify saved six-car selection and countdown locks, independent pursuit winners, shared campaign arrest/wreck progression and casefiles, creator-only next briefing, sparse physical scenery and real armed-target shots/grenades for both peers and a late joiner. [Invite restart/race tests](../hosting/invite-links.test.ts) and [the production facade](../prediction/README.md) cover additional real adapters outside this directory. Generic fixtures can omit campaign state; production rooms explicitly enable it.
+Current integration files also verify saved six-car selection and countdown locks, independent pursuit winners, shared campaign arrest/wreck progression and casefiles, connected-member next briefing, sparse physical scenery and real armed-target shots/grenades for both peers and a late joiner. [Invite restart/race tests](../hosting/invite-links.test.ts) and [the production facade](../prediction/README.md) cover additional real adapters outside this directory. Generic fixtures can omit campaign state; production rooms explicitly enable it.
 
 The first live eight-client run exposed a real admission race: moving traffic could temporarily occupy the last safe spawn, rejecting a player despite a free room slot. The simulation now admits that player as a non-colliding respawning participant and retries safe placement; a regression test covers occupancy clearing. The first impairment harness exposed a timer-rounding issue in the proxy itself; one FIFO pump per direction and the exact-byte echo regression corrected that harness bug before accepting impairment evidence.
 
@@ -49,3 +49,5 @@ node node_modules/vitest/vitest.mjs run tests/integration/rooms.test.ts -t 'safe
 node node_modules/vitest/vitest.mjs run tests/integration
 node node_modules/typescript/bin/tsc --noEmit
 ```
+
+Unified-room checks cover authoritative solo pause, live backup joining, 15-minute empty retention, reserved-seat protection and oldest-empty capacity eviction. Controlled-clock inactivity checks ignore neutral packets and heartbeat traffic. Fixtures explicitly dispose their owned retained worlds during teardown. See [room sessions](../../spec/ROOM_SESSIONS.md).

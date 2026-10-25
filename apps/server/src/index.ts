@@ -1,6 +1,6 @@
 import { Server, ErrorCode, createRouter, createEndpoint, createAuthContext, matchMaker } from '@colyseus/core';
 import { WebSocketTransport } from '@colyseus/ws-transport';
-import { DrivingRoom, serverMetrics, getRoomMetrics } from '@fender/net-server';
+import { DrivingRoom, serverMetrics, getRoomMetrics, roomRegistry } from '@fender/net-server';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import express from 'express';
@@ -32,7 +32,6 @@ export async function createGameServer(port = Number(process.env.PORT || 2567), 
     [ErrorCode.MATCHMAKE_INVALID_ROOM_ID]: 404, [ErrorCode.MATCHMAKE_UNHANDLED]: 500,
     [ErrorCode.MATCHMAKE_EXPIRED]: 410, [ErrorCode.AUTH_FAILED]: 401, [ErrorCode.APPLICATION_ERROR]: 400,
   };
-  const pendingInvites = new Map<string, Promise<void>>();
   const dispatch = createEndpoint('/dispatch/:invite', { method: 'POST' }, async ctx => {
     const code = ctx.params.invite, request = ctx.request!, origin = request.headers.get('origin');
     if (origin && !allowed.has(origin)) return Response.json({ code: 403, error: 'Origin not allowed' }, { status: 403 });
@@ -43,16 +42,7 @@ export async function createGameServer(port = Number(process.env.PORT || 2567), 
       const auth = createAuthContext({ headers: request.headers, req: request });
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
-          if (!await matchMaker.getRoomById(code)) {
-            let creating = pendingInvites.get(code);
-            if (!creating) {
-              creating = (async () => {
-                if (!await matchMaker.getRoomById(code)) await matchMaker.createRoom('district', { ...options, inviteCode: code });
-              })().finally(() => pendingInvites.delete(code));
-              pendingInvites.set(code, creating);
-            }
-            await creating;
-          }
+          await roomRegistry.ensureInvite(code, options);
           return await matchMaker.joinById(code, options, auth);
         } catch (error) {
           const failure = error as { code?: number; message?: string };

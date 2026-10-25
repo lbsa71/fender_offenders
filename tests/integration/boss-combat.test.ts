@@ -1,3 +1,4 @@
+import { disposeTestRooms } from '../support/rooms';
 import { afterAll, afterEach, beforeAll, expect, it } from 'vitest';
 import { Client, type Room } from '@colyseus/sdk';
 import { matchMaker } from '@colyseus/core';
@@ -22,7 +23,7 @@ async function peer(roomId?:string){
 }
 function encounter(host:Awaited<ReturnType<typeof peer>>,stage=0){
  const sim=(matchMaker.getLocalRoomById(host.room.roomId) as unknown as {sim:Simulation}).sim;
- if(stage){const c=sim.checkpoint();c.state.phase='results';c.state.campaign!.dispatchIndex=stage-1;c.state.campaign!.outcomes=Array.from({length:stage},(_,dispatchIndex)=>({dispatchIndex,outcome:'arrested',playerId:host.room.sessionId,elapsedTicks:180}));sim.restore(c);expect(sim.rematch(host.room.sessionId)).toBe(true);}
+ if(stage){const c=sim.checkpoint();c.state.phase='results';c.state.campaign!.dispatchIndex=stage-1;c.state.campaign!.outcomes=Array.from({length:stage},(_,dispatchIndex)=>({dispatchIndex,outcome:'arrested',playerId:host.room.sessionId,callsign:'Officer Muffin 1',elapsedTicks:180}));sim.restore(c);expect(sim.rematch(host.room.sessionId)).toBe(true);}
  const c=sim.checkpoint(),boss=c.state.records.find(record=>record.vehicle.entityId===c.state.pursuit!.suspectId)!;
  c.state.phase='playing';c.state.phaseEnd=c.tick+2000;c.state.records=c.state.records.filter(record=>record.vehicle.playerId!==null||record===boss);
  boss.vehicle.pose={x:0,z:-76,yaw:Math.PI/2};boss.vehicle.velocity={x:0,z:0,yawRate:0};boss.vehicle.protectedUntilTick=0;
@@ -33,7 +34,7 @@ function encounter(host:Awaited<ReturnType<typeof peer>>,stage=0){
  sim.restore(c);host.room.send('resync');return{sim,bossId:boss.vehicle.entityId};
 }
 beforeAll(async()=>{server=await createGameServer(2722);});
-afterEach(async()=>{await Promise.all(rooms.splice(0).map(room=>room.connection.isOpen?room.leave(true):Promise.resolve()));});
+afterEach(async()=>{ await disposeTestRooms();await Promise.all(rooms.splice(0).map(room=>room.connection.isOpen?room.leave(true):Promise.resolve()));});
 afterAll(async()=>{await server?.gracefullyShutdown(false);});
 
 it('the authoritative opening target fires real shots, damages an officer and shares the attack with both clients',async()=>{

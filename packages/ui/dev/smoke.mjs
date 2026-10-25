@@ -17,8 +17,9 @@ try {
   if (process.env.CAPTURE_UI) { await page.evaluate(() => document.fonts.ready); await page.screenshot({ path: 'packages/ui/dev/menu-preview.png' }); }
   await page.keyboard.press('Enter');
   await page.locator('.fo-hud').waitFor({ state: 'visible' });
-  assert.equal(await page.evaluate(() => window.lastPlay.mode), 'practice');
-  assert.equal(await page.locator('.fo-scoreboard').getByText('PING / ms', { exact: true }).isVisible(), false, 'solo practice has no network latency column');
+  assert.equal(await page.evaluate(() => window.lastPlay.roomId), 'FixtureRoom1');
+  assert.equal(await page.evaluate(() => 'mode' in window.lastPlay), false, 'entry has one room model');
+  assert.equal(await page.locator('.fo-scoreboard').getByText('PING / ms', { exact: true }).isVisible(), true, 'one-player rooms retain the shared network status');
   const setPingPhase = (phase, localPing = 42) => page.evaluate(({ phase, localPing }) => window.fixture.ui.update({ mode: 'online', snapshot: {
     ...window.fixture.snapshot, phase, scores: [
       { playerId: 'you', nickname: 'Officer Rookie', score: 3, wrecks: 1, connection: 'connected', pingMs: localPing },
@@ -95,10 +96,10 @@ try {
   assert.equal(await page.evaluate(() => window.fixture.input.sample().throttle), 0);
   await page.keyboard.up('w');
   await page.getByRole('button', { name: 'END PATROL' }).click();
-  await page.getByRole('button', { name: 'JOIN ROOM', exact: false }).click();
-  await page.getByRole('textbox', { name: 'ROOM CODE OR INVITE LINK' }).fill('http://localhost/?room=ABC123');
-  await page.getByRole('button', { name: 'REPORT TO DISPATCH' }).click();
-  assert.equal(await page.evaluate(() => window.lastPlay.roomId), 'ABC123');
+  await page.getByRole('button', { name: 'OPEN ANOTHER ROOM', exact: false }).click();
+  await page.getByRole('textbox', { name: 'ROOM CODE OR INVITE LINK' }).fill('http://localhost/?room=ABC12345');
+  await page.getByRole('button', { name: 'OPEN ROOM' }).click();
+  assert.equal(await page.evaluate(() => window.lastPlay.roomId), 'ABC12345');
   await page.evaluate(() => window.fixture.ui.update({ snapshot: { ...window.fixture.snapshot, phase: 'results', scores: [{playerId:'you',nickname:'<img src=x onerror=alert(1)>',score:3,wrecks:1,connection:'connected'}] } }));
   await page.getByRole('heading', { name: 'Patrol complete.' }).waitFor();
   assert.equal(await page.locator('[data-results] img').count(), 0);
@@ -108,6 +109,15 @@ try {
   await page.keyboard.press('Escape');
   const panel = await page.locator('.fo-panel').boundingBox();
   assert.ok(panel && panel.x >= 0 && panel.x + panel.width <= 740 && panel.y + panel.height <= 580);
+  await page.evaluate(() => {window.fixture.ui.update({snapshot:window.fixture.snapshot,mode:'online',status:{state:'playing',idleRemainingMs:60000}});window.fixture.ui.showMenu(null);});
+  assert.equal(await page.getByRole('alert').isVisible(),true,'idle warning is accessible');
+  const activityBefore=await page.evaluate(()=>window.fixtureActivities??0);await page.getByRole('button',{name:'STAY ON PATROL'}).click();
+  assert.ok((await page.evaluate(()=>window.fixtureActivities))>activityBefore,'stay action reports deliberate activity');
+  await page.evaluate(()=>window.fixture.ui.update({status:{state:'disconnected',reason:'idle-timeout'}}));
+  assert.equal(await page.getByText(/signed off after 15 minutes/).isVisible(),true,'timeout explains re-entry');
+  await page.getByRole('button',{name:'END PATROL'}).focus();
+  await page.evaluate(()=>window.fixture.ui.update({status:{state:'disconnected',reason:'idle-timeout'}}));
+  assert.equal(await page.evaluate(()=>document.activeElement?.getAttribute('data-action')),'leave','idle refresh does not steal keyboard focus');
   assert.deepEqual(errors, []);
   console.log('UI browser smoke passed: online pings/results at 1440×900 and 960×640, practice hides latency, persistent Wi-Fi state/recovery, keyboard practice, pause safety, settings/remap, invite join, safe results/rematch, 740×580 layout.');
 } finally { await browser.close(); await server.close(); }
