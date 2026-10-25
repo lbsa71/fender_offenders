@@ -44,6 +44,7 @@ async function practice(page: Page) {
   await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
   await page.getByRole('button', { name: 'START DISPATCH' }).click();
   await expect.poll(async () => (await snapshot(page))?.phase).toBe('playing');
+  await expect(page.locator('[data-text="phase"]')).toHaveText('COMPETING PURSUIT');
   await expect(page.locator('.fo-hud')).toBeVisible();
   await expect.poll(async () => (await snapshot(page))?.local?.vehicle.status).toBe('active');
 }
@@ -86,6 +87,10 @@ test('keyboard practice drives, fires, releases controls on pause and saves sett
 });
 
 test('a hard driving collision presents a confirmed impact burst without ram damage',async({page})=>{
+  // This is an input/contact check. Bound software rasterization cost so real
+  // network commands arrive within the 100 ms safety hold; full-size visuals
+  // remain covered by the separate 960/1440 layout and rendering scenarios.
+  await page.setViewportSize({width:480,height:360});
   // This drives through several simulation seconds; software GPU frames can be slow.
   test.setTimeout(90000);
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
@@ -102,6 +107,8 @@ test('a hard driving collision presents a confirmed impact burst without ram dam
 });
 
 test('a standard controller can start, drive, pause, navigate and safely disconnect', async ({ page }) => {
+  // Keep this hardware-input scenario independent of software-GPU throughput.
+  await page.setViewportSize({width:480,height:360});
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(() => {
     type MutablePad = { id: string; index: number; connected: boolean; mapping: string; axes: number[]; buttons: { pressed: boolean; touched: boolean; value: number }[]; timestamp: number };
@@ -134,6 +141,8 @@ test('a standard controller can start, drive, pause, navigate and safely disconn
   await expect.poll(async () => (await snapshot(page))?.phase).toBe('playing');
   await expect(page.locator('.fo-prompts')).toContainText('LEFT STICK DRIVE');
   await expect(page.locator('.fo-prompts')).toContainText('RT/LT DRIVE/BRAKE');
+  await expect(page.locator('[data-text="phase"]')).toHaveText('COMPETING PURSUIT');
+  await stickY(0); // Let the newly enabled controller observe a neutral frame before a fresh press.
   await stickY(-1);
   await expect.poll(async () => { const car = (await snapshot(page))?.local?.vehicle; return car ? Math.hypot(car.velocity.x, car.velocity.z) : 0; }).toBeGreaterThan(3);
   await stickY(0);

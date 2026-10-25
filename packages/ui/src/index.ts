@@ -20,7 +20,7 @@ export interface UiModel {
   snapshot?: WorldSnapshot | null;
   localPlayerId?: string | null;
   mode?: 'practice' | 'online';
-  status?: string | { state?: string; kind?: string; reason?: string; message?: string; idleRemainingMs?: number };
+  status?: string | { state?: string; kind?: string; reason?: string; message?: string; idleRemainingMs?: number; notice?: { id: number; message: string } };
   roomId?: string | null;
   device?: DeviceKind;
   recoverProgress?: number;
@@ -287,6 +287,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     one<HTMLButtonElement>('[data-action="reassign"]').disabled = !canReassign();
   }
   function showMenu(next: Menu = 'pause') {
+    if(persistentToast && (next===null || next==='home'))clearToast();
     if (next === 'settings') previousMenu = menu;
     menu = next;
     shell.classList.toggle('fo-is-playing', menu === null);
@@ -367,7 +368,9 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     }
   };
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
-  function toast(message: string) { const node = one('.fo-toast'); node.textContent = message; node.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { node.hidden = true; }, 3500); }
+  let persistentToast=false,lastNoticeId:number|null=null;
+  function clearToast(){clearTimeout(toastTimer);one('.fo-toast').hidden=true;persistentToast=false;}
+  function toast(message: string, persistent=false) { const node = one('.fo-toast'); node.textContent = message; node.hidden = false; clearTimeout(toastTimer);persistentToast=persistent;if(!persistent)toastTimer=setTimeout(clearToast,3500); }
   const submit = (event: SubmitEvent) => { event.preventDefault(); void play(true); };
   const remapKey = (event: KeyboardEvent) => {
     if (!bindingAction) return;
@@ -413,7 +416,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     }
     if (!lobby()) awaitingVehicle = null;
     shell.classList.toggle('fo-online', model.mode === 'online');
-    if(previousPaused && model.snapshot?.paused===false && menu!==null && (model.snapshot?.scores.filter(score=>score.connection==='connected').length??0)>1)toast('Backup joined. The dispatch is live.');
+    if(previousPaused===false && model.snapshot?.paused && persistentToast)clearToast();
     const snapshot = model.snapshot; const hud = deriveHud(model); const status = statusName(model.status);
     if (snapshot && menu === 'home' && status !== 'error') { resultDismissed = false; showMenu(null); notify(''); }
     if (hasResult() && !previousResult) { resultDismissed = false; updateScores(one('[data-results]'), true); showMenu('pause'); }
@@ -422,6 +425,9 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     one<HTMLElement>('.fo-health i').style.width = `${Math.max(0, Math.min(100, hud.health))}%`; one('.fo-health').classList.toggle('fo-low-health', hud.health < 30);
     write('pause-description', snapshot?.paused ? 'Your patrol is paused while you are alone. Backup joining resumes the dispatch.' : 'THE DISPATCH IS LIVE. Your unit has its controls released.');
     const sessionStatus=typeof model.status==='object'?model.status:undefined;
+    const notice=sessionStatus?.notice;
+    if(!notice)lastNoticeId=null;
+    else if(notice.id!==lastNoticeId){lastNoticeId=notice.id;if(!snapshot?.paused && (snapshot?.scores.filter(score=>score.connection==='connected').length??0)>1)toast(notice.message,menu!==null);}
     idleWarning.hidden=!sessionStatus?.idleRemainingMs;
     if(sessionStatus?.reason==='idle-timeout' && previousReason!=='idle-timeout' && menu!== 'home'){showMenu('pause');notify(errorMessages['idle-timeout']);}
     write('phase', model.mode === 'practice' ? 'SOLO PURSUIT' : hud.phase === 'lobby' ? 'DISPATCH BRIEFING' : hud.phase === 'countdown' ? 'PURSUIT STARTING' : hud.phase === 'results' ? 'PURSUIT COMPLETE' : 'COMPETING PURSUIT');

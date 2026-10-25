@@ -36,9 +36,11 @@ test('pauses alone, resumes when backup joins live, and returns to the same camp
     const tick=(await state(a)).serverTick;await a.waitForTimeout(200);expect((await state(a)).serverTick).toBe(tick);
     await b.goto(a.url());await b.getByRole('button',{name:'HIT THE STREETS'}).click();
     await expect.poll(async()=>(await state(b))?.phase).toBe('playing');await expect.poll(async()=>(await state(a))?.paused).toBe(false);
+    await a.waitForTimeout(4000);
     await expect(a.getByText('Backup joined. The dispatch is live.',{exact:true})).toBeVisible();
     await expect.poll(async()=>(await state(b))?.campaign).toEqual((await state(a)).campaign);
     await b.keyboard.press('Escape');await b.getByRole('button',{name:'END PATROL'}).click();
     await expect.poll(async()=>(await state(a))?.paused).toBe(true);
+    await expect(a.getByText('Backup joined. The dispatch is live.',{exact:true})).toBeHidden();
   }finally{await aContext.close();await bContext.close();}
 });

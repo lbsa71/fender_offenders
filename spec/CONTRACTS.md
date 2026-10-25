@@ -280,7 +280,7 @@ Types referenced but not expanded here are concrete exports: `SessionRequest`, `
 
 - `SessionRequest`: required room ID and bounded nickname, optional validated `vehicleBodyId` and protocol/content versions. Reconnect credentials stay inside the SDK adapter, not this public request shape. Omission of a vehicle retains server random assignment for legacy/tool callers; clients cannot supply profile tuning values.
 - `JoinResult`: player ID, room ID, current session epoch, accepted content versions, first state, local entity ID if spawned.
-- `SessionStatus`: `idle | connecting | lobby | playing | reconnecting | disconnected | error`, with typed reason, optional retry delay and `idleRemainingMs` for a warning.
+- `SessionStatus`: `idle | connecting | lobby | playing | reconnecting | disconnected | error`, with typed reason, optional retry delay, `idleRemainingMs` for a warning, and `notice: { id, message }` for a retained room notification. The client adapter sequences notices and preserves them across snapshots so delayed or hidden UI updates can consume each once.
 - Join/session error reasons: `room-full`, `room-missing`, `version-mismatch`, `invalid-name`, `invalid-vehicle`, `server-shutdown`, `server-capacity`, `network-error`, `reconnect-expired`, `idle-timeout`.
 - `SimulationCheckpoint`: opaque versioned local data, including tick and source scenario identity; never accepted from an untrusted client.
 - `SceneManifest`: map revision, asset catalog revision, environment settings, visual instances, quality variants, and references to shared collision data.

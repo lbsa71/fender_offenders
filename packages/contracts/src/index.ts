@@ -141,6 +141,7 @@ export interface SessionStatus {
   state: 'idle' | 'connecting' | 'lobby' | 'playing' | 'reconnecting' | 'disconnected' | 'error';
   reason?: SessionError; message?: string; retryDelay?: number;
   idleRemainingMs?: number;
+  notice?: { id: number; message: string };
 }
 export interface GameSession {
   connect(request: SessionRequest): Promise<JoinResult>;

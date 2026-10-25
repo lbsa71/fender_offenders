@@ -27,6 +27,17 @@ function snapshot(tick: number, options: { direction?: number; epoch?: string; m
 }
 afterEach(() => { vi.useRealTimers(); wire.handlers.clear(); wire.deferBaseline = false; });
 
+it('retains sequenced room notices across snapshots so slow or hidden views cannot miss them',async()=>{
+  wire.initial=snapshot(100);const session=createOnlineSession('ws://clock-fixture',map),statuses:unknown[]=[];session.onStatus(status=>statuses.push(status));
+  try{
+    await session.connect({roomId:crypto.randomUUID(),nickname:'Returning view'});
+    wire.handlers.get('room-notice')?.({message:'Backup joined. The dispatch is live.'});
+    expect(statuses.at(-1)).toMatchObject({notice:{id:1,message:'Backup joined. The dispatch is live.'}});
+    wire.handlers.get('snapshot')!(snapshot(101));expect(statuses.at(-1)).toMatchObject({notice:{id:1}});
+    wire.handlers.get('room-notice')?.({message:'Backup joined. The dispatch is live.'});expect(statuses.at(-1)).toMatchObject({notice:{id:2}});
+  }finally{await session.dispose();}
+});
+
 it('reports idle warnings and intentional timeout without announcing an expired reconnect',async()=>{
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
   wire.initial=snapshot(100);const session=createOnlineSession('ws://clock-fixture',map),statuses:unknown[]=[];session.onStatus(status=>statuses.push(status));

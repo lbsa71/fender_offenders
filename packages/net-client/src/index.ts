@@ -21,6 +21,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
   let playbackTick: number | null = null;
   let corrections = 0, maxCorrection = 0, receivedBytes = 0, sentBytes = 0;
   let activityAt = -Infinity;
+  let noticeId = 0;
   let presence = { menuOpen: false, hidden: false };
   const snapshotListeners = new Set<(s: WorldSnapshot) => void>(), eventListeners = new Set<(events: GameEvent[]) => void>(), statusListeners = new Set<(s: SessionStatus) => void>();
   const status = (s: SessionStatus) => { state = s; statusListeners.forEach(fn => fn(s)); };
@@ -126,7 +127,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
         room.onMessage('events', (events: GameEvent[]) => { projectilePresentation.present(events);eventListeners.forEach(fn => fn(events)); });
         room.onMessage('latency-probe', (message: { nonce: string }) => { room!.send('latency-pong', { nonce: message.nonce }); });
         room.onMessage('idle-warning', (message: { remainingMs: number | null }) => status({ ...state, idleRemainingMs: message.remainingMs ?? undefined }));
-        room.onMessage('room-notice', (message: { message: string }) => status({ ...state, message: message.message }));
+        room.onMessage('room-notice', (message: { message: string }) => status({ ...state, notice: { id: ++noticeId, message: message.message } }));
         room.onMessage('session-ended', (message: { reason: string }) => {
           if(message.reason!=='idle-timeout')return;
           room!.reconnection.enabled=false;outgoing=[];pending=[];

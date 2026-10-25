@@ -16,7 +16,7 @@ Any connected officer can open the next briefing, retry a timeout or start a new
 
 ## Pause and reconnect
 
-With exactly one connected officer, an open menu or hidden tab pauses simulation. With multiple connected officers, those conditions neutralize only the affected driver's controls. Arrival/reconnection resumes a paused shared game and notifies the officer whose menu remains open. Neutral controls stay in force until that officer returns.
+With exactly one connected officer, an open menu or hidden tab pauses simulation. With multiple connected officers, those conditions neutralize only the affected driver's controls. Arrival/reconnection resumes a paused shared game and notifies the officer whose menu remains open. The session retains sequenced notices across snapshots and hidden-tab delays; the backup notice remains visible while the menu is open, until acknowledged or the room pauses again. Neutral controls stay in force until that officer returns.
 
 Zero connected officers freezes the world immediately, including countdowns, dispatch deadlines, projectiles and scenery. Existing unexpected-drop reservations remain protected for ten seconds; reconnect restores identity with a fresh input epoch and full baseline. Expired reservations and intentional departures remove that session, while retaining campaign outcomes.
 
