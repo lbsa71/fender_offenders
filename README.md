@@ -87,9 +87,11 @@ Pulling the stick backward brakes a forward-moving car before reversing, just li
 | `pnpm dev` | Start client and game server together |
 | `pnpm dev:client` / `pnpm dev:server` | Start either development process separately |
 | `pnpm check` | Typecheck, validate documentation links/task dependencies, check simulation import boundaries |
-| `pnpm test` | Run Vitest logic, simulation, real-room, prediction, and hosting tests |
-| `pnpm test:integration` | Run real Colyseus room and ordered TCP-delay harness tests |
-| `pnpm test:e2e` | Run Playwright browser scenarios; reuse local services or start test-owned services |
+| `pnpm test` | Run both headless suites; no browsers |
+| `pnpm test:unit` | Run isolated logic with controlled dependencies; no sockets, real physics or renderer adapters |
+| `pnpm test:integration` | Run real physics/render adapters, HTTP/Colyseus rooms, prediction, hosting and tooling checks |
+| `pnpm test:e2e` | Local Playwright game scenarios, then pursuit/campaign/callsign browser fixtures |
+| `pnpm hooks:install` | Install the local Git pre-push hook; also runs automatically on local dependency installation |
 | `pnpm test:load` | Run eight real SDK clients against the local server; write a payload-estimate report |
 | `pnpm test:deploy` | Check production readiness/HTML and two real multiplayer WebSocket clients at `TEST_SERVER_URL` |
 | `pnpm assets:check` | Validate authored map/content invariants |
@@ -99,13 +101,15 @@ Pulling the stick backward brakes a forward-moving car before reversing, just li
 
 For a fresh Playwright setup, run `pnpm exec playwright install chromium` before `pnpm test:e2e`. The browser config can use installed Chrome on Windows. Render-only smoke/alignment tools are in [tools/assets](tools/assets); no `test:visual` or `test:network` package script currently exists.
 
+Browser E2E runs locally before each push through [the pre-push hook](.githooks/pre-push), and a failure stops the push. Local `pnpm install` installs the hook; existing checkouts can run `pnpm hooks:install`. Custom hook paths are preserved and need the same `pnpm test:e2e` command. CI runs unit, integration, types/docs, assets, build and production-container smoke. The browser patrol stays in the local garage; the server checks still report for duty.
+
 After `pnpm build`, `node dist/server/index.js` serves the production client and WebSocket service on one port. Set `HOST`, `PORT`, and `ALLOWED_ORIGINS` for that deployment. See [the operations guide](infra/README.md) for container/TLS configuration, health/readiness, and staging checks. The connected Render service uses the Free plan in Frankfurt, with automatic deployment from `main` after GitHub checks pass. Pull requests run validation without changing the public preview.
 
 ## Validation and limits
 
 The 2026-10-24 documentation review reran **465 headless tests across 54 files**, plus type/documentation/boundary and authored-asset checks, all passing. A separate audit verified all **25 Markdown artifacts**, their local links/anchors and all nine GPL package declarations. Playwright discovery lists **15 browser scenarios across six files**; those were not executed in this review. No gameplay behavior changed, so no artificial RED phase was required.
 
-Historical implementation evidence includes the 2026-10-23 armed-campaign run of 460 headless tests and 14 browser scenarios, five UI fixtures, real boss-combat clients, native grenade checks and an SDK driving probe. The 2026-10-24 pacing commit records 465 headless tests and 12 practice browser scenarios passing; the badge fix records its style-recalculation regression. See [the evidence index](spec/EXECUTION_STATUS.md) for dates and scope. CI is configured to run the complete browser suite, campaign/callsign/pursuit fixtures and production-container smoke.
+Historical implementation evidence includes the 2026-10-23 armed-campaign run of 460 headless tests and 14 browser scenarios, five UI fixtures, real boss-combat clients, native grenade checks and an SDK driving probe. The 2026-10-24 pacing commit records 465 headless tests and 12 practice browser scenarios passing; the badge fix records its style-recalculation regression. See [the evidence index](spec/EXECUTION_STATUS.md) for dates and scope. Browser checks are now local pre-push gates; CI retains the unit/integration suites and production-container smoke.
 
 Human driving/visual approval, actual controllers, Firefox/Safari/macOS coverage, collision-correction traces, OS packet impairment, sustained browser frame budgets, ten-rematch memory stability, multi-room server density, and hosted rollback validation remain open. A short localhost eight-player run is not a capacity or remote-playability claim. Its JSON payload estimate exceeded the starting download budget; actual wire bandwidth is unverified. The free preview initially admits at most two rooms; deployments end active matches.
 

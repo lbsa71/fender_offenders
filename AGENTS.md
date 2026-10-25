@@ -19,6 +19,8 @@ For regressions, reproduce the bug in a test first. For refactoring, establish p
 
 Choose the narrowest test that proves the behavior: unit tests for simulation and input rules, real client/server integration tests for multiplayer authority and reconnect behavior, and browser tests for player-visible interactions. Assert outcomes rather than duplicating implementation details. Keep tests deterministic by controlling time, randomness, and external dependencies where appropriate.
 
+Use `pnpm test:unit` for isolated logic, `pnpm test:integration` for real physics/renderer/network adapters, and `pnpm test:e2e` for local browser flows and UI fixtures. `pnpm test` runs both headless suites. Browsers run locally before pushes through `.githooks/pre-push`, never in CI. Install hooks with `pnpm hooks:install` in existing checkouts; local dependency installation also sets them up. Preserve custom hook paths and integrate the E2E command there. CI keeps unit/integration, types/docs, assets, build and production smoke. Do not remove a flaky browser assertion from the local suite to obtain a green push.
+
 Every implementation handoff must state which test failed before the change, why it failed, and which checks passed afterward. Apply the same rule to every parallel implementation lane and subagent. Existing code is not evidence of a historical TDD cycle; report only cycles actually observed.
 
 Documentation-only changes do not require artificial tests. Visual assets and subjective polish require a stated acceptance criterion and a reproducible render or browser check; pair them with automated behavioral tests wherever behavior changes.

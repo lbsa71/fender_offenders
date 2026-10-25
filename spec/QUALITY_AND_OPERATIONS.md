@@ -20,9 +20,11 @@ The root scripts below exist in [package.json](../package.json). `test:network` 
 | --- | --- |
 | `pnpm dev` | Start local client and game server; print URLs and cleanup processes on exit |
 | `pnpm check` | Typecheck, documentation links/task dependency graph, simulation import boundaries; no general lint/schema coverage is implied |
-| `pnpm test` | Vitest logic/simulation, real room/network, prediction and hosting suites |
-| `pnpm test:integration` | Real room/client lifecycle, prediction/combat state, reconnect |
-| `pnpm test:e2e` | Browser keyboard flow, lobby, match, settings, focus loss |
+| `pnpm test` | Both headless Vitest projects; no browser processes |
+| `pnpm test:unit` | Isolated contracts/input/math/HUD/presentation logic, controlled dependencies |
+| `pnpm test:integration` | Real physics, renderer adapters, HTTP/rooms/client lifecycle, prediction, hosting and tooling |
+| `pnpm test:e2e` | Local game browser scenarios followed by pursuit/campaign/callsign UI fixtures |
+| `pnpm hooks:install` | Install the local E2E pre-push gate, automatically installed by local `pnpm install` too |
 | `pnpm test:integration` with `tests/integration` | Real ordered TCP-delay/jitter/stall harness; full packet-loss/correction profiles remain open |
 | `pnpm test:load` | Eight SDK clients in one room, configurable duration and snapshot payload estimate; separate sim benchmarks measure step cost, and multi-room capacity remains open |
 | `pnpm test:deploy` | Production HTTP/readiness plus two real multiplayer WebSocket clients at `TEST_SERVER_URL`; does not imply hosted validation |
@@ -108,7 +110,8 @@ Use identical scripted inputs for client/server replay where appropriate. Keep p
 
 ## 7. CI and review gates
 
-- Pull requests: install from lockfile, check, fast tests, production build, and relevant integration tests.
+- CI on pull requests/main: install from lockfile, types/docs, separate unit and integration suites, assets, production build and production-container smoke. No browser checks run in CI.
+- Local pre-push: run all game browser scenarios and pursuit/campaign/callsign UI fixtures through `.githooks/pre-push`; failure blocks the push. Install with `pnpm hooks:install` for an existing checkout. Custom hook paths are preserved and must include `pnpm test:e2e`.
 - Contract changes: schema/fixture compatibility checks and affected consumer tests.
 - Simulation/network changes: replay and authority tests plus relevant impaired-network scenario.
 - Content/rendering changes: asset checks, scene capture, and performance delta for affected scene.
@@ -121,7 +124,7 @@ The 2026-10-24 documentation review reran 465 headless tests across 54 files. Pl
 
 ## 8. Deployment design
 
-The [Render blueprint](../render.yaml) configures one Free Docker web service in Frankfurt serving the client and persistent game-server process together, with two rooms and checks-passed auto-deploy from `main`. Prior hosted HTML/readiness, exact-origin and two-client WSS checks are recorded in [execution status](EXECUTION_STATUS.md); this documentation review does not revalidate the live service or latest deployed commit. [GitHub CI](../.github/workflows/ci.yml) is configured to run check/test/assets/build, the full browser suite, pursuit/campaign/callsign UI fixtures and then production-container smoke. Alternate hosting remains possible through endpoint configuration; see [the runbook](../infra/README.md).
+The [Render blueprint](../render.yaml) configures one Free Docker web service in Frankfurt serving the client and persistent game-server process together, with two rooms and checks-passed auto-deploy from `main`. Prior hosted HTML/readiness, exact-origin and two-client WSS checks are recorded in [execution status](EXECUTION_STATUS.md); this documentation review does not revalidate the live service or latest deployed commit. [GitHub CI](../.github/workflows/ci.yml) runs check/unit/integration/assets/build and production-container smoke; all browser checks run locally before pushes. Alternate hosting remains possible through endpoint configuration; see [the runbook](../infra/README.md).
 
 Required configuration:
 
