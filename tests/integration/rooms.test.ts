@@ -124,7 +124,10 @@ describe('real Colyseus authority over local WebSockets', () => {
   it.each(['stale', 'neutralize', 'disconnect'] as const)('safely brakes %s controls without reversing or continuing fire', async safety => {
     const a = await peer(), observer = await peer(a.room.roomId); combatFixture(a, observer);
     const sim = localSimulation(a), moving = sim.checkpoint();
-    moving.state.records.find(r => r.vehicle.playerId === a.room.sessionId)!.vehicle.velocity.z = 12;
+    // The accepted setup volley now removes 3.4 m/s, then safety braking can
+    // advance before the first publication. Start fast enough to retain the
+    // original >8 m/s precondition without weakening any stopping assertion.
+    moving.state.records.find(r => r.vehicle.playerId === a.room.sessionId)!.vehicle.velocity.z = 16;
     sim.restore(moving);
     send(a, { fire: true });
     await until(() => a.state!.local!.lastConsumedSequence === 0, 'fresh fire command consumed before safety condition');
