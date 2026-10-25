@@ -19,6 +19,48 @@ try {
   await page.waitForFunction(() => Boolean((window as any).fixture));
   const water = await page.evaluate(() => (window as any).fixture.gameScene.meshes.filter((m: any) => m.name.startsWith('wet-')).length);
   assert.ok(water >= 6, `authored water must be rendered: found ${water} surfaces`);
+  const waterAppearance = await page.evaluate(async () => {
+    const f = (window as any).fixture; f.pause();
+    f.renderer.setSettings({ quality: 'high', reducedShake: false }); f.renderer.setDispatch('loose-change');
+    const scene = f.gameScene, engine = scene.getEngine(), camera = scene.activeCamera;
+    const mesh = scene.getMeshByName('wet-park-pond'), sky = scene.clearColor.clone();
+    f.frame.cameraTarget = { x: -mesh.position.x, z: mesh.position.z, yaw: 0 };
+    for (let i = 0; i < 30; i++) { f.step(.1); await new Promise(r => requestAnimationFrame(r)); }
+    const gl = document.querySelector('canvas')!.getContext('webgl2')!, V = camera.position.constructor, M = scene.getTransformMatrix().constructor;
+    const sample = () => {
+      const pixels: number[] = [];
+      for (let z = -3; z <= 3; z++) for (let x = -3; x <= 3; x++) {
+        const position = mesh.position.add(new V(x * .65, 0, z * .5));
+        const p = V.Project(position, M.Identity(), scene.getTransformMatrix(), camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight()));
+        const pixel = new Uint8Array(4); gl.readPixels(Math.round(p.x), gl.drawingBufferHeight - Math.round(p.y) - 1, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+        pixels.push(...pixel.slice(0, 3));
+      }
+      return pixels;
+    };
+    const difference = (a: number[], b: number[]) => a.reduce((sum, value, i) => sum + Math.abs(value - b[i]!), 0) / a.length;
+    f.step(0); const start = sample();
+    scene.clearColor.set(.8, .2, .1, 1); f.step(0); const warmSky = sample();
+    scene.clearColor.set(.1, .35, .8, 1); f.step(0); const coolSky = sample();
+    scene.clearColor.copyFrom(sky); f.step(0);
+    for (let i = 0; i < 20; i++) f.step(.1);
+    const moving = sample(), luminance = [];
+    for (let i = 0; i < start.length; i += 3) luminance.push(start[i]! * .2126 + start[i + 1]! * .7152 + start[i + 2]! * .0722);
+    f.renderer.setSettings({ reducedShake: true }); f.step(0); const frozen = sample();
+    for (let i = 0; i < 20; i++) f.step(.1);
+    const reducedDifference = difference(frozen, sample());
+    f.renderer.setSettings({ quality: 'low', reducedShake: false }); f.step(0); const low = sample();
+    for (let i = 0; i < 20; i++) f.step(.1);
+    const lowDifference = difference(low, sample());
+    f.renderer.setSettings({ quality: 'high', reducedShake: false }); f.step(0);
+    return { skyDifference: difference(warmSky, coolSky), contrast: Math.max(...luminance) - Math.min(...luminance), motionDifference: difference(start, moving), reducedDifference, lowDifference };
+  });
+  await writeFile(join(output, 'water-appearance.json'), JSON.stringify(waterAppearance, null, 2));
+  await page.screenshot({ path: join(output, 'water-appearance.png') });
+  assert.ok(waterAppearance.skyDifference > 6, `water must visibly reflect the sky palette: ${JSON.stringify(waterAppearance)}`);
+  assert.ok(waterAppearance.contrast > 8, 'broad water highlights must be visible at gameplay distance');
+  assert.ok(waterAppearance.motionDifference > .8, 'broad ripples must visibly move across the water');
+  assert.equal(waterAppearance.reducedDifference, 0, 'reduced motion freezes visible water ripples');
+  assert.equal(waterAppearance.lowDifference, 0, 'low quality retains a static water finish');
   const probes = await page.evaluate(async () => {
     const f = (window as any).fixture; f.pause(); f.renderer.setSettings({ reducedFlash: true, reducedShake: true });
     const scene = f.gameScene, engine = scene.getEngine(), camera = scene.activeCamera;
@@ -135,6 +177,6 @@ try {
   const rect = (x: number, z: number, w: number, d: number, fill: string) => `<rect x="${x - w / 2}" y="${z - d / 2}" width="${w}" height="${d}" fill="${fill}"/>`;
   const map = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-135 -145 270 290"><rect x="-135" y="-145" width="270" height="290" fill="#e9e8dc"/><text x="-125" y="-133" font-size="5">Water / buildings / spawn clearance / walking and shortcut routes</text>${buildings.map(b => rect(b.x, b.z, b.width, b.depth, '#828b86')).join('')}${districtMap.surfaces.filter(s => s.surface === 'dirt').map(s => `<polygon points="${s.polygonXZ.join(' ')}" fill="#c9a575"/>`).join('')}${PEDESTRIAN_ROUTES.map(r => `<polygon points="${r.points.map(p => `${p.x},${p.z}`).join(' ')}" fill="none" stroke="#588d66" stroke-width=".6"/>`).join('')}${districtMap.spawns.map(s => `<circle cx="${s.pose.x}" cy="${s.pose.z}" r="${s.clearanceRadius}" fill="none" stroke="#c96a3e" stroke-width=".7"/>`).join('')}${DISTRICT_WATER.map(s => rect(s.x, s.z, s.width, s.depth, '#287d9d')).join('')}</svg>`;
   await writeFile(join(output, 'water-map.svg'), map);
-  await writeFile(join(output, 'evidence.json'), JSON.stringify({ commit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), dirty: true, browser: browser.version(), viewport: { width: 1440, height: 900 }, water, probes, lightDetail, surfaces, contacts, captures, accessibility, media, occlusion, motion, lifecycle, errors }, null, 2));
+  await writeFile(join(output, 'evidence.json'), JSON.stringify({ commit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), dirty: true, browser: browser.version(), viewport: { width: 1440, height: 900 }, water, waterAppearance, probes, lightDetail, surfaces, contacts, captures, accessibility, media, occlusion, motion, lifecycle, errors }, null, 2));
   console.log(JSON.stringify({ output, probes, lightDetail, occlusion, resources: lifecycle.before, errors }));
 } finally { await browser.close(); }
