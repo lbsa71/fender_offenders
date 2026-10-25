@@ -1,4 +1,4 @@
-import { CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, CAMPAIGN_TITLE, getBossTactics, getCampaignMugshot, getCampaignTarget, getVehicleProfile, isVehicleBodyId, randomCallsign, sanitizeNickname, VEHICLE_BODIES, type CampaignState, type CampaignTarget, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
+import { CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, CAMPAIGN_TITLE, getBossTactics, getCampaignMugshot, getCampaignTarget, getVehicleProfile, isInviteCode, isVehicleBodyId, randomCallsign, sanitizeNickname, VEHICLE_BODIES, type CampaignState, type CampaignTarget, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
 import './style.css';
 
 export type MenuAction = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back' | 'pause';
@@ -20,7 +20,7 @@ export interface UiModel {
   snapshot?: WorldSnapshot | null;
   localPlayerId?: string | null;
   mode?: 'practice' | 'online';
-  status?: string | { state?: string; kind?: string; reason?: string; message?: string };
+  status?: string | { state?: string; kind?: string; reason?: string; message?: string; idleRemainingMs?: number; notice?: { id: number; message: string } };
   roomId?: string | null;
   device?: DeviceKind;
   recoverProgress?: number;
@@ -32,7 +32,8 @@ export interface UiModel {
   selectedVehicleBodyId?: VehicleBodyId;
 }
 export interface UiCallbacks {
-  onPlay: (request: { mode: 'practice' | 'create' | 'join'; nickname: string; roomId?: string; vehicleBodyId?: VehicleBodyId }) => void | Promise<void>;
+  onPlay: (request: { nickname: string; roomId: string; vehicleBodyId?: VehicleBodyId }) => void | Promise<void>;
+  onActivity?: () => void;
   onVehicleChange?: (vehicleBodyId: VehicleBodyId) => void;
   onResume?: () => void;
   onLeave?: () => void;
@@ -43,6 +44,7 @@ export interface UiCallbacks {
 }
 const defaults: UiSettings = { masterVolume: .7, musicVolume: .3, effectsVolume: .8, reducedShake: false, reducedFlash: false, vibration: true, quality: 'medium', stickDeadzone: .16, triggerDeadzone: .08, sensitivity: 1, bindings: {} };
 const errorMessages: Record<string, string> = {
+  'idle-timeout': 'Your unit was signed off after 15 minutes of inactivity. Enter the room again to continue if it is still available.',
   'invalid-vehicle': 'Choose a valid garage vehicle and try again.',
   'server-capacity': 'Dispatch is at capacity. Join an existing room or try creating one again shortly.',
   'room-full': 'All eight units are out on patrol. Try another room.', 'room-missing': 'That invite could not be opened. Check the code or link and try again.',
@@ -91,8 +93,9 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     <div class="fo-grain" aria-hidden="true"></div>
     <header class="fo-top"><a class="fo-wordmark" href="#" aria-label="Fender Offenders home"><span class="fo-badge">FO</span><span>FENDER<br>OFFENDERS<span class="fo-edition">MOTOR DIVISION / 01</span></span></a><div class="fo-top-right"><span class="fo-connection"><i></i><span data-text="connection">LOCAL DISPATCH</span></span><button class="fo-icon" data-action="pause" aria-label="Open pause menu">Ⅱ</button></div></header>
     <section class="fo-hud" hidden aria-label="Driving dashboard"><div class="fo-round"><span data-text="phase">FREE PATROL</span><strong data-text="timer">05:00</strong></div><aside class="fo-scoreboard"><div class="fo-label">DISPATCH LEADERBOARD</div><ol data-scores></ol></aside><div class="fo-instruments"><div class="fo-speed"><strong data-text="speed">0</strong><span>KM/H</span></div><div class="fo-car-state"><div class="fo-label">UNIT INTEGRITY <b data-text="health">100%</b></div><div class="fo-health"><i></i></div><span data-text="ammo">AUTO / UNLIMITED AMMO</span></div></div><div class="fo-prompts" data-text="prompts">WASD DRIVE · SHIFT DRIFT · SPACE FIRE</div><div class="fo-recover" hidden><span>RECOVERING UNIT</span><progress max="1" value="0"></progress></div><div class="fo-pursuit" hidden><span data-text="pursuit">INTERCEPT THE SUSPECT</span><progress max="1" value="0"></progress></div><div class="fo-center-callout" hidden><span data-text="callout-label">STAND BY</span><strong data-text="callout">3</strong></div><button class="fo-invite" data-action="invite">COPY INVITE <span data-text="room"></span></button><button class="fo-start" data-action="start" hidden>START ROUND →</button></section>
-    <div class="fo-menu-backdrop"></div><main class="fo-menu"><div class="fo-hero" aria-hidden="true"></div><section class="fo-panel" aria-label="Dispatch menu"><div class="fo-panel-heading"><span class="fo-kicker" data-text="panel-kicker">CITY MOTOR DIVISION</span><span class="fo-panel-no">FORM 01–FO</span></div><div class="fo-home"><h2>You're on duty.</h2><p class="fo-muted">Pick a callsign. Take the keys.</p><label class="fo-field">YOUR CALLSIGN<input name="nickname" maxlength="20" autocomplete="nickname" spellcheck="false" value="Officer Rookie" placeholder="Officer Rookie"></label><button class="fo-primary" data-action="practice"><span>HIT THE STREETS<small>Solo practice & pursuit challenge</small></span><b>↗</b></button><div class="fo-divider"><span>OR BRING BACKUP</span></div><div class="fo-actions"><button class="fo-secondary" data-action="create">CREATE ROOM <span>+</span></button><button class="fo-secondary" data-action="join-toggle">JOIN ROOM <span>→</span></button></div><form class="fo-join" hidden><label class="fo-field">ROOM CODE OR INVITE LINK<input name="room" maxlength="250" autocomplete="off" spellcheck="false" placeholder="Paste a code or invite link"></label><button class="fo-primary" type="submit">REPORT TO DISPATCH →</button></form><div class="fo-room-note">PRIVATE ROOMS · 2–8 DRIVERS · NO ACCOUNT NEEDED</div></div><div class="fo-pause" hidden><h2>Taking a breather?</h2><p class="fo-muted" data-text="pause-description">Your patrol is paused.</p><button class="fo-primary" data-action="resume">BACK ON PATROL →</button><button class="fo-secondary" data-action="leave">END PATROL <span>↗</span></button></div><div class="fo-settings" hidden><h2>Fine tuning.</h2><p class="fo-muted">Make this patrol yours.</p><div class="fo-settings-list"><label>Master volume<input type="range" data-setting="masterVolume" min="0" max="1" step=".05"></label><label>Music<input type="range" data-setting="musicVolume" min="0" max="1" step=".05"></label><label>Effects<input type="range" data-setting="effectsVolume" min="0" max="1" step=".05"></label><label>Graphics<select data-setting="quality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label><label>Reduce camera shake<input type="checkbox" data-setting="reducedShake"></label><label>Reduce flashes<input type="checkbox" data-setting="reducedFlash"></label><label>Controller vibration<input type="checkbox" data-setting="vibration"></label><label>Stick dead zone<input type="range" data-setting="stickDeadzone" min=".05" max=".5" step=".01"></label><label>Trigger dead zone<input type="range" data-setting="triggerDeadzone" min="0" max=".5" step=".01"></label><label>Steering sensitivity<input type="range" data-setting="sensitivity" min=".4" max="1.8" step=".05"></label></div><details class="fo-bindings"><summary>KEYBOARD BINDINGS</summary><div data-bindings></div></details><button class="fo-secondary" data-action="settings-back">SAVE & BACK <span>↩</span></button></div><div class="fo-results" hidden><span class="fo-kicker">CASE CLOSED</span><h2 data-text="result-title">Patrol complete.</h2><p class="fo-muted">Final standings / confirmed by dispatch</p><ol data-results></ol><button class="fo-primary" data-action="rematch">ANOTHER ROUND →</button><button class="fo-secondary" data-action="leave">BACK TO DISPATCH <span>↗</span></button></div><div class="fo-notice" role="status" aria-live="polite" hidden></div><footer class="fo-panel-footer"><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button><span class="fo-input-hint" data-text="input-hint">↑ ↓ SELECT · ENTER CONFIRM</span></footer></section></main><footer class="fo-bottom"><span>MINOR INFRACTIONS. MAJOR COLLISIONS.</span><span>DRIVE FAST. FILE LATER.</span></footer><div class="fo-toast" role="status" aria-live="polite" hidden></div>`;
+    <div class="fo-menu-backdrop"></div><main class="fo-menu"><div class="fo-hero" aria-hidden="true"></div><section class="fo-panel" aria-label="Dispatch menu"><div class="fo-panel-heading"><span class="fo-kicker" data-text="panel-kicker">CITY MOTOR DIVISION</span><span class="fo-panel-no">FORM 01–FO</span></div><div class="fo-home"><h2>You're on duty.</h2><p class="fo-muted">Pick a callsign. Take the keys.</p><label class="fo-field">YOUR CALLSIGN<input name="nickname" maxlength="20" autocomplete="nickname" spellcheck="false" value="Officer Rookie" placeholder="Officer Rookie"></label><button class="fo-primary" data-action="practice"><span>HIT THE STREETS<small>Your room / backup can join anytime</small></span><b>↗</b></button><div class="fo-divider"><span>OR BRING BACKUP</span></div><div class="fo-actions"><button class="fo-secondary" data-action="create" aria-label="START A NEW ROOM">START A NEW ROOM <span>+</span></button><button class="fo-secondary" data-action="join-toggle" aria-label="OPEN ANOTHER ROOM">OPEN ANOTHER ROOM <span>→</span></button></div><form class="fo-join" hidden><label class="fo-field">ROOM CODE OR INVITE LINK<input name="room" maxlength="250" autocomplete="off" spellcheck="false" placeholder="Paste a code or invite link"></label><button class="fo-primary" type="submit" aria-label="OPEN ROOM">OPEN ROOM →</button></form><div class="fo-room-note">SHARED CAMPAIGN · 1–8 DRIVERS · ARREST OR WRECK</div></div><div class="fo-pause" hidden><h2>Taking a breather?</h2><p class="fo-muted" data-text="pause-description">Your patrol is paused.</p><button class="fo-primary" data-action="resume">BACK ON PATROL →</button><button class="fo-secondary" data-action="leave">END PATROL <span>↗</span></button></div><div class="fo-settings" hidden><h2>Fine tuning.</h2><p class="fo-muted">Make this patrol yours.</p><div class="fo-settings-list"><label>Master volume<input type="range" data-setting="masterVolume" min="0" max="1" step=".05"></label><label>Music<input type="range" data-setting="musicVolume" min="0" max="1" step=".05"></label><label>Effects<input type="range" data-setting="effectsVolume" min="0" max="1" step=".05"></label><label>Graphics<select data-setting="quality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label><label>Reduce camera shake<input type="checkbox" data-setting="reducedShake"></label><label>Reduce flashes<input type="checkbox" data-setting="reducedFlash"></label><label>Controller vibration<input type="checkbox" data-setting="vibration"></label><label>Stick dead zone<input type="range" data-setting="stickDeadzone" min=".05" max=".5" step=".01"></label><label>Trigger dead zone<input type="range" data-setting="triggerDeadzone" min="0" max=".5" step=".01"></label><label>Steering sensitivity<input type="range" data-setting="sensitivity" min=".4" max="1.8" step=".05"></label></div><details class="fo-bindings"><summary>KEYBOARD BINDINGS</summary><div data-bindings></div></details><button class="fo-secondary" data-action="settings-back">SAVE & BACK <span>↩</span></button></div><div class="fo-results" hidden><span class="fo-kicker">CASE CLOSED</span><h2 data-text="result-title">Patrol complete.</h2><p class="fo-muted">Final standings / confirmed by dispatch</p><ol data-results></ol><button class="fo-primary" data-action="rematch">ANOTHER ROUND →</button><button class="fo-secondary" data-action="leave">BACK TO DISPATCH <span>↗</span></button></div><div class="fo-notice" role="status" aria-live="polite" hidden></div><footer class="fo-panel-footer"><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button><span class="fo-input-hint" data-text="input-hint">↑ ↓ SELECT · ENTER CONFIRM</span></footer></section></main><footer class="fo-bottom"><span>MINOR INFRACTIONS. MAJOR COLLISIONS.</span><span>DRIVE FAST. FILE LATER.</span></footer><div class="fo-toast" role="status" aria-live="polite" hidden></div>`;
   root.append(shell);
+  const idleWarning=doc.createElement('section');idleWarning.className='fo-idle-warning';idleWarning.setAttribute('role','alert');idleWarning.hidden=true;idleWarning.innerHTML='<p>Your unit is idle. You will disconnect in one minute.</p><button data-action="stay-active">STAY ON PATROL</button>';shell.append(idleWarning);
   const one = <T extends HTMLElement = HTMLElement>(selector: string) => shell.querySelector<T>(selector)!;
   const all = <T extends HTMLElement = HTMLElement>(selector: string) => [...shell.querySelectorAll<T>(selector)];
   const targetBadge = doc.createElement('div'); targetBadge.className = 'fo-target-indicator'; targetBadge.hidden = true; targetBadge.setAttribute('role', 'img');
@@ -105,14 +108,14 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const arrestHelp = doc.createElement('small'); arrestHelp.className = 'fo-arrest-help'; arrestHelp.textContent = 'Stay close & match speed · 3s'; one('.fo-pursuit').append(arrestHelp);
   const resultOutcome = doc.createElement('p'); resultOutcome.className = 'fo-result-outcome'; resultOutcome.hidden = true; one('.fo-results h2').after(resultOutcome);
   one('.fo-home .fo-muted').textContent = 'Ten connected dispatches. Arrest suspects or stop their getaway cars.';
-  one('.fo-home [data-action="practice"] small').textContent = 'Solo story campaign / ten connected pursuits';
-  one('.fo-home .fo-divider span').textContent = 'COMPETE FOR THE ARREST';
-  one('.fo-home .fo-room-note').textContent = 'SHARED CAMPAIGN · 2–8 DRIVERS · ARREST OR WRECK';
+  one('.fo-home [data-action="practice"] small').textContent = 'Your room / backup can join anytime';
+  one('.fo-home .fo-divider span').textContent = 'CALL IN BACKUP ANYTIME';
+  one('.fo-home .fo-room-note').textContent = 'SHARED CAMPAIGN · 1–8 DRIVERS · ARREST OR WRECK';
   const garage = doc.createElement('section'); garage.className = 'fo-garage'; garage.setAttribute('aria-label', 'Assigned vehicle garage');
   garage.innerHTML = `<div class="fo-garage-heading"><span class="fo-kicker">CITY MOTOR POOL / YOUR ASSIGNED UNIT</span><h1>TAKE THE KEYS.</h1><h2 data-text="vehicle-name"></h2><span class="fo-vehicle-role" data-text="vehicle-role"></span></div><div class="fo-garage-card"><div class="fo-garage-stats"><div><span>ARMOR</span><strong data-text="vehicle-armor"></strong></div><div><span>TOP SPEED</span><strong data-text="vehicle-speed"></strong></div><div><span>ACCELERATION</span><meter aria-label="Vehicle acceleration" min="0" max="1" value="0"></meter></div><div><span>HANDLING</span><meter aria-label="Vehicle handling" min="0" max="1" value="0"></meter></div></div><p data-text="vehicle-description"></p><button type="button" data-action="reassign">REASSIGN VEHICLE</button><span class="fo-garage-note">LUCK OF THE MOTOR POOL. MAKE IT YOURS.</span></div>`;
   shell.append(garage);
   const briefing = doc.createElement('section'); briefing.className = 'fo-campaign-briefing'; briefing.hidden = true; briefing.setAttribute('aria-label', 'Campaign dispatch briefing');
-  briefing.innerHTML = '<header><span class="fo-kicker">MAJOR CASE / MOTOR DIVISION</span><h2 data-campaign-title></h2><span class="fo-campaign-number"></span></header><div class="fo-campaign-scroll"><div class="fo-campaign-target"><div class="fo-campaign-portrait" role="img"></div><div><span class="fo-campaign-role"></span><h3 data-campaign-name></h3><strong data-campaign-alias></strong><span data-campaign-target-car></span></div></div><h3 class="fo-campaign-dispatch-title"></h3><p data-campaign-briefing></p><section class="fo-campaign-progress"><h3>DISPATCH TRACKER / 10 FILES</h3><ol class="fo-campaign-tracker"></ol></section><details class="fo-campaign-evidence"><summary>CASE FILE / EARNED LEADS</summary><ol class="fo-campaign-casefile"></ol><p class="fo-campaign-no-evidence">No leads filed yet. Resolve this dispatch to unseal the next clue.</p></details></div><footer><button class="fo-primary" data-action="campaign-start">START DISPATCH →</button><span class="fo-campaign-wait" hidden>WAITING FOR DISPATCH LEAD / BACKUP</span><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button></footer>';
+  briefing.innerHTML = '<header><span class="fo-kicker">MAJOR CASE / MOTOR DIVISION</span><h2 data-campaign-title></h2><span class="fo-campaign-number"></span></header><div class="fo-campaign-scroll"><div class="fo-campaign-target"><div class="fo-campaign-portrait" role="img"></div><div><span class="fo-campaign-role"></span><h3 data-campaign-name></h3><strong data-campaign-alias></strong><span data-campaign-target-car></span></div></div><h3 class="fo-campaign-dispatch-title"></h3><p data-campaign-briefing></p><section class="fo-campaign-progress"><h3>DISPATCH TRACKER / 10 FILES</h3><ol class="fo-campaign-tracker"></ol></section><details class="fo-campaign-evidence"><summary>CASE FILE / EARNED LEADS</summary><ol class="fo-campaign-casefile"></ol><p class="fo-campaign-no-evidence">No leads filed yet. Resolve this dispatch to unseal the next clue.</p></details></div><footer><button class="fo-primary" data-action="campaign-start">START DISPATCH →</button><span class="fo-campaign-wait" hidden>RECONNECT TO CONTINUE</span><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button></footer>';
   shell.append(briefing);
   const campaignRoster = doc.createElement('section'); campaignRoster.className = 'fo-campaign-roster'; campaignRoster.hidden = true;
   campaignRoster.innerHTML = '<h3>UNITS ON THIS CASE</h3><div class="fo-score-head"><span aria-hidden="true">#</span><span>UNIT</span><span>PING / ms</span><span>PTS</span></div><ol></ol>';
@@ -125,7 +128,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   resultOutcome.after(campaignResolution);
   const latestLead = doc.createElement('section'); latestLead.className = 'fo-campaign-new-lead'; latestLead.hidden = true; latestLead.innerHTML = '<span class="fo-kicker">NEW LEAD</span><p></p>'; campaignResolution.querySelector('.fo-campaign-resolution-label')!.after(latestLead);
   const campaignLive = doc.createElement('aside'); campaignLive.className = 'fo-campaign-live'; campaignLive.hidden = true; campaignLive.setAttribute('aria-label', 'Campaign progress'); campaignLive.innerHTML = '<span></span><ol class="fo-campaign-tracker"></ol>'; shell.append(campaignLive);
-  const campaignWait = doc.createElement('p'); campaignWait.className = 'fo-campaign-wait'; campaignWait.hidden = true; campaignWait.textContent = 'WAITING FOR DISPATCH LEAD'; one('[data-action="rematch"]').after(campaignWait);
+  const campaignWait = doc.createElement('p'); campaignWait.className = 'fo-campaign-wait'; campaignWait.hidden = true; campaignWait.textContent = 'RECONNECT TO CONTINUE'; one('[data-action="rematch"]').after(campaignWait);
   let campaignViewKey = '';
   const write = (key: string, value: string) => { const node = one(`[data-text="${key}"]`); if (node.textContent !== value) node.textContent = value; };
   const hide = (selector: string, hidden: boolean) => { one(selector).hidden = hidden; };
@@ -173,8 +176,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
       const mark = doc.createElement('b'), label = doc.createElement('span'), credit = doc.createElement('small');
       mark.textContent = outcome ? outcome.outcome === 'arrested' ? '✓' : '✕' : String(index + 1).padStart(2, '0');
       label.textContent = outcome ? getCampaignTarget(dispatch.targetId).alias : current ? 'CURRENT' : 'SEALED';
-      credit.textContent = outcome ? officer(outcome.playerId) : current ? 'OPEN FILE' : 'PENDING';
-      row.setAttribute('aria-label', `Dispatch ${index + 1}: ${outcome ? `${outcome.outcome} by ${officer(outcome.playerId)}` : current ? 'current assignment' : 'pending'}`);
+      credit.textContent = outcome ? (outcome.callsign ?? officer(outcome.playerId)) : current ? 'OPEN FILE' : 'PENDING';
+      row.setAttribute('aria-label', `Dispatch ${index + 1}: ${outcome ? `${outcome.outcome} by ${(outcome.callsign ?? officer(outcome.playerId))}` : current ? 'current assignment' : 'pending'}`);
       if (current) row.setAttribute('aria-current', 'step'); row.append(mark, label, credit); return row;
     });
     node.replaceChildren(...rows);
@@ -201,7 +204,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     const complete = campaign.status === 'complete';
     const allOutcomes = [...campaign.outcomes].filter(outcome => CAMPAIGN_DISPATCHES[outcome.dispatchIndex]).sort((a, b) => a.dispatchIndex - b.dispatchIndex);
     briefing.querySelector<HTMLElement>('[data-campaign-title]')!.textContent = CAMPAIGN_TITLE;
-    briefing.querySelector<HTMLElement>('.fo-campaign-number')!.textContent = `DISPATCH ${String(campaign.dispatchIndex + 1).padStart(2, '0')} / 10 · ${target.isBoss ? 'RINGLEADER' : 'CREW FILE'}`;
+    briefing.querySelector<HTMLElement>('.fo-campaign-number')!.textContent = `${campaign.dispatchIndex === 0 && campaign.outcomes.length === 0 && model.snapshot?.phase === 'lobby' ? 'NEW CAMPAIGN · ' : ''}DISPATCH ${String(campaign.dispatchIndex + 1).padStart(2, '0')} / 10 · ${target.isBoss ? 'RINGLEADER' : 'CREW FILE'}`;
     for (const scope of [briefing, campaignResolution]) {
       portrait(scope.querySelector<HTMLElement>('.fo-campaign-portrait')!, target);
       scope.querySelector<HTMLElement>('[data-campaign-name]')!.textContent = target.name;
@@ -217,7 +220,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
       list.replaceChildren(...[...allOutcomes].reverse().map(outcome => {
         const chapter = CAMPAIGN_DISPATCHES[outcome.dispatchIndex]!, row = doc.createElement('li'), heading = doc.createElement('h4'), method = doc.createElement('span'), clue = doc.createElement('p');
         row.dataset.outcome = outcome.outcome; heading.textContent = chapter.title;
-        method.className = 'fo-case-method'; method.textContent = `${outcome.outcome === 'arrested' ? '✓ ARRESTED' : '✕ WRECKED'} / ${officer(outcome.playerId)}`;
+        method.className = 'fo-case-method'; method.textContent = `${outcome.outcome === 'arrested' ? '✓ ARRESTED' : '✕ WRECKED'} / ${(outcome.callsign ?? officer(outcome.playerId))}`;
         clue.textContent = chapter.reveal; row.append(heading, method, clue); return row;
       }));
     }
@@ -239,10 +242,10 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
       write('result-title', complete ? 'The racket is exposed.' : resolution ? 'Dispatch resolved.' : 'Suspect escaped.');
       one('.fo-results>.fo-kicker').textContent = complete ? CAMPAIGN_TITLE : `DISPATCH ${String(campaign.dispatchIndex + 1).padStart(2, '0')} / 10`;
       resultOutcome.hidden = false; resultOutcome.dataset.outcome = resolution?.outcome ?? 'pending';
-      resultOutcome.textContent = complete ? 'CAMPAIGN COMPLETE · TEN FILES RESOLVED' : resolution ? `${resolution.outcome === 'arrested' ? '✓ ARRESTED' : '✕ WRECKED'} · ${target.alias.toUpperCase()} · ${officer(resolution.playerId).toUpperCase()}` : 'TIME UP · NO RESOLUTION RECORDED';
+      resultOutcome.textContent = complete ? 'CAMPAIGN COMPLETE · TEN FILES RESOLVED' : resolution ? `${resolution.outcome === 'arrested' ? '✓ ARRESTED' : '✕ WRECKED'} · ${target.alias.toUpperCase()} · ${(resolution.callsign ?? officer(resolution.playerId)).toUpperCase()}` : 'TIME UP · NO RESOLUTION RECORDED';
       one('.fo-results .fo-muted').textContent = 'Shared case progress above / combat points below';
       const next = one<HTMLButtonElement>('[data-action="rematch"]'); next.disabled = !canDispatch();
-      next.textContent = !canDispatch() ? 'WAITING FOR DISPATCH LEAD' : complete ? 'NEW CAMPAIGN →' : resolution ? 'NEXT BRIEFING →' : 'RETRY DISPATCH →';
+      next.textContent = !canDispatch() ? 'RECONNECT TO CONTINUE' : complete ? 'NEW CAMPAIGN →' : resolution ? 'NEXT BRIEFING →' : 'RETRY DISPATCH →';
       campaignWait.hidden = canDispatch();
     }
   }
@@ -284,6 +287,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     one<HTMLButtonElement>('[data-action="reassign"]').disabled = !canReassign();
   }
   function showMenu(next: Menu = 'pause') {
+    if(persistentToast && (next===null || next==='home'))clearToast();
     if (next === 'settings') previousMenu = menu;
     menu = next;
     shell.classList.toggle('fo-is-playing', menu === null);
@@ -292,7 +296,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     const results = hasResult() && !resultDismissed && menu !== 'settings';
     hide('.fo-home', menu !== 'home' || results); hide('.fo-pause', menu !== 'pause' || results); hide('.fo-settings', menu !== 'settings'); hide('.fo-results', !results);
     hide('[data-action="settings"]', menu === 'settings');
-    write('pause-description', model.mode === 'online' ? 'THE MATCH IS STILL LIVE. Your unit is coasting with controls released.' : 'Your local patrol is paused. Take your time.');
+    write('pause-description', model.snapshot?.paused ? 'Your patrol is paused while you are alone. Backup joining resumes the dispatch.' : 'THE DISPATCH IS LIVE. Your unit has its controls released.');
     callbacks.onMenuVisibility?.(menu !== null || lobby());
     updateGarage();
     updateCampaignVisibility();
@@ -303,15 +307,17 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     const cleaned = value.trim();
     try { const url = new URL(cleaned); return url.searchParams.get('room') ?? url.hash.replace(/^#/, '') ?? ''; } catch { return cleaned.replace(/^#/, ''); }
   }
-  async function play(mode: 'practice' | 'create' | 'join') {
+  async function play(openAnother = false) {
     if (pending) return;
-    const name = persistCallsign(); const roomId = parseRoom(roomInput.value);
+    const name = persistCallsign(); const url = new URL(view?.location.href ?? 'http://localhost');
+    const roomId = openAnother ? parseRoom(roomInput.value) : url.searchParams.get('room') ?? '';
     if (!name) { notify('Your unit needs a callsign.'); nickname.focus(); return; }
     nickname.value = name;
-    if (mode === 'join' && !roomId) { notify('Enter a room code or paste an invite link.'); roomInput.focus(); return; }
+    if (!isInviteCode(roomId)) { notify(errorMessages['room-missing']); roomInput.focus(); return; }
+    url.searchParams.set('room',roomId); view?.history.replaceState(null,'',url);
     pending = true; notify('Contacting dispatch…'); all<HTMLButtonElement>('.fo-home button').forEach(button => { button.disabled = true; });
     updateGarage();
-    try { persistVehicle(); await callbacks.onPlay({ mode, nickname: name, vehicleBodyId: vehicle, ...(mode === 'join' ? { roomId } : {}) }); }
+    try { persistVehicle(); await callbacks.onPlay({ nickname: name, vehicleBodyId: vehicle, roomId }); }
     catch (error) { notify(error instanceof Error ? error.message : 'Dispatch could not be reached. Try again.'); }
     finally { pending = false; if (!disposed) { all<HTMLButtonElement>('.fo-home button').forEach(button => { button.disabled = false; }); updateGarage(); updateCampaign(); if (model.snapshot?.campaign && lobby() && menu === null) focusFirst(); } }
   }
@@ -336,9 +342,11 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const click = (event: MouseEvent) => {
     const button = (event.target as HTMLElement).closest<HTMLElement>('[data-action],[data-binding]');
     if (!button) return;
+    callbacks.onActivity?.();
     if (button.dataset.binding) { bindingAction = button.dataset.binding; button.textContent = 'PRESS A KEY…'; return; }
     switch (button.dataset.action) {
-      case 'practice': void play('practice'); break;
+      case 'stay-active': callbacks.onActivity?.();break;
+      case 'practice': void play(); break;
       case 'reroll-callsign': {
         const current = normalizeCallsign(nickname.value); let next = current;
         for (let attempt = 0; attempt < 8 && next === current; attempt++) next = randomCallsign();
@@ -346,7 +354,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
         nickname.value = next; persistCallsign(); break;
       }
       case 'reassign': if (canReassign()) { vehicle = rollVehicle(vehicle); awaitingVehicle = lobby() ? vehicle : null; persistVehicle(); updateGarage(); callbacks.onVehicleChange?.(vehicle); toast('NEW KEYS. SAME QUESTIONABLE DEPARTMENT.'); } break;
-      case 'create': void play('create'); break;
+      case 'create': { const url=new URL(view?.location.href ?? 'http://localhost');url.searchParams.set('room',crypto.randomUUID());view?.history.replaceState(null,'',url);void play();break; }
       case 'join-toggle': hide('.fo-join', !one('.fo-join').hidden); roomInput.focus(); break;
       case 'pause': if (model.snapshot) showMenu(menu === null ? 'pause' : null); break;
       case 'resume': showMenu(null); callbacks.onResume?.(); break;
@@ -360,8 +368,10 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     }
   };
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
-  function toast(message: string) { const node = one('.fo-toast'); node.textContent = message; node.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { node.hidden = true; }, 3500); }
-  const submit = (event: SubmitEvent) => { event.preventDefault(); void play('join'); };
+  let persistentToast=false,lastNoticeId:number|null=null;
+  function clearToast(){clearTimeout(toastTimer);one('.fo-toast').hidden=true;persistentToast=false;}
+  function toast(message: string, persistent=false) { const node = one('.fo-toast'); node.textContent = message; node.hidden = false; clearTimeout(toastTimer);persistentToast=persistent;if(!persistent)toastTimer=setTimeout(clearToast,3500); }
+  const submit = (event: SubmitEvent) => { event.preventDefault(); void play(true); };
   const remapKey = (event: KeyboardEvent) => {
     if (!bindingAction) return;
     event.preventDefault(); event.stopImmediatePropagation();
@@ -391,7 +401,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     });
   }
   function update(next: UiModel) {
-    const previousEpoch = model.snapshot?.sessionEpoch, previousResult = hasResult(), previousDispatch = model.snapshot?.campaign?.dispatchIndex; const wasLobby = lobby(); model = { ...model, ...next };
+    const previousReason=typeof model.status==='object'?model.status.reason:undefined;
+    const previousPaused=model.snapshot?.paused; const previousEpoch = model.snapshot?.sessionEpoch, previousResult = hasResult(), previousDispatch = model.snapshot?.campaign?.dispatchIndex; const wasLobby = lobby(); model = { ...model, ...next };
     if (wasLobby && !lobby() && model.snapshot?.campaign) { clearTimeout(toastTimer); hide('.fo-toast', true); }
     if (wasLobby !== lobby()) callbacks.onMenuVisibility?.(menu !== null || lobby());
     const leavingWithPending = wasLobby && !lobby() && awaitingVehicle !== null;
@@ -405,13 +416,21 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     }
     if (!lobby()) awaitingVehicle = null;
     shell.classList.toggle('fo-online', model.mode === 'online');
+    if(previousPaused===false && model.snapshot?.paused && persistentToast)clearToast();
     const snapshot = model.snapshot; const hud = deriveHud(model); const status = statusName(model.status);
     if (snapshot && menu === 'home' && status !== 'error') { resultDismissed = false; showMenu(null); notify(''); }
     if (hasResult() && !previousResult) { resultDismissed = false; updateScores(one('[data-results]'), true); showMenu('pause'); }
     if (previousResult && !hasResult() && menu === 'pause') showMenu(null);
     hide('.fo-hud', !snapshot); write('speed', String(hud.speed)); write('health', `${Math.ceil(hud.health)}%`);
     one<HTMLElement>('.fo-health i').style.width = `${Math.max(0, Math.min(100, hud.health))}%`; one('.fo-health').classList.toggle('fo-low-health', hud.health < 30);
-    write('phase', model.mode === 'practice' ? 'SOLO PURSUIT' : hud.phase === 'lobby' ? 'WAITING FOR BACKUP' : hud.phase === 'countdown' ? 'PURSUIT STARTING' : hud.phase === 'results' ? 'PURSUIT COMPLETE' : 'COMPETING PURSUIT');
+    write('pause-description', snapshot?.paused ? 'Your patrol is paused while you are alone. Backup joining resumes the dispatch.' : 'THE DISPATCH IS LIVE. Your unit has its controls released.');
+    const sessionStatus=typeof model.status==='object'?model.status:undefined;
+    const notice=sessionStatus?.notice;
+    if(!notice)lastNoticeId=null;
+    else if(notice.id!==lastNoticeId){lastNoticeId=notice.id;if(!snapshot?.paused && (snapshot?.scores.filter(score=>score.connection==='connected').length??0)>1)toast(notice.message,menu!==null);}
+    idleWarning.hidden=!sessionStatus?.idleRemainingMs;
+    if(sessionStatus?.reason==='idle-timeout' && previousReason!=='idle-timeout' && menu!== 'home'){showMenu('pause');notify(errorMessages['idle-timeout']);}
+    write('phase', model.mode === 'practice' ? 'SOLO PURSUIT' : hud.phase === 'lobby' ? 'DISPATCH BRIEFING' : hud.phase === 'countdown' ? 'PURSUIT STARTING' : hud.phase === 'results' ? 'PURSUIT COMPLETE' : 'COMPETING PURSUIT');
     write('timer', hud.phase === 'lobby' ? 'STAND BY' : model.mode === 'practice' && !snapshot?.campaign ? 'ON DUTY' : time(hud.seconds));
     const remoteConnection = model.mode === 'online' && status !== 'idle';
     const reconnecting = remoteConnection && status === 'reconnecting';
@@ -467,6 +486,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if (snapshot?.campaign && lobby() && menu === null && (!wasLobby || previousDispatch !== snapshot.campaign.dispatchIndex)) focusFirst();
   }
   function navigate(action: MenuAction) {
+    callbacks.onActivity?.();
     if (action === 'pause' || action === 'back') {
       if (bindingAction) { bindingAction = null; return; }
       if (menu === 'settings') showMenu(previousMenu);
@@ -489,12 +509,12 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   }
   // Invite links prefill the join flow, while preserving an intentional start action.
   const invitedRoom = new URLSearchParams(view?.location.search ?? '').get('room');
-  if (invitedRoom) { roomInput.value = invitedRoom; hide('.fo-join', false); }
+  if (invitedRoom) roomInput.value = invitedRoom;
   showMenu('home'); shell.classList.toggle('fo-reduced-motion', settings.reducedShake); callbacks.onSettings?.(structuredClone(settings));
   return { update, showMenu, navigate, setTargetIndicator, getVehicle: () => vehicle, getSettings: () => structuredClone(settings), setSettings: (next: Partial<UiSettings>) => {
     settings = { ...settings, ...next };
     for (const input of all<HTMLInputElement | HTMLSelectElement>('[data-setting]')) { const key = input.dataset.setting as keyof UiSettings; if (input instanceof HTMLInputElement && input.type === 'checkbox') input.checked = Boolean(settings[key]); else input.value = String(settings[key]); }
     persist();
-  }, isMenuVisible: () => menu !== null || lobby(),
+  }, isMenuVisible: () => menu !== null || lobby(), isMenuOpen: () => menu !== null,
     dispose: () => { disposed = true; clearTimeout(toastTimer); shell.removeEventListener('click', click); shell.removeEventListener('input', change); doc.removeEventListener('keydown', remapKey, true); shell.remove(); } };
 }

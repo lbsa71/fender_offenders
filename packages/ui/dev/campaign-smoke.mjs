@@ -64,9 +64,9 @@ try {
   check(!(await page.locator('.fo-toast').isVisible()), 'briefing reassignment notification clears when leaving the campaign lobby');
   check(await page.getByLabel(/Dispatch 2.*wrecked.*Parking Menace/i).count() >= 1, 'wreck outcome has an accessible method and officer label');
   await set({ mode: 'online', canStart: false, stage: 1, phase: 'results', outcomes: [setOutcome(0), setOutcome(1, 'wrecked', 'backup')] });
-  const next = page.getByRole('button', { name: /NEXT BRIEFING|WAITING FOR DISPATCH LEAD/ });
-  check(await next.count() > 0 && await next.isDisabled(), 'non-host cannot advance shared campaign results');
-  check((await text('.fo-results')).includes('WAITING FOR DISPATCH LEAD'), 'non-host gets an explicit waiting state');
+  const next = page.getByRole('button', { name: /NEXT BRIEFING|RECONNECT TO CONTINUE/ });
+  check(await next.count() > 0 && await next.isDisabled(), 'disconnected member cannot advance shared campaign results');
+  check((await text('.fo-results')).includes('RECONNECT TO CONTINUE'), 'disconnected member gets explicit reconnect guidance');
   await set({ stage: 2, phase: 'results', outcomes: [setOutcome(0), setOutcome(1, 'wrecked', 'backup')] });
   check(await page.getByRole('button', { name: 'RETRY DISPATCH', exact: false }).isVisible(), 'unresolved timeout retries the same dispatch');
   if (await page.getByRole('button', { name: 'RETRY DISPATCH', exact: false }).isVisible()) { await page.getByRole('button', { name: 'RETRY DISPATCH', exact: false }).click(); check(await page.evaluate(() => window.campaignFixture.options.stage) === 2, 'retry does not silently skip the suspect'); }
@@ -145,5 +145,5 @@ try {
     await page.screenshot({ path: path.join(output, 'mugshots-96px-fixture.png') });
   }
   assert.deepEqual(errors, [], 'campaign fixture has no browser errors'); assert.deepEqual(failures, [], 'campaign UI acceptance failures');
-  console.log('Campaign UI GREEN: briefing/garage/controller start, ten-step outcome tracker, arrest/wreck distinction and officer credit, earned-only case file, host/wait/retry/next/finale, late-join reconstruction, and responsive 96px portraits.');
+  console.log('Campaign UI GREEN: briefing/garage/controller start, ten-step outcome tracker, arrest/wreck distinction and officer credit, earned-only case file, membership/reconnect/retry/next/finale, late-join reconstruction, and responsive 96px portraits.');
 } finally { await browser.close(); await server.close(); }

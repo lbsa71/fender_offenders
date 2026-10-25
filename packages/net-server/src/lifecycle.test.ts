@@ -42,7 +42,7 @@ afterEach(async()=>{
   physics.release();physics.gate=Promise.resolve();
   await Promise.allSettled(peers.splice(0).map((p)=>p.connection.isOpen?p.leave(true):Promise.resolve()));
   await pause(100);
-  for(const room of instances){room.setSimulationInterval();room.clock.clear();room.clock.stop();room.onDispose();}
+  for(const room of instances){await room.disconnect();room.setSimulationInterval();room.clock.clear();room.clock.stop();room.onDispose();}
   instances.clear();
   snapshots.clear();chooseBody.mockClear();lateLeaveErrors.length=0;
   if(previousLimit===undefined)delete process.env.MAX_ROOMS;else process.env.MAX_ROOMS=previousLimit;
@@ -83,23 +83,24 @@ describe('room admission accounting and lifecycle diagnostics',()=>{
     holdPhysics();const creation=create();
     try{
       await until(()=>physics.waiting>0,'pending admission');
-      expect(metrics()).toEqual({maxRooms:2,registeredRooms:0,creatingRooms:1,connectedPlayers:0,reconnectingPlayers:0});
+      expect(metrics()).toEqual({maxRooms:2,registeredRooms:0,creatingRooms:1,connectedPlayers:0,reconnectingPlayers:0,emptyRooms:0,pausedRooms:0});
       physics.release();await creation;
-      expect(metrics()).toEqual({maxRooms:2,registeredRooms:1,creatingRooms:0,connectedPlayers:1,reconnectingPlayers:0});
+      expect(metrics()).toEqual({maxRooms:2,registeredRooms:1,creatingRooms:0,connectedPlayers:1,reconnectingPlayers:0,emptyRooms:0,pausedRooms:0});
     }finally{physics.release();await creation;}
   });
   it('rejects a third real room, then reuses capacity after intentional leaves',async()=>{
     process.env.MAX_ROOMS='2';const a=await create(),b=await create();
     await expect(create()).rejects.toThrow('Dispatch capacity reached');expect(netServer.serverMetrics.rooms).toBe(2);
-    await Promise.all([a.leave(true),b.leave(true)]);await until(()=>netServer.serverMetrics.rooms===0,'both empty rooms release capacity');
-    await create();expect(netServer.serverMetrics.rooms).toBe(1);
+    await Promise.all([a.leave(true),b.leave(true)]);await until(()=>netServer.getRoomMetrics().emptyRooms===2,'both rooms retained empty');
+    await create();expect(netServer.serverMetrics.rooms).toBe(2);expect(netServer.getRoomMetrics().emptyRooms).toBe(1);
   });
-  it('retains an unexpected drop only until the public fixture reconnection timeout expires',async()=>{
-    process.env.MAX_ROOMS='2';const peer=await create('fast-drop');
+  it('protects an unexpected drop until reconnect expiry, then allows empty-room reclamation',async()=>{
+    process.env.MAX_ROOMS='1';const peer=await create('fast-drop');
     const room=matchMaker.getLocalRoomById(peer.roomId) as netServer.DrivingRoom;
     const client=room.clients[0]!;(client.ref as unknown as {terminate():void}).terminate();
     await until(()=>room.clients.length===0,'socket dropped');expect(netServer.serverMetrics.rooms).toBe(1);
-    await until(()=>netServer.serverMetrics.rooms===0,'abandoned reconnection releases slot',2000);
+    await expect(create()).rejects.toThrow('Dispatch capacity reached');
+    await until(()=>netServer.getRoomMetrics().reconnectingPlayers===0,'abandoned reconnection releases reservation',2000);
     await create();expect(netServer.serverMetrics.rooms).toBe(1);
   });
   it('allows delayed leave finalization after forced room disposal during reconnection',async()=>{
@@ -131,7 +132,7 @@ describe('room admission accounting and lifecycle diagnostics',()=>{
     const error=vi.spyOn(console,'error').mockImplementation(()=>{});
     sim.dispose=()=>{throw new Error('controlled disposal failure');};
     try{
-      await peer.leave(true);await pause(100);
+      await peer.leave(true);await pause(100);await room.disconnect();
       expect(netServer.serverMetrics.rooms).toBe(0);
       await create();
     }finally{sim.dispose=dispose;dispose();room.setSimulationInterval();room.clock.clear();room.clock.stop();room.onDispose();error.mockRestore();}

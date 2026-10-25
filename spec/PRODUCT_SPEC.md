@@ -1,6 +1,6 @@
 # Product specification
 
-Status: product baseline for the implemented `arcade-v8` alpha and remaining release acceptance. Updated: 2026-10-24. [Execution status](EXECUTION_STATUS.md) records dated evidence; requirements below do not imply completed acceptance.
+Status: product baseline for the implemented `arcade-v10` alpha and remaining release acceptance. Updated: 2026-10-24. [Execution status](EXECUTION_STATUS.md) records dated evidence; requirements below do not imply completed acceptance.
 
 *Ten dispatches. Six cars. One district with a very relaxed attitude toward insurance premiums.*
 
@@ -37,17 +37,17 @@ Targets now [fight back with distinct driving and weapon tactics](BOSS_COMBAT.md
 | --- | --- | --- |
 | M1 visual/driving slice | One finished intersection, one car, keyboard/gamepad, collisions, camera, placeholder-to-finished comparison | Prove handling and achievable visual quality |
 | M2 network/combat slice | Two players, one weapon, damage, respawn, reconciliation, room join | Prove fast action over a real network |
-| M3 feature-complete alpha | 2–8 players, complete district, six vehicle profiles, traffic/props/crowds, ten-dispatch solo/competitive campaign, armed targets and saved callsigns | Accept the integrated repeatable game; human/device gates remain open |
+| M3 feature-complete alpha | 1–8 players, complete district, six vehicle profiles, traffic/props/crowds, ten-dispatch solo/competitive campaign, armed targets and saved callsigns | Accept the integrated repeatable game; human/device gates remain open |
 | M4 release candidate | Performance budgets, compatibility, onboarding, resilience, license audit, staging run | Prove the build is usable and shippable |
 
 ## 5. Core loop
 
 1. Open the game and activate audio/input with an intentional start action.
-2. Keep, reroll or type a callsign; choose Hit the streets, Create room or Join room. Callsigns and the assigned garage car persist in this browser.
-3. Read the target dossier, tactics, assigned car and earned casefile. Reassign the player's car if desired, then start the dispatch; online needs two connected players and the creator's request.
+2. Receive a random room URL on opening the bare URL, then keep, reroll or type a callsign and choose Hit the streets. The title screen allocates no server simulation. Callsigns and the assigned garage car persist in this browser.
+3. Read the target dossier, tactics, assigned car and earned casefile. Reassign the player's car if desired, then start the dispatch; any connected officer can start, including a lone player.
 4. Drive, drift, dodge traffic and marked grenades, and arrest or wreck the shared target. Multiplayer rivals can also shoot one another; the first target resolution wins the dispatch.
 5. Respawn quickly after an officer's wreck and rejoin the action. Arrests earn three points and green checks; credited target wrecks earn one point and amber marks. Both advance the story.
-6. Read results and the earned clue. The creator opens the next briefing in the same game/room; timeouts retry, and the tenth success offers a fresh campaign.
+6. Read results and the earned clue. Any connected officer opens the next briefing in the same room; timeouts retry, and the tenth success offers a fresh campaign.
 
 First release has no account gate, persistent economy, paid items, skill matchmaking, or unlock grind.
 
@@ -63,7 +63,7 @@ First release has no account gate, persistent economy, paid items, skill matchma
 
 Current defaults: patrol top speed 28 m/s, paired forward projectiles at 70 m/s with a 0.65-second lifetime, and a shared 4.3 m by 1.9 m collision footprint. Six shared profiles scale speed, acceleration, steering, grip and armor. The bicycle tyre model keeps ordinary cornering grippy and uses handbrake/power/flick entry with stick-controlled drift; counter-steering trims the drift and lifting exits it. See [measured balance and its limits](../packages/sim/BALANCE.md). Human handling and visibility acceptance remain required.
 
-Practice advances fixed 60 Hz ticks with up to fifteen catch-up steps per rendered frame; online samples at most four input ticks per frame. Pausing practice discards accumulated time. These bounds keep slow-frame recovery finite; they do not promise real-time play under arbitrary sustained overload.
+Server rooms advance fixed 60 Hz ticks, with at most four catch-up steps; clients sample at most four input ticks per frame. Local menu previews/development simulations retain their fifteen-step budget. Authoritative pauses discard accumulated time. These bounds keep slow-frame recovery finite; they do not promise real-time play under arbitrary sustained overload.
 
 ## 7. Input behavior
 
@@ -87,18 +87,18 @@ All devices produce the same action structure. Gameplay never reads raw DOM even
 - Detect device activity and switch prompts without interrupting play. Do not assume that every gamepad uses the standard mapping.
 - For nonstandard mappings, expose mapping/calibration or show a clear unsupported-device message with keyboard fallback. Do not silently use wrong buttons.
 - On controller disconnect, window blur, or hidden tab, clear held actions and send neutral input. Returning focus must not fire or accelerate until fresh input is observed.
-- A menu may pause local practice. An online room continues; opening a menu neutralizes the local driver's controls and communicates that the match remains live.
+- A lone connected officer pauses the server room with menus or a hidden tab. Backup joining resumes it with a notice. Multiple-player rooms remain live; menu controls are neutralized. See [room lifecycle](ROOM_SESSIONS.md).
 - Controller vibration is optional enhancement, with a setting and capability detection.
 
 ## 8. Multiplayer combat defaults
 
 ### Room and round lifecycle
 
-- Private, invite-link rooms; 2–8 players. A lone player may wait or practice while the room is in the lobby.
-- The room creator can request a start when two players are connected. The server owns the transition and validates the request.
+- Private, invite-link rooms; 1–8 players, with one server-authoritative campaign model. Briefings replace player-count waiting.
+- Any connected member can start from a briefing. The server admits the first valid transition and ignores duplicates.
 - Three-second countdown, up to five minutes of pursuit, then results on arrest, credited target wreck or timeout. Next briefing advances after success, retries after timeout, and resets after the completed campaign.
 - Mid-round joins enter as a spawned participant if capacity permits. Late joins receive a full authoritative state and current round timer.
-- Creator departure does not kill the match. The server assigns lobby control to the longest-connected remaining player.
+- Departure never resets the campaign. Empty rooms freeze for up to 15 minutes, with earlier oldest-empty reclamation at capacity. Reconnect reservations remain protected; connected idle tabs warn at 14 minutes and disconnect at 15.
 - Drivers compete to resolve one shared armed AI target first while retaining player-versus-player shooting. The room shares the ten-step tracker and earned clues; scores carry between dispatches. Teams and cooperative missions are deferred.
 
 ### Weapon and damage
@@ -107,7 +107,7 @@ All devices produce the same action structure. Gameplay never reads raw DOM even
 - Only player and villain cars display those guns. Civilian spectator traffic remains visibly unarmed; targets retain their assigned body rather than being classified as civilians solely because they are AI.
 - Current baseline: profile-dependent health, two 5-damage rounds per volley, 5 volleys/second, projectile speed 70 m/s, lifetime 0.65 seconds. These values belong in a versioned gameplay configuration.
 - Infinite ammunition for the initial mode. Heat/reload systems require a later playtest decision.
-- Accepted gun volleys have noticeable driving recoil: sustained fire reduces speed, steering response and grip. The handling penalty builds while firing and recovers after release; there is no random steering reversal. Authority and prediction share this rule in the current `arcade-v9` worktree. See the [fresh recoil measurements](../packages/sim/BALANCE.md#gun-recoil-2026-10-25). Grenade throws retain their existing behavior.
+- Accepted gun volleys have noticeable driving recoil: sustained fire reduces speed, steering response and grip. The handling penalty builds while firing and recovers after release; there is no random steering reversal. Authority and prediction share this rule in the current `arcade-v10` worktree. See the [fresh recoil measurements](../packages/sim/BALANCE.md#gun-recoil-2026-10-25). Grenade throws retain their existing behavior.
 - The server creates authoritative projectiles, sweeps their paths against collision geometry, applies hits once, and emits events.
 - Buildings and solid obstacles block shots. Dirt, lane paint, and cosmetic debris do not.
 - Shots cannot damage their owner. Other drivers remain damageable during the pursuit.

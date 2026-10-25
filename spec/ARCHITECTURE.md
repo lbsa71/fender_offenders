@@ -1,6 +1,6 @@
 # Architecture
 
-Status: architecture and acceptance targets for the implemented `arcade-v8` alpha. Updated: 2026-10-25 following `0bde06a` and persistent street lighting. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
+Status: architecture and acceptance targets for the implemented `arcade-v10` / protocol 2 alpha. Updated: 2026-10-25 for unified room sessions, following persistent street lighting. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
 
 *One authority drives the rules. Everyone else gets a dashboard, not a spare steering wheel.*
 
@@ -26,7 +26,7 @@ flowchart LR
   Map --> Local
 ```
 
-The authoritative server has no renderer, DOM, or Babylon dependency. The browser can run the shared simulation in practice mode and predict its own car online. Presentation consumes an immutable render frame rather than reaching into room schemas or physics objects.
+The authoritative server has no renderer, DOM, or Babylon dependency. Every playable campaign runs in a server room. The browser runs a local menu-preview simulation and predicts its own car from room snapshots. Presentation consumes an immutable render frame rather than reaching into room schemas or physics objects.
 
 ## 2. Package dependency rules
 
@@ -54,7 +54,7 @@ Third-party dependencies remain behind their owning adapter. Colyseus schema dec
 | Concern | Authority | Client behavior |
 | --- | --- | --- |
 | Local input | Local device | Normalize, timestamp, sequence, queue |
-| Vehicle movement and contact outcomes | Server online; sim locally in practice | Predict own motion; correct from snapshots |
+| Vehicle movement and contact outcomes | Server in every playable room; local sim in previews/fixtures | Predict own motion; correct from snapshots |
 | Opponents and traffic | Server | Interpolate; use collision proxies for local prediction |
 | Health, hits, projectiles, score, timers | Server | Show provisional cosmetics, apply confirmed state |
 | Camera, paint, smoke, skid marks, audio | Client | React to render frames and events |
@@ -154,7 +154,7 @@ Do not rewind the whole world to a client-supplied timestamp in the initial buil
 
 Reserve a slot for 10 seconds after unexpected disconnect. Neutralize and brake the car; keep it damageable and retain score. On reconnect, require the room's reconnect token/session epoch and send current full state. Clear old commands and visual predictions. On timeout remove the participant. Rejoining later creates a new session with no restoration guarantee.
 
-Clients must receive a readable reason for full room, incompatible version, expired room, transport failure, or shutdown. Idle empty rooms expire after a configurable period, initially 60 seconds.
+Clients must receive a readable reason for full room, incompatible version, expired room, transport failure, or shutdown. Empty rooms freeze immediately and expire after 15 wall-clock minutes; admission can reclaim the oldest eligible empty room sooner. Reconnect and pending admission reservations are protected. Connected inactivity warns at 14 minutes and disconnects intentionally at 15. [Room sessions](ROOM_SESSIONS.md) specifies the state machine.
 
 The online HUD keeps a visible Wi-Fi icon and text for connecting, connected, reconnecting and connection lost. Practice uses a local-dispatch label. Intentionally leaving disables SDK reconnect; disposal must also prevent an already queued retry from opening another socket and must finish when a close handshake never arrives.
 
@@ -188,7 +188,7 @@ The integration lane owns app entrypoints. Other lanes expose factories behind c
 - Networking: `createGameSession()` / server room factory.
 - UI: `mountGameUi()`.
 
-The app currently composes a local `Simulation` directly for practice and `createOnlineSession()` for multiplayer. Both supply shared snapshots/events/render frames to the same UI and renderer, but there is no shipped practice `GameSession` wrapper. Recorded frames, scripted inputs and tiny maps support isolated adapter work; a future common wrapper must preserve the real lifecycle coverage.
+The app uses `createOnlineSession()` for every playable room, including a single officer. A local `Simulation` remains solely for the menu preview/development. Shared snapshots/events/render frames feed the UI and renderer. Recorded frames, scripted inputs and tiny maps support isolated adapter work; a future common wrapper must preserve the real lifecycle coverage.
 
 App composition also maps the current shared campaign index to its existing dispatch ID and calls `renderer.setDispatch`. `DispatchEnvironment` owns cosmetic noon/dusk/night fog and key/fill; it never changes gameplay state or transport. Every upright authority-owned lamp contributes to a cached 512×512 world-space diffuse-light field shared by Standard/PBR surfaces. All quality presets keep all lamps illuminated at dusk/night; there is no camera-distance selection or extra shadow light. Only lamp changes rebuild the texture. The garage keeps its separate studio scene. [Graphics polish](GRAPHICS_POLISH.md) sequences water, restrained flares and surface refinement after this atmosphere foundation.
 
@@ -198,7 +198,7 @@ Production app/server roots explicitly enable campaign pursuit. Authority owns t
 
 ## 8. Deployment and persistence
 
-Start with one persistent server process hosting several isolated rooms, with room state in memory. A process restart ends active rooms; the client must explain and recover to the lobby. No database is required for first release.
+Start with one persistent server process hosting several isolated rooms, with room state in memory. A process restart ends active rooms; the client must explain and recover to the room entry screen. Retained empty rooms are paused for up to 15 minutes, with capacity eviction; URLs recreate fresh campaigns after state is lost. No database is required for first release.
 
 Serve versioned assets through a CDN. Route secure WebSocket traffic to a geographically suitable game server with TLS. A short-lived request function is not the room host. Add persistence, distributed matchmaking, Redis, or horizontal room placement only after measured capacity requires them.
 

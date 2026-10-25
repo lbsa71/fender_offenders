@@ -1,3 +1,4 @@
+import { disposeTestRooms } from '../support/rooms';
 import { afterAll, afterEach, beforeAll, expect, it } from 'vitest';
 import { Client, type Room } from '@colyseus/sdk';
 import { matchMaker } from '@colyseus/core';
@@ -18,7 +19,7 @@ async function peer(roomId?: string) {
   return { room, history, get state() { return history.at(-1)!; } };
 }
 beforeAll(async () => { server = await createGameServer(2711); });
-afterEach(async () => { await Promise.all(peers.splice(0).map(room => room.connection.isOpen ? room.leave(true) : Promise.resolve())); });
+afterEach(async () => { await disposeTestRooms(); await Promise.all(peers.splice(0).map(room => room.connection.isOpen ? room.leave(true) : Promise.resolve())); });
 afterAll(async () => { await server?.gracefullyShutdown(false); });
 
 function observeAuthority(roomId: string) {

@@ -3,23 +3,24 @@ import { Client } from '@colyseus/sdk';
 import { matchMaker } from '@colyseus/core';
 import { createGameServer } from '../../apps/server/src/index';
 import { createOnlineSession } from '@fender/net-client';
-import { GAMEPLAY_REVISION, PROTOCOL_VERSION, neutralActions } from '@fender/contracts';
+import { PROTOCOL_VERSION, neutralActions } from '@fender/contracts';
 import { districtMap } from '@fender/content';
 import type { Simulation } from '@fender/sim';
+import { disposeTestRooms } from '../support/rooms';
+import { randomUUID } from 'node:crypto';
 
 const endpoint = 'http://127.0.0.1:2736', sessions: ReturnType<typeof createOnlineSession>[] = [];
 let server: Awaited<ReturnType<typeof createGameServer>>;
 beforeAll(async () => { server = await createGameServer(2736); });
-afterEach(async () => { await Promise.all(sessions.splice(0).map(s => s.dispose())); });
+afterEach(async () => { await Promise.all(sessions.splice(0).map(s => s.dispose())); await disposeTestRooms(); });
 afterAll(async () => { await server.gracefullyShutdown(false); });
 async function until(check: () => boolean) { const end = performance.now() + 5000; while (!check()) { if (performance.now() > end) throw Error('Recoil room observation timed out'); await new Promise(r => setTimeout(r, 10)); } }
 async function connect(roomId?: string) {
   const session = createOnlineSession(endpoint, districtMap); sessions.push(session);
-  await session.connect({ mode: roomId ? 'join' : 'create', nickname: 'Recoil officer', vehicleBodyId: 'patrol', ...(roomId ? { roomId } : {}) }); return session;
+  await session.connect({ roomId: roomId ?? randomUUID(), nickname: 'Recoil officer', vehicleBodyId: 'patrol' }); return session;
 }
-it('rejects the pre-recoil gameplay build rather than silently mixing handling rules', async () => {
-  expect(GAMEPLAY_REVISION).not.toBe('arcade-v8');
-  await expect(new Client(endpoint).create('district', { nickname: 'Old build', protocolVersion: PROTOCOL_VERSION, mapRevision: districtMap.revision, gameplayRevision: 'arcade-v8' })).rejects.toThrow(/version-mismatch/);
+it.each(['arcade-v8', 'arcade-v9'])('rejects the pre-recoil %s gameplay build rather than mixing handling rules', async revision => {
+  await expect(new Client(endpoint).create('district', { nickname: 'Old build', protocolVersion: PROTOCOL_VERSION, mapRevision: districtMap.revision, gameplayRevision: revision })).rejects.toThrow(/version-mismatch/);
 });
 it('predicts the kick immediately and replicates the accepted recoil state to the real room', async () => {
   const host = await connect(), guest = await connect(host.getIdentity().roomId);

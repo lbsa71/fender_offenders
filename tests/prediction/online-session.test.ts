@@ -1,3 +1,4 @@
+import { disposeTestRooms } from '../support/rooms';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { matchMaker, type Server } from '@colyseus/core';
 import { createGameServer } from '../../apps/server/src/index.js';
@@ -23,13 +24,13 @@ function submit(value: OnlineSession, sequence: number) {
 }
 let server: Server;
 beforeAll(async () => { server = await createGameServer(2691, '127.0.0.1'); }, 15000);
-afterEach(async () => { await Promise.allSettled(sessions.splice(0).map(s => s.dispose())); await until(() => serverMetrics.rooms === 0, 'prediction rooms disposed', 12000); }, 15000);
+afterEach(async () => { await disposeTestRooms(); await Promise.allSettled(sessions.splice(0).map(s => s.dispose())); await until(() => serverMetrics.rooms === 0, 'prediction rooms disposed', 12000); }, 15000);
 afterAll(async () => { await server?.gracefullyShutdown(false); });
 
 describe('real online prediction facade baseline', () => {
   it('moves the local render frame synchronously before any authoritative acknowledgement', async () => {
     const value = session(), statuses: SessionStatus[] = []; value.onStatus(s => statuses.push(s));
-    const join = await value.connect({ mode: 'create', nickname: 'Predictor' });
+    const join = await value.connect({ roomId: crypto.randomUUID(), nickname: 'Predictor' });
     // Campaign briefings freeze movement. Exercise prediction only after authority starts play.
     const room = matchMaker.getLocalRoomById(join.roomId), sim = (room as unknown as { sim: Simulation }).sim;
     const playing = sim.checkpoint(); playing.state.phase = 'playing'; playing.state.phaseEnd = playing.tick + 18000; sim.restore(playing);
@@ -48,7 +49,7 @@ describe('real online prediction facade baseline', () => {
   });
 
   it('bounds queued prediction and clears pending commands after a full server resync', async () => {
-    const value = session(); await value.connect({ mode: 'create', nickname: 'Backlog' });
+    const value = session(); await value.connect({ roomId: crypto.randomUUID(), nickname: 'Backlog' });
     let resets = 0; value.onSnapshot(s => { if (s.resetReason === 'resync') resets++; });
     for (let sequence = 0; sequence < 13; sequence++) submit(value, sequence);
     expect(value.getStats().pendingInputs).toBe(0);
@@ -60,7 +61,7 @@ describe('real online prediction facade baseline', () => {
 
   it('clears pending commands during an actual reconnect and resumes with the new epoch', async () => {
     const value = session(), statuses: SessionStatus[] = []; value.onStatus(s => statuses.push(s));
-    const join = await value.connect({ mode: 'create', nickname: 'Reconnect' });
+    const join = await value.connect({ roomId: crypto.randomUUID(), nickname: 'Reconnect' });
     for (let i = 0; i < 8; i++) submit(value, i);
     expect(value.getStats().pendingInputs).toBe(8);
     const room = matchMaker.getLocalRoomById(join.roomId), client = room.clients.find(c => c.sessionId === join.playerId)!;
@@ -77,7 +78,7 @@ describe('real online prediction facade baseline', () => {
 
   it('intentionally disposes without retrying or announcing reconnection when a proxy reports Going Away', async () => {
     const value = session(), statuses: SessionStatus[] = []; value.onStatus(s => statuses.push(s));
-    const join = await value.connect({ mode: 'create', nickname: 'Intentional leave' });
+    const join = await value.connect({ roomId: crypto.randomUUID(), nickname: 'Intentional leave' });
     const room = matchMaker.getLocalRoomById(join.roomId), client = room.clients.find(c => c.sessionId === join.playerId)!;
     const socket = client.ref as unknown as { close(code?: number, reason?: string): void };
     const close = socket.close.bind(socket);
@@ -98,7 +99,7 @@ describe('real online prediction facade baseline', () => {
 
   it('finishes disposal promptly when the socket is already reconnecting', async () => {
     const value = session(), statuses: SessionStatus[] = []; value.onStatus(s => statuses.push(s));
-    const join = await value.connect({ mode: 'create', nickname: 'Leave broken link' });
+    const join = await value.connect({ roomId: crypto.randomUUID(), nickname: 'Leave broken link' });
     const room = matchMaker.getLocalRoomById(join.roomId), client = room.clients.find(c => c.sessionId === join.playerId)!;
     const allowReconnection = room.allowReconnection.bind(room);
     // Keep the real reservation/expiry path, with a short fixture duration for prompt teardown.
@@ -122,7 +123,7 @@ describe('real online prediction facade baseline', () => {
   });
 
   it('bounds disposal when the server never answers an intentional leave handshake', async () => {
-    const value = session(), join = await value.connect({ mode: 'create', nickname: 'Unanswered leave' });
+    const value = session(), join = await value.connect({ roomId: crypto.randomUUID(), nickname: 'Unanswered leave' });
     const room = matchMaker.getLocalRoomById(join.roomId), client = room.clients.find(c => c.sessionId === join.playerId)!;
     const socket = client.ref as unknown as { close(code?: number, reason?: string): void; terminate(): void };
     const close = socket.close.bind(socket);
@@ -139,12 +140,12 @@ describe('real online prediction facade baseline', () => {
 
   it('reports incompatible content through the status error channel', async () => {
     const value = session({ ...districtMap, revision: 'incompatible-test-map' }), statuses: SessionStatus[] = []; value.onStatus(s => statuses.push(s));
-    await expect(value.connect({ mode: 'create', nickname: 'Wrong map' })).rejects.toThrow('version-mismatch');
+    await expect(value.connect({ roomId: crypto.randomUUID(), nickname: 'Wrong map' })).rejects.toThrow('version-mismatch');
     expect(statuses.at(-1)).toMatchObject({ state: 'error', reason: 'version-mismatch' });
   });
 
   it('immediately echoes the server latency nonce so every participant can see measured ping', async () => {
-    const value = session(), join = await value.connect({ mode: 'create', nickname: 'Latency probe' });
+    const value = session(), join = await value.connect({ roomId: crypto.randomUUID(), nickname: 'Latency probe' });
     const room = matchMaker.getLocalRoomById(join.roomId), nonce = 'facade-latency-regression';
     const response = new Promise<unknown>(resolve => room.onMessage('latency-pong', (_client, message: unknown) => {
       if (typeof message === 'object' && message !== null && 'nonce' in message && message.nonce === nonce) resolve(message);
@@ -155,28 +156,28 @@ describe('real online prediction facade baseline', () => {
 
   it('reports a malformed invite through the status error channel', async () => {
     const value = session(), statuses: SessionStatus[] = []; value.onStatus(s => statuses.push(s));
-    await expect(value.connect({ mode: 'join', roomId: 'invalid!prediction', nickname: 'Lost' })).rejects.toThrow();
+    await expect(value.connect({ roomId: 'invalid!prediction', nickname: 'Lost' })).rejects.toThrow();
     expect(statuses.at(-1)).toMatchObject({ state: 'error', reason: 'room-missing' });
   });
 
   it('reports an unavailable endpoint through the status error channel', async () => {
     const value = session(districtMap, 'ws://127.0.0.1:0'), statuses: SessionStatus[] = []; value.onStatus(s => statuses.push(s));
-    await expect(value.connect({ mode: 'create', nickname: 'Offline' })).rejects.toThrow();
+    await expect(value.connect({ roomId: crypto.randomUUID(), nickname: 'Offline' })).rejects.toThrow();
     expect(statuses.at(-1)).toMatchObject({ state: 'error', reason: 'network-error' });
   });
 
   it('reports an invalid nickname through the status error channel', async () => {
     const value = session(), statuses: SessionStatus[] = []; value.onStatus(s => statuses.push(s));
-    await expect(value.connect({ mode: 'create', nickname: '' })).rejects.toThrow('invalid-name');
+    await expect(value.connect({ roomId: crypto.randomUUID(), nickname: '' })).rejects.toThrow('invalid-name');
     expect(statuses.at(-1)).toMatchObject({ state: 'error', reason: 'invalid-name' });
   });
 
   it('distinguishes server room capacity from a full eight-player room', async () => {
     const previousLimit = process.env.MAX_ROOMS; process.env.MAX_ROOMS = '1';
     try {
-      await session().connect({ mode: 'create', nickname: 'Occupied dispatch' });
+      await session().connect({ roomId: crypto.randomUUID(), nickname: 'Occupied dispatch' });
       const blocked = session(), statuses: SessionStatus[] = []; blocked.onStatus(value => statuses.push(value));
-      await expect(blocked.connect({ mode: 'create', nickname: 'Waiting dispatch' })).rejects.toMatchObject({ code: 503, message: 'Dispatch capacity reached' });
+      await expect(blocked.connect({ roomId: crypto.randomUUID(), nickname: 'Waiting dispatch' })).rejects.toMatchObject({ code: 503, message: 'Dispatch capacity reached' });
       expect(statuses.at(-1)).toMatchObject({ state: 'error', reason: 'server-capacity' });
     } finally {
       if (previousLimit === undefined) delete process.env.MAX_ROOMS; else process.env.MAX_ROOMS = previousLimit;

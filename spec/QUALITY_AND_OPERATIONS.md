@@ -1,6 +1,6 @@
 # Quality, performance, and operations
 
-Status: quality/release gates with partial `arcade-v8` alpha evidence. Updated: 2026-10-25. [Execution status](EXECUTION_STATUS.md) separates historical implementation results from current review checks; unrun gates below remain requirements.
+Status: quality/release gates with partial `arcade-v10` / protocol 2 alpha evidence. Updated: 2026-10-25. [Execution status](EXECUTION_STATUS.md) separates historical implementation results from current review checks; unrun gates below remain requirements.
 
 *A green test run is excellent news. It still cannot plug in a controller or sign a release form.*
 
@@ -20,9 +20,11 @@ The root scripts below exist in [package.json](../package.json). `test:network` 
 | --- | --- |
 | `pnpm dev` | Start local client and game server; print URLs and cleanup processes on exit |
 | `pnpm check` | Typecheck, documentation links/task dependency graph, simulation import boundaries; no general lint/schema coverage is implied |
-| `pnpm test` | Vitest logic/simulation, real room/network, prediction and hosting suites |
-| `pnpm test:integration` | Real room/client lifecycle, prediction/combat state, reconnect |
-| `pnpm test:e2e` | Browser keyboard flow, lobby, match, settings, focus loss |
+| `pnpm test` | Both headless Vitest projects; no browser processes |
+| `pnpm test:unit` | Isolated contracts/input/math/HUD/presentation logic, controlled dependencies |
+| `pnpm test:integration` | Real physics, renderer adapters, HTTP/rooms/client lifecycle, prediction, hosting and tooling |
+| `pnpm test:e2e` | Local game browser scenarios followed by pursuit/campaign/callsign UI fixtures |
+| `pnpm hooks:install` | Install the local E2E pre-push gate, automatically installed by local `pnpm install` too |
 | `pnpm test:integration` with `tests/integration` | Real ordered TCP-delay/jitter/stall harness; full packet-loss/correction profiles remain open |
 | `pnpm test:load` | Eight SDK clients in one room, configurable duration and snapshot payload estimate; separate sim benchmarks measure step cost, and multi-room capacity remains open |
 | `pnpm test:deploy` | Production HTTP/readiness plus two real multiplayer WebSocket clients at `TEST_SERVER_URL`; does not imply hosted validation |
@@ -42,8 +44,8 @@ Vitest and Playwright are installed and versioned in the root manifest/lockfile.
 | Checkpoints | Save/restore/replay through a turn, contact, shot, damage timer, respawn, and traffic interaction |
 | Authority | Client position/damage spoof ignored; NaN/Infinity/oversize/out-of-range inputs rejected; no speedup from extra commands |
 | Combat | Swept hit on fast/moving target, wall occlusion, owner immunity, duplicate event, fire cadence, spawn protection, simultaneous lethal hits |
-| Round | Start validation, late join, creator departure, countdown, timer end, draw, results/rematch, empty-room expiry |
-| Campaign | Ten dispatches/four ringleaders, independent arrest progress, credited target wreck, arrest/wreck marks, cumulative score, timeout retry, earned-only clues, creator-only progression, late join/reconnect and finale reset |
+| Round | Start validation, late join, participant departure, countdown, timer end, draw, results/rematch, empty-room expiry |
+| Campaign | Ten dispatches/four ringleaders, independent arrest progress, credited target wreck, arrest/wreck marks, cumulative score, timeout retry, earned-only clues, connected-member progression, late join/reconnect and finale reset |
 | Armed targets | Ten authored tactics, protected/connected-officer selection, bounded burst cadence, fixed grenade landing/fuse/radius, cover/falloff, exactly-once damage, hazard cleanup and checkpoint replay |
 | Garage/callsigns | Six shared profiles, briefing-only reassignment, saved random/custom identity, malformed/unavailable storage and authoritative selection locks |
 | Network | Duplicate/old sequence, input queue overflow, missing snapshots, burst delay, exhausted history, reconnect/epoch change |
@@ -108,7 +110,8 @@ Use identical scripted inputs for client/server replay where appropriate. Keep p
 
 ## 7. CI and review gates
 
-- Pull requests: install from lockfile, check, fast tests, production build, and relevant integration tests.
+- CI on pull requests/main: install from lockfile, types/docs, separate unit and integration suites, assets, production build and production-container smoke. No browser checks run in CI.
+- Local pre-push: run all game browser scenarios and pursuit/campaign/callsign UI fixtures through `.githooks/pre-push`; failure blocks the push. Install with `pnpm hooks:install` for an existing checkout. Custom hook paths are preserved and must include `pnpm test:e2e`.
 - Contract changes: schema/fixture compatibility checks and affected consumer tests.
 - Simulation/network changes: replay and authority tests plus relevant impaired-network scenario.
 - Content/rendering changes: asset checks, scene capture, and performance delta for affected scene.
@@ -121,7 +124,7 @@ The 2026-10-24 documentation review reran 465 headless tests across 54 files. Pl
 
 ## 8. Deployment design
 
-The [Render blueprint](../render.yaml) configures one Free Docker web service in Frankfurt serving the client and persistent game-server process together, with two rooms and checks-passed auto-deploy from `main`. Prior hosted HTML/readiness, exact-origin and two-client WSS checks are recorded in [execution status](EXECUTION_STATUS.md); this documentation review does not revalidate the live service or latest deployed commit. [GitHub CI](../.github/workflows/ci.yml) is configured to run check/test/assets/build, the full browser suite, pursuit/campaign/callsign UI fixtures and then production-container smoke. Alternate hosting remains possible through endpoint configuration; see [the runbook](../infra/README.md).
+The [Render blueprint](../render.yaml) configures one Free Docker web service in Frankfurt serving the client and persistent game-server process together, with two rooms and checks-passed auto-deploy from `main`. Prior hosted HTML/readiness, exact-origin and two-client WSS checks are recorded in [execution status](EXECUTION_STATUS.md); this documentation review does not revalidate the live service or latest deployed commit. [GitHub CI](../.github/workflows/ci.yml) runs check/unit/integration/assets/build and production-container smoke; all browser checks run locally before pushes. Alternate hosting remains possible through endpoint configuration; see [the runbook](../infra/README.md).
 
 Required configuration:
 
@@ -164,3 +167,7 @@ Dev-only overlay: sim/render ticks, server time estimate, local authoritative/pr
 - [ ] Working title/branding clearance completed for intended markets before public launch.
 
 Use [the ordered acceptance queue](../IMPLEMENTATION_PLAN.md#next-acceptance-work) to claim this work under the existing task IDs. Do not reopen optional GLB/WebGPU work merely to give the checklist more scenery.
+
+## Unified room acceptance
+
+Protocol 2 / `arcade-v10` uses the same authoritative room for 1–8 players. Verify solo start followed by live backup joining; menus pause only a lone connected officer. Controlled wall-clock tests cover the 14-minute idle warning, 15-minute intentional disconnect and empty-room expiry. Capacity eviction must spare connected players, reconnect reservations and unconsumed seats. Retained worlds count toward the existing provisional room cap; no new measured-capacity claim follows from cleanup correctness. Test teardown explicitly disposes owned rooms. [Lifecycle and storage](ROOM_SESSIONS.md) records defaults and the future persistence boundary.

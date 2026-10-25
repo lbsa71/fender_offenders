@@ -13,8 +13,6 @@ jobs:
   verify:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    env:
-      CHROME_PATH: /usr/bin/google-chrome
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -26,23 +24,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
-      - run: pnpm test
+      - run: pnpm test:unit
+      - run: pnpm test:integration
       - run: pnpm assets:check
       - run: pnpm build
-      - name: Verify runner-provided Chrome
-        run: test -x "$CHROME_PATH" && "$CHROME_PATH" --version
-      - run: pnpm test:e2e
-      - name: Verify pursuit guidance and result UI
-        run: node packages/ui/dev/pursuit-smoke.mjs
-      - name: Verify campaign briefing, tracker and story UI
-        run: node packages/ui/dev/campaign-smoke.mjs
-      - name: Verify generated callsigns and saved identity
-        run: node packages/ui/dev/callsigns-smoke.mjs
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: browser-test-results
-          path: test-results/
   container:
     name: Production container
     needs: verify

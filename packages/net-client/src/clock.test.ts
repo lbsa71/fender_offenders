@@ -3,14 +3,15 @@ import { packSnapshot, unpackSnapshot, neutralActions, type VehicleState, type W
 import { createOnlineSession } from './index.js';
 import type { CollisionMap } from '@fender/contracts';
 
-const wire = vi.hoisted(() => ({ handlers: new Map<string, (message: unknown) => void>(), initial: null as unknown, deferBaseline: false }));
+const wire = vi.hoisted(() => ({ handlers: new Map<string, (message: unknown) => void>(), initial: null as unknown, deferBaseline: false, sent: [] as string[] }));
 vi.mock('@colyseus/sdk', () => ({ Client: class {
-  async create() { return {
+  http={post:async()=>({data:{}})};
+  async consumeSeatReservation() { return {
     roomId: 'clock-fixture', sessionId: 'local', reconnection: { enqueuedMessages: [] },
     connection: { isOpen: true, reconnect() {}, close() {} },
     onMessage(type: string, handler: (value: unknown) => void) { wire.handlers.set(type, handler); },
     onDrop() {}, onReconnect() {}, onLeave() {}, onError() {},
-    send(type: string) { if (type === 'resync') wire.handlers.get('snapshot')!({ ...(wire.initial as WireSnapshot), reset: wire.deferBaseline ? 'join' : 'resync' }); },
+    send(type: string) { wire.sent.push(type);if (type === 'resync') wire.handlers.get('snapshot')!({ ...(wire.initial as WireSnapshot), reset: wire.deferBaseline ? 'join' : 'resync' }); },
     async leave() { return 4000; },
     removeAllListeners() { wire.handlers.clear(); },
   }; }
@@ -26,10 +27,49 @@ function snapshot(tick: number, options: { direction?: number; epoch?: string; m
 }
 afterEach(() => { vi.useRealTimers(); wire.handlers.clear(); wire.deferBaseline = false; });
 
+it('retains sequenced room notices across snapshots so slow or hidden views cannot miss them',async()=>{
+  wire.initial=snapshot(100);const session=createOnlineSession('ws://clock-fixture',map),statuses:unknown[]=[];session.onStatus(status=>statuses.push(status));
+  try{
+    await session.connect({roomId:crypto.randomUUID(),nickname:'Returning view'});
+    wire.handlers.get('room-notice')?.({message:'Backup joined. The dispatch is live.'});
+    expect(statuses.at(-1)).toMatchObject({notice:{id:1,message:'Backup joined. The dispatch is live.'}});
+    wire.handlers.get('snapshot')!(snapshot(101));expect(statuses.at(-1)).toMatchObject({notice:{id:1}});
+    wire.handlers.get('room-notice')?.({message:'Backup joined. The dispatch is live.'});expect(statuses.at(-1)).toMatchObject({notice:{id:2}});
+  }finally{await session.dispose();}
+});
+
+it('reports idle warnings and intentional timeout without announcing an expired reconnect',async()=>{
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
+  wire.initial=snapshot(100);const session=createOnlineSession('ws://clock-fixture',map),statuses:unknown[]=[];session.onStatus(status=>statuses.push(status));
+  try{
+    await session.connect({roomId: crypto.randomUUID(),nickname:'Idle officer'});
+    wire.handlers.get('idle-warning')?.({remainingMs:60000});expect(statuses.at(-1)).toMatchObject({idleRemainingMs:60000});
+    wire.handlers.get('idle-warning')?.({remainingMs:null});expect(statuses.at(-1)).toMatchObject({idleRemainingMs:undefined});
+    wire.handlers.get('session-ended')?.({reason:'idle-timeout'});expect(statuses.at(-1)).toMatchObject({state:'disconnected',reason:'idle-timeout'});
+    wire.sent=[];vi.advanceTimersByTime(5000);expect(wire.sent).toEqual([]);
+  }finally{await session.dispose();}
+});
+
+it('freezes all presentation clocks and drops gameplay commands while authority is paused', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
+  const source = unpackSnapshot(snapshot(100));
+  Object.assign(source, { paused: true });
+  source.projectiles = [{ entityId:'paused-shot',ownerEntityId:'local',pose:{x:100,z:103,yaw:0},velocity:{x:0,z:70,yawRate:0},bornTick:99,expiresTick:139,sourceCommandSequence:0,sourceShotOrdinal:1 }];
+  wire.initial = packSnapshot(source); const session = createOnlineSession('ws://clock-fixture',map);
+  try {
+    await session.connect({ roomId: crypto.randomUUID(),nickname:'Paused officer' });
+    const first = session.sampleFrame()!;
+    session.submit({sessionEpoch:source.sessionEpoch,sequence:0,clientTick:0,actions:{...neutralActions(),fire:true,throttle:1}});
+    expect(session.getStats().pendingInputs).toBe(0);
+    vi.advanceTimersByTime(5000); const after=session.sampleFrame()!;
+    expect(after.serverTick).toBe(100);expect(after.vehicles).toEqual(first.vehicles);expect(after.projectiles).toEqual(first.projectiles);
+  } finally { await session.dispose(); }
+});
+
 it('waits for the requested initial resync before accepting a joined session and its first input', async () => {
   wire.initial = snapshot(100); wire.deferBaseline = true;
   const session = createOnlineSession('ws://clock-fixture', map); let settled = false;
-  const joining = session.connect({ mode: 'create', nickname: 'Join baseline race' }).then(result => { settled = true; return result; });
+  const joining = session.connect({ roomId: crypto.randomUUID(), nickname: 'Join baseline race' }).then(result => { settled = true; return result; });
   try {
     for (let turn = 0; turn < 8; turn++) await Promise.resolve();
     expect(wire.handlers.has('snapshot')).toBe(true);
@@ -51,7 +91,7 @@ it('passes authoritative suspect identity and progress to rendering and removes 
   wire.initial = packSnapshot(source);
   const session = createOnlineSession('ws://clock-fixture', map);
   try {
-    await session.connect({ mode: 'create', nickname: 'Pursuit marker' });
+    await session.connect({ roomId: crypto.randomUUID(), nickname: 'Pursuit marker' });
     expect(session.sampleFrame()!.pursuit).toEqual(source.pursuit);
     const finished = { ...source, serverTick: 101, phase: 'results' as const, pursuit: { ...source.pursuit, state: 'complete' as const, progress: 1, winnerPlayerId: 'local' } };
     wire.handlers.get('snapshot')!(packSnapshot(finished));
@@ -67,7 +107,7 @@ it('advances both confirmed local barrels alongside the predicted car and retire
   source.projectiles = [0, 1].map(barrel => ({ entityId: `local-shot-${barrel}`, ownerEntityId: 'local', pose: { x: 100 + (barrel ? .63 : -.63), z: 103.617, yaw: 0 }, velocity: { x: 0, z: 70, yawRate: 0 }, bornTick: 100, expiresTick: 220, sourceCommandSequence: 0, sourceShotOrdinal: 1, barrelIndex: barrel as 0 | 1, volleyId: 'volley-1', damage: 5 }));
   wire.initial = packSnapshot(source); const expectedAuthority = { ...unpackSnapshot(wire.initial as WireSnapshot), resetReason: 'resync' }, session = createOnlineSession('ws://clock-fixture', map);
   try {
-    await session.connect({ mode: 'create', nickname: 'Moving twin barrels' });
+    await session.connect({ roomId: crypto.randomUUID(), nickname: 'Moving twin barrels' });
     for (let tick = 0; tick < 6; tick++) session.submit({ sessionEpoch: source.sessionEpoch, sequence: tick, clientTick: tick, actions: { ...neutralActions(), throttle: 1 } });
     vi.advanceTimersByTime(100); const frame = session.sampleFrame()!, car = frame.vehicles.find(vehicle => vehicle.entityId === 'local')!;
     expect(frame.projectiles).toHaveLength(2);
@@ -82,7 +122,7 @@ it('uses the buffered remote clock for projectile birth and first-seen travel', 
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] }); wire.initial = snapshot(100);
   const session = createOnlineSession('ws://clock-fixture', map);
   try {
-    await session.connect({ mode: 'create', nickname: 'Remote volley clock' });
+    await session.connect({ roomId: crypto.randomUUID(), nickname: 'Remote volley clock' });
     const after = unpackSnapshot(snapshot(106)); after.projectiles = [{ entityId: 'remote-shot', ownerEntityId: 'remote', pose: { x: 0, z: 30, yaw: 0 }, velocity: { x: 0, z: 70, yawRate: 0 }, bornTick: 103, expiresTick: 223, sourceCommandSequence: 0, sourceShotOrdinal: 1 }];
     vi.advanceTimersByTime(100); wire.handlers.get('snapshot')!(packSnapshot(after));
     expect(session.sampleFrame()!.projectiles).toEqual([]);
@@ -95,7 +135,7 @@ it('presents physical props on the shared interpolation clock with normalized ro
   const fixture = (tick: number, discontinuityId = 0) => packSnapshot({ ...unpackSnapshot(snapshot(tick)), props: [{ entityId: 'barrel', kind: 'barrel' as const, scale: 1, position: { x: tick, y: 1, z: 0 }, rotation: tick === 100 ? { x: 0, y: 0, z: 0, w: 1 } : { x: 0, y: Math.SQRT1_2, z: 0, w: Math.SQRT1_2 }, mode: 'dynamic' as const, sleeping: false, discontinuityId }] });
   wire.initial = fixture(100); const session = createOnlineSession('ws://clock-fixture', map);
   try {
-    await session.connect({ mode: 'create', nickname: 'Prop observer' });
+    await session.connect({ roomId: crypto.randomUUID(), nickname: 'Prop observer' });
     expect(session.sampleFrame()!.props?.[0]?.position.x).toBe(100);
     vi.advanceTimersByTime(100); wire.handlers.get('snapshot')!(fixture(106)); vi.advanceTimersByTime(50);
     const middle = session.sampleFrame()!.props![0]!;
@@ -111,7 +151,7 @@ it('retains quiet props and merges one changed prop without clearing the rest of
   const props = ['lamp', 'barrel'].map((kind, index) => ({ entityId: kind, kind: kind as 'lamp' | 'barrel', scale: 1, position: { x: index, y: 1, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, mode: 'dynamic' as const, sleeping: true, discontinuityId: 0 }));
   wire.initial = packSnapshot({ ...unpackSnapshot(snapshot(100)), props }); const session = createOnlineSession('ws://clock-fixture', map);
   try {
-    await session.connect({ mode: 'create', nickname: 'Quiet street' });
+    await session.connect({ roomId: crypto.randomUUID(), nickname: 'Quiet street' });
     const quiet = snapshot(106); delete quiet.props; wire.handlers.get('snapshot')!({ ...quiet, propsPatch: true });
     vi.advanceTimersByTime(300); expect(session.sampleFrame()!.props).toHaveLength(2);
     const changed = packSnapshot({ ...unpackSnapshot(snapshot(112)), props: [{ ...props[1]!, position: { x: 10, y: 1, z: 0 }, sleeping: false }] });
@@ -127,7 +167,7 @@ it('does not move a steadily advancing remote car backward when a snapshot arriv
   wire.initial = snapshot(100);
   const session = createOnlineSession('ws://clock-fixture', map);
   try {
-    await session.connect({ mode: 'create', nickname: 'Clock test' });
+    await session.connect({ roomId: crypto.randomUUID(), nickname: 'Clock test' });
     for (const tick of [103, 106, 109]) { vi.advanceTimersByTime(50); wire.handlers.get('snapshot')!(snapshot(tick)); }
     vi.advanceTimersByTime(70);
     const before = session.sampleFrame()!.vehicles.find(v => v.entityId === 'remote')!.pose.z;
@@ -141,7 +181,7 @@ it('still presents a remote car physically driving in reverse', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] }); wire.initial = snapshot(100, { direction: -1 });
   const session = createOnlineSession('ws://clock-fixture', map);
   try {
-    await session.connect({ mode: 'create', nickname: 'Reverse test' });
+    await session.connect({ roomId: crypto.randomUUID(), nickname: 'Reverse test' });
     for (const tick of [103, 106, 109]) { vi.advanceTimersByTime(50); wire.handlers.get('snapshot')!(snapshot(tick, { direction: -1 })); }
     const before = session.sampleFrame()!.vehicles.find(v => v.entityId === 'remote')!.pose.z;
     vi.advanceTimersByTime(50); wire.handlers.get('snapshot')!(snapshot(112, { direction: -1 }));
@@ -153,7 +193,7 @@ it.each(['epoch', 'match', 'discontinuity'] as const)('resets the playback clock
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] }); wire.initial = snapshot(100);
   const session = createOnlineSession('ws://clock-fixture', map);
   try {
-    await session.connect({ mode: 'create', nickname: 'Reset test' });
+    await session.connect({ roomId: crypto.randomUUID(), nickname: 'Reset test' });
     for (const tick of [103, 106, 109]) { vi.advanceTimersByTime(50); wire.handlers.get('snapshot')!(snapshot(tick)); }
     vi.advanceTimersByTime(200); session.sampleFrame();
     const next = reset === 'epoch' ? snapshot(10, { epoch: 'new-epoch' }) : reset === 'match' ? snapshot(10, { matchId: 'new-match' }) : snapshot(112, { discontinuity: 1 });
@@ -166,7 +206,7 @@ it('bounds remote extrapolation at 100ms after snapshots stop', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] }); wire.initial = snapshot(100);
   const session = createOnlineSession('ws://clock-fixture', map);
   try {
-    await session.connect({ mode: 'create', nickname: 'Extrapolation test' });
+    await session.connect({ roomId: crypto.randomUUID(), nickname: 'Extrapolation test' });
     vi.advanceTimersByTime(500); const first = session.sampleFrame()!.vehicles.find(v => v.entityId === 'remote')!.pose.z;
     vi.advanceTimersByTime(500); expect(session.sampleFrame()!.vehicles.find(v => v.entityId === 'remote')!.pose.z).toBe(first);
     expect(first).toBeCloseTo(100 / 6 + 1, 3);

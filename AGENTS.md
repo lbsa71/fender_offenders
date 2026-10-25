@@ -4,7 +4,7 @@
 
 ## Current repository map
 
-Updated: 2026-10-24. The delivered baseline is the `arcade-v8` playable alpha: six vehicle profiles, ten campaign dispatches, armed targets, and solo/private multiplayer. Read [the implementation plan](IMPLEMENTATION_PLAN.md) for the next acceptance work and [the execution ledger](spec/EXECUTION_STATUS.md) for dated evidence. Release gates remain open; an impressive siren does not count as a sign-off.
+Updated: 2026-10-25. The delivered baseline is the `arcade-v10` / protocol 2 playable alpha: six vehicle profiles, ten campaign dispatches, armed targets, and one shared 1–8-player room model. Read [the implementation plan](IMPLEMENTATION_PLAN.md) for the next acceptance work and [the execution ledger](spec/EXECUTION_STATUS.md) for dated evidence. Release gates remain open; an impressive siren does not count as a sign-off.
 
 ## Strict test-driven development
 
@@ -18,6 +18,8 @@ All new behavior and bug fixes must follow the red–green–refactor cycle:
 For regressions, reproduce the bug in a test first. For refactoring, establish passing behavior coverage before changing the implementation. Do not write implementation first and add tests afterward, or weaken a test merely to make a change pass.
 
 Choose the narrowest test that proves the behavior: unit tests for simulation and input rules, real client/server integration tests for multiplayer authority and reconnect behavior, and browser tests for player-visible interactions. Assert outcomes rather than duplicating implementation details. Keep tests deterministic by controlling time, randomness, and external dependencies where appropriate.
+
+Use `pnpm test:unit` for isolated logic, `pnpm test:integration` for real physics/renderer/network adapters, and `pnpm test:e2e` for local browser flows and UI fixtures. `pnpm test` runs both headless suites. Browsers run locally before pushes through `.githooks/pre-push`, never in CI. Install hooks with `pnpm hooks:install` in existing checkouts; local dependency installation also sets them up. Preserve custom hook paths and integrate the E2E command there. CI keeps unit/integration, types/docs, assets, build and production smoke. Do not remove a flaky browser assertion from the local suite to obtain a green push.
 
 Every implementation handoff must state which test failed before the change, why it failed, and which checks passed afterward. Apply the same rule to every parallel implementation lane and subagent. Existing code is not evidence of a historical TDD cycle; report only cycles actually observed.
 

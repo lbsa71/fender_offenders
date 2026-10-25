@@ -4,11 +4,11 @@
 
 Fender Offenders is a playable browser arcade driving and vehicle-combat alpha inspired by the energy of the original 1987 APB. Patrol a stylized 3D district, dodge traffic, pursue a suspect, or trade shots with friends in private rooms. The elevated Babylon.js camera follows vehicle-relative driving on a planar road surface.
 
-**[Play the public preview](https://fender-offenders.onrender.com)**. The free Render service may need about a minute to wake after inactivity. Create a room and share its invite link to play with friends.
+**[Play the public preview](https://fender-offenders.onrender.com)**. The free Render service may need about a minute to wake after inactivity. Every game has a room URL; share it to bring backup at any time.
 
 This is a playable alpha, not a release candidate. [Execution status](spec/EXECUTION_STATUS.md) records all 49 implementation tasks, observed checks, and remaining acceptance gates. Fender Offenders remains a working name without trademark clearance.
 
-Documentation reviewed: **2026-10-25**, following `0bde06a` (`arcade-v8`, protocol 1) and the persistent-lamp correction. Civilian cars are unarmed, wrecks split into their original physical components, and dusk/night lamps stay illuminated at any camera distance. Earlier fixes bound WANTED badge styling and let slow practice frames catch up as many as fifteen fixed ticks; online input stays capped at four. The paperwork is catching up with the patrol car.
+Documentation reviewed: **2026-10-25**, for the unified room model (`arcade-v10`, protocol 2), following the persistent-lamp correction. Civilian cars are unarmed, wrecks split into their original physical components, and dusk/night lamps stay illuminated at any camera distance. Every playable campaign now uses a server room; local previews retain bounded stepping and network input stays capped at four. The paperwork is catching up with the patrol car.
 
 ## Run locally
 
@@ -21,24 +21,24 @@ pnpm dev
 
 Open [the game on port 5173](http://127.0.0.1:5173). Vite serves the client; the authoritative game server listens on `127.0.0.1:2567`. Exit the development command to stop its child processes. [Environment examples](.env.example) contain local defaults and no credentials.
 
-Choose **Hit the streets** for a solo ten-dispatch campaign. Read the briefing, change your assigned car if desired, then choose **Start dispatch**. Choose **Create room**, copy its invite link, and open that link in another browser context to bring backup; at least two connected players are needed for the creator to start an online dispatch. Localhost links work on this machine; use the public preview to invite friends on other machines.
+Opening the bare URL assigns a random room URL without allocating a server simulation. Choose **Hit the streets**, read the briefing, change your assigned car if desired, then choose **Start dispatch**. One officer can start; any connected officer can proceed. Copy the room link to bring backup during play. **Start a new room** and **Open another room** provide fresh and existing campaigns. Localhost links work on this machine; use the public preview to invite friends on other machines.
 
-Invite links survive empty-room disposal and server restarts: joining lazily recreates the same room code. Legacy eight-character codes are supported alongside current IDs. Joining retries a room that disappears during reservation, without changing the link; genuine full-room or hosting-capacity errors still require a free slot.
+Empty rooms pause for up to 15 minutes; returning resumes their campaign. At capacity the oldest eligible empty room can be reclaimed sooner. Reusable links survive disposal and server restarts by opening a fresh campaign under the same code. Legacy eight-character codes are supported alongside current IDs. Joining retries a room that disappears during reservation, without changing the link; genuine full-room or hosting-capacity errors still require a free slot.
 
 ## What is implemented
 
 - A project-authored procedural district, six vehicle body designs, roads and dirt shortcuts, traffic, lighting, shadows, signs, skid marks, combat effects, and synthesized vehicle/action audio.
 - Authored noon, dusk and night dispatch lighting with colored distance fog, directional sun/moon shadows and steady warm illumination from every upright street lamp at dusk/night on all presets. The [graphics polish plan](spec/GRAPHICS_POLISH.md) preserves the blocky toy-town style; water, reflections and subtle flares are next steps.
-- Shared fixed-step driving, deliberate brake-to-reverse behavior, drifting, collisions, stuck recovery, and a suspect-apprehension objective in practice and multiplayer.
+- Shared fixed-step driving, deliberate brake-to-reverse behavior, drifting, collisions, stuck recovery, and a suspect-apprehension objective in every server room and isolated simulation fixtures.
 - **The Green Light Racket**: ten dispatches, four connected ringleaders and six crew members, original mugshots, assigned target cars, a shared campaign tracker and a story revealed through successful pursuits. Arrest or destroy the target to advance; only arrests earn green checks.
 - Armed campaign targets with distinct driving styles, burst fire, grenade lobs and progressively tougher tactics. Briefings explain the threat and counterplay; marked grenade landing areas give players time to dodge.
-- Private 2–8-player authoritative Colyseus rooms with a countdown, a five-minute dispatch limit, forward automatic fire, damage, wreck credit, protected respawns, cumulative standings and campaign results. The first driver to resolve the shared target wins that dispatch.
+- Private 1–8-player authoritative Colyseus rooms with a countdown, a five-minute dispatch limit, forward automatic fire, damage, wreck credit, protected respawns, cumulative standings and campaign results. The first driver to resolve the shared target wins that dispatch.
 - Local movement prediction, remote interpolation with a playback clock that does not rewind on late snapshots, reconnect handling, input admission checks, and immediate control neutralization on focus/device loss or menu entry.
 - Server-measured ping in milliseconds for every player in online standings and results, plus a persistent Wi-Fi indicator for connecting, connected, reconnecting and lost connections. Unknown or stale ping reads “—”.
 - Reusable invite links: joining a valid room code after a restart opens a fresh room under the same code. Simultaneous visitors join the same room. Match progress and scores reset with the server.
 - Keyboard and standard-mapped controller input, device prompts, keyboard remapping, dead zones, sensitivity, persisted settings, reduced shake/flashes, and graphics/audio controls. No external fonts or runtime art downloads are requested.
 
-Online matches continue while a menu is open; that driver's held controls are released and safety braking applies. The pause menu stops a local practice simulation. Controller coverage currently uses synthetic standard-mapped devices; physical-controller handling and the full browser/OS matrix remain open. Music and vibration settings do not establish a shipped soundtrack or tested haptics.
+A lone officer opening a menu or hiding the tab pauses the server world. Backup joining resumes it with a notice. With multiple officers, menus neutralize only that driver's controls. Empty worlds freeze, including their dispatch clocks. Idle players receive a warning at 14 minutes and are disconnected at 15; heartbeats do not count as activity. See [room sessions](spec/ROOM_SESSIONS.md) for retention, reconnect and storage rules. Controller coverage currently uses synthetic standard-mapped devices; physical-controller handling and the full browser/OS matrix remain open. Music and vibration settings do not establish a shipped soundtrack or tested haptics.
 
 Your first visit randomly assigns a patrol sedan, interceptor, roadster, army 4×4, ambulance or fire-chief SUV. The garage saves the assignment in this browser and shows the car on a rotating turntable, with its strengths and trade-offs. **Reassign vehicle** rolls a different car at home or in every dispatch briefing, beside the target's mugshot and assigned car. The choice locks at countdown; reconnects and respawns preserve it. Clearing browser storage starts a new garage assignment.
 
@@ -50,7 +50,7 @@ Cornering adds cartoon body lean and squash, while visible road humps trigger co
 
 Confirmed crashes squash the coachwork in the impact direction and spring back, with severity-scaled slapstick audio. Both guns fire real projectiles from their barrel tips, 2.45 m forward and 0.63 m either side of the car center. Each deals 5 damage, retaining 10 damage per volley at the same 12-tick cadence. Paired flashes follow the moving guns, with one recoil and sound per volley. Fresh trails start at the muzzle; local rounds advance by at most 100 ms to match driving prediction, while remote rounds use buffered playback. These effects share bounded pools and audio limits; crashes do not add ram damage.
 
-Each barrel applies subtle aim assist to a visible opponent or the wanted suspect within **4°**, **2.5 m of its original firing line**, and **40 m**. Buildings and nearer cars block selection, including obstructions between the car center and a gun tip. The correction happens once when a shot is fired; projectiles retain their straight trajectory, and the car's heading is unchanged. One missed or blocked barrel deals only 5 damage. `arcade-v8` clients and servers must match.
+Each barrel applies subtle aim assist to a visible opponent or the wanted suspect within **4°**, **2.5 m of its original firing line**, and **40 m**. Buildings and nearer cars block selection, including obstructions between the car center and a gun tip. The correction happens once when a shot is fired; projectiles retain their straight trajectory, and the car's heading is unchanged. One missed or blocked barrel deals only 5 damage. `arcade-v10` / protocol 2 clients and servers must match.
 
 One AI car is the **WANTED** target. Its world marker and labeled screen-edge arrow identify it as the camera and suspect move. To arrest it, stay within 8 m with less than 5 m/s relative speed and a clear line of sight for three seconds. Each connected, active driver builds their own progress, which drains when they lose those conditions. Arresting awards three points and a green tracker check. Destroying the target's car awards the existing one-point wreck credit, advances the story, and leaves an amber wreck mark. Both end the dispatch immediately; cumulative combat points do not override its winner. A timeout reveals no clue and retries the same target.
 
@@ -87,9 +87,11 @@ Pulling the stick backward brakes a forward-moving car before reversing, just li
 | `pnpm dev` | Start client and game server together |
 | `pnpm dev:client` / `pnpm dev:server` | Start either development process separately |
 | `pnpm check` | Typecheck, validate documentation links/task dependencies, check simulation import boundaries |
-| `pnpm test` | Run Vitest logic, simulation, real-room, prediction, and hosting tests |
-| `pnpm test:integration` | Run real Colyseus room and ordered TCP-delay harness tests |
-| `pnpm test:e2e` | Run Playwright browser scenarios; reuse local services or start test-owned services |
+| `pnpm test` | Run both headless suites; no browsers |
+| `pnpm test:unit` | Run isolated logic with controlled dependencies; no sockets, real physics or renderer adapters |
+| `pnpm test:integration` | Run real physics/render adapters, HTTP/Colyseus rooms, prediction, hosting and tooling checks |
+| `pnpm test:e2e` | Local Playwright game scenarios, then pursuit/campaign/callsign browser fixtures |
+| `pnpm hooks:install` | Install the local Git pre-push hook; also runs automatically on local dependency installation |
 | `pnpm test:load` | Run eight real SDK clients against the local server; write a payload-estimate report |
 | `pnpm test:deploy` | Check production readiness/HTML and two real multiplayer WebSocket clients at `TEST_SERVER_URL` |
 | `pnpm assets:check` | Validate authored map/content invariants |
@@ -99,13 +101,17 @@ Pulling the stick backward brakes a forward-moving car before reversing, just li
 
 For a fresh Playwright setup, run `pnpm exec playwright install chromium` before `pnpm test:e2e`. The browser config can use installed Chrome on Windows. Render-only smoke/alignment tools are in [tools/assets](tools/assets); no `test:visual` or `test:network` package script currently exists.
 
+Browser E2E runs locally before each push through [the pre-push hook](.githooks/pre-push), and a failure stops the push. Local `pnpm install` installs the hook; existing checkouts can run `pnpm hooks:install`. Custom hook paths are preserved and need the same `pnpm test:e2e` command. CI runs unit, integration, types/docs, assets, build and production-container smoke. The browser patrol stays in the local garage; the server checks still report for duty.
+
+For an isolated worktree push, set `FENDER_E2E_CLIENT_PORT=5195` and `FENDER_E2E_SERVER_PORT=2589` in the invoking environment. The pre-push browser checks start dedicated servers and never reuse another checkout's dev servers. The health-test endpoint follows the selected server port unless `TEST_SERVER_URL` is explicitly set. PowerShell uses `$env:FENDER_E2E_CLIENT_PORT='5195'` and `$env:FENDER_E2E_SERVER_PORT='2589'`.
+
 After `pnpm build`, `node dist/server/index.js` serves the production client and WebSocket service on one port. Set `HOST`, `PORT`, and `ALLOWED_ORIGINS` for that deployment. See [the operations guide](infra/README.md) for container/TLS configuration, health/readiness, and staging checks. The connected Render service uses the Free plan in Frankfurt, with automatic deployment from `main` after GitHub checks pass. Pull requests run validation without changing the public preview.
 
 ## Validation and limits
 
 The 2026-10-24 documentation review reran **465 headless tests across 54 files**, plus type/documentation/boundary and authored-asset checks, all passing. A separate audit verified all **25 Markdown artifacts**, their local links/anchors and all nine GPL package declarations. Playwright discovery lists **15 browser scenarios across six files**; those were not executed in this review. No gameplay behavior changed, so no artificial RED phase was required.
 
-Historical implementation evidence includes the 2026-10-23 armed-campaign run of 460 headless tests and 14 browser scenarios, five UI fixtures, real boss-combat clients, native grenade checks and an SDK driving probe. The 2026-10-24 pacing commit records 465 headless tests and 12 practice browser scenarios passing; the badge fix records its style-recalculation regression. See [the evidence index](spec/EXECUTION_STATUS.md) for dates and scope. CI is configured to run the complete browser suite, campaign/callsign/pursuit fixtures and production-container smoke.
+Historical implementation evidence includes the 2026-10-23 armed-campaign run of 460 headless tests and 14 browser scenarios, five UI fixtures, real boss-combat clients, native grenade checks and an SDK driving probe. The 2026-10-24 pacing commit records 465 headless tests and 12 practice browser scenarios passing; the badge fix records its style-recalculation regression. See [the evidence index](spec/EXECUTION_STATUS.md) for dates and scope. Browser checks are now local pre-push gates; CI retains the unit/integration suites and production-container smoke.
 
 Human driving/visual approval, actual controllers, Firefox/Safari/macOS coverage, collision-correction traces, OS packet impairment, sustained browser frame budgets, ten-rematch memory stability, multi-room server density, and hosted rollback validation remain open. A short localhost eight-player run is not a capacity or remote-playability claim. Its JSON payload estimate exceeded the starting download budget; actual wire bandwidth is unverified. The free preview initially admits at most two rooms; deployments end active matches.
 

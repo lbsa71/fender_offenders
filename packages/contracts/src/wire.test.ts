@@ -18,7 +18,7 @@ describe('scoreboard latency wire compatibility',()=>{
     expect(grenade.target.x).toBe(-8.5);
   });
   it('roundtrips ordered campaign resolutions for late joins and reconnects, including a completed tenth dispatch',()=>{
-    const campaign={campaignId:'parking-scheme',dispatchIndex:9,status:'complete' as const,outcomes:Array.from({length:10},(_,dispatchIndex)=>({dispatchIndex,outcome:dispatchIndex%2?'wrecked' as const:'arrested' as const,playerId:dispatchIndex%2?'b':'a',elapsedTicks:180+dispatchIndex}))};
+    const campaign={campaignId:'parking-scheme',dispatchIndex:9,status:'complete' as const,outcomes:Array.from({length:10},(_,dispatchIndex)=>({dispatchIndex,outcome:dispatchIndex%2?'wrecked' as const:'arrested' as const,playerId:dispatchIndex%2?'b':'a',callsign:dispatchIndex%2?'Officer B':'Officer A',elapsedTicks:180+dispatchIndex}))};
     const source={...snapshot,campaign};
     expect(unpackSnapshot(packSnapshot(source))).toHaveProperty('campaign',campaign);
     expect(unpackSnapshot(packSnapshot(snapshot))).not.toHaveProperty('campaign');

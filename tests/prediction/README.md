@@ -1,6 +1,6 @@
 # Online prediction facade evidence
 
-Reviewed: 2026-10-24 for `arcade-v8`. *Predict the car. Do not predict that an unrun acceptance gate will probably be fine.*
+Reviewed: 2026-10-25 for `arcade-v10` / protocol 2. *Predict the car. Do not predict that an unrun acceptance gate will probably be fine.*
 
 ```powershell
 pnpm exec vitest run packages/net-client/src tests/prediction
@@ -31,3 +31,5 @@ After reporting the failure and coordinating with the integration owner, the sma
 The app's separate error presentation/catch behavior requires its own browser regression. These tests establish facade outcomes; they do not certify visual correction quality, stressed remote car contact divergence, browser suspension, expired reconnect reservations, or human network playability.
 
 Next work under S04/N03–N05/Q03–Q05 is actual correction-distance/angle traces for free driving and contacts, OS loss/stall/expiry scenarios and sustained eight-player/multi-room evidence. Follow [the acceptance queue](../../IMPLEMENTATION_PLAN.md#next-acceptance-work); a smooth localhost lap is useful, but the internet has its own driving style.
+
+Unified-room checks cover authoritative solo pause, live backup joining, 15-minute empty retention, reserved-seat protection and oldest-empty capacity eviction. Controlled-clock inactivity checks ignore neutral packets and heartbeat traffic. Fixtures explicitly dispose their owned retained worlds during teardown. See [room sessions](../../spec/ROOM_SESSIONS.md).

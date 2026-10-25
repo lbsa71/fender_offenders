@@ -5,6 +5,7 @@ import base from '../../../playwright.config';
 
 /** Dedicated worktree ports: never reuse the primary checkout's dev servers. */
 const root = fileURLToPath(new URL('../../../', import.meta.url));
+process.env.TEST_SERVER_URL = 'http://127.0.0.1:2589';
 export default defineConfig({ ...base,
   testDir: resolve(root, 'tests/e2e'), outputDir: resolve(root, 'work/graphics-e2e-results'),
   use: { ...base.use, baseURL: 'http://127.0.0.1:5195' },

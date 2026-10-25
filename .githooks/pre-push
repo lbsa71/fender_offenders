@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+cd "$(git rev-parse --show-toplevel)"
+echo "Checking the patrol locally before push: browser E2E and UI fixtures."
+exec node tools/pre-push.mjs

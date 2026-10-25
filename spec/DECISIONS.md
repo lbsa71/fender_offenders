@@ -8,6 +8,8 @@ Updated: 2026-10-25 following `0bde06a` and the persistent-lamp correction. Requ
 
 | ID | Decision | Source |
 | --- | --- | --- |
+| D31 | Every campaign has a 1–8-player server room and URL; any connected officer can proceed from a briefing; friends may join live | Owner-approved [room model](ROOM_SESSIONS.md), 2026-10-25; supersedes production local-solo, two-player minimum and creator-only defaults |
+| D32 | Fifteen-minute empty retention and connected-idle timeout; oldest eligible empty-room reclamation; process memory initially | Owner choices, 2026-10-25; preserve ten-second reconnect and pending admissions, keep Render Free |
 | D01 | Original 1987 arcade APB is the inspiration | User clarification |
 | D02 | Web game with 3D graphics; fast fun action is the priority | User request |
 | D03 | Babylon.js is the selected rendering/game engine | User accepted the recommendation |
@@ -33,12 +35,12 @@ Updated: 2026-10-25 following `0bde06a` and the persistent-lamp correction. Requ
 | D11 | Bounded planar vehicle contacts, bicycle tyre/drift controller, Rapier projectile queries and a separate 3D scenery world | Shared replayable vehicle rules avoid stale solver history; scenery has one-way car interaction. Browser/contact acceptance remains open |
 | D12 | 60 Hz sim, 20 Hz authoritative snapshots, 30 Hz input batches | Initial small-room budget; measure CPU, bandwidth, and prediction before changing |
 | D13 | Elevated camera, fixed world heading | Supports readable city driving; revisit if steering/camera playtest fails |
-| D14 | Private 2–8-player rooms; up to five minutes per campaign dispatch, first arrest or credited target wreck wins | D21/D22 replace the original free-for-all winner; PvP and cumulative combat standings remain |
+| D14 | Private 1–8-player rooms; up to five minutes per campaign dispatch, first arrest or credited target wreck wins | D21/D22 replace the original free-for-all winner; PvP and cumulative combat standings remain |
 | D15 | Forward projectile weapon | Works with keyboard and gamepad without separate aim controls |
 | D16 | Guest nicknames/private room links | Removes account and matchmaking dependencies |
 | D17 | One district, six selectable car bodies with distinct shared handling/armor profiles | Motor-pool work supersedes the original three cosmetic bodies/one-class default; [balance evidence](../packages/sim/BALANCE.md) remains subject to human review |
 | D18 | WebGL2 baseline, optional WebGPU | Make browser reach independent of a newer graphics API |
-| D19 | Solo and online run the same ten-dispatch armed campaign; ordinary traffic is unarmed | Current production composition; noncampaign simulation fixtures preserve the earlier single-pursuit lifecycle |
+| D19 | All players use server rooms for the same ten-dispatch armed campaign; ordinary traffic is unarmed | Current production composition; noncampaign simulation fixtures preserve the earlier single-pursuit lifecycle |
 | D20 | Shared Rapier version on browser/server; prediction limited to local driving | Reduce divergence; shared version does not eliminate all reconciliation work |
 | D25 | Original source-generated art/audio and inline SVG mugshots; WebGL2 delivery | No imported asset family or GLB pipeline is required for the current baseline; dependency compatibility/notices and distribution packaging remain audit gates |
 | D26 | Practice permits fifteen fixed catch-up ticks per frame; online permits four; WANTED positioning applies without CSS transitions | PRs #2/#3, merged 2026-10-24, fix growing style cost and slow practice time without increasing the online input burst |

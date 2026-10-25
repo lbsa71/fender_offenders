@@ -1,10 +1,14 @@
 # Implementation plan
 
-Status: acceptance plan for the playable `arcade-v8` alpha. Updated: 2026-10-25 following `0bde06a` and the persistent-lamp correction. Current states and dated evidence for all 49 tasks are in [the execution ledger](spec/EXECUTION_STATUS.md). Task IDs, dependencies and milestone gates remain stable; delivery choices below reflect the current implementation.
+Status: acceptance plan for the playable `arcade-v10` alpha. Updated: 2026-10-25 following `0bde06a` and the persistent-lamp correction. Current states and dated evidence for all 49 tasks are in [the execution ledger](spec/EXECUTION_STATUS.md). Task IDs, dependencies and milestone gates remain stable; delivery choices below reflect the current implementation.
 
 *The city is playable. The release paperwork still has several outstanding warrants.*
 
 ## Next acceptance work
+
+The [unified room model](spec/ROOM_SESSIONS.md) replaces production solo/private mode separation: every 1–8-player campaign runs on the server, any connected officer can proceed from a briefing, and friends join live. Empty rooms pause for up to 15 minutes with oldest-empty capacity reclamation; idle connected tabs warn at 14 minutes and disconnect at 15. F/S/N/U/Q share this integration sequentially; the combined room/recoil build uses protocol 2 and `arcade-v10`. Storage remains process memory. Graphics and named-hardware acceptance continue independently.
+
+Verification uses three explicit suites: isolated unit logic, headless integration with real adapters, and local browser E2E. Git's pre-push hook runs E2E and the browser UI fixtures before publishing; CI runs unit/integration, types/docs, assets, build and production-container smoke. Browser acceptance remains required locally, including the room flows above. Software-GPU CI timing no longer governs deployment; no behavioral assertions or release gates are waived.
 
 The district, six distinct vehicle profiles, ten-dispatch campaign, armed bosses, reusable invites, callsigns, physical props and cosmetic crowds are integrated. PRs #2 and #3 also delivered bounded badge styling and fifteen-tick practice catch-up; neither closes the sustained performance gate. Work now focuses on proving and tightening the existing game.
 

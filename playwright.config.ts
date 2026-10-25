@@ -2,6 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 import { existsSync } from 'node:fs';
 
 const systemChrome = process.env.CHROME_PATH ?? (process.platform === 'win32' ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' : '');
+const clientPort = process.env.FENDER_E2E_CLIENT_PORT ?? '5173', serverPort = process.env.FENDER_E2E_SERVER_PORT ?? '2567';
+const isolated = Boolean(process.env.FENDER_E2E_CLIENT_PORT || process.env.FENDER_E2E_SERVER_PORT);
+if (isolated) process.env.TEST_SERVER_URL ??= `http://127.0.0.1:${serverPort}`;
 export default defineConfig({
   testDir: './tests/e2e',
   timeout: 45000,
@@ -12,7 +15,7 @@ export default defineConfig({
   outputDir: 'test-results',
   use: {
     ...devices['Desktop Chrome'],
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: `http://127.0.0.1:${clientPort}`,
     // Gameplay checks run on the real low preset at a bounded software-GPU cost.
     // The desktop typography scenario opts back into its original 1440×900 size.
     viewport: { width: 960, height: 640 },
@@ -24,7 +27,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   webServer: [
-    { command: 'node node_modules/tsx/dist/cli.mjs apps/server/src/index.ts', url: 'http://127.0.0.1:2567/health', reuseExistingServer: true, timeout: 30000 },
-    { command: 'node node_modules/vite/bin/vite.js --host 127.0.0.1', url: 'http://127.0.0.1:5173', reuseExistingServer: true, timeout: 30000 },
+    { command: 'node node_modules/tsx/dist/cli.mjs apps/server/src/index.ts', url: `http://127.0.0.1:${serverPort}/health`, ...(isolated ? { env: { PORT: serverPort, ALLOWED_ORIGINS: `http://127.0.0.1:${clientPort}` } } : {}), reuseExistingServer: !isolated, timeout: 30000 },
+    { command: `node node_modules/vite/bin/vite.js --host 127.0.0.1 --port ${clientPort}`, url: `http://127.0.0.1:${clientPort}`, ...(isolated ? { env: { VITE_SERVER_URL: `http://127.0.0.1:${serverPort}` } } : {}), reuseExistingServer: !isolated, timeout: 30000 },
   ],
 });

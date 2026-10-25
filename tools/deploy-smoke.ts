@@ -19,14 +19,21 @@ const hasAllPlayerPings = (state: WorldSnapshot | undefined) => !!state && rooms
 try {
   for (let i = 0; i < 2; i++) {
     const options = { nickname: `Deploy check ${i + 1}`, protocolVersion: PROTOCOL_VERSION, gameplayRevision: GAMEPLAY_REVISION, mapRevision: districtMap.revision };
-    const room = i === 0 ? await client.create('district', options) : await client.consumeSeatReservation((await client.http.post(`dispatch/${rooms[0]!.roomId}`, { body: options })).data as SeatReservation);
+    const code = rooms[0]?.roomId ?? crypto.randomUUID();
+    const room = await client.consumeSeatReservation((await client.http.post(`dispatch/${code}`, { body: options })).data as SeatReservation);
     rooms.push(room);
     room.onMessage('snapshot', (wire: WireSnapshot) => { const previous = states.get(room.sessionId); states.set(room.sessionId, unpackSnapshot(wire, wire.m === previous?.matchId ? previous?.props : undefined)); });
     room.onMessage('events', () => {});
     room.onMessage('latency-probe', ({ nonce }: { nonce: string }) => room.send('latency-pong', { nonce }));
     room.send('resync');
+    if (i === 0) {
+      room.send('start-round');
+      const soloDeadline = performance.now() + 15_000;
+      while (performance.now() < soloDeadline && states.get(room.sessionId)?.phase !== 'playing') await new Promise(resolve => setTimeout(resolve, 50));
+      assert.equal(states.get(room.sessionId)?.phase, 'playing', 'one officer starts before backup joins');
+      assert.equal(states.get(room.sessionId)?.scores.length, 1, 'solo start has exactly one officer');
+    }
   }
-  rooms[0]!.send('start-round');
   const deadline = performance.now() + 15_000;
   while (performance.now() < deadline && !rooms.every(room => states.get(room.sessionId)?.phase === 'playing' && hasAllPlayerPings(states.get(room.sessionId)))) {
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -34,7 +41,7 @@ try {
   for (const room of rooms) {
     const state = states.get(room.sessionId);
     assert.ok(hasAllPlayerPings(state), `observer ${room.sessionId} must receive both players' finite nonnegative pingMs`);
-    assert.equal(state?.phase, 'playing', 'two real WebSocket clients must reach a live round');
+    assert.equal(state?.phase, 'playing', 'backup joins the already live dispatch');
     assert.equal(state.scores.length, 2);
     assert.ok(state.local?.vehicle, 'each player needs an authoritative car');
     assert.equal(state.campaign?.campaignId, CAMPAIGN_ID, 'production rooms run the authored campaign');
@@ -45,4 +52,4 @@ try {
   for (const room of rooms) room.reconnection.enabled = false;
   await Promise.all(rooms.map(room => room.leave(true)));
 }
-console.log(`Production smoke passed: HTML, readiness, two WebSocket players, shared campaign/target, dispatch start and per-player ping at ${endpoint}`);
+console.log(`Production smoke passed: HTML, readiness, solo start, live late join, shared campaign/target and per-player ping at ${endpoint}`);

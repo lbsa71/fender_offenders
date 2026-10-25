@@ -44,6 +44,7 @@ async function practice(page: Page) {
   await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
   await page.getByRole('button', { name: 'START DISPATCH' }).click();
   await expect.poll(async () => (await snapshot(page))?.phase).toBe('playing');
+  await expect(page.locator('[data-text="phase"]')).toHaveText('COMPETING PURSUIT');
   await expect(page.locator('.fo-hud')).toBeVisible();
   await expect.poll(async () => (await snapshot(page))?.local?.vehicle.status).toBe('active');
 }
@@ -65,7 +66,7 @@ test('keyboard practice drives, fires, releases controls on pause and saves sett
   await page.keyboard.press('Escape'); await page.keyboard.up('w'); await page.keyboard.up('Space');
   await expect(page.getByRole('heading', { name: 'Taking a breather?' })).toBeVisible();
   await expect(page.locator('.fo-target-indicator')).toBeHidden();
-  await expect(page.getByText('Your local patrol is paused.', { exact: false })).toBeVisible();
+  await expect(page.getByText('Your patrol is paused while you are alone.', { exact: false })).toBeVisible();
   const pausedTick = (await snapshot(page))!.serverTick;
   await page.waitForTimeout(150);
   expect((await snapshot(page))!.serverTick).toBe(pausedTick);
@@ -86,22 +87,30 @@ test('keyboard practice drives, fires, releases controls on pause and saves sett
 });
 
 test('a hard driving collision presents a confirmed impact burst without ram damage',async({page})=>{
+  // This is an input/contact check. Bound software rasterization cost so real
+  // network commands arrive within the 100 ms safety hold; full-size visuals
+  // remain covered by the separate 960/1440 layout and rendering scenarios.
+  await page.setViewportSize({width:480,height:360});
   // This drives through several simulation seconds; software GPU frames can be slow.
   test.setTimeout(90000);
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await page.addInitScript(()=>localStorage.setItem('fender-garage-v1',JSON.stringify({vehicleBodyId:'patrol'})));
   await practice(page);await page.keyboard.down('w');await page.keyboard.down('d');
   try{
-    await expect.poll(()=>page.evaluate(()=>{
+    // The burst can expire between cross-process polls. Observe every real
+    // browser frame so a short, actually rendered impact cannot be skipped.
+    await page.waitForFunction(()=>{
       const debug=(window as DebugWindow).__FENDER_DEBUG__;
       return !!debug?.events?.some(event=>event.kind==='crash')&&(debug.stats?.renderer?.impactRings??0)>0;
-    }),{timeout:60000}).toBe(true);
+    },undefined,{polling:'raf',timeout:60000});
     expect((await snapshot(page))!.local!.vehicle.health).toBe(100);
     expect(errors).toEqual([]);
   }finally{await page.keyboard.up('w');await page.keyboard.up('d');}
 });
 
 test('a standard controller can start, drive, pause, navigate and safely disconnect', async ({ page }) => {
+  // Keep this hardware-input scenario independent of software-GPU throughput.
+  await page.setViewportSize({width:480,height:360});
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(() => {
     type MutablePad = { id: string; index: number; connected: boolean; mapping: string; axes: number[]; buttons: { pressed: boolean; touched: boolean; value: number }[]; timestamp: number };
@@ -134,6 +143,8 @@ test('a standard controller can start, drive, pause, navigate and safely disconn
   await expect.poll(async () => (await snapshot(page))?.phase).toBe('playing');
   await expect(page.locator('.fo-prompts')).toContainText('LEFT STICK DRIVE');
   await expect(page.locator('.fo-prompts')).toContainText('RT/LT DRIVE/BRAKE');
+  await expect(page.locator('[data-text="phase"]')).toHaveText('COMPETING PURSUIT');
+  await stickY(0); // Let the newly enabled controller observe a neutral frame before a fresh press.
   await stickY(-1);
   await expect.poll(async () => { const car = (await snapshot(page))?.local?.vehicle; return car ? Math.hypot(car.velocity.x, car.velocity.z) : 0; }).toBeGreaterThan(3);
   await stickY(0);
@@ -176,13 +187,13 @@ test('two browser clients create, join, start a live round and share confirmed s
   const host = await hostContext.newPage(); const guest = await guestContext.newPage();
   try {
     await host.goto(baseURL!); await host.getByRole('textbox', { name: 'YOUR CALLSIGN' }).fill('Dispatch Host');
-    await host.getByRole('button', { name: 'CREATE ROOM' }).click();
+    await host.getByRole('button', { name: 'HIT THE STREETS' }).click();
     await expect(host.locator('.fo-invite')).toBeVisible();
     const invite = await host.locator('[data-text="room"]').innerText(); const roomId = invite.replace(/^\s*\/\s*/, '').trim(); expect(roomId).not.toBe('');
     console.log(`Created private room ${roomId}`);
     await guest.goto(`${baseURL}/?room=${encodeURIComponent(roomId)}`);
     await guest.getByRole('textbox', { name: 'YOUR CALLSIGN' }).fill('Backup Unit');
-    await guest.getByRole('button', { name: 'REPORT TO DISPATCH' }).click();
+    await guest.getByRole('button', { name: 'HIT THE STREETS' }).click();
     await expect(host.locator('[data-scores] li')).toHaveCount(2); await expect(guest.locator('[data-scores] li')).toHaveCount(2);
     for (const viewer of [host, guest]) {
       await expect(viewer.locator('.fo-campaign-roster').getByText('PING / ms', { exact: true })).toBeVisible();
@@ -206,7 +217,7 @@ test('two browser clients create, join, start a live round and share confirmed s
       for (const nickname of ['Dispatch Host', 'Backup Unit']) await expect(viewer.locator('[data-scores]').getByLabel(new RegExp(`^${nickname} ping: \\d+ milliseconds$`))).toHaveText(/^\d+ ms$/);
     }
     await host.keyboard.press('Escape');
-    await expect(host.getByText('THE MATCH IS STILL LIVE.', { exact: false })).toBeVisible();
+    await expect(host.getByText('THE DISPATCH IS LIVE.', { exact: false })).toBeVisible();
     const tick = (await snapshot(host))!.serverTick;
     await expect.poll(async () => (await snapshot(host))!.serverTick).toBeGreaterThan(tick + 10);
     await expect(host.locator('[data-scores]')).toContainText('Backup Unit');

@@ -22,10 +22,9 @@ try {
   await expect.poll(() => host.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.renderer.environmentDispatchId)).toBe('loose-change');
   await host.getByRole('button', { name: 'START DISPATCH', exact: false }).click();
   await expect.poll(() => host.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.renderer.waterSurfaces)).toBe(6);
-  await host.reload(); await host.getByRole('textbox', { name: 'YOUR CALLSIGN' }).fill('Lighting host'); await host.getByRole('button', { name: 'CREATE ROOM' }).click();
-  await expect(host.locator('.fo-invite')).toBeVisible();
-  const roomId = (await host.locator('[data-text="room"]').innerText()).replace(/^\s*\/\s*/, '').trim();
-  await guest.goto(`http://127.0.0.1:5193/?room=${encodeURIComponent(roomId)}`); await guest.getByRole('button', { name: 'REPORT TO DISPATCH' }).click();
+  await expect.poll(() => host.evaluate(() => (window as any).__FENDER_DEBUG__?.snapshot.phase)).toBe('playing');
+  const roomId = await host.evaluate(() => (window as any).__FENDER_DEBUG__.identity.roomId);
+  await guest.goto(host.url()); await guest.getByRole('button', { name: 'HIT THE STREETS' }).click();
   await expect(host.locator('[data-scores] li')).toHaveCount(2);
   const room = matchMaker.getLocalRoomById(roomId)!, sim = (room as unknown as { sim: Simulation }).sim;
   const themes = ['noon', 'noon', 'dusk', 'dusk', 'night', 'noon', 'dusk', 'night', 'dusk', 'night'];
@@ -50,6 +49,6 @@ try {
   }
   await host.screenshot({ path: join(output, 'online-night.png') });
   expect(errors).toEqual([]);
-  await writeFile(join(output, 'evidence.json'), JSON.stringify({ browser: browser.version(), observations, errors, scope: 'Actual practice and two-browser Colyseus app; dispatch indices staged through authority checkpoints, not a human ten-dispatch playthrough.' }, null, 2));
+  await writeFile(join(output, 'evidence.json'), JSON.stringify({ browser: browser.version(), observations, errors, scope: 'Actual solo and two-browser unified Colyseus room; dispatch indices staged through authority checkpoints, not a human ten-dispatch playthrough.' }, null, 2));
   console.log(JSON.stringify({ output, dispatches: 10, reconnect: true, errors }));
 } finally { await browser.close(); await vite.close(); await server.gracefullyShutdown(false); }

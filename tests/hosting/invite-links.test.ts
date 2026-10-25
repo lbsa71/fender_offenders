@@ -1,3 +1,4 @@
+import { disposeTestRooms } from '../support/rooms';
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { Client, type Room } from '@colyseus/sdk';
 import { matchMaker, type Server } from '@colyseus/core';
@@ -21,7 +22,7 @@ async function until(predicate: () => boolean) {
   while (!predicate()) { if (performance.now() > deadline) throw new Error('Room cleanup did not complete'); await new Promise(resolve => setTimeout(resolve, 10)); }
 }
 beforeAll(async () => { server = await createGameServer(2696); });
-afterEach(async () => {
+afterEach(async () => { await disposeTestRooms();
   vi.restoreAllMocks();
   await Promise.all(rooms.splice(0).map(room => { room.reconnection.enabled = false; return room.connection.isOpen ? room.leave(true) : Promise.resolve(); }));
   await until(() => serverMetrics.rooms === 0);
@@ -67,7 +68,7 @@ it('puts simultaneous visitors to one stale invite in one room even with a one-r
 });
 it.each(['Restart01', 'z__fyegL'])('reuses invite %s after the server and its in-memory rooms restart', async code => {
   const first = await consume((await dispatch(code)).body);
-  await first.leave(true); await until(() => serverMetrics.rooms === 0);
+  await first.leave(true); await disposeTestRooms(); await until(() => serverMetrics.rooms === 0);
   await server.gracefullyShutdown(false); server = await createGameServer(2696);
   const second = await dispatch(code);
   expect(second.response.status).toBe(200);
@@ -82,7 +83,7 @@ it('preserves genuine capacity errors and allows retrying that invite after a sl
   const first = await consume((await dispatch('Occupied1')).body);
   const denied = await dispatch('WaitHere1');
   expect(denied.response.status).toBe(503); expect(denied.body).toEqual({ code: 503, error: 'Dispatch capacity reached' });
-  await first.leave(true); await until(() => serverMetrics.rooms === 0);
+  await first.leave(true); await disposeTestRooms(); await until(() => serverMetrics.rooms === 0);
   const retried = await dispatch('WaitHere1');
   expect(retried.response.status).toBe(200); expect((await consume(retried.body)).roomId).toBe('WaitHere1');
 });

@@ -58,10 +58,10 @@ test('online lobby broadcasts a garage reassignment and locks it when countdown 
   const host = await hostContext.newPage(), guest = await guestContext.newPage();
   const errors: string[] = []; for (const page of [host, guest]) page.on('pageerror', error => errors.push(error.message));
   try {
-    await host.goto(baseURL!); await host.getByRole('button', { name: 'CREATE ROOM' }).click();
+    await host.goto(baseURL!); await host.getByRole('button', { name: 'HIT THE STREETS' }).click();
     await expect(host.locator('.fo-invite')).toBeVisible();
     const roomId = (await host.locator('[data-text="room"]').innerText()).replace(/^\s*\/\s*/, '').trim();
-    await guest.goto(`${baseURL}/?room=${encodeURIComponent(roomId)}`); await guest.getByRole('button', { name: 'REPORT TO DISPATCH' }).click();
+    await guest.goto(`${baseURL}/?room=${encodeURIComponent(roomId)}`); await guest.getByRole('button', { name: 'HIT THE STREETS' }).click();
     await expect(host.locator('[data-scores] li')).toHaveCount(2);
     const before = await selection(host); await host.getByRole('button', { name: 'REASSIGN VEHICLE', exact: true }).click();
     const after = await selection(host); expect(after).not.toBe(before);

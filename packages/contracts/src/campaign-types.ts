@@ -5,6 +5,7 @@ export interface DispatchOutcome {
   dispatchIndex: number;
   outcome: CampaignOutcome;
   playerId: string;
+  callsign: string;
   elapsedTicks: number;
 }
 /** The room owns one campaign; results are ordered, immutable dispatch resolutions. */
