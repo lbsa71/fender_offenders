@@ -113,7 +113,7 @@ WebSocket is reliable/ordered. Packet-loss testing must model its stalls and ret
 - Client sends inputs, never desired position, damage, health, or score.
 - Server authenticates session membership, validates finite bounded fields, and enforces message size/rate limits.
 - Sequence numbers increase within a session epoch. Duplicate/old commands are ignored.
-- Each car consumes at most one command per simulation tick. Client sequence/tick values do not authorize additional elapsed simulation time.
+- Each car advances once per simulation tick. When delayed samples accumulate, consume older samples together using their latest held controls, retaining up to two queued samples for jitter. Apply siren edges by parity and recovery requests once; acknowledge every consumed sample. Client sequence/tick values never authorize additional elapsed simulation time.
 - Queue a small bounded input window; never fast-forward a player because its client submitted hundreds of commands.
 - Use a short hold of the last valid analog state to bridge normal jitter. After 100 ms without valid input, neutralize steering/throttle/fire; brake toward a safe stop. Safety/focus messages neutralize immediately.
 - If backlog exceeds the validated maximum, discard stale commands, advance the acknowledgment boundary for discarded commands, and rebase the client from authoritative state. Record this as a queue reset, not successful command execution.
@@ -124,7 +124,7 @@ WebSocket is reliable/ordered. Packet-loss testing must model its stalls and ret
 1. On each client simulation tick, generate an input command and apply it to the local prediction world.
 2. Save command and prediction history in a bounded ring buffer; batch commands for transport.
 3. On an authoritative update, locate the matching acknowledgment boundary and restore authoritative local-car state.
-4. Discard commands at or below that boundary and replay eligible unacknowledged commands in order.
+4. Discard commands at or below that boundary and replay eligible unacknowledged commands in order. Immediate prediction and replay stop six ticks (100 ms) beyond the latest authoritative tick; fresh control packets continue while movement waits for confirmation.
 5. Decay small visual corrections over roughly 50–100 ms. Snap large/invalid corrections and respawns; clear relevant histories.
 6. If history is insufficient or protocol/map versions change, perform a full resync instead of guessing.
 

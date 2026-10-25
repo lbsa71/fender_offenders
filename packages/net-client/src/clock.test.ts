@@ -212,3 +212,23 @@ it('bounds remote extrapolation at 100ms after snapshots stop', async () => {
     expect(first).toBeCloseTo(100 / 6 + 1, 3);
   } finally { await session.dispose(); }
 });
+
+it('bounds local movement and replay when fresh inputs outlast authoritative snapshots', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
+  const source = unpackSnapshot(snapshot(100)); source.local!.vehicle.velocity.z = 20;
+  wire.initial = packSnapshot(source);
+  const session = createOnlineSession('ws://clock-fixture', map);
+  const lead = () => session.sampleFrame()!.vehicles.find(vehicle => vehicle.entityId === 'local')!.pose.z - source.local!.vehicle.pose.z;
+  try {
+    await session.connect({ roomId: crypto.randomUUID(), nickname: 'Bounded local clock' });
+    for (let sequence = 0; sequence < 12; sequence++) session.submit({ sessionEpoch: source.sessionEpoch, sequence, clientTick: sequence, actions: { ...neutralActions(), throttle: 1 } });
+    expect(lead(), 'Local prediction must stop at its short extrapolation horizon').toBeLessThan(3);
+    vi.advanceTimersByTime(1000);
+    for (let sequence = 12; sequence < 24; sequence++) session.submit({ sessionEpoch: source.sessionEpoch, sequence, clientTick: sequence, actions: { ...neutralActions(), throttle: 1 } });
+    expect(lead(), 'Fresh controls must not keep moving an unconfirmed car during an outage').toBeLessThan(3);
+    const next = structuredClone(source); next.serverTick++; next.local!.lastConsumedSequence = 0;
+    wire.handlers.get('snapshot')!(packSnapshot(next));
+    expect(lead(), 'Replay must honor the same horizon as immediate prediction').toBeLessThan(3);
+    expect(session.getStats().pendingInputs).toBe(23);
+  } finally { await session.dispose(); }
+});

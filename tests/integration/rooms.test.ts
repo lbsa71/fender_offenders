@@ -107,6 +107,26 @@ describe('real Colyseus authority over local WebSockets', () => {
     expect(a.state!.local!.vehicle.pose).toEqual(a.history.find(s => s.local!.lastConsumedSequence === 0)!.local!.vehicle.pose);
   });
 
+  it.each([1, 2])('catches up to current controls while applying %i buffered siren edges exactly once', async toggles => {
+    const a = await peer(), room = matchMaker.getLocalRoomById(a.room.roomId);
+    room.setSimulationInterval(() => {});
+    const fixture = room as unknown as { step(): void; drivers: Map<string, { queue: InputCommand[] }> };
+    const sim = localSimulation(a), playing = sim.checkpoint();
+    playing.state.phase = 'playing'; playing.state.phaseEnd = playing.tick + 900; sim.restore(playing);
+    const commands = Array.from({ length: 6 }, (_, index) => command(a, { steer: index === 3 ? -1 : 1, sirenToggle: index > 0 && index <= toggles }));
+    a.room.send('input', { commands: commands.slice(0, 3) });
+    a.room.send('input', { commands: commands.slice(3) });
+    await until(() => fixture.drivers.get(a.room.sessionId)!.queue.length === 6, 'delayed control samples arrive');
+    fixture.step();
+    const current = sim.snapshot(a.room.sessionId).local!;
+    // Keep two samples for jitter; older held controls must not accumulate latency.
+    expect(current.lastConsumedSequence).toBe(3);
+    expect(current.driver.resolvedSteering).toBeLessThan(0);
+    expect(current.vehicle.sirenOn).toBe(toggles === 1);
+    fixture.step(); fixture.step(); fixture.step();
+    expect(sim.snapshot(a.room.sessionId).local!.vehicle.sirenOn).toBe(toggles === 1);
+  });
+
   it('bounds command backlog, acknowledges discarded commands and stops held fire after a stall', async () => {
     const a = await peer(); const before = serverMetrics.queueResets;
     for (let i = 0; i < 8; i++) a.room.send('input', { commands: Array.from({ length: 4 }, () => command(a, { throttle: 1 })) });

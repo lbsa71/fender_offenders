@@ -71,6 +71,8 @@ interface InputSource {
 
 Focus loss/device disconnect generates a session control `neutralize` request immediately and clears held state locally. The server still enforces stale-input neutralization if that request never arrives. A client cannot use neutralize/recover to stop authoritative momentum instantly.
 
+Input samples do not purchase extra physics ticks. Authority combines older queued samples into the latest held state when needed, retaining up to two samples for jitter. Combined siren toggles retain odd/even parity; a combined recovery request is applied once. The acknowledgment covers consumed samples, including replaced held states. The 12-sample flood guard and 100 ms stale-input braking remain. Client immediate prediction and replay stop six ticks beyond confirmed authority while continuing to send fresh controls. The steering queue is not a historical reenactment society.
+
 ## 3. State, configuration, and checkpoints
 
 ```ts

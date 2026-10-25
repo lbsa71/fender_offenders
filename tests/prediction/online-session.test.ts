@@ -4,7 +4,7 @@ import { matchMaker, type Server } from '@colyseus/core';
 import { createGameServer } from '../../apps/server/src/index.js';
 import { createOnlineSession } from '@fender/net-client';
 import { districtMap } from '@fender/content';
-import { neutralActions, packSnapshot, type SessionStatus } from '@fender/contracts';
+import { neutralActions, type SessionStatus } from '@fender/contracts';
 import type { Simulation } from '@fender/sim';
 import { serverMetrics } from '@fender/net-server';
 
@@ -28,15 +28,62 @@ afterEach(async () => { await disposeTestRooms(); await Promise.allSettled(sessi
 afterAll(async () => { await server?.gracefullyShutdown(false); });
 
 describe('real online prediction facade baseline', () => {
+  it('keeps a healthy solo input stream bounded when authority temporarily runs at twenty ticks per second', async () => {
+    const value = session(), joined = await value.connect({ roomId: crypto.randomUUID(), nickname: 'Slow authority', vehicleBodyId: 'patrol' });
+    const room = matchMaker.getLocalRoomById(joined.roomId);
+    // Drive the actual room's real step at a controlled cadence. Network,
+    // packet flushing, prediction and physics remain the production adapters.
+    room.setSimulationInterval(undefined);
+    const controlled = room as unknown as { sim: Simulation; step(): void; publish(client: unknown, full?: boolean): void };
+    const checkpoint = controlled.sim.checkpoint();
+    checkpoint.state.phase = 'playing'; checkpoint.state.phaseEnd = checkpoint.tick + 18000;
+    checkpoint.state.campaign = undefined; checkpoint.state.pursuit = undefined;
+    checkpoint.state.records = checkpoint.state.records.filter(record => record.vehicle.playerId === joined.playerId);
+    const officer = checkpoint.state.records[0]!;
+    officer.vehicle.pose = { x: 0, z: -76, yaw: 0 }; officer.vehicle.velocity = { x: 0, z: 20, yawRate: 0 };
+    officer.vehicle.protectedUntilTick = 0; officer.vehicle.discontinuityId++;
+    controlled.sim.restore(checkpoint);
+    controlled.publish(room.clients.find(client => client.sessionId === joined.playerId), true);
+    await until(() => value.getSnapshot()!.phase === 'playing', 'controlled solo authority baseline');
+    const resetBefore = serverMetrics.queueResets;
+    const resets: string[] = [], leads: number[] = [], reverseSteps: number[] = [];
+    const started = performance.now(); let sequence = 0, previousZ: number | null = null;
+    value.onSnapshot(snapshot => { if (snapshot.resetReason === 'input-backlog') resets.push(snapshot.resetReason); });
+    let authoritySteps = 0;
+    const authorityTimer = setInterval(() => { controlled.step(); authoritySteps++; }, 50);
+    const inputTimer = setInterval(() => {
+      submit(value, sequence++);
+      const frame = value.sampleFrame()!, local = frame.vehicles.find(vehicle => vehicle.entityId === joined.localEntityId)!;
+      if (performance.now() - started >= 1000) {
+        leads.push(local.pose.z - controlled.sim.authority(joined.playerId)!.vehicle.pose.z);
+        if (previousZ !== null) reverseSteps.push(Math.max(0, previousZ - local.pose.z));
+      }
+      previousZ = local.pose.z;
+    }, 1000 / 60);
+    try {
+      await until(() => authoritySteps >= 60, 'sixty slow-authority ticks', 10000);
+      expect(controlled.sim.authority(joined.playerId)!.vehicle.pose.z).toBeGreaterThan(-56);
+      expect(resets, 'A healthy steady input stream must not repeatedly invoke the flood-reset path').toEqual([]);
+      expect(serverMetrics.queueResets - resetBefore).toBe(0);
+      expect(Math.max(...leads), 'Slow authority must not let prediction run several metres ahead').toBeLessThan(3);
+      expect(Math.max(...reverseSteps), 'A clear straight solo drive must not snap backward after warm-up').toBeLessThan(.5);
+    } finally { clearInterval(authorityTimer); clearInterval(inputTimer); }
+  });
+
   it('moves the local render frame synchronously before any authoritative acknowledgement', async () => {
     const value = session(), statuses: SessionStatus[] = []; value.onStatus(s => statuses.push(s));
     const join = await value.connect({ roomId: crypto.randomUUID(), nickname: 'Predictor' });
+    // The genuine countdown is an ordered barrier after initial resync. Only
+    // fast-forward time; preserve the real publisher's pause/reset fields.
+    value.request('start-round');
+    await until(() => value.getSnapshot()!.phase === 'countdown', 'real dispatch countdown');
     // Campaign briefings freeze movement. Exercise prediction only after authority starts play.
     const room = matchMaker.getLocalRoomById(join.roomId), sim = (room as unknown as { sim: Simulation }).sim;
     const playing = sim.checkpoint(); playing.state.phase = 'playing'; playing.state.phaseEnd = playing.tick + 18000; sim.restore(playing);
-    room.clients.find(client => client.sessionId === join.playerId)!.send('snapshot', packSnapshot({ ...sim.snapshot(join.playerId), resetReason: 'resync' }));
+    (room as unknown as { publish(client: unknown, full?: boolean): void }).publish(room.clients.find(client => client.sessionId === join.playerId), true);
     await until(() => value.getSnapshot()!.phase === 'playing', 'authoritative campaign play begins');
     const snapshot = value.getSnapshot()!, confirmed = structuredClone(snapshot.local!.vehicle.pose), tick = snapshot.serverTick;
+    expect(snapshot.paused, 'The fixture must retain the room pause state to avoid a synthetic reset on the next normal snapshot').toBe(false);
     submit(value, 0);
     const frame = value.sampleFrame()!, predicted = frame.vehicles.find(v => v.entityId === frame.localEntityId)!;
     expect(Math.hypot(predicted.pose.x - confirmed.x, predicted.pose.z - confirmed.z)).toBeGreaterThan(0.001);
