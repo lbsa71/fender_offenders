@@ -3,7 +3,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 RUN npm install --global pnpm@11.25.0
 COPY . .
-RUN pnpm install --frozen-lockfile && pnpm check && pnpm test && pnpm build
+RUN pnpm install --frozen-lockfile && pnpm build
 
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app

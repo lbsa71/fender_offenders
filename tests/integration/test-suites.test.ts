@@ -36,3 +36,18 @@ it('keeps browser checks local while CI runs both headless suites and production
   expect(workflow).toContain('pnpm test:integration');
   expect(workflow).toContain('pnpm test:deploy');
 });
+
+it('packages the app without rerunning CI validation on the hosting builder', () => {
+  const dockerfile = readFileSync('infra/Dockerfile', 'utf8');
+  const workflow = readFileSync('.github/workflows/ci.yml', 'utf8');
+  const blueprint = readFileSync('render.yaml', 'utf8');
+  expect(dockerfile).toContain('pnpm install --frozen-lockfile');
+  expect(dockerfile).toContain('pnpm build');
+  expect(dockerfile).not.toMatch(/pnpm\s+(?:check|test(?::[\w-]+)?)(?:\s|$)/);
+  expect(workflow).toContain('needs: verify');
+  expect(workflow).toContain('pnpm check');
+  expect(workflow).toContain('pnpm test:unit');
+  expect(workflow).toContain('pnpm test:integration');
+  expect(workflow).toContain('pnpm test:deploy');
+  expect(blueprint).toContain('autoDeployTrigger: checksPass');
+});
