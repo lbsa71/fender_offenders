@@ -92,14 +92,12 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   shell.innerHTML = `
     <div class="fo-grain" aria-hidden="true"></div>
     <header class="fo-top"><a class="fo-wordmark" href="#" aria-label="Fender Offenders home"><span class="fo-badge">FO</span><span>FENDER<br>OFFENDERS<span class="fo-edition">MOTOR DIVISION / 01</span></span></a><div class="fo-top-right"><span class="fo-connection"><i></i><span data-text="connection">LOCAL DISPATCH</span></span><button class="fo-icon" data-action="pause" aria-label="Open pause menu">Ⅱ</button></div></header>
-    <section class="fo-hud" hidden aria-label="Driving dashboard"><div class="fo-round"><span data-text="phase">FREE PATROL</span><strong data-text="timer">05:00</strong></div><aside class="fo-scoreboard"><div class="fo-label">DISPATCH LEADERBOARD</div><ol data-scores></ol></aside><div class="fo-instruments"><div class="fo-speed"><strong data-text="speed">0</strong><span>KM/H</span></div><div class="fo-car-state"><div class="fo-label">UNIT INTEGRITY <b data-text="health">100%</b></div><div class="fo-health"><i></i></div><span data-text="ammo">AUTO / UNLIMITED AMMO</span></div></div><div class="fo-prompts" data-text="prompts">WASD DRIVE · SHIFT DRIFT · SPACE FIRE</div><div class="fo-recover" hidden><span>RECOVERING UNIT</span><progress max="1" value="0"></progress></div><div class="fo-pursuit" hidden><span data-text="pursuit">INTERCEPT THE SUSPECT</span><progress max="1" value="0"></progress></div><div class="fo-center-callout" hidden><span data-text="callout-label">STAND BY</span><strong data-text="callout">3</strong></div><button class="fo-invite" data-action="invite">COPY INVITE <span data-text="room"></span></button><button class="fo-start" data-action="start" hidden>START ROUND →</button></section>
-    <div class="fo-menu-backdrop"></div><main class="fo-menu"><div class="fo-hero" aria-hidden="true"></div><section class="fo-panel" aria-label="Dispatch menu"><div class="fo-panel-heading"><span class="fo-kicker" data-text="panel-kicker">CITY MOTOR DIVISION</span><span class="fo-panel-no">FORM 01–FO</span></div><div class="fo-home"><h2>You're on duty.</h2><p class="fo-muted">Pick a callsign. Take the keys.</p><label class="fo-field">YOUR CALLSIGN<input name="nickname" maxlength="20" autocomplete="nickname" spellcheck="false" value="Officer Rookie" placeholder="Officer Rookie"></label><button class="fo-primary" data-action="practice"><span>HIT THE STREETS<small>Your room / backup can join anytime</small></span><b>↗</b></button><div class="fo-divider"><span>OR BRING BACKUP</span></div><div class="fo-actions"><button class="fo-secondary" data-action="create" aria-label="START A NEW ROOM">START A NEW ROOM <span>+</span></button><button class="fo-secondary" data-action="join-toggle" aria-label="OPEN ANOTHER ROOM">OPEN ANOTHER ROOM <span>→</span></button></div><form class="fo-join" hidden><label class="fo-field">ROOM CODE OR INVITE LINK<input name="room" maxlength="250" autocomplete="off" spellcheck="false" placeholder="Paste a code or invite link"></label><button class="fo-primary" type="submit" aria-label="OPEN ROOM">OPEN ROOM →</button></form><div class="fo-room-note">SHARED CAMPAIGN · 1–8 DRIVERS · ARREST OR WRECK</div></div><div class="fo-pause" hidden><h2>Taking a breather?</h2><p class="fo-muted" data-text="pause-description">Your patrol is paused.</p><button class="fo-primary" data-action="resume">BACK ON PATROL →</button><button class="fo-secondary" data-action="leave">END PATROL <span>↗</span></button></div><div class="fo-settings" hidden><h2>Fine tuning.</h2><p class="fo-muted">Make this patrol yours.</p><div class="fo-settings-list"><label>Master volume<input type="range" data-setting="masterVolume" min="0" max="1" step=".05"></label><label>Music<input type="range" data-setting="musicVolume" min="0" max="1" step=".05"></label><label>Effects<input type="range" data-setting="effectsVolume" min="0" max="1" step=".05"></label><label>Graphics<select data-setting="quality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label><label>Reduce camera shake<input type="checkbox" data-setting="reducedShake"></label><label>Reduce flashes<input type="checkbox" data-setting="reducedFlash"></label><label>Controller vibration<input type="checkbox" data-setting="vibration"></label><label>Stick dead zone<input type="range" data-setting="stickDeadzone" min=".05" max=".5" step=".01"></label><label>Trigger dead zone<input type="range" data-setting="triggerDeadzone" min="0" max=".5" step=".01"></label><label>Steering sensitivity<input type="range" data-setting="sensitivity" min=".4" max="1.8" step=".05"></label></div><details class="fo-bindings"><summary>KEYBOARD BINDINGS</summary><div data-bindings></div></details><button class="fo-secondary" data-action="settings-back">SAVE & BACK <span>↩</span></button></div><div class="fo-results" hidden><span class="fo-kicker">CASE CLOSED</span><h2 data-text="result-title">Patrol complete.</h2><p class="fo-muted">Final standings / confirmed by dispatch</p><ol data-results></ol><button class="fo-primary" data-action="rematch">ANOTHER ROUND →</button><button class="fo-secondary" data-action="leave">BACK TO DISPATCH <span>↗</span></button></div><div class="fo-notice" role="status" aria-live="polite" hidden></div><footer class="fo-panel-footer"><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button><span class="fo-input-hint" data-text="input-hint">↑ ↓ SELECT · ENTER CONFIRM</span></footer></section></main><footer class="fo-bottom"><span>MINOR INFRACTIONS. MAJOR COLLISIONS.</span><span>DRIVE FAST. FILE LATER.</span></footer><div class="fo-toast" role="status" aria-live="polite" hidden></div>`;
+    <section class="fo-hud" hidden aria-label="Driving dashboard"><div class="fo-round"><span data-text="phase">FREE PATROL</span><strong data-text="timer">05:00</strong></div><aside class="fo-scoreboard"><div class="fo-label">DISPATCH LEADERBOARD</div><ol data-scores></ol></aside><div class="fo-instruments"><div class="fo-speed"><strong data-text="speed">0</strong><span>KM/H</span></div><div class="fo-car-state"><div class="fo-label">UNIT INTEGRITY <b data-text="health">100%</b></div><div class="fo-health"><i></i></div><span data-text="ammo">AUTO / UNLIMITED AMMO</span></div></div><div class="fo-prompts" data-text="prompts">WASD DRIVE · SHIFT DRIFT · SPACE FIRE</div><div class="fo-recover" hidden><span>RECOVERING UNIT</span><progress max="1" value="0"></progress></div><div class="fo-pursuit" hidden><span data-text="pursuit">INTERCEPT THE SUSPECT</span><progress max="1" value="0"></progress></div><div class="fo-center-callout" hidden><span data-text="callout-label">STAND BY</span><strong data-text="callout">3</strong></div><button class="fo-start" data-action="start" hidden>START ROUND →</button></section>
+    <div class="fo-menu-backdrop"></div><main class="fo-menu"><div class="fo-hero" aria-hidden="true"></div><section class="fo-panel" aria-label="Dispatch menu"><div class="fo-panel-heading"><span class="fo-kicker" data-text="panel-kicker">CITY MOTOR DIVISION</span><span class="fo-panel-no">FORM 01–FO</span></div><div class="fo-home"><h2>You're on duty.</h2><p class="fo-muted">Pick a callsign. Take the keys.</p><label class="fo-field">YOUR CALLSIGN<input name="nickname" maxlength="20" autocomplete="nickname" spellcheck="false" value="Officer Rookie" placeholder="Officer Rookie"></label><button class="fo-primary" data-action="practice"><span>HIT THE STREETS<small>Play. Share the URL anytime.</small></span><b>↗</b></button></div><div class="fo-pause" hidden><h2>Taking a breather?</h2><p class="fo-muted" data-text="pause-description">Your patrol is paused.</p><button class="fo-primary" data-action="resume">BACK ON PATROL →</button><button class="fo-secondary" data-action="leave">END PATROL <span>↗</span></button></div><div class="fo-settings" hidden><h2>Fine tuning.</h2><p class="fo-muted">Make this patrol yours.</p><div class="fo-settings-list"><label>Master volume<input type="range" data-setting="masterVolume" min="0" max="1" step=".05"></label><label>Music<input type="range" data-setting="musicVolume" min="0" max="1" step=".05"></label><label>Effects<input type="range" data-setting="effectsVolume" min="0" max="1" step=".05"></label><label>Graphics<select data-setting="quality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label><label>Reduce camera shake<input type="checkbox" data-setting="reducedShake"></label><label>Reduce flashes<input type="checkbox" data-setting="reducedFlash"></label><label>Controller vibration<input type="checkbox" data-setting="vibration"></label><label>Stick dead zone<input type="range" data-setting="stickDeadzone" min=".05" max=".5" step=".01"></label><label>Trigger dead zone<input type="range" data-setting="triggerDeadzone" min="0" max=".5" step=".01"></label><label>Steering sensitivity<input type="range" data-setting="sensitivity" min=".4" max="1.8" step=".05"></label></div><details class="fo-bindings"><summary>KEYBOARD BINDINGS</summary><div data-bindings></div></details><button class="fo-secondary" data-action="settings-back">SAVE & BACK <span>↩</span></button></div><div class="fo-results" hidden><span class="fo-kicker">CASE CLOSED</span><h2 data-text="result-title">Patrol complete.</h2><p class="fo-muted">Final standings / confirmed by dispatch</p><ol data-results></ol><button class="fo-primary" data-action="rematch">ANOTHER ROUND →</button><button class="fo-secondary" data-action="leave">BACK TO DISPATCH <span>↗</span></button></div><div class="fo-notice" role="status" aria-live="polite" hidden></div><footer class="fo-panel-footer"><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button><span class="fo-input-hint" data-text="input-hint">↑ ↓ SELECT · ENTER CONFIRM</span></footer></section></main><button class="fo-invite" data-action="invite">INVITE URL</button><footer class="fo-bottom"><span>MINOR INFRACTIONS. MAJOR COLLISIONS.</span><span>DRIVE FAST. FILE LATER.</span></footer><div class="fo-toast" role="status" aria-live="polite" hidden></div>`;
   root.append(shell);
   const idleWarning=doc.createElement('section');idleWarning.className='fo-idle-warning';idleWarning.setAttribute('role','alert');idleWarning.hidden=true;idleWarning.innerHTML='<p>Your unit is idle. You will disconnect in one minute.</p><button data-action="stay-active">STAY ON PATROL</button>';shell.append(idleWarning);
   const one = <T extends HTMLElement = HTMLElement>(selector: string) => shell.querySelector<T>(selector)!;
   const all = <T extends HTMLElement = HTMLElement>(selector: string) => [...shell.querySelectorAll<T>(selector)];
-  const menuInvite = doc.createElement('button'); menuInvite.className = 'fo-text-button fo-menu-invite'; menuInvite.dataset.action = 'invite'; menuInvite.textContent = 'INVITE BACKUP'; menuInvite.hidden = true;
-  one('.fo-panel-footer').insertBefore(menuInvite, one('.fo-input-hint'));
   const targetBadge = doc.createElement('div'); targetBadge.className = 'fo-target-indicator'; targetBadge.hidden = true; targetBadge.setAttribute('role', 'img');
   targetBadge.innerHTML = '<span class="fo-target-arrow" aria-hidden="true"><svg viewBox="0 0 44 44"><path class="fo-target-chevron" d="m8 23 14-14 14 14"/><path class="fo-target-chevron" d="m8 36 14-14 14 14"/></svg></span><strong class="fo-target-label">WANTED SUSPECT</strong><span class="fo-target-distance"></span>';
   shell.append(targetBadge);
@@ -110,9 +108,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const arrestHelp = doc.createElement('small'); arrestHelp.className = 'fo-arrest-help'; arrestHelp.textContent = 'Stay close & match speed · 3s'; one('.fo-pursuit').append(arrestHelp);
   const resultOutcome = doc.createElement('p'); resultOutcome.className = 'fo-result-outcome'; resultOutcome.hidden = true; one('.fo-results h2').after(resultOutcome);
   one('.fo-home .fo-muted').textContent = 'Ten connected dispatches. Arrest suspects or stop their getaway cars.';
-  one('.fo-home [data-action="practice"] small').textContent = 'Your room / backup can join anytime';
-  one('.fo-home .fo-divider span').textContent = 'CALL IN BACKUP ANYTIME';
-  one('.fo-home .fo-room-note').textContent = 'SHARED CAMPAIGN · 1–8 DRIVERS · ARREST OR WRECK';
+  one('.fo-home [data-action="practice"] small').textContent = 'Play. Share the URL anytime.';
   const garage = doc.createElement('section'); garage.className = 'fo-garage'; garage.setAttribute('aria-label', 'Assigned vehicle garage');
   garage.innerHTML = `<div class="fo-garage-heading"><span class="fo-kicker">CITY MOTOR POOL / YOUR ASSIGNED UNIT</span><h1>TAKE THE KEYS.</h1><h2 data-text="vehicle-name"></h2><span class="fo-vehicle-role" data-text="vehicle-role"></span></div><div class="fo-garage-card"><div class="fo-garage-stats"><div><span>ARMOR</span><strong data-text="vehicle-armor"></strong></div><div><span>TOP SPEED</span><strong data-text="vehicle-speed"></strong></div><div><span>ACCELERATION</span><meter aria-label="Vehicle acceleration" min="0" max="1" value="0"></meter></div><div><span>HANDLING</span><meter aria-label="Vehicle handling" min="0" max="1" value="0"></meter></div></div><p data-text="vehicle-description"></p><button type="button" data-action="reassign">REASSIGN VEHICLE</button><span class="fo-garage-note">LUCK OF THE MOTOR POOL. MAKE IT YOURS.</span></div>`;
   shell.append(garage);
@@ -151,7 +147,6 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const persistCallsign = () => { const name = normalizeCallsign(nickname.value); if (name) try { view?.localStorage.setItem('fender-callsign-v1', JSON.stringify({ nickname: name })); } catch { /* Callsigns also work without storage. */ } return name; };
   persistCallsign();
   const reroll = doc.createElement('button'); reroll.type = 'button'; reroll.className = 'fo-reroll-callsign'; reroll.dataset.action = 'reroll-callsign'; reroll.textContent = 'REROLL CALLSIGN'; nickname.closest('.fo-field')!.after(reroll);
-  const roomInput = one<HTMLInputElement>('[name="room"]');
   const notify = (message: string) => { const node = one('.fo-notice'); node.textContent = message; node.hidden = !message; };
   const persist = () => { shell.classList.toggle('fo-reduced-motion', settings.reducedShake); try { view?.localStorage.setItem('fender-settings-v1', JSON.stringify(settings)); } catch { /* Optional persistence. */ } callbacks.onSettings?.(structuredClone(settings)); };
   function focusFirst() { const focusable = visibleControls(); (focusable.find(node => node.matches('.fo-primary')) ?? focusable[0])?.focus({ preventScroll: true }); }
@@ -305,17 +300,13 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     updateTargetBadge();
     if (menu !== null) focusFirst();
   }
-  function parseRoom(value: string): string {
-    const cleaned = value.trim();
-    try { const url = new URL(cleaned); return url.searchParams.get('room') ?? url.hash.replace(/^#/, '') ?? ''; } catch { return cleaned.replace(/^#/, ''); }
-  }
-  async function play(openAnother = false) {
+  async function play() {
     if (pending) return;
     const name = persistCallsign(); const url = new URL(view?.location.href ?? 'http://localhost');
-    const roomId = openAnother ? parseRoom(roomInput.value) : url.searchParams.get('room') ?? '';
+    const roomId = url.searchParams.get('room') ?? '';
     if (!name) { notify('Your unit needs a callsign.'); nickname.focus(); return; }
     nickname.value = name;
-    if (!isInviteCode(roomId)) { notify(errorMessages['room-missing']); roomInput.focus(); return; }
+    if (!isInviteCode(roomId)) { notify(errorMessages['room-missing']); nickname.focus(); return; }
     url.searchParams.set('room',roomId); view?.history.replaceState(null,'',url);
     pending = true; notify('Contacting dispatch…'); all<HTMLButtonElement>('.fo-home button').forEach(button => { button.disabled = true; });
     updateGarage();
@@ -356,8 +347,6 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
         nickname.value = next; persistCallsign(); break;
       }
       case 'reassign': if (canReassign()) { vehicle = rollVehicle(vehicle); awaitingVehicle = lobby() ? vehicle : null; persistVehicle(); updateGarage(); callbacks.onVehicleChange?.(vehicle); toast('NEW KEYS. SAME QUESTIONABLE DEPARTMENT.'); } break;
-      case 'create': { const url=new URL(view?.location.href ?? 'http://localhost');url.searchParams.set('room',crypto.randomUUID());view?.history.replaceState(null,'',url);void play();break; }
-      case 'join-toggle': hide('.fo-join', !one('.fo-join').hidden); roomInput.focus(); break;
       case 'pause': if (model.snapshot) showMenu(menu === null ? 'pause' : null); break;
       case 'resume': showMenu(null); callbacks.onResume?.(); break;
       case 'leave': resultDismissed = true; callbacks.onLeave?.(); model = {}; showMenu('home'); hide('.fo-hud', true); notify(''); break;
@@ -366,14 +355,19 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
       case 'start': callbacks.onStartRound?.(); break;
       case 'campaign-start': if (canDispatch()) callbacks.onStartRound?.(); break;
       case 'rematch': callbacks.onRematch?.(); break;
-      case 'invite': { const url = new URL(view?.location.href ?? 'http://localhost'); url.searchParams.set('room', model.roomId ?? ''); void view?.navigator.clipboard?.writeText(url.href).then(() => toast('INVITE LINK COPIED. CALL IN BACKUP.')).catch(() => toast(`ROOM CODE: ${model.roomId ?? ''}`)); break; }
+      case 'invite': void copyInvite(); break;
     }
   };
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
   let persistentToast=false,lastNoticeId:number|null=null;
   function clearToast(){clearTimeout(toastTimer);one('.fo-toast').hidden=true;persistentToast=false;}
   function toast(message: string, persistent=false) { const node = one('.fo-toast'); node.textContent = message; node.hidden = false; clearTimeout(toastTimer);persistentToast=persistent;if(!persistent)toastTimer=setTimeout(clearToast,3500); }
-  const submit = (event: SubmitEvent) => { event.preventDefault(); void play(true); };
+  async function copyInvite() {
+    const url = view?.location.href, clipboard = view?.navigator.clipboard;
+    const manual = () => toast('Copy this page’s address to invite a friend.');
+    if (!url || !clipboard?.writeText) { manual(); return; }
+    try { await clipboard.writeText(url); toast('INVITE URL COPIED.'); } catch { manual(); }
+  }
   const remapKey = (event: KeyboardEvent) => {
     if (!bindingAction) return;
     event.preventDefault(); event.stopImmediatePropagation();
@@ -381,7 +375,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if (event.code !== 'Escape' && !['Enter', 'Tab'].includes(event.code)) settings.bindings[action] = [event.code];
     one(`[data-binding="${action}"]`).textContent = (settings.bindings[action] ?? bindingDefaults[action] ?? []).join(' / ').replaceAll('Key', ''); persist();
   };
-  shell.addEventListener('click', click); shell.addEventListener('input', change); one('form').addEventListener('submit', submit); doc.addEventListener('keydown', remapKey, true);
+  shell.addEventListener('click', click); shell.addEventListener('input', change); doc.addEventListener('keydown', remapKey, true);
   const scoreRows = new Map<string, HTMLLIElement>();
   const resultRows = new Map<string, HTMLLIElement>();
   const campaignRosterRows = new Map<string, HTMLLIElement>();
@@ -447,8 +441,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     connection.classList.toggle('fo-connection-connecting', connecting);
     write('connection', !remoteConnection ? 'LOCAL DISPATCH' : reconnecting ? 'Reconnecting…' : connectionLost ? 'Connection lost' : connecting ? 'Connecting…' : `CONNECTED${model.pingMs === undefined ? '' : ` / ${Math.round(model.pingMs)} MS`}`);
     shell.classList.toggle('fo-reconnecting', reconnecting);
-    write('room', model.roomId ? ` / ${model.roomId}` : ''); hide('.fo-invite', !model.roomId || model.mode !== 'online');
-    menuInvite.hidden = !model.roomId || model.mode !== 'online';
+
     hide('.fo-start', !snapshot || snapshot.phase !== 'lobby' || model.mode !== 'online' || model.canStart === false || Boolean(snapshot.campaign));
     write('prompts', model.device === 'gamepad' ? 'LEFT STICK DRIVE · RT/LT DRIVE/BRAKE · A DRIFT · RB FIRE · X SIREN · HOLD Y RECOVER' : 'WASD DRIVE · SHIFT DRIFT · SPACE FIRE · E SIREN · HOLD R RECOVER');
     write('input-hint', model.device === 'gamepad' ? '↕ SELECT · A CONFIRM · B BACK' : '↑ ↓ SELECT · ENTER CONFIRM');
@@ -494,7 +487,6 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
       if (bindingAction) { bindingAction = null; return; }
       if (menu === 'settings') showMenu(previousMenu);
       else if (model.snapshot && !hasResult()) { showMenu(menu === null ? 'pause' : null); if (menu === null) callbacks.onResume?.(); }
-      else if (!one('.fo-join').hidden) hide('.fo-join', true);
       return;
     }
     if (menu === null && !lobby()) return;
@@ -510,9 +502,6 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
       focused.selectedIndex = Math.max(0, Math.min(focused.options.length - 1, focused.selectedIndex + (action === 'left' ? -1 : 1))); focused.dispatchEvent(new Event('input', { bubbles: true }));
     }
   }
-  // Invite links prefill the join flow, while preserving an intentional start action.
-  const invitedRoom = new URLSearchParams(view?.location.search ?? '').get('room');
-  if (invitedRoom) roomInput.value = invitedRoom;
   showMenu('home'); shell.classList.toggle('fo-reduced-motion', settings.reducedShake); callbacks.onSettings?.(structuredClone(settings));
   return { update, showMenu, navigate, setTargetIndicator, getVehicle: () => vehicle, getSettings: () => structuredClone(settings), setSettings: (next: Partial<UiSettings>) => {
     settings = { ...settings, ...next };

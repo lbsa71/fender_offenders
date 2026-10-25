@@ -21,7 +21,7 @@ pnpm dev
 
 Open [the game on port 5173](http://127.0.0.1:5173). Vite serves the client; the authoritative game server listens on `127.0.0.1:2567`. Exit the development command to stop its child processes. [Environment examples](.env.example) contain local defaults and no credentials.
 
-Opening the bare URL assigns a random room URL without allocating a server simulation. Choose **Hit the streets**, read the briefing, change your assigned car if desired, then choose **Start dispatch**. One officer can start; any connected officer can proceed. Copy the room link to bring backup during play. **Start a new room** and **Open another room** provide fresh and existing campaigns. Localhost links work on this machine; use the public preview to invite friends on other machines.
+Opening the bare URL assigns a random room URL without allocating a server simulation. Choose **Hit the streets**, read the briefing, change your assigned car if desired, then choose **Start dispatch**. One officer can start; any connected officer can proceed. Copy the address bar or click **Invite URL** to bring friends into the same game. To open a fresh room, visit the bare URL again. Localhost links work on this machine; use the public preview to invite friends on other machines.
 
 Empty rooms pause for up to 15 minutes; returning resumes their campaign. At capacity the oldest eligible empty room can be reclaimed sooner. Reusable links survive disposal and server restarts by opening a fresh campaign under the same code. Legacy eight-character codes are supported alongside current IDs. Joining retries a room that disappears during reservation, without changing the link; genuine full-room or hosting-capacity errors still require a free slot.
 
@@ -40,7 +40,7 @@ Empty rooms pause for up to 15 minutes; returning resumes their campaign. At cap
 
 A lone officer opening a menu or hiding the tab pauses the server world. Backup joining resumes it with a notice. With multiple officers, menus neutralize only that driver's controls. Empty worlds freeze, including their dispatch clocks. Idle players receive a warning at 14 minutes and are disconnected at 15; heartbeats do not count as activity. See [room sessions](spec/ROOM_SESSIONS.md) for retention, reconnect and storage rules. Controller coverage currently uses synthetic standard-mapped devices; physical-controller handling and the full browser/OS matrix remain open. Music and vibration settings do not establish a shipped soundtrack or tested haptics.
 
-Share an ongoing solo patrol with **Copy invite** on the HUD or **Invite backup** in the pause menu. Friends enter that same live campaign, keeping your earned leads, score, car and dispatch timer intact. The menu invite is also available in settings and results, with keyboard/controller navigation. Backup joins the patrol already underway.
+The single **Invite URL** button stays available before entry, during play and in menus. It copies the current address; friends enter that same campaign with your earned leads, score, car and dispatch timer intact. Backup joins the patrol already underway.
 
 Your first visit randomly assigns a patrol sedan, interceptor, roadster, army 4×4, ambulance or fire-chief SUV. The garage saves the assignment in this browser and shows the car on a rotating turntable, with its strengths and trade-offs. **Reassign vehicle** rolls a different car at home or in every dispatch briefing, beside the target's mugshot and assigned car. The choice locks at countdown; reconnects and respawns preserve it. Clearing browser storage starts a new garage assignment.
 
@@ -80,7 +80,7 @@ Twenty-four cosmetic pedestrians walk sidewalks, wait for safe crossing gaps and
 | Pause / settings | Escape | Menu / Start |
 | Menu navigation | Arrows, Enter, Escape; Tab for fields | D-pad / stick, A confirm, B back |
 
-Pulling the stick backward brakes a forward-moving car before reversing, just like the left trigger. Stick and trigger input combine without adding extra acceleration. Nickname and room-code text entry use the keyboard. Unknown controller mappings display a keyboard-fallback message rather than guessing button assignments.
+Pulling the stick backward brakes a forward-moving car before reversing, just like the left trigger. Stick and trigger input combine without adding extra acceleration. Callsign text entry uses the keyboard. Unknown controller mappings display a keyboard-fallback message rather than guessing button assignments.
 
 ## Developer commands
 

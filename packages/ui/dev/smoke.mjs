@@ -96,9 +96,8 @@ try {
   assert.equal(await page.evaluate(() => window.fixture.input.sample().throttle), 0);
   await page.keyboard.up('w');
   await page.getByRole('button', { name: 'END PATROL' }).click();
-  await page.getByRole('button', { name: 'OPEN ANOTHER ROOM', exact: false }).click();
-  await page.getByRole('textbox', { name: 'ROOM CODE OR INVITE LINK' }).fill('http://localhost/?room=ABC12345');
-  await page.getByRole('button', { name: 'OPEN ROOM' }).click();
+  await page.goto('http://127.0.0.1:5181/packages/ui/dev/index.html?room=ABC12345');
+  await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
   assert.equal(await page.evaluate(() => window.lastPlay.roomId), 'ABC12345');
   await page.evaluate(() => window.fixture.ui.update({ snapshot: { ...window.fixture.snapshot, phase: 'results', scores: [{playerId:'you',nickname:'<img src=x onerror=alert(1)>',score:3,wrecks:1,connection:'connected'}] } }));
   await page.getByRole('heading', { name: 'Patrol complete.' }).waitFor();

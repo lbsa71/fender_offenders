@@ -2,16 +2,33 @@ import { expect, test, createGameContext } from './fixtures';
 import type { Page } from '@playwright/test';
 const state = (page:Page) => page.evaluate(() => (window as any).__FENDER_DEBUG__?.snapshot);
 
-test('opens another room or starts fresh through the unified entry controls',async({page})=>{
-  await page.goto('/');
-  await page.getByRole('button',{name:'OPEN ANOTHER ROOM',exact:true}).click();
-  await page.getByRole('textbox',{name:'ROOM CODE OR INVITE LINK'}).fill('https://example.com/?room=UnifiedCase1');
-  await page.getByRole('button',{name:'OPEN ROOM',exact:true}).click();
-  await expect(page).toHaveURL(/room=UnifiedCase1$/);await expect.poll(async()=>(await state(page))?.phase).toBe('lobby');
-  await page.keyboard.press('Escape');await page.getByRole('button',{name:'END PATROL'}).click();
-  await page.getByRole('button',{name:'START A NEW ROOM',exact:true}).click();
-  await expect(page).not.toHaveURL(/room=UnifiedCase1$/);
-  await expect.poll(async()=>(await state(page))?.campaign?.dispatchIndex).toBe(0);
+test('offers one invite URL action and one entry action without room-management controls',async({page})=>{
+  await page.addInitScript(()=>{
+    (window as any).firstAddress=location.href;
+    Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async(text:string)=>{(window as any).copiedInvite=text;}}});
+  });
+  await page.goto('/?theme=dusk#patrol');
+  await expect(page.getByRole('heading',{name:"You're on duty."})).toBeVisible();
+  await expect(page.getByRole('button',{name:'START A NEW ROOM',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'OPEN ANOTHER ROOM',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('textbox',{name:'ROOM CODE OR INVITE LINK'})).toHaveCount(0);
+  const invite=page.getByRole('button',{name:'INVITE URL',exact:true});await expect(invite).toHaveCount(1);
+  const assigned=new URL(page.url());expect(assigned.searchParams.get('room')).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+  expect(assigned.searchParams.get('theme')).toBe('dusk');expect(assigned.hash).toBe('#patrol');
+  expect(new URL(await page.evaluate(()=>(window as any).firstAddress)).searchParams.has('room')).toBe(false);
+  await invite.click();expect(await page.evaluate(()=>(window as any).copiedInvite)).toBe(page.url());
+  expect(await state(page)).toBeNull();
+  const capture=test.info().outputPath('minimal-entry.png');await page.screenshot({path:capture});await test.info().attach('Minimal entry',{path:capture,contentType:'image/png'});
+  await page.getByRole('button',{name:'HIT THE STREETS'}).click();
+  await expect.poll(async()=>(await state(page))?.phase).toBe('lobby');
+  await expect(invite).toHaveCount(1);
+});
+
+test('offers address-bar copying when the clipboard is unavailable',async({page})=>{
+  await page.addInitScript(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:undefined}));
+  await page.goto('/?room=FallbackInvite');
+  await page.getByRole('button',{name:'INVITE URL',exact:true}).click();
+  await expect(page.getByText('Copy this page’s address to invite a friend.',{exact:true})).toBeVisible();
 });
 
 test('assigns a room URL before entry, retains it on reload, and allocates only when entering',async({page,request})=>{
@@ -38,7 +55,7 @@ test('shares an ongoing solo patrol from its pause menu and adds backup without 
     await expect.poll(async()=>(await state(a))?.phase).toBe('playing');
     await a.keyboard.press('Escape');await expect.poll(async()=>(await state(a))?.paused).toBe(true);
     const solo=await state(a),tick=solo.serverTick;await a.waitForTimeout(200);expect((await state(a)).serverTick).toBe(tick);
-    const invite=a.getByRole('button',{name:'INVITE BACKUP',exact:true});
+    const invite=a.getByRole('button',{name:'INVITE URL',exact:true});
     await expect(invite).toBeVisible();
     await a.keyboard.press('Tab');await a.keyboard.press('Tab');await a.keyboard.press('Tab');await expect(invite).toBeFocused();
     const capture=test.info().outputPath('invite-backup-menu.png');await a.screenshot({path:capture});await test.info().attach('Pause menu invite',{path:capture,contentType:'image/png'});

@@ -6,9 +6,11 @@ Status: implemented for `arcade-v10`, protocol 2. Updated: 2026-10-25. Evidence 
 
 ## Entering and sharing
 
-The bare game URL receives a cryptographically random `?room=<code>` using browser history replacement. Loading the title screen allocates no server room. **Hit the streets** enters that URL's room through `POST /dispatch/:invite`, creating it lazily if necessary. **Start a new room** assigns a fresh URL and enters it. **Open another room** accepts a code or invite URL. Malformed codes produce an actionable error without allocation.
+The bare game URL receives a cryptographically random `?room=<code>` using browser history replacement, retaining other query parameters and the fragment without reloading. Loading the title screen allocates no server room. **Hit the streets** enters that URL's room through `POST /dispatch/:invite`, creating it lazily if necessary. Paste another invite into the browser address bar to join it; visit the bare URL for a fresh room. Malformed codes produce an actionable error without allocation.
 
-An ongoing one-officer patrol becomes multiplayer when a friend follows its current invite and enters. **Copy invite** remains on the HUD, and **Invite backup** is available through keyboard/controller navigation in the pause, settings and results menus. Sharing copies the current room URL. Joining preserves the campaign's earned leads and outcomes, personal scores, existing cars and the current dispatch deadline. The original officer keeps playing in the same room; backup receives a safely spawned car in its current phase. One officer can call for backup halfway through the paperwork.
+One **Invite URL** button is available before entry, during play, and in pause/settings/results menus, including keyboard/controller navigation. It copies the exact current browser address. If clipboard access is unavailable, a status message directs the player to copy the address bar. No separate create/join controls, room-code field or displayed room ID are needed.
+
+An ongoing one-officer patrol becomes multiplayer when a friend follows its current invite and enters. Joining preserves the campaign's earned leads and outcomes, personal scores, existing cars and the current dispatch deadline. The original officer keeps playing in the same room; backup receives a safely spawned car in its current phase. One officer can call for backup halfway through the paperwork.
 
 Every playable campaign is server-authoritative and accepts 1–8 officers. The browser's local simulation is a menu preview/development facility. A lone officer has the same campaign, target rules and progression as a larger group. Callsigns, selected vehicles and preferences remain browser settings; there is no account gate.
 

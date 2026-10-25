@@ -189,7 +189,7 @@ test('two browser clients create, join, start a live round and share confirmed s
     await host.goto(baseURL!); await host.getByRole('textbox', { name: 'YOUR CALLSIGN' }).fill('Dispatch Host');
     await host.getByRole('button', { name: 'HIT THE STREETS' }).click();
     await expect(host.locator('.fo-invite')).toBeVisible();
-    const invite = await host.locator('[data-text="room"]').innerText(); const roomId = invite.replace(/^\s*\/\s*/, '').trim(); expect(roomId).not.toBe('');
+    const roomId = new URL(host.url()).searchParams.get('room')!; expect(roomId).not.toBe('');
     console.log(`Created private room ${roomId}`);
     await guest.goto(`${baseURL}/?room=${encodeURIComponent(roomId)}`);
     await guest.getByRole('textbox', { name: 'YOUR CALLSIGN' }).fill('Backup Unit');

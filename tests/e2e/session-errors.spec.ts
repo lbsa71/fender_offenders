@@ -15,7 +15,8 @@ test('the reported eight-character invite lazily opens and remains reusable afte
     await page.getByRole('textbox', { name: 'YOUR CALLSIGN' }).fill('Returning Officer');
     await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
     await expect(page.locator('.fo-invite')).toBeVisible();
-    await expect(page.locator('[data-text="room"]')).toHaveText(' / z__fyegL');
+    await expect(page.getByRole('button',{name:'INVITE URL',exact:true})).toHaveCount(1);
+    expect(new URL(page.url()).searchParams.get('room')).toBe('z__fyegL');
     await expect(page.locator('[data-scores] li')).toHaveCount(1);
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'END PATROL' }).click();
