@@ -63,6 +63,26 @@ it('retains a real solo resolution through an empty room and lets returning offi
   expect(backup.state.campaign!.outcomes[0]!.callsign).toBe('Campaign officer 1');
 });
 
+it('adds backup to an ongoing solo dispatch after earned progress without replacing the patrol', async () => {
+  const solo = await peer(), id = solo.room.roomId;
+  stageArrest(authority(id), solo.room.sessionId);
+  await until(() => solo.state.phase === 'results', 'Solo officer earns the first lead');
+  solo.room.send('rematch');
+  await until(() => solo.state.phase === 'lobby' && solo.state.campaign!.dispatchIndex === 1, 'Solo officer opens the second briefing');
+  solo.room.send('start-round');
+  await until(() => solo.state.phase === 'playing', 'Second dispatch starts alone');
+  const ongoing = structuredClone(solo.state), backup = await peer(id);
+  await until(() => solo.state.scores.length === 2, 'Backup joins the active patrol');
+  for (const state of [solo.state, backup.state]) {
+    expect(state.matchId).toBe(ongoing.matchId); expect(state.phase).toBe('playing');
+    expect(state.phaseEndsAtTick).toBe(ongoing.phaseEndsAtTick);
+    expect(state.campaign).toEqual(ongoing.campaign);
+    expect(state.scores.find(score => score.playerId === solo.room.sessionId)!.score).toBe(3);
+  }
+  expect(solo.state.local!.vehicle.entityId).toBe(ongoing.local!.vehicle.entityId);
+  expect(backup.state.local!.vehicle.entityId).not.toBe(ongoing.local!.vehicle.entityId);
+});
+
 it('shares an arrest, allows any connected officer to progress, preserves scores and garage choices, and restores the casefile for a late joiner', async () => {
   const host = await peer(), guest = await peer(host.room.roomId), sim = authority(host.room.roomId);
   expect(host.state.campaign).toBeDefined(); stageArrest(sim, guest.room.sessionId);

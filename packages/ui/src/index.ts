@@ -98,6 +98,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const idleWarning=doc.createElement('section');idleWarning.className='fo-idle-warning';idleWarning.setAttribute('role','alert');idleWarning.hidden=true;idleWarning.innerHTML='<p>Your unit is idle. You will disconnect in one minute.</p><button data-action="stay-active">STAY ON PATROL</button>';shell.append(idleWarning);
   const one = <T extends HTMLElement = HTMLElement>(selector: string) => shell.querySelector<T>(selector)!;
   const all = <T extends HTMLElement = HTMLElement>(selector: string) => [...shell.querySelectorAll<T>(selector)];
+  const menuInvite = doc.createElement('button'); menuInvite.className = 'fo-text-button fo-menu-invite'; menuInvite.dataset.action = 'invite'; menuInvite.textContent = 'INVITE BACKUP'; menuInvite.hidden = true;
+  one('.fo-panel-footer').insertBefore(menuInvite, one('.fo-input-hint'));
   const targetBadge = doc.createElement('div'); targetBadge.className = 'fo-target-indicator'; targetBadge.hidden = true; targetBadge.setAttribute('role', 'img');
   targetBadge.innerHTML = '<span class="fo-target-arrow" aria-hidden="true"><svg viewBox="0 0 44 44"><path class="fo-target-chevron" d="m8 23 14-14 14 14"/><path class="fo-target-chevron" d="m8 36 14-14 14 14"/></svg></span><strong class="fo-target-label">WANTED SUSPECT</strong><span class="fo-target-distance"></span>';
   shell.append(targetBadge);
@@ -446,6 +448,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     write('connection', !remoteConnection ? 'LOCAL DISPATCH' : reconnecting ? 'Reconnecting…' : connectionLost ? 'Connection lost' : connecting ? 'Connecting…' : `CONNECTED${model.pingMs === undefined ? '' : ` / ${Math.round(model.pingMs)} MS`}`);
     shell.classList.toggle('fo-reconnecting', reconnecting);
     write('room', model.roomId ? ` / ${model.roomId}` : ''); hide('.fo-invite', !model.roomId || model.mode !== 'online');
+    menuInvite.hidden = !model.roomId || model.mode !== 'online';
     hide('.fo-start', !snapshot || snapshot.phase !== 'lobby' || model.mode !== 'online' || model.canStart === false || Boolean(snapshot.campaign));
     write('prompts', model.device === 'gamepad' ? 'LEFT STICK DRIVE · RT/LT DRIVE/BRAKE · A DRIFT · RB FIRE · X SIREN · HOLD Y RECOVER' : 'WASD DRIVE · SHIFT DRIFT · SPACE FIRE · E SIREN · HOLD R RECOVER');
     write('input-hint', model.device === 'gamepad' ? '↕ SELECT · A CONFIRM · B BACK' : '↑ ↓ SELECT · ENTER CONFIRM');

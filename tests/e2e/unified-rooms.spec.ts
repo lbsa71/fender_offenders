@@ -26,19 +26,33 @@ test('assigns a room URL before entry, retains it on reload, and allocates only 
   await page.getByRole('button',{name:'START DISPATCH',exact:false}).click();
   await expect.poll(async()=>(await state(page))?.phase).toBe('playing');
 });
-test('pauses alone, resumes when backup joins live, and returns to the same campaign',async({browser,baseURL})=>{
+test('shares an ongoing solo patrol from its pause menu and adds backup without resetting it',async({browser,baseURL})=>{
   // Two real scenes plus the intentional notice delay need a total budget
   // matching the other two-browser flow. Individual expectations stay at 12 s.
   test.setTimeout(90000);
   const aContext=await createGameContext(browser),bContext=await createGameContext(browser);
   try{
+    await aContext.addInitScript(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async(text:string)=>{(window as any).copiedPatrolInvite=text;}}}));
     const a=await aContext.newPage(),b=await bContext.newPage();await a.goto(baseURL!);
     await a.getByRole('button',{name:'HIT THE STREETS'}).click();await a.getByRole('button',{name:'START DISPATCH',exact:false}).click();
     await expect.poll(async()=>(await state(a))?.phase).toBe('playing');
     await a.keyboard.press('Escape');await expect.poll(async()=>(await state(a))?.paused).toBe(true);
-    const tick=(await state(a)).serverTick;await a.waitForTimeout(200);expect((await state(a)).serverTick).toBe(tick);
-    await b.goto(a.url());await b.getByRole('button',{name:'HIT THE STREETS'}).click();
+    const solo=await state(a),tick=solo.serverTick;await a.waitForTimeout(200);expect((await state(a)).serverTick).toBe(tick);
+    const invite=a.getByRole('button',{name:'INVITE BACKUP',exact:true});
+    await expect(invite).toBeVisible();
+    await a.keyboard.press('Tab');await a.keyboard.press('Tab');await a.keyboard.press('Tab');await expect(invite).toBeFocused();
+    const capture=test.info().outputPath('invite-backup-menu.png');await a.screenshot({path:capture});await test.info().attach('Pause menu invite',{path:capture,contentType:'image/png'});
+    await a.keyboard.press('Enter');
+    const shared=await a.evaluate(()=>(window as any).copiedPatrolInvite);
+    expect(shared).toBe(a.url());expect((await state(a)).serverTick).toBe(tick);
+    await b.goto(shared);await b.getByRole('button',{name:'HIT THE STREETS'}).click();
     await expect.poll(async()=>(await state(b))?.phase).toBe('playing');await expect.poll(async()=>(await state(a))?.paused).toBe(false);
+    const resumed=await state(a),joined=await state(b);
+    expect(resumed.matchId).toBe(solo.matchId);expect(joined.matchId).toBe(solo.matchId);
+    expect(resumed.phaseEndsAtTick).toBe(solo.phaseEndsAtTick);expect(resumed.local.vehicle.entityId).toBe(solo.local.vehicle.entityId);
+    expect(resumed.local.vehicle.health).toBe(solo.local.vehicle.health);
+    expect(resumed.campaign).toEqual(solo.campaign);expect(joined.campaign).toEqual(solo.campaign);
+    expect(resumed.scores).toHaveLength(2);expect(resumed.serverTick).toBeGreaterThanOrEqual(tick);
     await a.waitForTimeout(4000);
     await expect(a.getByText('Backup joined. The dispatch is live.',{exact:true})).toBeVisible();
     await expect.poll(async()=>(await state(b))?.campaign).toEqual((await state(a)).campaign);
