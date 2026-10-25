@@ -12,7 +12,7 @@ The campaign's ten mugshots are original SVG paths and palettes in `packages/con
 
 Grenade bodies, fuse smoke, blast warning patterns, explosion geometry and throw/fuse/blast sounds are original procedural source in `packages/renderer/src/grenade-effects.ts` and `audio.ts`. No new third-party media or recordings were added with armed campaign targets.
 
-Noon/dusk/night palettes, fog and directional/spot lighting in `packages/renderer/src/environment.ts` are original authored source too. They introduce no downloaded sky textures, HDR maps or flare images. Water/reflection/flare additions remain planned in [the graphics polish sequence](../../../../spec/GRAPHICS_POLISH.md) and must keep this provenance record current.
+Noon/dusk/night palettes, fog and directional lighting in `packages/renderer/src/environment.ts`, plus the generated diffuse street-light texture/material integration in `street-light-field.ts`, are original authored source too. They introduce no downloaded sky textures, HDR maps or flare images. Water/reflection/flare additions remain planned in [the graphics polish sequence](../../../../spec/GRAPHICS_POLISH.md) and must keep this provenance record current.
 
 Cars use Y-up, meter units, front +Z and centered pivots in shared coordinates; renderer adapters convert shared X exactly once. Building collision footprints use the same authored positions and dimensions as visible walls. Roof/facade details do not enlarge those footprints. Sidewalks/markings are presentation. Trees, lamps, signs, benches, bins, barrels and crates have [separate authority-owned rigid scenery](../../../../spec/WORLD_REACTIONS.md); their one-way car interaction adds no vehicle damage or handling impulse.
 

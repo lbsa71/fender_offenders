@@ -23,26 +23,30 @@ describe('authored dispatch atmosphere', () => {
     environment.setDispatch('green-light'); expect(sky.intensity).toBeLessThan(noon.ambient); expect(sky.intensity).toBeGreaterThan(.3);
     expect(sun.diffuse.b).toBeGreaterThan(sun.diffuse.r); expect(scene.fogStart).toBeGreaterThanOrEqual(65); expect(scene.fogEnd).toBeGreaterThan(scene.fogStart + 60);
   });
-  it('selects nearest upright authority lamps, reflecting each lamp-head position once', () => {
-    environment.setDispatch('green-light'); environment.update([lamp('far', 50), lamp('near', 2), lamp('next', 8)], Vector3.Zero());
-    const spots = scene.lights.filter(l => l.getClassName() === 'SpotLight' && l.isEnabled()) as any[];
-    expect(spots.map(l => l.metadata.propId)).toEqual(['near', 'next']);
-    expect(spots[0].position.x).toBeCloseTo(-.6); expect(spots[0].position.y).toBeCloseTo(4.8); expect(spots[0].direction.y).toBe(-1);
-    expect(spots.every(l => !l.getShadowGenerator())).toBe(true);
+  it('keeps every upright lamp lit regardless of camera distance, reflecting each lamp-head position once', () => {
+    const lamps = [lamp('far', 120), lamp('near', 2), lamp('next', 8), lamp('behind', -90)];
+    environment.setDispatch('green-light'); environment.update(lamps);
+    const sources = [...environment.lighting.sources];
+    expect(sources.map(l => l.id).sort()).toEqual(lamps.map(l => l.entityId).sort());
+    const near = sources.find(l => l.id === 'near')!;
+    expect(near.position.x).toBeCloseTo(-.6); expect(near.position.y).toBeCloseTo(4.8);
+    expect(environment.getStats().environmentLights).toBe(4); expect(scene.lights).toHaveLength(2);
+    environment.update(lamps);
+    expect(environment.lighting.sources).toEqual(sources);
   });
-  it('never lights absent or fallen props, and caps high/medium/low lights at two/one/zero', () => {
-    const props = [lamp('one', 1), lamp('two', 3), { ...lamp('fallen', 0), mode: 'dynamic' as const }];
-    environment.setDispatch('green-light'); environment.setQuality('high'); environment.update(props, Vector3.Zero()); expect(environment.getStats().environmentLights).toBe(2);
-    environment.setQuality('medium'); environment.update(props, Vector3.Zero()); expect(environment.getStats().environmentLights).toBe(1);
-    environment.setQuality('low'); environment.update(props, Vector3.Zero()); expect(environment.getStats().environmentLights).toBe(0);
-    environment.setQuality('high'); environment.update([], Vector3.Zero()); expect(environment.getStats().environmentLights).toBe(0);
+  it('never lights absent or fallen props, while every upright lamp contributes', () => {
+    const props = [lamp('one', 1), lamp('two', 3), lamp('far', 100), { ...lamp('fallen', 0), mode: 'dynamic' as const }];
+    environment.setDispatch('green-light'); environment.update(props); expect(environment.getStats().environmentLights).toBe(3);
+    environment.update([{ ...props[0]!, mode: 'dynamic' }]); expect(environment.getStats().environmentLights).toBe(0);
+    environment.update([]); expect(environment.getStats().environmentLights).toBe(0);
   });
-  it('turns lamps off immediately at noon and releases its fixed light pool on disposal', () => {
-    environment.setDispatch('green-light'); environment.update([lamp('one', 1)], Vector3.Zero());
-    const lights = scene.lights.length;
-    for (let i = 0; i < 20; i++) { environment.setDispatch('express-distress'); environment.setDispatch('green-light'); environment.update([lamp('one', 1)], Vector3.Zero()); }
-    expect(scene.lights).toHaveLength(lights); environment.setDispatch(null); expect(environment.getStats().environmentLights).toBe(0);
-    environment.dispose(); expect(scene.lights).toHaveLength(2);
+  it('turns lamps off immediately at noon, reuses one field across dispatches and releases it on disposal', () => {
+    environment.setDispatch('green-light'); environment.update([lamp('one', 1)]);
+    const lights = scene.lights.length, textures = scene.textures.length, field = environment.lighting.texture;
+    for (let i = 0; i < 20; i++) { environment.setDispatch('express-distress'); environment.setDispatch('green-light'); environment.update([lamp('one', 1)]); }
+    expect(scene.lights).toHaveLength(lights); expect(scene.textures).toHaveLength(textures); expect(environment.lighting.texture).toBe(field);
+    environment.setDispatch(null); expect(environment.getStats().environmentLights).toBe(0); expect(environment.lighting.strength).toBe(0);
+    environment.dispose(); expect(scene.lights).toHaveLength(2); expect(scene.textures).toHaveLength(textures - 1);
   });
   it('retains an active dispatch when asynchronous scene loading finishes, then restores the supplied baseline on leave', () => {
     environment.setDispatch('green-light'); const night = scene.fogColor.clone();
@@ -53,8 +57,14 @@ describe('authored dispatch atmosphere', () => {
   });
   it('uses the actual rotated, scaled lamp head instead of a fixed floating world position', () => {
     const prop = { ...lamp('turned', 2, 10), scale: 2, rotation: { x: 0, y: Math.SQRT1_2, z: 0, w: Math.SQRT1_2 } };
-    environment.setDispatch('green-light'); environment.update([prop], Vector3.Zero());
-    const light = scene.getLightByName('street-light-0') as any;
-    expect(light.position.x).toBeCloseTo(-2); expect(light.position.y).toBeCloseTo(7.1); expect(light.position.z).toBeCloseTo(12.8);
+    environment.setDispatch('green-light'); environment.update([prop]);
+    const head = environment.lighting.sources[0]!.position;
+    expect(head.x).toBeCloseTo(-2); expect(head.y).toBeCloseTo(7.1); expect(head.z).toBeCloseTo(12.8);
+  });
+  it('refreshes cached illumination when an upright lamp changes its slight tilt', () => {
+    const prop = { ...lamp('tilted', 3), rotation: { x: .05, y: 0, z: 0, w: Math.sqrt(1 - .05 ** 2) } };
+    environment.setDispatch('green-light'); environment.update([prop]); const first = environment.lighting.sources[0]!.position.clone();
+    prop.rotation.x = -.05; environment.update([prop]);
+    expect(environment.lighting.sources[0]!.position.z).not.toBeCloseTo(first.z);
   });
 });

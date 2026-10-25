@@ -1,6 +1,6 @@
 # Execution status and evidence
 
-Updated: 2026-10-24. Documentation/credits/GPL were pushed in `c5b1161`, and the car presentation follow-up was pushed in `0a20a97`. The dispatch atmosphere foundation below extends that baseline. This ledger covers the 49 tasks in [the plan](../IMPLEMENTATION_PLAN.md). The recorded public preview is [fender-offenders.onrender.com](https://fender-offenders.onrender.com); live availability and its current deployed commit were not rechecked here. Release-candidate acceptance remains incomplete.
+Updated: 2026-10-25. Documentation/credits/GPL were pushed in `c5b1161`, car presentation in `0a20a97`, and dispatch atmosphere in `0bde06a`. The persistent-lamp correction below supersedes that atmosphere checkpoint's proximity/quality light limits. This ledger covers the 49 tasks in [the plan](../IMPLEMENTATION_PLAN.md). The recorded public preview is [fender-offenders.onrender.com](https://fender-offenders.onrender.com); live availability and its current deployed commit were not rechecked here. Release-candidate acceptance remains incomplete.
 
 *Evidence locker: please label the date before pinning a green tick to the corkboard.*
 
@@ -15,6 +15,18 @@ Production uses protocol 1, `arcade-v8`, map `sunset-borough-1` and campaign `gr
 | WANTED badge style cost, PR #2 | `18a29ee` records a browser RED from 1.19 to 3.81 ms per style recalc, beyond the 2 ms bound. Removing the continually retargeted position transition made the regression and affected browser/UI/type checks pass. This is a Chromium regression bound, not a sustained GPU budget. | `git show 18a29ee`; [browser regression](../tests/e2e/target-badge-performance.spec.ts) |
 | Practice frame pacing, PR #3 | `3792241` records passing baseline coverage, then the intended slow-frame failure: four ticks instead of fifteen. Practice now permits a quarter-second/fifteen-tick catch-up; online retains four input ticks. The commit records 465 headless tests, 12 practice browser scenarios, typecheck/docs checks and a scoped CPU-throttle comparison. | `git show 3792241`; [five pacing tests](../tests/client/pacing.test.ts), [pacing implementation](../apps/client/src/pacing.ts) |
 | Campaign integration before presentation follow-ups | PR #2 merged in `ec7d40f`; PR #3 merged in `c817f97` on 2026-10-24. The separately recorded car/atmosphere work below follows this checkpoint. | `git log --oneline` |
+
+## Persistent street lighting
+
+2026-10-25: the owner rejected lamps switching on only near the camera. Every upright district lamp now contributes continuous dusk/night illumination on every quality preset. Removed/fallen lamps lose their contribution. Daylight theme behavior is unchanged. The old two/one/zero limits below are historical and superseded. Dispatch has paid the whole electricity bill this time.
+
+Observed RED: the new all-lamps regression returned only `near` and `next` instead of all four test lamps, omitting lamps at 120 m and −90 m. A second case returned two illuminated lamps instead of three. The implementation replaces camera-selected Babylon spotlights with one cached 512×512 world-space diffuse field shared by Standard/PBR materials; the field includes reflected rotated/scaled lamp heads and is independent of camera/quality. A later cache test first retained the old head position after a slight tilt reversed; including the full quaternion in the cache signature made it pass. Eight environment checks now cover the corrected behavior, state/baseline lifecycle and one-texture disposal.
+
+The native WebGL2 fixture confirms all **30 lamps** contribute at dusk/night on high, medium and low, with camera movement preserving the set. Four actual visible-road probes on low each brighten by over 60 average RGB levels compared with the same fixed geometry after disabling lamp contributions. This verifies rendered illumination beyond the former two-lamp limit, not just a counter. Fallen/removed lamp cleanup and repeated dispatch/quality changes pass; resources remain 3,351 meshes, 140 materials, two Babylon lights and nine textures in this fixture. No page or shader errors were observed. The cached diffuse approximation adds one shared texture rather than per-lamp dynamic-light/shadow passes; it is not a new specular or occlusion system.
+
+Acceptance captures were generated and inspected with `environment-check.ts work/persistent-street-lights`: distant and nearby lamp pools remain visible together, roads/cars receive warm fill, roof tops above lamp height retain moonlight, and low keeps every lamp illuminated. Detailed browser/device/source metadata and pixel measurements are in the local `evidence.json`. Sustained named-device performance and human visual acceptance remain open.
+
+Verification after the correction: `pnpm test` passed **487 tests across 57 files** in 19.18 seconds; `pnpm test:e2e` passed **all 15 browser scenarios** in 1.7 minutes. Native environment and wreck lifecycle checks passed. `pnpm check`, `pnpm assets:check`, `pnpm build` and `git diff --check` passed. The existing large-client-chunk advisory remains; no sustained performance gate is claimed.
 
 ## Car presentation follow-up
 
@@ -32,6 +44,8 @@ After the startup fix, `pnpm test` passed **479 tests across 56 files**, and `pn
 Native acceptance captures were generated and inspected with `wreck-capture.ts work/assembly-breakup`: original tires/hubs/trim and body pieces visibly separate, tumble and land, then disappear before the intact respawn. The scripted native lifecycle check passes duplicate/stale-life handling, late snapshots, leave/garage/respawn, reduced settings and disposal with zero retained debris bodies. These are controlled fixture views, not hosted gameplay or sustained performance approval. R04/R05/Q05 release gates remain open.
 
 ## Dispatch atmosphere foundation
+
+Historical checkpoint: 2026-10-24, `0bde06a`. Its nearest-lamp and quality limits were replaced by the persistent-light correction above; the original evidence/counts below are retained for attribution.
 
 The owner retained the blocky Minecraft/Lego-like miniature style and requested richer fog, shadows, directed light, water and restrained flares. [The graphics plan](GRAPHICS_POLISH.md) fixes a five-step sequence with ownership, all ten dispatch themes, quality/accessibility limits and explicit acceptance. This revision implements the atmosphere step; puddles/pond/pool, reflections, flares and further surface/shadow polish remain planned.
 
@@ -172,7 +186,7 @@ Historical measurement environment: Intel Core i7-1355U, Intel Iris Xe, Windows 
 | R02 | Partial | Elevated smoothed/look-ahead camera, wheel/body presentation and local marker exist. Human reverse/turn/occlusion review remains. |
 | R03 | Partial | Authored city/car surfaces, glass, lightbar, noon/dusk/night atmosphere, directional shadows and repeatable captures exist. The graphics plan sequences water/flares/surface finish; approved reference and controlled production frame/load budget remain. |
 | R04 | Partial | Bounded tracer/effect/skid pools, audio and event dedup exist; renderer smoke checks duplicate presentation. Human audio/visual approval and profiling remain. |
-| R05 | Partial | District, presets, bounded effects and two/one/zero high/medium/low street lights are integrated. Water/reflections/flares, LOD/occlusion expectations, eight-player frame budgets and ten-rematch GPU/memory proof remain. |
+| R05 | Partial | District, presets, bounded effects and persistent illumination from all upright lamps via one shared diffuse field are integrated. Water/reflections/flares, LOD/occlusion expectations, eight-player frame budgets and ten-rematch GPU/memory proof remain. |
 | R06 | Open | WebGPU is not enabled. Full WebGL2 browser/context-loss recovery matrix remains; WebGL2 is the current path. |
 
 ### Art and content

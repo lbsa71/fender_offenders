@@ -1,6 +1,6 @@
 # Quality, performance, and operations
 
-Status: quality/release gates with partial `arcade-v8` alpha evidence. Updated: 2026-10-24. [Execution status](EXECUTION_STATUS.md) separates historical implementation results from current review checks; unrun gates below remain requirements.
+Status: quality/release gates with partial `arcade-v8` alpha evidence. Updated: 2026-10-25. [Execution status](EXECUTION_STATUS.md) separates historical implementation results from current review checks; unrun gates below remain requirements.
 
 *A green test run is excellent news. It still cannot plug in a controller or sign a release form.*
 
@@ -73,7 +73,7 @@ If WebGPU initialization fails, reconstruct the renderer using WebGL2 and the sa
 
 Measure in a production build after warmup, over a five-minute route/combat scenario. Include eight player vehicles, configured traffic, shots, smoke, shadows, and UI. Record percentiles, not just average fps.
 
-The [graphics polish plan](GRAPHICS_POLISH.md) adds all three dispatch atmospheres and a capped two/one/zero high/medium/low street-light budget. Its native `environment-check.ts` fixture records same-camera captures, browser/device/source metadata, resource reuse and low-night readability. Combine future water/reflections/flares with full component wrecks in the sustained action trace; isolated attractive stills do not establish Q05. Human visual acceptance, moving-camera shimmer/occlusion and the named-device matrix remain required.
+The [graphics polish plan](GRAPHICS_POLISH.md) adds all three dispatch atmospheres and continuous illumination from every upright street lamp on all presets. One cached 512×512 field avoids per-lamp shader light limits and camera proximity cutoffs. Its native `environment-check.ts` fixture records same-camera captures, actual visible-road pixel brightening, camera/preset stability, browser/device/source metadata, resource reuse and low-night readability. Combine future water/reflections/flares with full component wrecks in the sustained action trace; isolated attractive stills do not establish Q05. Human visual acceptance, moving-camera shimmer/occlusion and the named-device matrix remain required.
 
 | Metric | Initial target / gate |
 | --- | --- |

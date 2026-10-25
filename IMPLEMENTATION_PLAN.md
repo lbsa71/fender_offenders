@@ -1,6 +1,6 @@
 # Implementation plan
 
-Status: acceptance plan for the playable `arcade-v8` alpha. Updated: 2026-10-24 against `c817f97`. Current states and dated evidence for all 49 tasks are in [the execution ledger](spec/EXECUTION_STATUS.md). Task IDs, dependencies and milestone gates remain stable; delivery choices below reflect the current implementation.
+Status: acceptance plan for the playable `arcade-v8` alpha. Updated: 2026-10-25 following `0bde06a` and the persistent-lamp correction. Current states and dated evidence for all 49 tasks are in [the execution ledger](spec/EXECUTION_STATUS.md). Task IDs, dependencies and milestone gates remain stable; delivery choices below reflect the current implementation.
 
 *The city is playable. The release paperwork still has several outstanding warrants.*
 
@@ -10,7 +10,7 @@ The district, six distinct vehicle profiles, ten-dispatch campaign, armed bosses
 
 The car presentation follow-up was pushed to `main` as `0a20a97`: unarmed civilian geometry and breakup of every original car component into bounded client-side rigid fragments. R owns geometry/effects/native scenarios; F owns the shared `@fender/physics` initialization adapter and dependency wiring; Q owns the real mixed-world startup regression. This extends R04/R05 acceptance without changing gameplay/network DTOs or closing the sustained performance gate. [The ledger](spec/EXECUTION_STATUS.md#car-presentation-follow-up) records observed RED/GREEN and publication scope.
 
-The next visual work preserves the Minecraft/Lego-like toy-town style and adds subtle lighting/surface depth. [The graphics polish plan](spec/GRAPHICS_POLISH.md) fixes the order, dispatch schedule, quality limits and acceptance for atmosphere → water → restrained flares/light detail → surface/shadow finish → integrated performance and visual review. The atmosphere foundation is the first implementation slice; water, reflections and flares remain subsequent work, not implied shipped features.
+The next visual work preserves the Minecraft/Lego-like toy-town style and adds subtle lighting/surface depth. [The graphics polish plan](spec/GRAPHICS_POLISH.md) fixes the order, dispatch schedule, quality limits and acceptance for atmosphere → water → restrained flares/light detail → surface/shadow finish → integrated performance and visual review. The atmosphere foundation includes the 2026-10-25 correction: every upright street lamp stays illuminated at dusk/night on all presets, without proximity selection. Water, reflections and flares remain subsequent work, not implied shipped features.
 
 | Order | Work / existing tasks | Lead lanes | Evidence needed |
 | --- | --- | --- | --- |

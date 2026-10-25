@@ -1,6 +1,6 @@
 # Architecture
 
-Status: architecture and acceptance targets for the implemented `arcade-v8` alpha. Updated: 2026-10-24 against `c817f97`. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
+Status: architecture and acceptance targets for the implemented `arcade-v8` alpha. Updated: 2026-10-25 following `0bde06a` and persistent street lighting. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
 
 *One authority drives the rules. Everyone else gets a dashboard, not a spare steering wheel.*
 
@@ -190,7 +190,7 @@ The integration lane owns app entrypoints. Other lanes expose factories behind c
 
 The app currently composes a local `Simulation` directly for practice and `createOnlineSession()` for multiplayer. Both supply shared snapshots/events/render frames to the same UI and renderer, but there is no shipped practice `GameSession` wrapper. Recorded frames, scripted inputs and tiny maps support isolated adapter work; a future common wrapper must preserve the real lifecycle coverage.
 
-App composition also maps the current shared campaign index to its existing dispatch ID and calls `renderer.setDispatch`. `DispatchEnvironment` owns cosmetic noon/dusk/night fog, key/fill and a two-object local spotlight pool; it never changes gameplay state or transport. Lamp positions come from upright authority-owned prop poses, with high/medium/low caps of two/one/zero and no added shadow lights. The garage keeps its separate studio scene. [Graphics polish](GRAPHICS_POLISH.md) sequences water, restrained flares and surface refinement after this atmosphere foundation.
+App composition also maps the current shared campaign index to its existing dispatch ID and calls `renderer.setDispatch`. `DispatchEnvironment` owns cosmetic noon/dusk/night fog and key/fill; it never changes gameplay state or transport. Every upright authority-owned lamp contributes to a cached 512×512 world-space diffuse-light field shared by Standard/PBR surfaces. All quality presets keep all lamps illuminated at dusk/night; there is no camera-distance selection or extra shadow light. Only lamp changes rebuild the texture. The garage keeps its separate studio scene. [Graphics polish](GRAPHICS_POLISH.md) sequences water, restrained flares and surface refinement after this atmosphere foundation.
 
 Dev scenarios currently have explicit entrypoints under package `dev/` and `scenarios/` directories. A unified picker remains a foundation/fixture target. Keep these pages out of the production bundle and avoid requiring every lane to edit the same app file.
 

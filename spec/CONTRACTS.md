@@ -1,6 +1,6 @@
 # Shared contracts
 
-Status: semantic contract reference for the implemented alpha (`arcade-v8` gameplay, protocol 1, map `sunset-borough-1`). Updated: 2026-10-24. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+Status: semantic contract reference for the implemented alpha (`arcade-v8` gameplay, protocol 1, map `sunset-borough-1`). Updated: 2026-10-25. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
 
 *The contracts are the traffic lights. Please resist interpreting red as an optional decoration.*
 
@@ -290,7 +290,7 @@ Projectile presentation uses the predicted local car clock (at most six ticks ah
 
 `RenderFrame.pursuit` is included only while a dispatch is playing and its objective is incomplete. `TargetIndicator` is a render-only `{x,y,angle,offscreen,distanceMeters}` value: normalized canvas-relative X/Y, clockwise-from-up radians and planar distance to the local car. `renderer.getTargetIndicator()` uses the actual camera and sampled suspect pose; `ui.setTargetIndicator()` updates the existing badge each frame and gates its visibility by menu/session lifecycle. Neither value is serialized or accepted as gameplay authority.
 
-`renderer.setDispatch(id | null)` selects cosmetic noon/dusk/night atmosphere from the existing campaign catalog ID. App composition derives it from `snapshot.campaign.dispatchIndex` in both modes, including briefing/results, and supplies null outside a campaign. This adds no snapshot, checkpoint, protocol or gameplay-revision field. Local street spotlights use only upright lamp `PropState` poses; caps are two/one/zero on high/medium/low, and no local light casts shadows. [Graphics polish](GRAPHICS_POLISH.md) defines the authored schedule and subsequent visual work.
+`renderer.setDispatch(id | null)` selects cosmetic noon/dusk/night atmosphere from the existing campaign catalog ID. App composition derives it from `snapshot.campaign.dispatchIndex` in both modes, including briefing/results, and supplies null outside a campaign. This adds no snapshot, checkpoint, protocol or gameplay-revision field. Every upright lamp within the prop adapter's 192-state population contributes to a shared cached diffuse field using its reflected head pose/scale. Dusk/night lamps stay illuminated on all quality presets regardless of camera distance; fallen/removed props lose their contribution. `environmentLights` counts contributing lamps rather than Babylon light objects. No extra shadow lights are created. [Graphics polish](GRAPHICS_POLISH.md) defines the authored schedule and subsequent visual work.
 
 Badge positioning applies directly, without retargeting a CSS position transition on every frame. `tests/e2e/target-badge-performance.spec.ts` guards bounded Chromium style cost. App pacing remains separate: up to fifteen local simulation ticks or four online input ticks per frame, covered by `tests/client/pacing.test.ts`. Neither presentation rule changes 60 Hz authority or input admission limits.
 

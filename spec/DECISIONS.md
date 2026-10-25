@@ -1,6 +1,6 @@
 # Decision register
 
-Updated: 2026-10-24 following `0a20a97` and the dispatch atmosphere foundation. Requirements, current defaults and unresolved acceptance are distinguished below. [Execution status](EXECUTION_STATUS.md) owns observed evidence.
+Updated: 2026-10-25 following `0bde06a` and the persistent-lamp correction. Requirements, current defaults and unresolved acceptance are distinguished below. [Execution status](EXECUTION_STATUS.md) owns observed evidence.
 
 *Decisions belong here so the next shift need not interrogate the glove compartment.*
 
@@ -22,6 +22,7 @@ Updated: 2026-10-24 following `0a20a97` and the dispatch atmosphere foundation. 
 | D24 | Contributor acknowledgments use Claude Code and OpenAI Codex as AI tool names, alongside all recorded human authors | Project-owner instruction, 2026-10-24; [credits](../CONTRIBUTORS.md) |
 | D28 | Modeled guns belong to player/villain cars; wrecks should break the car's actual assembled parts into individual physical fragments | Project-owner instruction, 2026-10-24; pushed as `0a20a97` under R04/R05, with client-only physics and unchanged authority rules |
 | D29 | Keep the Minecraft/Lego-like cutesy forms and add subtle fog, shadows, directed light, water and flares, with noon/dusk/night dispatch settings | Project-owner direction, 2026-10-24; [sequenced graphics plan](GRAPHICS_POLISH.md). Atmosphere is implemented; water/flares/further surface finish and acceptance remain open |
+| D30 | All visible street lamps stay illuminated when the dusk/night theme enables them; proximity and quality settings must not select a subset | Project-owner correction, 2026-10-25; one cached diffuse field replaces the two-nearest-lamp pool. [Evidence](EXECUTION_STATUS.md#persistent-street-lighting) |
 
 ## Chosen defaults, revisable through implementation evidence
 

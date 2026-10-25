@@ -100,7 +100,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
   }
   function setSettings(next:RendererOptions):void{
     Object.assign(settings,next);audio.volume=Math.max(0,Math.min(1,settings.masterVolume*settings.effectsVolume));audio.muted=settings.muted;
-    scene.shadowsEnabled=settings.quality!=='low';environment.setQuality(settings.quality);garage?.setQuality(settings.quality);engine.setHardwareScalingLevel(Math.max(1,(window.devicePixelRatio||1)/Math.min(window.devicePixelRatio||1,settings.quality==='low'?1:1.5)));
+    scene.shadowsEnabled=settings.quality!=='low';garage?.setQuality(settings.quality);engine.setHardwareScalingLevel(Math.max(1,(window.devicePixelRatio||1)/Math.min(window.devicePixelRatio||1,settings.quality==='low'?1:1.5)));
   }
   setSettings(options);
   function resolveMuzzles(request:MuzzleRequest):boolean{
@@ -195,7 +195,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     if(shake>0){if(!reducedMotion){eye.x+=(Math.random()-.5)*shake;eye.z+=(Math.random()-.5)*shake;}shake=Math.max(0,shake-dt*3);}
     camera.position.copyFrom(eye);camera.setTarget(new Vector3(target.x,0,target.z+4));
     objective.update(frame,time,reducedMotion);
-    environment.update(frame.props??[],target);
+    environment.update(frame.props??[]);
     const drawStart=engine._drawCalls.current;engine.beginFrame();scene.render();objective.project(canvas.clientWidth,canvas.clientHeight);engine.endFrame();frameCpuMs=performance.now()-cpuStart;frameDrawCalls=engine._drawCalls.current-drawStart;
   }
   function combatVolume(position:{x:number;z:number},ownShot=false):number{
