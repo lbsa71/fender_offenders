@@ -1,6 +1,6 @@
 # Wrecks, physical scenery and pedestrians
 
-Reviewed: 2026-10-24. Reactive scenery and a cosmetic crowd were introduced in `arcade-v4`. The current `arcade-v8` build retains this behavior alongside the drift controller, paired gunfire and armed campaign; scenery adds no vehicle damage and does not change the default three-second respawn.
+Reviewed: 2026-10-25. Reactive scenery and a cosmetic crowd were introduced in `arcade-v4`. The current `arcade-v11` build retains this behavior alongside the drift controller, staged gun unlock and campaign; scenery adds no vehicle damage and does not change the default three-second respawn.
 
 *The bins have physics. The pedestrians have excellent self-preservation. The paperwork has neither.*
 
@@ -11,6 +11,8 @@ Reviewed: 2026-10-24. Reactive scenery and a cosmetic crowd were introduced in `
 The authority steps this separate 3D world at 60 Hz. Kinematic vehicle proxies push the props. Forces do not feed back into the planar arcade vehicle controller, so scenery cannot cause additional local prediction corrections or change a car's handling. Prop collisions cause no damage, oil hazards or weapon bonuses. Pedestrians never participate in this physics world.
 
 The hard limits are 192 props and 24 active vehicle proxies per simulation. Speeds, spin and out-of-bounds recovery are bounded. Full Rapier snapshots and handle mappings belong to trusted simulation checkpoints; clients cannot supply checkpoint state, transforms or impulses. Dispatch start resets scenery; joining an existing dispatch receives its current state. Campaign intermissions freeze the world. A server restart creates fresh scenery and a fresh campaign under the reusable invite.
+
+Authority samples each prop's pre-step WASM position once and reuses it across vehicle proximity checks. Squared-distance rejection avoids repeated square roots; anchor-release scans are skipped when no debris has pre-step motion. Solver timing, contacts, impulses and iteration order remain unchanged. The 2026-10-25 local benchmark improved mean simulation step time by 24–30%, with identical final snapshot hashes for both 1,200-tick scenarios and passing physics/socket regressions. This is a local optimization measurement, not a guarantee of hosted tick rate. The lampposts have agreed to stop filling in the same form nine times.
 
 Snapshots include kind, scale, 3D body position, quaternion, fixed/dynamic mode, sleeping state and discontinuity. Online presentation interpolates position and normalized shortest-arc rotation on the shared buffered clock. It freezes when snapshots stop rather than inventing continuing physics. Reset/discontinuity cancels interpolation. Babylon reflects the shared X axis exactly once at its adapter boundary.
 

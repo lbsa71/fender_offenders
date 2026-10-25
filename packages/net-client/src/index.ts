@@ -67,7 +67,10 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
     if (snapshot && next.serverTick < snapshot.serverTick && next.matchId === snapshot.matchId && next.sessionEpoch === snapshot.sessionEpoch) return;
     if (next.resetReason === 'resync' && !wire.propsPatch) latestFullResync = next;
     const frozen = frozenCampaign(next);
-    const reset = next.resetReason || next.paused !== snapshot?.paused || next.matchId !== snapshot?.matchId || next.sessionEpoch !== snapshot?.sessionEpoch || next.local?.vehicle.discontinuityId !== snapshot?.local?.vehicle.discontinuityId || frozen && next.phase !== snapshot?.phase;
+    // Queue/clock recovery does not teleport the vehicle. Its acknowledgment
+    // retires old samples; ordinary replay and smoothing retain fresh controls.
+    const continuousRecovery = next.resetReason === 'input-backlog' || next.resetReason === 'resync' && wire.propsPatch;
+    const reset = (!continuousRecovery && next.resetReason) || next.paused !== snapshot?.paused || next.matchId !== snapshot?.matchId || next.sessionEpoch !== snapshot?.sessionEpoch || next.local?.vehicle.discontinuityId !== snapshot?.local?.vehicle.discontinuityId || frozen && next.phase !== snapshot?.phase;
     const oldPose = predicted?.vehicle.pose;
     snapshot = next; lastSnapshotAt = performance.now();projectilePresentation.receive(next,Boolean(reset));
     if (reset) { pending = []; outgoing = []; history = []; correctionX = correctionZ = 0; playbackTick = null; }

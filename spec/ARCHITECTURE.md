@@ -125,7 +125,7 @@ WebSocket is reliable/ordered. Packet-loss testing must model its stalls and ret
 2. Save command and prediction history in a bounded ring buffer; batch commands for transport.
 3. On an authoritative update, locate the matching acknowledgment boundary and restore authoritative local-car state.
 4. Discard commands at or below that boundary and replay eligible unacknowledged commands in order. Immediate prediction and replay stop six ticks (100 ms) beyond the latest authoritative tick; fresh control packets continue while movement waits for confirmation.
-5. Decay small visual corrections over roughly 50–100 ms. Snap large/invalid corrections and respawns; clear relevant histories.
+5. Decay small visual corrections over roughly 50–100 ms. Input-backlog recovery and clock-only resync patches reconcile without clearing fresh controls or teleporting the car. Full resync baselines, identity/life changes and pause transitions still reset histories; large/invalid corrections snap.
 6. If history is insufficient or protocol/map versions change, perform a full resync instead of guessing.
 
 Only one module owns prediction. If the chosen Colyseus release supplies suitable helpers, wrap those helpers inside `net-client`; otherwise implement the loop there. Rendering must not run an additional reconciler.

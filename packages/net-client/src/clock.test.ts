@@ -232,3 +232,22 @@ it('bounds local movement and replay when fresh inputs outlast authoritative sna
     expect(session.getStats().pendingInputs).toBe(23);
   } finally { await session.dispose(); }
 });
+
+it.each(['input-backlog', 'clock-resync'] as const)('reconciles %s without teleporting a continuous local car or discarding fresh input', async reason => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
+  const source = unpackSnapshot(snapshot(100)); source.local!.vehicle.velocity.z = 20;
+  wire.initial = packSnapshot(source);
+  const session = createOnlineSession('ws://clock-fixture', map);
+  const position = () => session.sampleFrame()!.vehicles.find(vehicle => vehicle.entityId === 'local')!.pose.z;
+  try {
+    await session.connect({ roomId: crypto.randomUUID(), nickname: 'Continuous recovery' });
+    for (let sequence = 0; sequence < 6; sequence++) session.submit({ sessionEpoch: source.sessionEpoch, sequence, clientTick: sequence, actions: { ...neutralActions(), throttle: 1 } });
+    const before = position(), next = structuredClone(source);
+    next.serverTick++; next.local!.vehicle.pose.z += .35; next.local!.lastConsumedSequence = 3;
+    const update = packSnapshot(next); update.reset = reason === 'input-backlog' ? reason : 'resync'; update.propsPatch = true;
+    wire.handlers.get('snapshot')!(update);
+    expect(position(), 'Clock/input recovery must preserve the displayed position while reconciling').toBeCloseTo(before, 5);
+    expect(session.getStats().pendingInputs, 'Only acknowledged samples are retired').toBe(2);
+    vi.advanceTimersByTime(200); expect(position()).toBeLessThan(before);
+  } finally { await session.dispose(); }
+});

@@ -73,6 +73,8 @@ Focus loss/device disconnect generates a session control `neutralize` request im
 
 Input samples do not purchase extra physics ticks. Authority combines older queued samples into the latest held state when needed, retaining up to two samples for jitter. Combined siren toggles retain odd/even parity; a combined recovery request is applied once. The acknowledgment covers consumed samples, including replaced held states. The 12-sample flood guard and 100 ms stale-input braking remain. Client immediate prediction and replay stop six ticks beyond confirmed authority while continuing to send fresh controls. The steering queue is not a historical reenactment society.
 
+An `input-backlog` snapshot or `resync` prop patch represents continuous clock/input recovery. Apply its acknowledgment and reconcile pending input with ordinary smoothing. A full `resync` baseline still clears prediction; pause, match/epoch and vehicle discontinuity changes always retain their reset semantics.
+
 ## 3. State, configuration, and checkpoints
 
 ```ts
