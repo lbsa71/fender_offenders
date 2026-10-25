@@ -8,7 +8,7 @@ import type { SubMesh } from '@babylonjs/core/Meshes/subMesh';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
-import { DISTRICT_WATER } from '@fender/content';
+import { DISTRICT_WATER, waterFootprint } from '@fender/content';
 
 /** Shared shallow-water finish with analytic sky reflections and no extra render pass. */
 export class WetSurfaces {
@@ -30,11 +30,11 @@ export class WetSurfaces {
     new WaterFinish(this.material, this);
     for (const site of DISTRICT_WATER) {
       const mesh = new Mesh(`wet-${site.id}`, scene), data = new VertexData();
+      const footprint = waterFootprint(site);
       const count = site.kind === 'pool' ? 4 : 12;
       data.positions = [0, 0, 0]; data.normals = [0, 1, 0]; data.uvs = [.5, .5]; data.indices = [];
       for (let i = 0; i < count; i++) {
-        const angle = Math.PI * 2 * i / count + (site.kind === 'pool' ? Math.PI / 4 : 0);
-        const x = Math.cos(angle) * site.width / 2, z = Math.sin(angle) * site.depth / 2;
+        const x = -(footprint[i*2]! - site.x), z = footprint[i*2+1]! - site.z;
         data.positions.push(x, 0, z); data.normals.push(0, 1, 0); data.uvs.push(x / site.width + .5, z / site.depth + .5);
         data.indices.push(0, i + 1, (i + 1) % count + 1);
       }
@@ -56,12 +56,13 @@ export class WetSurfaces {
       }
     }
   }
+  setWetRoads(enabled: boolean): void { for(const mesh of this.meshes) if(mesh.metadata?.waterKind==='puddle') mesh.setEnabled(enabled); }
   update(dt: number, quality: 'low' | 'medium' | 'high', reducedMotion: boolean): void {
     if (this.disposed) return;
     this.ripples = quality !== 'low';
     if (!reducedMotion && this.ripples) this.time += Math.max(0, Math.min(.1, dt));
   }
-  getStats() { return { waterSurfaces: this.disposed ? 0 : this.meshes.length, waterTime: this.time, waterRipples: this.ripples, waterReflectionPasses: 0 }; }
+  getStats() { return { waterSurfaces: this.disposed ? 0 : this.meshes.filter(m=>m.isEnabled()).length, waterTime: this.time, waterRipples: this.ripples, waterReflectionPasses: 0 }; }
   dispose(): void { if (this.disposed) return; this.disposed = true; for (const mesh of [...this.meshes, ...this.borders]) mesh.dispose(); this.material.dispose(); this.borderMaterial.dispose(); }
 }
 

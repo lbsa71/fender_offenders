@@ -3,10 +3,18 @@ import { NullEngine } from '@babylonjs/core/Engines/nullEngine';
 import { Scene } from '@babylonjs/core/scene';
 import { WetSurfaces } from './wet-surfaces';
 import { DISTRICT_WATER } from '@fender/content';
+import { ROAD_PUDDLES } from '@fender/content';
 
 let engine: NullEngine, scene: Scene, water: WetSurfaces;
 beforeEach(() => { engine = new NullEngine(); scene = new Scene(engine); water = new WetSurfaces(scene); });
 afterEach(() => { water.dispose(); scene.dispose(); engine.dispose(); });
+it('hides early road puddles and renders the exact later physics polygon on every preset',()=>{
+ water.setWetRoads(false);expect(water.getStats().waterSurfaces).toBe(2);
+ for(const quality of ['low','medium','high'] as const){water.setWetRoads(true);water.update(.1,quality,false);expect(water.getStats().waterSurfaces).toBe(6);
+ for(const zone of ROAD_PUDDLES){const mesh=water.meshes.find(m=>m.name===`wet-${zone.id}`)!,positions=mesh.getVerticesData('position')!;
+ for(let i=0;i<zone.polygonXZ.length/2;i++){expect(-(positions[(i+1)*3]!+mesh.position.x)).toBeCloseTo(zone.polygonXZ[i*2]!,5);expect(positions[(i+1)*3+2]!+mesh.position.z).toBeCloseTo(zone.polygonXZ[i*2+1]!,5);}}
+ }
+});
 
 it('shares one opaque PBR surface across authored sites, without reflection render targets', () => {
   expect(water.meshes).toHaveLength(DISTRICT_WATER.length);

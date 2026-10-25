@@ -61,15 +61,15 @@ it('records a green arrest and one bonus without changing ordinary pursuit rules
  expect(sim.drainEvents().filter(e=>e.kind==='pursuit-complete')).toMatchObject([{payload:{outcome:'arrested',bonus:3}}]);
 });
 it('resolves a lethal player volley as wrecked once, preserves the attacker credit, and never respawns the finished target',()=>{
- const sim=simulation({mode:'multiplayer'});sim.addPlayer({playerId:'b',nickname:'Officer B'});campaign(sim);start(sim);sim.drainEvents();resolve(sim,'wrecked','b');
- expect(campaign(sim).outcomes).toMatchObject([{dispatchIndex:0,outcome:'wrecked',playerId:'b'}]);expect(sim.snapshot().pursuit!.winnerPlayerId).toBe('b');expect(sim.snapshot().scores.find(s=>s.playerId==='b')!.score).toBe(1);
+ const sim=simulation({mode:'multiplayer'});sim.addPlayer({playerId:'b',nickname:'Officer B'});campaign(sim);start(sim);resolve(sim,'arrested');expect(sim.rematch('a')).toBe(true);start(sim);sim.drainEvents();resolve(sim,'wrecked','b');
+ expect(campaign(sim).outcomes[1]).toMatchObject({dispatchIndex:1,outcome:'wrecked',playerId:'b'});expect(sim.snapshot().pursuit!.winnerPlayerId).toBe('b');expect(sim.snapshot().scores.find(s=>s.playerId==='b')!.score).toBe(1);
  const events=sim.drainEvents();expect(events.filter(e=>e.kind==='pursuit-complete')).toMatchObject([{payload:{outcome:'wrecked',bonus:1,playerId:'b'}}]);expect(events.filter(e=>e.kind==='round-ended')).toMatchObject([{payload:{reason:'wrecked',winnerPlayerId:'b'}}]);
- const target=sim.snapshot().vehicles.find(v=>v.entityId===sim.snapshot().pursuit!.suspectId)!;ticks(sim,400);expect(sim.snapshot().vehicles.find(v=>v.entityId===target.entityId)).toEqual(target);expect(campaign(sim).outcomes).toHaveLength(1);expect(sim.drainEvents().filter(e=>e.kind==='respawn'||e.kind==='pursuit-complete'||e.kind==='round-ended')).toEqual([]);
- sim.removePlayer('b');expect(campaign(sim).outcomes[0]).toMatchObject({playerId:'b',callsign:'Officer B'});expect(sim.rematch('b')).toBe(false);expect(sim.rematch('a')).toBe(true);expect(sim.rematch('a')).toBe(false);expect(campaign(sim).dispatchIndex).toBe(1);
+ const target=sim.snapshot().vehicles.find(v=>v.entityId===sim.snapshot().pursuit!.suspectId)!;ticks(sim,400);expect(sim.snapshot().vehicles.find(v=>v.entityId===target.entityId)).toEqual(target);expect(campaign(sim).outcomes).toHaveLength(2);expect(sim.drainEvents().filter(e=>e.kind==='respawn'||e.kind==='pursuit-complete'||e.kind==='round-ended')).toEqual([]);
+ sim.removePlayer('b');expect(campaign(sim).outcomes[1]).toMatchObject({playerId:'b',callsign:'Officer B'});expect(sim.rematch('b')).toBe(false);expect(sim.rematch('a')).toBe(true);expect(sim.rematch('a')).toBe(false);expect(campaign(sim).dispatchIndex).toBe(2);
 });
 it('wins with wreck classification over an arrest that would finish in the same tick',()=>{
- const sim=simulation();campaign(sim);start(sim);const {officerId}=prepare(sim,'wrecked');const c=sim.checkpoint();c.state.records.find(r=>r.vehicle.playerId==='a')!.vehicle.pose={x:0,z:-5.5,yaw:0};c.state.contenderTicks=[['a',179]];c.state.pursuit!.progress=179/180;sim.restore(c);
- sim.step(new Map([[officerId,{actions:{...contracts.neutralActions(),fire:true},sessionEpoch:'test',sourceCommandSequence:0}]]));ticks(sim,10);expect(campaign(sim).outcomes[0]!.outcome).toBe('wrecked');expect(sim.snapshot().scores[0]!.score).toBe(1);
+ const sim=simulation();campaign(sim);start(sim);resolve(sim,'arrested');expect(sim.rematch('a')).toBe(true);start(sim);const {officerId}=prepare(sim,'wrecked');const c=sim.checkpoint();c.state.records.find(r=>r.vehicle.playerId==='a')!.vehicle.pose={x:0,z:-5.5,yaw:0};c.state.contenderTicks=[['a',179]];c.state.pursuit!.progress=179/180;sim.restore(c);
+ sim.step(new Map([[officerId,{actions:{...contracts.neutralActions(),fire:true},sessionEpoch:'test',sourceCommandSequence:0}]]));ticks(sim,10);expect(campaign(sim).outcomes[1]!.outcome).toBe('wrecked');expect(sim.snapshot().scores[0]!.score).toBe(4);
 });
 it('advances only successful dispatches, preserves cumulative scores, and completes exactly ten authored stages',()=>{
  const sim=simulation();campaign(sim);const suspectId=sim.snapshot().pursuit!.suspectId;let score=0;

@@ -1,7 +1,7 @@
 export interface BossTactics {
   readonly id: string; readonly label: string;
   readonly drivingStyle: 'runner' | 'brake-check' | 'weaver' | 'interceptor';
-  readonly weapon: 'burst' | 'grenades' | 'mixed'; readonly difficulty: number; readonly description: string;
+  readonly weapon: 'none' | 'burst' | 'grenades' | 'mixed'; readonly difficulty: number; readonly description: string;
   readonly engageRange: number; readonly cruiseSpeed: number; readonly weaveAmplitude: number; readonly weavePeriodTicks: number;
   readonly bulletDamage: number; readonly burstShots: number; readonly burstIntervalTicks: number; readonly burstRecoveryTicks: number;
   readonly windupTicks: number; readonly grenadeCooldownTicks: number; readonly grenadeFlightTicks: number; readonly grenadeFuseTicks: number;
@@ -18,9 +18,9 @@ const profile = (id: string, label: string, drivingStyle: BossTactics['drivingSt
 });
 /** Deterministic authored difficulty, not player-stat scaling or an adaptive damage handicap. */
 export const BOSS_TACTICS: readonly BossTactics[] = Object.freeze([
-  profile('loose-change', 'Nervous getaway', 'runner', 'burst', 1, 'Nico runs the route and fires one cautious forward volley. Stay off his nose and close during the long reload.'),
+  profile('loose-change', 'Nervous getaway', 'runner', 'none', 1, 'Nico is unarmed. Catch up, match his speed and stay close with a clear path for three seconds to arrest him.'),
   profile('clamp-down', 'Clamp and counter', 'brake-check', 'burst', 2, 'Mabel brakes hard when followed, then answers with a short forward burst. Avoid the bumper and use her long recovery to box her in.', { burstShots: 2, weavePeriodTicks: 240 }),
-  profile('duplicate-trouble', 'Courier lob', 'weaver', 'grenades', 3, 'Pip practices gentle weaving and a slow grenade lob. The landing ring stays fixed: move away before the fuse expires.'),
+  profile('duplicate-trouble', 'Courier lob', 'weaver', 'grenades', 3, 'Pip practices gentle weaving and a slow grenade lob. The landing ring stays fixed: move away before the fuse expires.', { grenadeFuseTicks: 150 }),
   profile('express-distress', 'Express detour', 'weaver', 'grenades', 4, 'Rosa weaves through her route and drops marked grenades more often. Cross behind her and leave the landing ring during its visible fuse.'),
   profile('stamp-duty', 'Hot-stamp grenadier', 'weaver', 'grenades', 5, 'Hector sweeps across the lane while lobbing marked grenades. Match his movement, leave each fixed blast ring, then arrest during recovery.', { weaveAmplitude: .48, weavePeriodTicks: 180 }),
   profile('false-alarm', 'Siren drive-by', 'runner', 'burst', 6, 'Otis runs a quicker escape line with short drive-by bursts. His guns still point forward; approach the flanks during recovery.'),

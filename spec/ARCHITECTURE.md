@@ -1,6 +1,6 @@
 # Architecture
 
-Status: architecture and acceptance targets for the implemented `arcade-v10` / protocol 2 alpha. Updated: 2026-10-25 for unified room sessions, following persistent street lighting. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
+Status: architecture and acceptance targets for the implemented `arcade-v11` / protocol 3 alpha. Updated: 2026-10-25 for unified room sessions, including staged tutorials and independent online input timing. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
 
 *One authority drives the rules. Everyone else gets a dashboard, not a spare steering wheel.*
 
@@ -71,7 +71,7 @@ Keep authoritative and rendered positions distinct. A correction changes simulat
 - Server schedules from a monotonic clock, accumulates elapsed time, and steps fixed ticks.
 - Server catch-up is capped at four fixed ticks per event-loop turn; larger backlogs trigger bounded clock/input recovery. Never replace the fixed delta with a larger one to catch up.
 - Load-sensitive admission and sustained-overload health reporting remain operational acceptance work. Current room admission uses the configured room cap; `/ready` must not be read as proof that a five-minute load budget passed.
-- Browser uses a fixed-step accumulator for predicted movement and independent rendering interpolation. Online, one frame runs at most four input ticks. Practice runs the authoritative simulation locally, so one frame may catch up a full quarter second (fifteen ticks) rather than let a slow or software-rendered machine play in slow motion; backlog beyond that is dropped (`apps/client/src/pacing.ts`).
+- Browser uses a fixed-step accumulator for predicted movement and independent rendering interpolation. Online input and prediction run on their own 60 Hz timer, independently from rendering; a delayed timer callback catches up at most four ticks and drops excess time. Practice runs the authoritative simulation locally, so one frame may catch up a full quarter second (fifteen ticks) rather than let a slow or software-rendered machine play in slow motion; backlog beyond that is dropped (`apps/client/src/pacing.ts`).
 - A hidden/suspended browser neutralizes input. On resume, request current state; discard stale prediction backlog instead of simulating every missed frame.
 
 ### Vehicle model
@@ -214,3 +214,5 @@ Keep room admission configuration, allowed origins, timeouts, and build identity
 - [Colyseus prediction/reconciliation](https://docs.colyseus.io/netcode/client-prediction).
 
 These references are background, not a dependency lock or a fresh compatibility audit. Use the pinned manifest, source and real-adapter tests for the current implementation. The architecture has enough moving parts without letting the documentation invent another reconciler.
+
+Dispatch capabilities derive from the shared catalog and authoritative campaign index. Simulation and prediction receive the same gun/wet-road context; the renderer consumes matching gun fittings and water footprints. Pursuit contenders publish their eligibility guidance alongside progress. See [tutorial rules and acceptance](TUTORIAL.md).

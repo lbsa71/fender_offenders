@@ -23,6 +23,15 @@ function paint(car: CarVisual, name: string) {
 }
 
 describe('original procedural vehicle bodies', () => {
+  it('removes only the gun fittings from each rookie car and its exact breakup assembly',()=>{
+    for(const body of VEHICLE_BODIES){
+      const rookie=factory.create(`rookie-${body}`,body,false,false);
+      expect(paint(rookie,body).color).toBe(paint(factory.create(`armed-${body}`,body,false),body).color);
+      const armed=factory.create(`reference-${body}`,body,false);expect(Boolean(rookie.sirenRed)).toBe(Boolean(armed.sirenRed));expect(Boolean(rookie.sirenBlue)).toBe(Boolean(armed.sirenBlue));
+      expect(factory.breakupParts(body,false,false).filter(m=>m.metadata.componentName==='gun')).toHaveLength(0);
+      expect(factory.breakupParts(body,false).filter(m=>m.metadata.componentName==='gun')).toHaveLength(2);
+    }
+  });
   it('distinguishes dielectric glass, coated paint and metal instead of giving every surface the same response', () => {
     factory.create('finish', 'patrol', false);
     const paint = scene.getMaterialByName('paint-patrol') as PBRMaterial, glass = scene.getMaterialByName('glass') as PBRMaterial, chrome = scene.getMaterialByName('chrome') as PBRMaterial;

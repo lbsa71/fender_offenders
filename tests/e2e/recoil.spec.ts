@@ -1,10 +1,11 @@
-import { test, expect } from './fixtures';
+import { test, expect, dispatchFixture } from './fixtures';
 
 test('held gunfire trades driving speed and steering control for firepower, then recovers on release', async ({ page }) => {
   test.setTimeout(60000);
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.addInitScript(() => localStorage.setItem('fender-garage-v1', JSON.stringify({ vehicleBodyId: 'patrol' })));
   await page.goto('/'); await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
+  await dispatchFixture(page,1);
   await page.getByRole('button', { name: 'START DISPATCH', exact: false }).click();
   const state = () => page.evaluate(() => (window as any).__FENDER_DEBUG__?.snapshot);
   await expect.poll(async () => (await state())?.phase).toBe('playing');

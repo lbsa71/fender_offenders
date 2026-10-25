@@ -28,22 +28,30 @@ export function createGaragePreview(engine:AbstractEngine,initialQuality:'low'|'
   const ring=MeshBuilder.CreateTorus('garage-ring',{diameter:8.5,thickness:.055,tessellation:64},scene);ring.position.y=-.02;ring.material=material('garage-brass','#d1b979',true);
   const inner=MeshBuilder.CreateTorus('garage-inner-ring',{diameter:6.2,thickness:.025,tessellation:64},scene);inner.position.y=-.015;inner.material=material('garage-line','#517879');
   const dashMaterial=material('garage-registration','#76948c');
-  for(let i=0;i<24;i++){const a=i/24*Math.PI*2,mark=MeshBuilder.CreateBox('garage-registration',{width:.045,height:.015,depth:.18},scene);mark.position.set(Math.sin(a)*3.8,-.02,Math.cos(a)*3.8);mark.rotation.y=a;mark.material=dashMaterial;mark.parent=platform;}
-  const factory=new CarFactory(scene);let bodyAssetId:string|null=null,car:CarVisual|null=null,angle=0,disposed=false;
-  function setBody(body:string|null){
-    if(body===bodyAssetId||disposed)return;
-    if(car){for(const p of car.parts)shadows?.removeShadowCaster(p);car.root.dispose(false);car=null;}
-    bodyAssetId=body;
-    if(body){car=factory.create('garage-preview',body,false);car.root.parent=platform;car.root.rotation.y=2.5;car.health.isVisible=false;car.healthBack.isVisible=false;car.marker.isVisible=false;for(const p of car.parts)shadows?.addShadowCaster(p);}
+  for(let i=0;i<24;i++){const a=i/24*Math.PI*2,mark=MeshBuilder.CreateBox('garage-registration',{width:.045,height:.015,depth:.18},scene);mark.position.set(Math.sin(a)*3.8,-.02,Math.cos(a)*3.8);mark.rotation.y=a;mark.material=dashMaterial;mark.parent=platform;mark.layerMask=1;}
+  const rivalPlatform=new TransformNode('garage-rival-turntable',scene);rivalPlatform.position.x=12;
+  for(const original of [stage,ring,inner]){original.layerMask=1;const clone=original.clone(`${original.name}-rival`)!;clone.position.x+=12;clone.layerMask=2;}
+  const rivalCamera=new FreeCamera('garage-rival-camera',new Vector3(17.6,3.8,-7),scene);rivalCamera.setTarget(new Vector3(12,1,0));rivalCamera.fov=.64;rivalCamera.minZ=.1;camera.layerMask=1;rivalCamera.layerMask=2;
+  const factory=new CarFactory(scene);let bodyAssetId:string|null=null,car:CarVisual|null=null,rival:CarVisual|null=null,suspectBody:string|null=null,armed=true,suspectArmed=true,angle=0,disposed=false;
+  function remove(value:CarVisual|null){if(value){for(const p of value.parts)shadows?.removeShadowCaster(p);value.root.dispose(false);}}
+  function make(id:string,body:string,platform:TransformNode,guns:boolean){const value=factory.create(id,body,false,guns);value.root.parent=platform;value.root.rotation.y=2.5;value.health.isVisible=false;value.healthBack.isVisible=false;value.marker.isVisible=false;for(const mesh of value.root.getChildMeshes())mesh.layerMask=id==='garage-suspect'?2:1;for(const p of value.parts)shadows?.addShadowCaster(p);return value;}
+  function setBody(body:string|null,guns=true,suspect:string|null=null,suspectGuns=true){
+    if(disposed)return;
+    if(body!==bodyAssetId||guns!==armed){remove(car);car=body?make('garage-preview',body,platform,guns):null;bodyAssetId=body;armed=guns;}
+    if(suspect!==suspectBody||suspectGuns!==suspectArmed){remove(rival);rival=suspect?make('garage-suspect',suspect,rivalPlatform,suspectGuns):null;suspectBody=suspect;suspectArmed=suspectGuns;}
   }
   function setQuality(quality:'low'|'medium'|'high'){
     scene.shadowsEnabled=quality!=='low';
     if(quality==='low'){shadows?.dispose();shadows=null;return;}
-    if(!shadows){shadows=new ShadowGenerator(1024,key);shadows.usePercentageCloserFiltering=true;shadows.bias=.003;shadows.normalBias=.04;shadows.darkness=.3;if(car)for(const part of car.parts)shadows.addShadowCaster(part);}
+    if(!shadows){shadows=new ShadowGenerator(1024,key);shadows.usePercentageCloserFiltering=true;shadows.bias=.003;shadows.normalBias=.04;shadows.darkness=.3;for(const value of [car,rival])if(value)for(const part of value.parts)shadows.addShadowCaster(part);}
   }
   setQuality(initialQuality);
-  function update(dt:number,reduced:boolean){if(disposed)return;if(!reduced)angle+=Math.min(Math.max(dt,0),.5)*.26;platform.rotation.y=angle;}
+  function update(dt:number,reduced:boolean){if(disposed)return;if(!reduced)angle+=Math.min(Math.max(dt,0),.5)*.26;platform.rotation.y=angle;rivalPlatform.rotation.y=angle;
+    const width=engine.getRenderingCanvas()?.clientWidth??engine.getRenderWidth(),height=engine.getRenderingCanvas()?.clientHeight??engine.getRenderHeight(),narrow=width<=740,short=narrow&&height<600;
+    scene.activeCamera=camera;scene.activeCameras=suspectBody?[camera,rivalCamera]:null;
+    if(suspectBody){camera.viewport=short?new Viewport(0,.48,.30,.25):narrow?new Viewport(0,.66,1,.17):new Viewport(0,.28,.29,.4);rivalCamera.viewport=short?new Viewport(0,.18,.30,.25):narrow?new Viewport(0,.46,1,.17):new Viewport(.29,.28,.29,.4);}
+    else camera.viewport=new Viewport(0,.24,.58,.48);}
   function dispose(){if(disposed)return;disposed=true;factory.dispose();scene.dispose();}
-  return{scene,setBody,setQuality,update,getStats:()=>({bodyAssetId,angle}),dispose};
+  return{scene,setBody,setQuality,update,getStats:()=>({bodyAssetId,suspectBody,armed,suspectArmed,angle}),dispose};
 }
 export type GaragePreview=ReturnType<typeof createGaragePreview>;

@@ -1,10 +1,10 @@
 import { expect, it } from 'vitest';
 import { BOSS_TACTICS, getBossTactics } from './boss-tactics.js';
-it('authors ten armed dispatch profiles with a strictly increasing difficulty and bounded readable attacks',()=>{
+it('authors an unarmed opening and nine armed dispatch profiles with a strictly increasing difficulty and bounded readable attacks',()=>{
  expect(BOSS_TACTICS).toHaveLength(10);
  expect(BOSS_TACTICS.map(t=>t.difficulty)).toEqual([1,2,3,4,5,6,7,8,9,10]);
  expect(new Set(BOSS_TACTICS.map(t=>t.id)).size).toBe(10);
- for(const t of BOSS_TACTICS){expect(t.label.length).toBeGreaterThan(3);expect(t.description.length).toBeGreaterThan(40);expect(['burst','grenades','mixed']).toContain(t.weapon);expect(t.windupTicks).toBeGreaterThanOrEqual(30);expect(t.burstRecoveryTicks).toBeGreaterThanOrEqual(120);expect(t.burstIntervalTicks).toBeGreaterThanOrEqual(12);expect(t.bulletDamage).toBeLessThanOrEqual(10);expect(t.grenadeFuseTicks).toBeGreaterThanOrEqual(72);expect(t.grenadeFlightTicks).toBeLessThan(t.grenadeFuseTicks);expect(t.grenadeRadius).toBeLessThanOrEqual(7);expect(t.grenadeDamage).toBeLessThanOrEqual(34);expect(Object.isFrozen(t)).toBe(true);}
+ for(const t of BOSS_TACTICS){expect(t.label.length).toBeGreaterThan(3);expect(t.description.length).toBeGreaterThan(40);expect(t===BOSS_TACTICS[0]?['none']:['burst','grenades','mixed']).toContain(t.weapon);expect(t.windupTicks).toBeGreaterThanOrEqual(30);expect(t.burstRecoveryTicks).toBeGreaterThanOrEqual(120);expect(t.burstIntervalTicks).toBeGreaterThanOrEqual(12);expect(t.bulletDamage).toBeLessThanOrEqual(10);expect(t.grenadeFuseTicks).toBeGreaterThanOrEqual(72);expect(t.grenadeFlightTicks).toBeLessThan(t.grenadeFuseTicks);expect(t.grenadeRadius).toBeLessThanOrEqual(7);expect(t.grenadeDamage).toBeLessThanOrEqual(34);expect(Object.isFrozen(t)).toBe(true);}
  expect(Object.isFrozen(BOSS_TACTICS)).toBe(true);
 });
 it('gives the four ringleaders distinct driving and weapon signatures with progressively shorter attack recovery',()=>{

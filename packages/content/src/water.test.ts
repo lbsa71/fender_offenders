@@ -9,8 +9,14 @@ const distanceToSegment = (x: number, z: number, ax: number, az: number, bx: num
   return Math.hypot(x - ax - t * dx, z - az - t * dz);
 };
 
-describe('authored cosmetic water', () => {
-  it('includes curb puddles, one visibly shallow park pond and one decorative pool', () => {
+describe('authored shallow water', () => {
+  it('shares exact road-puddle polygons with driving physics while leaving ponds and pools decorative',()=>{
+    const zones=content.districtMap.wetSurfaces??[];
+    expect(zones).toHaveLength(4);
+    expect(zones.map(z=>z.id).sort()).toEqual(sites().filter(s=>s.kind==='puddle').map(s=>s.id).sort());
+    for(const zone of zones){expect(zone.polygonXZ.length).toBeGreaterThanOrEqual(8);expect(zone.polygonXZ.every(Number.isFinite)).toBe(true);}
+  });
+  it('includes road puddles, one visibly shallow park pond and one decorative pool', () => {
     expect(sites().filter(s => s.kind === 'puddle').length).toBeGreaterThanOrEqual(4);
     expect(sites().filter(s => s.kind === 'pond')).toHaveLength(1);
     expect(sites().filter(s => s.kind === 'pool')).toHaveLength(1);

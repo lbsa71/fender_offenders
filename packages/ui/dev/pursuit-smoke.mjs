@@ -28,9 +28,9 @@ try {
   const visible = () => page.locator('.fo-target-indicator').isVisible();
   const indicatorText = () => page.locator('.fo-target-indicator').evaluateAll(nodes => nodes[0]?.textContent ?? '');
   await update();
-  check((await page.locator('.fo-pursuit').innerText()).includes('FIRST TO APPREHEND'), 'multiplayer objective says FIRST TO APPREHEND');
+  check((await page.locator('.fo-pursuit').innerText()).includes('APPREHEND THE SUSPECT'), 'multiplayer objective explicitly names apprehension');
   check((await page.locator('.fo-pursuit').innerText()).includes('YOUR ARREST'), 'progress is clearly labeled as the local player arrest');
-  check((await page.locator('.fo-pursuit').innerText()).includes('3s'), 'objective explains stay close and match speed for three seconds');
+  check((await page.locator('.fo-pursuit').innerText()).includes('3 seconds'), 'objective explains stay close and match speed for three seconds');
   check(await page.locator('.fo-pursuit progress').getAttribute('aria-label') === 'Your arrest progress', 'own progress is accessible');
   check(await page.locator('.fo-pursuit progress').evaluate(node => node.value) === .2, 'rival global progress must not masquerade as local progress');
   await update({ pursuit: { contenders: [], arrestingPlayerId: 'rival' } });

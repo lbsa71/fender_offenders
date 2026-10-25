@@ -1,6 +1,6 @@
 # Every campaign has a room
 
-Status: implemented for `arcade-v10`, protocol 2. Updated: 2026-10-25. Evidence is recorded in [execution status](EXECUTION_STATUS.md#unified-room-sessions). Named-hardware capacity and public deployment acceptance remain separate gates.
+Status: implemented for `arcade-v11`, protocol 3. Updated: 2026-10-25. Evidence is recorded in [execution status](EXECUTION_STATUS.md#unified-room-sessions). Named-hardware capacity and public deployment acceptance remain separate gates.
 
 *One officer is a task force. Two officers are a task force with witnesses.*
 
@@ -47,3 +47,5 @@ No paid hosting or database is added. Render Free cannot attach persistent disks
 Focused simulation tests cover single-member starts, membership permissions, duplicate transitions and immutable credited names. Real-room tests exercise pause/arrival, countdown retention, reserved-seat protection, capacity reclamation and controlled-clock inactivity/expiry. Browser scenarios cover room URL assignment, entry/navigation, sharing and solo pause/resume with backup. Production smoke starts alone and admits a second real WebSocket player into live play.
 
 Follow the repository's observed red–green–refactor requirement for subsequent changes. Test teardown explicitly disposes owned retained rooms. These checks do not certify five-minute eight-player capacity, Internet latency, physical controllers or hosted rollback. The paperwork gets its own speed limit.
+
+Tutorial equipment and lessons derive from the room's current dispatch. Late joiners receive current capabilities immediately; retry preserves them and restarting a completed campaign restores the unarmed opener. See [tutorial progression](TUTORIAL.md).

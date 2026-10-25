@@ -13,7 +13,7 @@ import { MeshBuilder } from './primitives';
 import { CarFactory } from './cars';
 import { WreckPhysics } from './wreck-physics';
 
-export interface WreckDescriptor { vehicleId: string; pose: PlanarPose; bodyAssetId: string; discontinuityId: number }
+export interface WreckDescriptor { vehicleId: string; pose: PlanarPose; bodyAssetId: string; discontinuityId: number; armed?: boolean }
 export interface WreckOptions { reducedMotion?: boolean; reducedFlash?: boolean }
 interface Piece {
   root: TransformNode; mesh: Mesh; shadow: InstancedMesh; source: Mesh | null;
@@ -103,7 +103,7 @@ export class WreckEffects {
     let seed = 2166136261;
     for (const char of `${wreck.vehicleId}:${wreck.discontinuityId}`) seed = Math.imul(seed ^ char.charCodeAt(0), 16777619);
     const random = () => { seed = Math.imul(seed, 1664525) + 1013904223 | 0; return (seed >>> 0) / 4294967296; };
-    const parts = this.factory.breakupParts(wreck.bodyAssetId, wreck.bodyAssetId.startsWith('traffic'));
+    const parts = this.factory.breakupParts(wreck.bodyAssetId, wreck.bodyAssetId.startsWith('traffic'), wreck.armed ?? !wreck.bodyAssetId.startsWith('traffic'));
     const sin = Math.sin(-wreck.pose.yaw), cos = Math.cos(-wreck.pose.yaw);
     for (let i = 0; i < parts.length; i++) {
       const p = slot.pieces[i]!, part = parts[i]!, center = part.position;

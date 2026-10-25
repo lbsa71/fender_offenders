@@ -37,14 +37,14 @@ beforeAll(async()=>{server=await createGameServer(2722);});
 afterEach(async()=>{ await disposeTestRooms();await Promise.all(rooms.splice(0).map(room=>room.connection.isOpen?room.leave(true):Promise.resolve()));});
 afterAll(async()=>{await server?.gracefullyShutdown(false);});
 
-it('the authoritative opening target fires real shots, damages an officer and shares the attack with both clients',async()=>{
- const host=await peer(),guest=await peer(host.room.roomId),{bossId}=encounter(host);
+it('the authoritative second target fires real shots, damages an officer and shares the attack with both clients',async()=>{
+ const host=await peer(),guest=await peer(host.room.roomId),{bossId}=encounter(host,1);
  await until(()=>host.events.some(event=>event.kind==='shot'&&event.payload.shooterId===bossId),'Campaign target must shoot back');
  await until(()=>host.state.local!.vehicle.health<100,'Authoritative AI bullets damage the officer');
  const shot=host.events.find(event=>event.kind==='shot'&&event.payload.shooterId===bossId)!;
  await until(()=>guest.events.some(event=>event.eventId===shot.eventId),'Both observers see the same boss volley');
  expect(guest.events.find(event=>event.eventId===shot.eventId)).toEqual(shot);
- expect(host.state.campaign!.outcomes).toEqual([]);expect(host.state.scores.every(score=>score.score===0)).toBe(true);
+ expect(host.state.campaign!.outcomes).toHaveLength(1);expect(host.state.scores.every(score=>score.score===0)).toBe(true);
 });
 
 it('Hector broadcasts a fixed grenade warning to peers and a late joiner, then explodes once with shared authority',async()=>{

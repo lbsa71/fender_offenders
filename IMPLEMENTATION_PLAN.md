@@ -1,12 +1,14 @@
 # Implementation plan
 
-Status: acceptance plan for the playable `arcade-v10` alpha. Updated: 2026-10-25 following `0bde06a` and the persistent-lamp correction. Current states and dated evidence for all 49 tasks are in [the execution ledger](spec/EXECUTION_STATUS.md). Task IDs, dependencies and milestone gates remain stable; delivery choices below reflect the current implementation.
+Status: acceptance plan for the playable `arcade-v11` alpha. Updated: 2026-10-25 for the staged tutorial and solo input-clock correction. Current states and dated evidence for all 49 tasks are in [the execution ledger](spec/EXECUTION_STATUS.md). Task IDs, dependencies and milestone gates remain stable; delivery choices below reflect the current implementation.
 
 *The city is playable. The release paperwork still has several outstanding warrants.*
 
 ## Next acceptance work
 
-The [unified room model](spec/ROOM_SESSIONS.md) replaces production solo/private mode separation: every 1–8-player campaign runs on the server, any connected officer can proceed from a briefing, and friends join live. Empty rooms pause for up to 15 minutes with oldest-empty capacity reclamation; idle connected tabs warn at 14 minutes and disconnect at 15. F/S/N/U/Q share this integration sequentially; the combined room/recoil build uses protocol 2 and `arcade-v10`. Storage remains process memory. Graphics and named-hardware acceptance continue independently.
+The [four-dispatch introduction](spec/TUTORIAL.md) is integrated: unarmed arrest-only opener, shared gun unlock, readable bomb lesson and exact shared wet-road footprints. U/R own ongoing readability and native preview review, S/G own authority and handling, and F/N/Q verify matching builds, late joins and local E2E. Online input sampling now runs independently from render cadence, and spawn protection uses room ticks. Human driving/controller and sustained performance gates remain open.
+
+The [unified room model](spec/ROOM_SESSIONS.md) replaces production solo/private mode separation: every 1–8-player campaign runs on the server, any connected officer can proceed from a briefing, and friends join live. Empty rooms pause for up to 15 minutes with oldest-empty capacity reclamation; idle connected tabs warn at 14 minutes and disconnect at 15. F/S/N/U/Q share this integration sequentially; the combined room/recoil build uses protocol 3 and `arcade-v11`. Storage remains process memory. Graphics and named-hardware acceptance continue independently.
 
 Sharing an ongoing solo patrol means copying its current room URL and admitting backup into that live campaign. Preserve earned progress, the original car and personal score, and the current dispatch deadline. Use one persistent Invite URL action, including keyboard/controller navigation while paused; bare visits assign a fresh room URL. Additional create/join controls and room-code entry are removed. Multiplayer begins with the second officer's arrival in the same room.
 
@@ -78,7 +80,7 @@ The [armed-target extension](spec/BOSS_COMBAT.md) is also implemented: simulatio
 | M0 — Contracts and feasibility | Workspace runs; headless sim and room/client spike work; all lanes have fixtures | F00–F03, S00, N00, A01, U01, Q01; dependency lock and risk decisions recorded | Asset sourcing, input prototype, renderer scene setup, test harness |
 | M1 — Driving and visual slice | One finished intersection, one polished car, keyboard/gamepad, responsive camera/collisions | F04, R03, A03, Q02; actual in-engine visual/handling review | Combat logic, room protocol, HUD, district assembly |
 | M2 — Two-player combat | Two real browser clients drive, shoot, damage, wreck, respawn, and recover from ordinary jitter | F05, S04, Q04; normal/stressed network evidence and no duplicate damage | Full map, traffic, round lifecycle, operations tooling |
-| M3 — Complete alpha | 2–8 players, full district, traffic, six profiles, campaign briefings/results, solo/competitive pursuit | F06 and its dependencies; full feature walkthrough | Device/browser matrix, long runs, final polish, staging |
+| M3 — Complete alpha | 1–8 players, full district, traffic, six profiles, campaign briefings/results, solo/competitive pursuit | F06 and its dependencies; full feature walkthrough | Device/browser matrix, long runs, final polish, staging |
 | M4 — Release candidate | Measured performance, compatibility, asset audit, operational recovery | F07; P01–P10 evidence and release checklist | No new gameplay features; fixes/polish only |
 
 M0 is a contract/feasibility gate, not a demand to finish every package. Downstream tasks may begin as soon as their explicit dependencies are available, even while other milestone tasks are in progress. Milestone gates still require integrated evidence.

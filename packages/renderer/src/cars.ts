@@ -15,7 +15,7 @@ import {newVehicleFeedback,type VehicleFeedback} from './feedback';
 
 export const VEHICLE_PAINT_COLORS:Readonly<Record<string,string>>={patrol:'#ece5cf',roadster:'#e98a48',interceptor:'#407c91',army:'#69754a',ambulance:'#f4efe0','fire-chief':'#bd4c3d',traffic:'#cbb26e'};
 
-export interface CarVisual { entityId:string;wreckLifeFloor:number;wreckParts:InstancedMesh[];wreckLife:number|null;explodedLife:number|null;root: TransformNode; suspension: TransformNode; body: TransformNode; bodyAssetId:string; traffic:boolean; motion:CartoonMotion;feedback:VehicleFeedback;lastCrashAt:number;lastCrashTick:number; lastBumpId:string|null;lastBumpAt:number; parts: InstancedMesh[]; sirenRed: InstancedMesh | null; sirenBlue: InstancedMesh | null; health: Mesh; healthBack: Mesh; marker: Mesh; previousX: number; previousZ: number; previousYaw: number; discontinuity: number }
+export interface CarVisual { entityId:string;wreckLifeFloor:number;wreckParts:InstancedMesh[];wreckLife:number|null;explodedLife:number|null;root: TransformNode; suspension: TransformNode; body: TransformNode; bodyAssetId:string; traffic:boolean; armed:boolean; motion:CartoonMotion;feedback:VehicleFeedback;lastCrashAt:number;lastCrashTick:number; lastBumpId:string|null;lastBumpAt:number; parts: InstancedMesh[]; sirenRed: InstancedMesh | null; sirenBlue: InstancedMesh | null; health: Mesh; healthBack: Mesh; marker: Mesh; previousX: number; previousZ: number; previousYaw: number; discontinuity: number }
 
 export class CarFactory {
   private templates = new Map<string, Mesh[]>();
@@ -42,12 +42,12 @@ export class CarFactory {
   }
 
   private bodyType(body:string,traffic:boolean):string{return traffic||body==='suspect'?'traffic':body==='army'||body==='ambulance'||body==='fire-chief'?body:body.includes('roadster')?'roadster':body.includes('interceptor')?'interceptor':'patrol';}
-  private key(body:string,traffic:boolean):string{return `${this.bodyType(body,traffic)}:${traffic?'civilian':'armed'}`;}
+  private key(body:string,traffic:boolean,armed=!traffic):string{return `${this.bodyType(body,traffic)}:${!armed?'civilian':'armed'}`;}
   /** Exact authored components, centered for rigid-body use; intact cars still use material batches. */
-  breakupParts(body:string,traffic:boolean):readonly Mesh[]{this.template(body,traffic);return this.assemblies.get(this.key(body,traffic))!;}
+  breakupParts(body:string,traffic:boolean,armed=!traffic):readonly Mesh[]{this.template(body,traffic,armed);return this.assemblies.get(this.key(body,traffic,armed))!;}
 
-  private template(body: string, traffic: boolean): Mesh[] {
-    const type=this.bodyType(body,traffic),key=this.key(body,traffic);
+  private template(body: string, traffic: boolean, armed=!traffic): Mesh[] {
+    const type=this.bodyType(body,traffic),key=this.key(body,traffic,armed);
     const cached=this.templates.get(key);if(cached)return cached;
     const assembly:Mesh[]=[];
     const parts=new Map<string,{material:Material;meshes:Mesh[];role:'body'|'wheel'}>();
@@ -103,7 +103,7 @@ export class CarFactory {
     for(const s of [-1,1]){
       box('headlamp',s*.67,.9,length-.02,.43,.25,.08,headlight);
       box('taillamp',s*.64,.9,-length+.02,.52,.2,.08,tail);
-      if(!traffic)box('gun',s*.63,1.17,1.925,.13,.13,1.05,navy);
+      if(armed&&!traffic)box('gun',s*.63,1.17,1.925,.13,.13,1.05,navy);
     }
     box('plate',0,.69,-length-.15,.45,.16,.03,headlight);
     const lightbar=(y:number,z:number)=>{
@@ -164,16 +164,16 @@ export class CarFactory {
     for(const z of [-1.32,1.32])box(0,.42,z,2.05,.12,.12);
     const merged=Mesh.MergeMeshes(pieces,true,true,undefined,false,false)!;merged.name='charred-chassis-source';merged.material=this.material('charred-chassis','#263237');merged.isVisible=false;merged.receiveShadows=true;merged.metadata={wreckPart:true};return this.charredTemplate=merged;
   }
-  create(entityId:string, body:string, traffic:boolean):CarVisual{
+  create(entityId:string, body:string, traffic:boolean, armed=!traffic):CarVisual{
     const root=new TransformNode(`vehicle-${entityId}`,this.scene);
     const suspension=new TransformNode(`suspension-${entityId}`,this.scene);suspension.parent=root;
     const coachwork=new TransformNode(`body-${entityId}`,this.scene);coachwork.parent=suspension;coachwork.setPivotPoint(new Vector3(0,.55,0));
-    const parts=this.template(body,traffic).map((mesh)=>{const i=mesh.createInstance(`${entityId}-${mesh.name}`);i.parent=mesh.metadata?.role==='wheel'?suspension:coachwork;i.isVisible=true;return i;});
+    const parts=this.template(body,traffic,armed).map((mesh)=>{const i=mesh.createInstance(`${entityId}-${mesh.name}`);i.parent=mesh.metadata?.role==='wheel'?suspension:coachwork;i.isVisible=true;return i;});
     const chassis=this.charred().createInstance(`${entityId}-charred-chassis`);chassis.parent=root;chassis.isVisible=false;const wreckParts=[chassis];
     const healthBack=MeshBuilder.CreateBox(`${entityId}-health-back`,{width:2.2,height:.09,depth:.2},this.scene);healthBack.position.set(0,3.5,0);healthBack.parent=root;healthBack.material=this.material('health-back','#29464d');
     const health=MeshBuilder.CreateBox(`${entityId}-health`,{width:2,height:.1,depth:.21},this.scene);health.position.set(0,3.51,0);health.parent=root;health.material=this.material('health','#a6ddbd',0,true);
     const marker=MeshBuilder.CreateTorus(`${entityId}-marker`,{diameter:3,thickness:.065,tessellation:40},this.scene);marker.position.y=.08;marker.parent=root;marker.material=this.material('marker','#b9e8da',0,true);
-    return{entityId,root,wreckParts,wreckLife:null,explodedLife:null,wreckLifeFloor:-1,suspension,body:coachwork,bodyAssetId:body,traffic,motion:newCartoonMotion(),feedback:newVehicleFeedback(),lastCrashAt:-10,lastCrashTick:-1,lastBumpId:null,lastBumpAt:-10,parts,sirenRed:parts.find((p)=>p.sourceMesh.name==='red-siren')??null,sirenBlue:parts.find((p)=>p.sourceMesh.name==='blue-siren')??null,health,healthBack,marker,previousX:0,previousZ:0,previousYaw:0,discontinuity:-1};
+    return{entityId,root,wreckParts,wreckLife:null,explodedLife:null,wreckLifeFloor:-1,suspension,body:coachwork,bodyAssetId:body,traffic,armed,motion:newCartoonMotion(),feedback:newVehicleFeedback(),lastCrashAt:-10,lastCrashTick:-1,lastBumpId:null,lastBumpAt:-10,parts,sirenRed:parts.find((p)=>p.sourceMesh.name==='red-siren')??null,sirenBlue:parts.find((p)=>p.sourceMesh.name==='blue-siren')??null,health,healthBack,marker,previousX:0,previousZ:0,previousYaw:0,discontinuity:-1};
   }
   dispose():void{for(const meshes of [...this.templates.values(),...this.assemblies.values()])for(const mesh of meshes)mesh.dispose();this.charredTemplate?.dispose();for(const material of this.materials.values())material.dispose();this.templates.clear();this.assemblies.clear();this.materials.clear();this.charredTemplate=null;}
 }

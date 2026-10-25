@@ -1,5 +1,6 @@
-import { CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, CAMPAIGN_TITLE, getBossTactics, getCampaignMugshot, getCampaignTarget, getVehicleProfile, isInviteCode, isVehicleBodyId, randomCallsign, sanitizeNickname, VEHICLE_BODIES, type CampaignState, type CampaignTarget, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
+import { getDispatchFeatures, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, CAMPAIGN_TITLE, getBossTactics, getCampaignMugshot, getCampaignTarget, getVehicleProfile, isInviteCode, isVehicleBodyId, randomCallsign, sanitizeNickname, VEHICLE_BODIES, type CampaignState, type CampaignTarget, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
 import './style.css';
+import { controlHints, placeControlCard } from './tutorial';
 
 export type MenuAction = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back' | 'pause';
 export type Menu = 'home' | 'pause' | 'settings' | null;
@@ -106,6 +107,25 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const arrestLabel = doc.createElement('span'); arrestLabel.className = 'fo-arrest-label';
   const arrestProgress = one<HTMLProgressElement>('.fo-pursuit progress'); arrestProgress.setAttribute('aria-label', 'Your arrest progress'); arrestProgress.before(arrestLabel);
   const arrestHelp = doc.createElement('small'); arrestHelp.className = 'fo-arrest-help'; arrestHelp.textContent = 'Stay close & match speed · 3s'; one('.fo-pursuit').append(arrestHelp);
+  const controls=one<HTMLElement>('.fo-prompts');controls.dataset.tutorialControls='';controls.setAttribute('aria-label','Driving controls');controls.setAttribute('role','group');controls.replaceChildren();
+  const objectiveTitle=one<HTMLElement>('[data-text="pursuit"]');objectiveTitle.dataset.objectiveTitle='';arrestHelp.dataset.objectiveInstruction='';
+  const markerGuidance=doc.createElement('span');markerGuidance.className='fo-marker-guidance';
+  const markerProgress=doc.createElement('progress');markerProgress.max=1;markerProgress.setAttribute('aria-label','Your arrest progress at suspect');targetBadge.append(markerGuidance,markerProgress);
+  const previewLabels=doc.createElement('div');previewLabels.className='fo-preview-labels';previewLabels.hidden=true;previewLabels.innerHTML='<span>YOUR UNIT</span><span>WANTED</span>';shell.append(previewLabels);
+  let controlAnchor:{x:number;y:number}|null=null,badgeAnchor:{x:number;y:number}|null=null,controlKey='',controlWidth=252,controlHeight=116,shellWidth=view?.innerWidth??960,shellHeight=view?.innerHeight??720;
+  const controlObserver=typeof ResizeObserver==='undefined'?null:new ResizeObserver(entries=>{for(const entry of entries){if(entry.target===shell){shellWidth=entry.contentRect.width;shellHeight=entry.contentRect.height;}else if(entry.contentRect.width){controlWidth=entry.borderBoxSize[0]?.inlineSize??entry.contentRect.width;controlHeight=entry.borderBoxSize[0]?.blockSize??entry.contentRect.height;}}positionControls();});
+  controlObserver?.observe(shell);controlObserver?.observe(controls);
+  function positionControls(){if(controls.hidden)return;const p=placeControlCard(controlAnchor??{x:.5,y:.55},shellWidth,shellHeight,controlWidth,controlHeight,targetBadge.hidden?null:badgeAnchor);controls.style.transform=`translate(${Math.round(p.x)}px,${Math.round(p.y)}px)`;}
+  function setControlAnchor(anchor:{x:number;y:number}|null){controlAnchor=anchor;positionControls();}
+  function updateTutorial(){
+    const campaign=model.snapshot?.campaign,features=campaign?getDispatchFeatures(campaign.dispatchIndex):null,guns=features?.gunsEnabled??Boolean(model.snapshot);
+    controls.hidden=menu!==null||model.snapshot?.phase!=='playing'||model.snapshot.paused===true;
+    const reminders=['Arresting is automatic. Stay close and match speed.','Fire forward in short bursts.','Bombs: leave the marked circle.','Puddles reduce grip. Steer gently.'];
+    const reminder=campaign?reminders[campaign.dispatchIndex]??'': '',hints=controlHints(model.device??'keyboard',settings.bindings,guns),key=JSON.stringify({hints,reminder});
+    if(key!==controlKey){controlKey=key;controls.replaceChildren(...hints.map(h=>{const row=doc.createElement('span'),icon=doc.createElement('kbd'),label=doc.createElement('span');icon.textContent=h.glyph;label.textContent=h.label;row.dataset.control=h.action;row.append(icon,label);return row;}));if(reminder){const tip=doc.createElement('p');tip.dataset.controlLesson='';tip.textContent=reminder;controls.append(tip);}}
+    const fire=one('[data-binding="fire"]');if(fire.parentElement)fire.parentElement.hidden=!guns;
+    write('ammo',guns?'AUTO / UNLIMITED AMMO':'TRAINING / UNARMED');positionControls();
+  }
   const resultOutcome = doc.createElement('p'); resultOutcome.className = 'fo-result-outcome'; resultOutcome.hidden = true; one('.fo-results h2').after(resultOutcome);
   one('.fo-home .fo-muted').textContent = 'Ten connected dispatches. Arrest suspects or stop their getaway cars.';
   one('.fo-home [data-action="practice"] small').textContent = 'Play. Share the URL anytime.';
@@ -115,6 +135,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const briefing = doc.createElement('section'); briefing.className = 'fo-campaign-briefing'; briefing.hidden = true; briefing.setAttribute('aria-label', 'Campaign dispatch briefing');
   briefing.innerHTML = '<header><span class="fo-kicker">MAJOR CASE / MOTOR DIVISION</span><h2 data-campaign-title></h2><span class="fo-campaign-number"></span></header><div class="fo-campaign-scroll"><div class="fo-campaign-target"><div class="fo-campaign-portrait" role="img"></div><div><span class="fo-campaign-role"></span><h3 data-campaign-name></h3><strong data-campaign-alias></strong><span data-campaign-target-car></span></div></div><h3 class="fo-campaign-dispatch-title"></h3><p data-campaign-briefing></p><section class="fo-campaign-progress"><h3>DISPATCH TRACKER / 10 FILES</h3><ol class="fo-campaign-tracker"></ol></section><details class="fo-campaign-evidence"><summary>CASE FILE / EARNED LEADS</summary><ol class="fo-campaign-casefile"></ol><p class="fo-campaign-no-evidence">No leads filed yet. Resolve this dispatch to unseal the next clue.</p></details></div><footer><button class="fo-primary" data-action="campaign-start">START DISPATCH →</button><span class="fo-campaign-wait" hidden>RECONNECT TO CONTINUE</span><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button></footer>';
   shell.append(briefing);
+  const lesson=doc.createElement('section');lesson.className='fo-tutorial-lesson';lesson.dataset.tutorialLesson='';lesson.setAttribute('role','status');lesson.setAttribute('aria-live','polite');lesson.innerHTML='<strong></strong><p></p>';briefing.querySelector('.fo-campaign-scroll')!.prepend(lesson);
+  let lessonKey='';
   const campaignRoster = doc.createElement('section'); campaignRoster.className = 'fo-campaign-roster'; campaignRoster.hidden = true;
   campaignRoster.innerHTML = '<h3>UNITS ON THIS CASE</h3><div class="fo-score-head"><span aria-hidden="true">#</span><span>UNIT</span><span>PING / ms</span><span>PTS</span></div><ol></ol>';
   briefing.querySelector('.fo-campaign-target')!.after(campaignRoster);
@@ -189,12 +211,13 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if (key === campaignViewKey) return; campaignViewKey = key;
     const dispatch = CAMPAIGN_DISPATCHES[campaign.dispatchIndex] ?? CAMPAIGN_DISPATCHES[0]!;
     const target = getCampaignTarget(dispatch.targetId), resolution = campaign.outcomes.find(outcome => outcome.dispatchIndex === campaign.dispatchIndex);
-    const tactics = getBossTactics(campaign.dispatchIndex);
+    const tactics = getBossTactics(campaign.dispatchIndex),features=getDispatchFeatures(campaign.dispatchIndex);
+    const nextLesson=features.lessonTitle+features.lesson;if(lessonKey!==nextLesson){lessonKey=nextLesson;lesson.querySelector('strong')!.textContent=features.lessonTitle;lesson.querySelector('p')!.textContent=features.lesson;}
     tacticsCard.classList.toggle('fo-boss-tactics', target.isBoss); tacticsCard.dataset.drivingStyle = tactics.drivingStyle;
     tacticsCard.querySelector('[data-tactics-rank]')!.textContent = target.isBoss ? 'RINGLEADER TACTICS' : 'TARGET TACTICS';
     tacticsCard.querySelector('[data-tactics-label]')!.textContent = tactics.label;
     tacticsCard.querySelector('[data-tactics-style]')!.textContent = tactics.drivingStyle.replaceAll('-', ' ').toUpperCase();
-    tacticsCard.querySelector('[data-tactics-weapon]')!.textContent = tactics.weapon === 'burst' ? 'FORWARD BURSTS' : tactics.weapon === 'grenades' ? 'MARKED GRENADES' : 'BURSTS + GRENADES';
+    tacticsCard.querySelector('[data-tactics-weapon]')!.textContent = tactics.weapon === 'none' ? 'UNARMED' : tactics.weapon === 'burst' ? 'FORWARD BURSTS' : tactics.weapon === 'grenades' ? 'MARKED GRENADES' : 'BURSTS + GRENADES';
     tacticsCard.querySelector('.fo-tactics-difficulty>span')!.textContent = `DIFFICULTY ${tactics.difficulty} / 10`;
     tacticsCard.querySelector<HTMLMeterElement>('meter')!.value = tactics.difficulty;
     tacticsCard.querySelector('[data-tactics-description]')!.textContent = tactics.description;
@@ -227,7 +250,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     latestLead.querySelector('p')!.textContent = resolution ? dispatch.reveal : '';
     const start = one<HTMLButtonElement>('[data-action="campaign-start"]'); start.disabled = pending || !canDispatch();
     briefing.querySelector<HTMLElement>('.fo-campaign-wait')!.hidden = canDispatch();
-    campaignResolution.querySelector<HTMLElement>('.fo-campaign-resolution-label')!.textContent = complete ? 'CAMPAIGN COMPLETE' : resolution ? `${resolution.outcome.toUpperCase()} / DISPATCH ${campaign.dispatchIndex + 1}` : 'DISPATCH UNRESOLVED / SUSPECT ESCAPED';
+    campaignResolution.querySelector<HTMLElement>('.fo-campaign-resolution-label')!.textContent = complete ? 'CAMPAIGN COMPLETE' : resolution && campaign.dispatchIndex===0 && resolution.outcome==='arrested' ? 'ARREST CERTIFIED' : resolution ? `${resolution.outcome.toUpperCase()} / DISPATCH ${campaign.dispatchIndex + 1}` : 'DISPATCH UNRESOLVED / SUSPECT ESCAPED';
     campaignResolution.querySelector<HTMLElement>('.fo-campaign-target')!.hidden = complete;
     const connections = campaignResolution.querySelector<HTMLElement>('.fo-campaign-connections')!; connections.hidden = !complete;
     const bosses = campaignResolution.querySelector<HTMLElement>('.fo-campaign-bosses')!;
@@ -257,7 +280,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     // The position is applied directly every frame. The former CSS left/top transition was retargeted on each
     // write, which made Blink's style recalculation grow for the whole dispatch and read as worsening frame drops.
     targetBadge.style.setProperty('--target-x', `${Math.max(0, Math.min(1, indicator.x)) * 100}%`);
-    targetBadge.style.setProperty('--target-y', `${Math.max(0, Math.min(1, indicator.y)) * 100}%`);
+    const safeY=indicator.offscreen && (indicator.x<.35||shellWidth<=740) ? Math.max(indicator.y,Math.min(.65,(shellWidth<=740?390:340)/shellHeight)) : indicator.y;
+    targetBadge.style.setProperty('--target-y', `${Math.max(0, Math.min(1, safeY)) * 100}%`);badgeAnchor={x:indicator.x,y:safeY};
     targetAngle += Math.atan2(Math.sin(indicator.angle - targetAngle), Math.cos(indicator.angle - targetAngle));
     targetBadge.style.setProperty('--target-angle', `${targetAngle}rad`);
     const label = indicator.offscreen ? 'SUSPECT' : 'WANTED SUSPECT', meters = Math.max(0, Math.min(99999, Math.round(indicator.distanceMeters)));
@@ -271,7 +295,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   function visibleControls() { return all<HTMLButtonElement | HTMLInputElement | HTMLSelectElement | HTMLElement>('button,input,select,summary').filter(node => !node.closest('[hidden]') && !(node as HTMLButtonElement).disabled && (!node.closest('.fo-hud') || lobby() && node.matches('[data-action="start"],[data-action="invite"]')) && !node.closest('.fo-top')); }
   function updateGarage() {
     const visible = menu === 'home' && !model.snapshot || menu === null && lobby();
-    garage.hidden = !visible;
+    garage.hidden = !visible;previewLabels.hidden=!visible||!model.snapshot?.campaign;
     shell.classList.toggle('fo-in-garage', visible);
     shell.classList.toggle('fo-lobby', visible && lobby());
     garage.dataset.vehicle = vehicle;
@@ -297,7 +321,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     callbacks.onMenuVisibility?.(menu !== null || lobby());
     updateGarage();
     updateCampaignVisibility();
-    updateTargetBadge();
+    updateTargetBadge();updateTutorial();
     if (menu !== null) focusFirst();
   }
   async function play() {
@@ -443,7 +467,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     shell.classList.toggle('fo-reconnecting', reconnecting);
 
     hide('.fo-start', !snapshot || snapshot.phase !== 'lobby' || model.mode !== 'online' || model.canStart === false || Boolean(snapshot.campaign));
-    write('prompts', model.device === 'gamepad' ? 'LEFT STICK DRIVE · RT/LT DRIVE/BRAKE · A DRIFT · RB FIRE · X SIREN · HOLD Y RECOVER' : 'WASD DRIVE · SHIFT DRIFT · SPACE FIRE · E SIREN · HOLD R RECOVER');
+    updateTutorial();
     write('input-hint', model.device === 'gamepad' ? '↕ SELECT · A CONFIRM · B BACK' : '↑ ↓ SELECT · ENTER CONFIRM');
     const recovery = number(model.recoverProgress ?? 0); hide('.fo-recover', recovery <= 0); one<HTMLProgressElement>('.fo-recover progress').value = recovery;
     const authorityPursuit = snapshot?.pursuit;
@@ -452,8 +476,13 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if (pursuit) {
       const own = authorityPursuit?.contenders?.find(contender => contender.playerId === model.localPlayerId)?.progress;
       const progress = Math.max(0, Math.min(1, number(own ?? (model.mode === 'practice' || authorityPursuit?.arrestingPlayerId === model.localPlayerId ? pursuit.progress : 0))));
-      write('pursuit', snapshot?.campaign ? model.mode === 'online' ? 'FIRST TO RESOLVE DISPATCH' : 'ARREST OR WRECK THE TARGET' : model.mode === 'online' ? 'FIRST TO APPREHEND' : 'APPREHEND THE SUSPECT');
-      arrestHelp.textContent = snapshot?.campaign ? 'Stay close & match speed · 3s · or wreck target' : 'Stay close & match speed · 3s';
+      const chapter=snapshot?.campaign?CAMPAIGN_DISPATCHES[snapshot.campaign.dispatchIndex]:null;
+      const name=chapter?getCampaignTarget(chapter.targetId).name.split(' ')[0]!.toUpperCase():'THE SUSPECT';
+      write('pursuit', `APPREHEND ${name}`);
+      arrestHelp.textContent = 'Catch up → match speed → stay close for 3 seconds.';
+      const guidance=authorityPursuit?.contenders?.find(c=>c.playerId===model.localPlayerId)?.guidance;
+      const labels={'get-closer':'Get closer','match-speed':'Match speed','clear-obstruction':'Clear the obstruction','hold-steady':'Hold steady','unavailable':'Return to your unit'};
+      markerGuidance.textContent=guidance?labels[guidance]:'Get closer';markerProgress.value=progress;
       arrestLabel.textContent = `YOUR ARREST / ${Math.round(progress * 100)}%`; arrestProgress.value = progress;
     }
     const showCallout = snapshot?.phase === 'countdown' || hud.status !== 'active'; hide('.fo-center-callout', !showCallout);
@@ -503,10 +532,10 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     }
   }
   showMenu('home'); shell.classList.toggle('fo-reduced-motion', settings.reducedShake); callbacks.onSettings?.(structuredClone(settings));
-  return { update, showMenu, navigate, setTargetIndicator, getVehicle: () => vehicle, getSettings: () => structuredClone(settings), setSettings: (next: Partial<UiSettings>) => {
+  return { update, showMenu, navigate, setTargetIndicator, setControlAnchor, getVehicle: () => vehicle, getSettings: () => structuredClone(settings), setSettings: (next: Partial<UiSettings>) => {
     settings = { ...settings, ...next };
     for (const input of all<HTMLInputElement | HTMLSelectElement>('[data-setting]')) { const key = input.dataset.setting as keyof UiSettings; if (input instanceof HTMLInputElement && input.type === 'checkbox') input.checked = Boolean(settings[key]); else input.value = String(settings[key]); }
     persist();
   }, isMenuVisible: () => menu !== null || lobby(), isMenuOpen: () => menu !== null,
-    dispose: () => { disposed = true; clearTimeout(toastTimer); shell.removeEventListener('click', click); shell.removeEventListener('input', change); doc.removeEventListener('keydown', remapKey, true); shell.remove(); } };
+    dispose: () => { disposed = true; controlObserver?.disconnect(); clearTimeout(toastTimer); shell.removeEventListener('click', click); shell.removeEventListener('input', change); doc.removeEventListener('keydown', remapKey, true); shell.remove(); } };
 }

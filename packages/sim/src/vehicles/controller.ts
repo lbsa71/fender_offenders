@@ -1,4 +1,4 @@
-import type { CollisionMap, DriverActions, DriverRuntimeState, VehicleState } from '@fender/contracts';
+import type { CollisionMap, DispatchDrivingContext, DriverActions, DriverRuntimeState, VehicleState } from '@fender/contracts';
 import { FIXED_DELTA, normalizeGameplay, type SimulationConfig } from '../core/config.js';
 import { box, clamp, nearPolygon, overlap, pointInPolygon, wrapAngle, HALF_LENGTH, HALF_WIDTH, type Point } from '../physics/geometry.js';
 import { tuningForVehicle } from './profiles.js';
@@ -17,7 +17,7 @@ export function surfaceAt(map: CollisionMap, pose: Point): 'asphalt' | 'dirt' | 
   return 'asphalt';
 }
 
-export function driveVehicle(vehicle: VehicleState, driver: DriverRuntimeState, actions: DriverActions, map: CollisionMap, solids: Point[][], config: SimulationConfig = normalizeGameplay(), onImpact?: ImpactObserver): void {
+export function driveVehicle(vehicle: VehicleState, driver: DriverRuntimeState, actions: DriverActions, map: CollisionMap, solids: Point[][], config: SimulationConfig = normalizeGameplay(), onImpact?: ImpactObserver, context?: DispatchDrivingContext): void {
   if (vehicle.status !== 'active') return;
   const tune = tuningForVehicle(config, vehicle), dt = FIXED_DELTA;
   driver.recoilStrength = Math.max(0, (driver.recoilStrength ?? 0) - config.weapon.recoilRecovery * dt);
@@ -27,7 +27,7 @@ export function driveVehicle(vehicle: VehicleState, driver: DriverRuntimeState, 
   const fx = Math.sin(vehicle.pose.yaw), fz = Math.cos(vehicle.pose.yaw), rx = fz, rz = -fx;
   let forward = vehicle.velocity.x * fx + vehicle.velocity.z * fz;
   let side = vehicle.velocity.x * rx + vehicle.velocity.z * rz;
-  const surface = surfaceAt(map, vehicle.pose), gripScale = surface === 'dirt' ? 0.62 : surface === 'grass' ? 0.42 : 1;
+  const surface = surfaceAt(map, vehicle.pose), gripScale = (surface === 'dirt' ? 0.62 : surface === 'grass' ? 0.42 : 1) * (context?.wetRoads && map.wetSurfaces?.some(zone => { const points: Point[] = []; for (let i=0;i<zone.polygonXZ.length;i+=2) points.push({x:zone.polygonXZ[i]!,z:zone.polygonXZ[i+1]!}); return pointInPolygon(vehicle.pose, points); }) ? .75 : 1);
   if (actions.brakeReverse > 0.05) {
     if (forward > 0.5) { forward = Math.max(0, forward - tune.braking * actions.brakeReverse * dt); driver.reverseHoldTicks = 0; }
     else { driver.reverseHoldTicks++; if (driver.reverseHoldTicks >= tune.reverseHoldTicks) forward -= tune.reverseAcceleration * actions.brakeReverse * dt; }
@@ -85,7 +85,7 @@ export function driveVehicle(vehicle: VehicleState, driver: DriverRuntimeState, 
   }
 }
 
-export function resolveStatic(vehicle: VehicleState, map: CollisionMap, solids: Point[][], onImpact?: ImpactObserver): void {
+export function resolveStatic(vehicle: VehicleState, map: CollisionMap, solids: Point[][], onImpact?: ImpactObserver, context?: DispatchDrivingContext): void {
   for (let pass = 0; pass < 3; pass++) {
     for (const solid of solids) {
       if (!nearPolygon(vehicle.pose, solid)) continue;
@@ -105,7 +105,7 @@ export function resolveStatic(vehicle: VehicleState, map: CollisionMap, solids: 
   }
 }
 
-export function resolveVehicleContacts(vehicles: VehicleState[], map: CollisionMap, solids: Point[][], onImpact?: ImpactObserver): void {
+export function resolveVehicleContacts(vehicles: VehicleState[], map: CollisionMap, solids: Point[][], onImpact?: ImpactObserver, context?: DispatchDrivingContext): void {
   const active = vehicles.filter(v => v.status === 'active');
   for (let pass = 0; pass < 2; pass++) {
     for (let i = 0; i < active.length; i++) for (let j = i + 1; j < active.length; j++) {

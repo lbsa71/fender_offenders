@@ -8,7 +8,7 @@ Fender Offenders is a playable browser arcade driving and vehicle-combat alpha i
 
 This is a playable alpha, not a release candidate. [Execution status](spec/EXECUTION_STATUS.md) records all 49 implementation tasks, observed checks, and remaining acceptance gates. Fender Offenders remains a working name without trademark clearance.
 
-Documentation reviewed: **2026-10-25**, for the unified room model (`arcade-v10`, protocol 2), following the persistent-lamp correction. Civilian cars are unarmed, wrecks split into their original physical components, and dusk/night lamps stay illuminated at any camera distance. Every playable campaign now uses a server room; local previews retain bounded stepping and network input stays capped at four. The paperwork is catching up with the patrol car.
+Documentation reviewed: **2026-10-25**, for the tutorial room build (`arcade-v11`, protocol 3, map `sunset-borough-2`). Civilian cars are unarmed, wrecks split into their original physical components, and dusk/night lamps stay illuminated at any camera distance. Every playable campaign now uses a server room; local previews retain bounded stepping and online input uses an independent fixed-step timer with a four-tick stall cap. The paperwork is catching up with the patrol car.
 
 ## Run locally
 
@@ -24,6 +24,8 @@ Open [the game on port 5173](http://127.0.0.1:5173). Vite serves the client; the
 Opening the bare URL assigns a random room URL without allocating a server simulation. Choose **Hit the streets**, read the briefing, change your assigned car if desired, then choose **Start dispatch**. One officer can start; any connected officer can proceed. Copy the address bar or click **Invite URL** to bring friends into the same game. To open a fresh room, visit the bare URL again. Localhost links work on this machine; use the public preview to invite friends on other machines.
 
 Empty rooms pause for up to 15 minutes; returning resumes their campaign. At capacity the oldest eligible empty room can be reclaimed sooner. Reusable links survive disposal and server restarts by opening a fresh campaign under the same code. Legacy eight-character codes are supported alongside current IDs. Joining retries a room that disappears during reservation, without changing the link; genuine full-room or hosting-capacity errors still require a free slot.
+
+The [first four dispatches teach the job](spec/TUTORIAL.md): arrest Nico without guns, unlock guns for dispatch 2, learn suspect bombs in dispatch 3, then slippery puddles in dispatch 4. Floating keycaps/controller hints stay visible during the chase, and both cars appear in the briefing garage. The driving instructor has mercifully skipped the written exam.
 
 ## What is implemented
 
@@ -52,7 +54,7 @@ Cornering adds cartoon body lean and squash, while visible road humps trigger co
 
 Confirmed crashes squash the coachwork in the impact direction and spring back, with severity-scaled slapstick audio. Both guns fire real projectiles from their barrel tips, 2.45 m forward and 0.63 m either side of the car center. Each deals 5 damage, retaining 10 damage per volley at the same 12-tick cadence. Paired flashes follow the moving guns, with one recoil and sound per volley. Fresh trails start at the muzzle; local rounds advance by at most 100 ms to match driving prediction, while remote rounds use buffered playback. These effects share bounded pools and audio limits; crashes do not add ram damage.
 
-Each barrel applies subtle aim assist to a visible opponent or the wanted suspect within **4°**, **2.5 m of its original firing line**, and **40 m**. Buildings and nearer cars block selection, including obstructions between the car center and a gun tip. The correction happens once when a shot is fired; projectiles retain their straight trajectory, and the car's heading is unchanged. One missed or blocked barrel deals only 5 damage. `arcade-v10` / protocol 2 clients and servers must match.
+Each barrel applies subtle aim assist to a visible opponent or the wanted suspect within **4°**, **2.5 m of its original firing line**, and **40 m**. Buildings and nearer cars block selection, including obstructions between the car center and a gun tip. The correction happens once when a shot is fired; projectiles retain their straight trajectory, and the car's heading is unchanged. One missed or blocked barrel deals only 5 damage. `arcade-v11` / protocol 3 clients and servers must match.
 
 One AI car is the **WANTED** target. Its world marker and labeled screen-edge arrow identify it as the camera and suspect move. To arrest it, stay within 8 m with less than 5 m/s relative speed and a clear line of sight for three seconds. Each connected, active driver builds their own progress, which drains when they lose those conditions. Arresting awards three points and a green tracker check. Destroying the target's car awards the existing one-point wreck credit, advances the story, and leaves an amber wreck mark. Both end the dispatch immediately; cumulative combat points do not override its winner. A timeout reveals no clue and retries the same target.
 

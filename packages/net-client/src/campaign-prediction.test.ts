@@ -44,7 +44,7 @@ it.each([{phase:'lobby' as const,campaign:false},{phase:'playing' as const,campa
  try{await session.connect({roomId: crypto.randomUUID(),nickname:'Live prediction'});submit(session);expect(localPose(session).z).toBeGreaterThan(0);expect(session.getSnapshot()!.local!.vehicle.pose.z).toBe(0);}finally{await session.dispose();}
 });
 it('uses the snapshot clock for recoil cadence when a legacy local baseline omits the prediction tick',async()=>{
- const initial=state();initial.local!.driver.nextFireTick=108;
+ const initial=state();initial.campaign!.dispatchIndex=1;initial.local!.driver.nextFireTick=108;
  transport.initial=packSnapshot(initial);const session=createOnlineSession('ws://campaign-prediction',map);
  try{
   await session.connect({roomId:crypto.randomUUID(),nickname:'Recoil clock'});
@@ -60,6 +60,16 @@ it('allows noncampaign lobby driving without predicting a gun kick before play',
  try{
   await session.connect({roomId:crypto.randomUUID(),nickname:'Safe lobby gun'});
   session.submit({sessionEpoch:'epoch',sequence:0,clientTick:0,actions:{...neutralActions(),fire:true}});
+  expect(session.sampleFrame()!.vehicles.find(v=>v.entityId==='local')!.velocity.z).toBeGreaterThan(19);
+ }finally{await session.dispose();}
+});
+it('does not predict or replay gun recoil in the unarmed opening dispatch',async()=>{
+ const initial=state();transport.initial=packSnapshot(initial);const session=createOnlineSession('ws://campaign-prediction',map);
+ try{
+  await session.connect({roomId:crypto.randomUUID(),nickname:'Unarmed rookie'});
+  session.submit({sessionEpoch:'epoch',sequence:0,clientTick:0,actions:{...neutralActions(),fire:true}});
+  expect(session.sampleFrame()!.vehicles.find(v=>v.entityId==='local')!.velocity.z).toBeGreaterThan(19);
+  deliver({...initial,serverTick:101});
   expect(session.sampleFrame()!.vehicles.find(v=>v.entityId==='local')!.velocity.z).toBeGreaterThan(19);
  }finally{await session.dispose();}
 });

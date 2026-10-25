@@ -32,7 +32,7 @@ it('requires 180 personal qualifying ticks and completes practice once with the 
 });
 it('does not let another officer inherit the first officers accumulated arrest progress',()=>{
  const{sim}=fixture();ticks(sim,120);place(sim,'a',-30);place(sim,'b',5);ticks(sim,60);
- expect(sim.snapshot().pursuit!.state).not.toBe('complete');expect(sim.snapshot().pursuit!.contenders).toEqual(expect.arrayContaining([{playerId:'a',progress:0},{playerId:'b',progress:1/3}]));
+ expect(sim.snapshot().pursuit!.state).not.toBe('complete');expect(sim.snapshot().pursuit!.contenders).toEqual(expect.arrayContaining([expect.objectContaining({playerId:'a',progress:0}),expect.objectContaining({playerId:'b',progress:1/3})]));
  ticks(sim,119);expect(sim.snapshot().phase).toBe('playing');ticks(sim,1);expect(sim.snapshot().pursuit!.winnerPlayerId).toBe('b');
 });
 it('ends multiplayer dispatch immediately for the apprehending officer, retaining PvP scores',()=>{

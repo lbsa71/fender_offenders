@@ -1,9 +1,11 @@
-export const PROTOCOL_VERSION = 2;
+export { getDispatchFeatures, DEFAULT_DRIVING_CONTEXT } from './dispatch-features';
+export type { DispatchFeatures, DispatchDrivingContext } from './dispatch-features';
+export const PROTOCOL_VERSION = 3;
 export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v10';
+export const GAMEPLAY_REVISION = 'arcade-v11';
 export type { CampaignState, CampaignOutcome, DispatchOutcome, CampaignTarget, CampaignDispatch } from './campaign-types';
 export { CAMPAIGN_ID, CAMPAIGN_TITLE, CAMPAIGN_TARGETS, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, getCampaignTarget } from './campaign';
 export { getCampaignMugshot } from './campaign-mugshots';
@@ -64,10 +66,11 @@ export interface PlayerScore {
 export interface LatencyProbe { nonce: string }
 /** Legacy and current URL-safe room IDs; never assume the generator's exact length. */
 export const isInviteCode = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(value);
+export type ArrestGuidance = 'get-closer' | 'match-speed' | 'clear-obstruction' | 'hold-steady' | 'unavailable';
 export interface PursuitState {
   state: 'chasing' | 'arresting' | 'complete'; suspectId: string; progress: number; elapsedTicks: number;
   arrestingPlayerId?: string | null; winnerPlayerId?: string | null;
-  contenders?: Array<{ playerId: string; progress: number }>;
+  contenders?: Array<{ playerId: string; progress: number; guidance?: ArrestGuidance }>;
 }
 /** Canvas-relative position; angle is clockwise from up. Presentation only. */
 export interface TargetIndicator { x: number; y: number; angle: number; offscreen: boolean; distanceMeters: number }
@@ -109,6 +112,7 @@ export interface CollisionMap {
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
   colliders: Array<{ id: string; shape: 'box' | 'convex'; pose: PlanarPose; halfExtents?: { x: number; y: number; z: number }; vertices?: number[]; layer: 'world-solid' | 'vehicle' | 'sensor'; surface: 'asphalt' | 'dirt' | 'grass' }>;
   surfaces: Array<{ id: string; polygonXZ: number[]; surface: 'asphalt' | 'dirt' | 'grass' }>;
+  wetSurfaces?: Array<{ id: string; polygonXZ: number[] }>;
   spawns: Array<{ id: string; pose: PlanarPose; clearanceRadius: number }>;
   laneNodes: Array<{ id: string; x: number; z: number }>;
   laneEdges: Array<{ from: string; to: string; speedLimit: number }>;

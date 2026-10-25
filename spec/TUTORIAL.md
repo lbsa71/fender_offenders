@@ -1,0 +1,35 @@
+# Rookie patrol: learn the job, keep the keys
+
+Status: implemented in `arcade-v11`, protocol 3, map `sunset-borough-2`. Reviewed: 2026-10-25. Human difficulty, physical-controller and sustained performance acceptance remain open. [Execution status](EXECUTION_STATUS.md) records observed checks.
+
+*Dispatch supplies the lesson. Procurement supplies the noisy accessories one case later.*
+
+| Dispatch | Equipment and road lesson | Completion |
+| --- | --- | --- |
+| 1 · A Small Withdrawal | All officers and Nico are unarmed; driving, siren and recovery controls remain available | Arrest only |
+| 2 · Clamp Down | **UNLOCKED: GUNS!** Forward fire and recoil; short bursts preserve control | Arrest or credited target wreck |
+| 3 · Duplicate Trouble | Suspect bombs: leave the fixed landing circle before detonation; introductory fuse 150 ticks / 2.5 seconds | Arrest or credited target wreck |
+| 4 · Express Distress | Road puddles activate; ease off and steer gently | Arrest or credited target wreck |
+| 5–10 | Existing tactics combine the learned mechanics; guns and puddles remain available | Arrest or credited target wreck |
+
+The shared `getDispatchFeatures(dispatchIndex)` catalog derives equipment, accepted outcomes, road activation and lesson copy from authoritative campaign progress. Unlocks belong to the room, including late joins and reconnects. Retry keeps the dispatch; campaign restart returns to the unarmed opener. No account, player tutorial save or extra lobby is added. The three-second countdown and five-minute dispatch timer remain.
+
+## Clear instructions while driving
+
+The persistent floating control card follows the local car, stays within the viewport and chooses a side clear of the suspect marker. It shows labeled keyboard keycaps or standard-controller glyphs for the active device, including actual remapped keys. Gun prompts and the fire-remapping row are hidden in dispatch 1. A short current-lesson reminder remains below the controls in dispatches 1–4 so live backup also receives the instruction. Menus, countdown, results and authoritative pause hide live driving prompts.
+
+The objective names the suspect: **APPREHEND NICO**. Arresting is automatic: catch up, match speed, and stay close for three seconds. The server's existing eligibility checks publish `get-closer`, `match-speed`, `clear-obstruction`, `hold-steady` or `unavailable` for each contender. The suspect marker displays the local officer's guidance and progress; another officer's progress cannot fill it. Existing strict distance below 8 m, relative speed below 5 m/s, line-of-sight and progress decay remain authoritative.
+
+Briefings show **YOUR UNIT** and **WANTED** using the actual procedural bodies, colors and gun fittings, side by side on desktop and vertically on narrow screens. Reassignment changes only the player's preview. The first arrest earns **ARREST CERTIFIED**, then dispatch 2 presents its unlock without an extra confirmation screen. Lesson changes use a polite status announcement; progress is not continuously announced. Text labels supplement glyphs, and reduced-motion/flash settings remain available.
+
+## Authority and wet roads
+
+The unarmed opener rejects fire at authority and prediction/replay; rejected fire produces no projectile, recoil, muzzle flash or gun audio. The suspect's first tactics profile has weapon `none`. A stale lethal projectile cannot resolve the opener as a wreck. Existing collision impacts remain physical feedback without ram health damage. From dispatch 2, arrest earns three points and credited target destruction earns one.
+
+The four road puddles share polygon vertices between rendering and `CollisionMap.wetSurfaces`. From dispatch 4, vehicles inside them use **75% of their normal lateral grip**, including officers, suspects and traffic. Dry handling returns on exit. Footprints occupy one lane, leave a dry route, and avoid spawn clearance, buildings, pedestrian routes and dirt shortcuts. Ponds and pools remain decorative. Every graphics preset retains visible wet footprints; low quality may freeze decorative ripples. The final dispatch-driving context is passed to `predictVehicle` so replay and authority use the same road state.
+
+## Verification
+
+Use `pnpm test:unit` and `pnpm test:integration` for contracts, hints, authority, exact water geometry, prediction and real sockets. `tests/e2e/tutorial.spec.ts` covers the real opener, actual arrest-to-unlock transition, later lessons and responsive previews. Combat browser fixtures select dispatch 2 through the **test-only** server entrypoint `tests/e2e/server.ts`; its loopback controller is absent from production imports/builds. The default local E2E servers use ports 5473/2867, with fixture control on 3867; environment overrides remain supported.
+
+`tests/e2e/solo-driving.spec.ts` also slows rendering to five frames per second while checking independent input delivery, movement and bounded corrections. Protection blinking uses room ticks rather than browser lifetime. These checks do not certify physical controllers, blocked-main-thread recovery or the full named-hardware performance matrix. Run browser E2E locally before every push; CI remains headless.
