@@ -28,6 +28,8 @@ flowchart LR
 
 The authoritative server has no renderer, DOM, or Babylon dependency. Every playable campaign runs in a server room. The browser runs a local menu-preview simulation and predicts its own car from room snapshots. Presentation consumes an immutable render frame rather than reaching into room schemas or physics objects.
 
+Production CLI startup warms one disposable campaign's initial physics and sparse snapshot encoding before listening. It creates no room, leaves room metrics untouched and disposes its temporary world. Real room clocks, campaign progress and scenery begin fresh. The exported server factory remains available to controlled integration harnesses; the production image exercises the CLI bootstrap and readiness path.
+
 ## 2. Package dependency rules
 
 | Package | Allowed runtime dependencies within workspace | Owns |

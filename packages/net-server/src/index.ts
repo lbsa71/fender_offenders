@@ -7,6 +7,7 @@ import { GAMEPLAY_REVISION, PROTOCOL_VERSION, isInputCommand, isInviteCode, isRe
 import { createPropPublisher } from './prop-publisher.js';
 import { roomRegistry, serverMetrics } from './room-registry.js';
 export { roomRegistry, serverMetrics, getRoomMetrics } from './room-registry.js';
+export { createPropPublisher } from './prop-publisher.js';
 
 interface DriverConnection { epoch: string; entityId: string; queue: InputCommand[]; last: InputCommand | null; ack: number; received: number; lastInputAt: number; connected: boolean; windowStart: number; packets: number; reset?: WorldSnapshot['resetReason']; client: Client; latencyProbe: { nonce: string; sentAt: number } | null; pingMs: number | null; latencyMeasuredAt: number | null; propPublisher:ReturnType<typeof createPropPublisher>; menuOpen: boolean; hidden: boolean; lastActivityAt: number; activityNoticeAt: number; idleWarned: boolean; }
 export class DrivingRoom extends Room {

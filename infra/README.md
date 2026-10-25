@@ -44,11 +44,27 @@ Local development: `pnpm dev` starts Vite on 5173 and the authoritative Colyseus
 
 Production build: `pnpm build`, then `node dist/server/index.js`. This serves the built client and WebSocket game service on the same port. Set `HOST`, `PORT`, and `ALLOWED_ORIGINS` explicitly. For example the allowed browser origin for a same-port localhost test is `http://127.0.0.1:2567`.
 
+The CLI prepares physics and snapshot encoding before binding the port or reporting readiness. One disposable initial-dispatch simulation runs 600 fixed ticks, including its countdown, then releases its physics world. Concurrent preparation calls share the same promise. Real campaigns still begin at tick zero with an empty casefile; startup preparation creates no rooms or aggregate room steps. A preparation failure frees the temporary physics and fails startup. This moves initial compilation work into service startup rather than the first officer's chase.
+
 Container packaging: `docker compose -f infra/compose.yaml up --build`. The supplied compose file binds port 2567 only to localhost. Earlier Docker/hosted HTML/readiness/two-player WebSocket checks are recorded in the execution ledger; the image was not rebuilt by this documentation review.
 
 For a public host, configure a domain and TLS reverse proxy (example Caddyfile supplied), allow that exact HTTPS browser origin, and bind the game process only where the proxy can reach it. The client derives the same-origin endpoint in production. A separate CDN client may use `VITE_SERVER_URL` at build time.
 
 `GET /health` reports process and aggregate room metrics. `GET /ready` reports admission readiness. All matches are in memory: a restart ends them. Signal shutdown marks readiness false and invokes Colyseus shutdown/reconnect error handling. The current implementation stops active rooms; a full match-length rolling drain remains a follow-up operational gate.
+
+For the local cold-start regression, start a fresh production process with a CPU stress limit:
+
+```powershell
+docker build -f infra/Dockerfile -t fender-offenders:startup-check .
+docker run -d --name fender-startup-check --cpus=0.1 --memory=512m -p 127.0.0.1:2798:2567 fender-offenders:startup-check
+$env:TEST_SERVER_URL = 'http://127.0.0.1:2798'
+pnpm exec tsx tools/cold-start-smoke.ts
+docker stop fender-startup-check
+docker rm fender-startup-check
+Remove-Item Env:TEST_SERVER_URL
+```
+
+The smoke waits up to 60 seconds for readiness, requires zero pre-existing room steps, then checks the first 15 seconds of live solo driving: at least 50 authoritative ticks/second, continued travel and no backward sample of half a metre. The CPU/memory limits define a local stress profile, not a measurement of Render's allocation. Run this locally; CI retains its existing production-container smoke. Sustained capacity and browser/device acceptance remain separate gates. The city gets a rehearsal; the officer keeps a fresh shift.
 
 Before public release:
 

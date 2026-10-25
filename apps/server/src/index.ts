@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import express from 'express';
 import { isInviteCode, isRecord } from '@fender/contracts';
+import { warmServerRuntime } from './warmup.js';
 export async function createGameServer(port = Number(process.env.PORT || 2567), host = process.env.HOST || '127.0.0.1') {
   const defaults = `http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:${port},http://127.0.0.1:${port},${process.env.RENDER_EXTERNAL_URL || ''}`;
   const allowed = new Set((process.env.ALLOWED_ORIGINS || defaults).split(',').map(origin => origin.trim()).filter(Boolean));
@@ -71,6 +72,7 @@ export async function createGameServer(port = Number(process.env.PORT || 2567), 
   return server;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  await warmServerRuntime();
   const server = await createGameServer();
   let shuttingDown = false;
   async function stop() { if (shuttingDown) return; shuttingDown = true; serverMetrics.draining = true; console.log('Dispatch closing; connected rooms will be notified.'); await server.gracefullyShutdown(false); process.exit(0); }
