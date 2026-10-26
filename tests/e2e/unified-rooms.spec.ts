@@ -57,7 +57,8 @@ test('shares an ongoing solo patrol from its pause menu and adds backup without 
     const solo=await state(a),tick=solo.serverTick;await a.waitForTimeout(200);expect((await state(a)).serverTick).toBe(tick);
     const invite=a.getByRole('button',{name:'INVITE URL',exact:true});
     await expect(invite).toBeVisible();
-    await a.keyboard.press('Tab');await a.keyboard.press('Tab');await a.keyboard.press('Tab');await expect(invite).toBeFocused();
+    // Resume -> end patrol -> settings -> controls help -> invite.
+    await a.keyboard.press('Tab');await a.keyboard.press('Tab');await a.keyboard.press('Tab');await a.keyboard.press('Tab');await expect(invite).toBeFocused();
     const capture=test.info().outputPath('invite-backup-menu.png');await a.screenshot({path:capture});await test.info().attach('Pause menu invite',{path:capture,contentType:'image/png'});
     await a.keyboard.press('Enter');
     const shared=await a.evaluate(()=>(window as any).copiedPatrolInvite);

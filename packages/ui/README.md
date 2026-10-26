@@ -1,8 +1,12 @@
 # Dispatch interface
 
-Reviewed: 2026-10-25 for `arcade-v10` / protocol 2. *The dispatch desk supplies clues, car keys and a suspiciously cheerful damage report.*
+Reviewed: 2026-10-26 for `arcade-v10` / protocol 2. *The dispatch desk supplies clues, car keys and a suspiciously cheerful damage report.*
 
 `mountGameUi(root, callbacks)` mounts the responsive game shell, menus, settings, HUD, room invites, and results. The UI consumes `UiModel`; its snapshot and scores are read-only projections. Nicknames, errors, room codes, and score rows are written as text, never HTML.
+
+The quick controls card appears for the first **eight seconds of active play per mounted page**. Briefings, countdowns, menus, hidden tabs, authoritative pause, and interrupted connections suspend its remaining time. HUD updates, device switches, and later dispatches do not restart it. The compact introduction covers driving, drifting and firing beside the existing instruments and invite action. After it disappears, choose **CONTROLS HELP** from the home, pause, results, or campaign briefing menu for every control, including siren and recovery. Keyboard arrows/Enter and controller menu navigation reach the same action; Escape/controller Back returns to the previous menu. The guide stays open until closed and disables driving through the existing menu callback.
+
+Both layouts use original DOM/CSS graphics: raised keyboard keycaps, circular controller face buttons, a left stick, triggers, a bumper, and a menu button. Help shows both layouts; the temporary card follows the active device. Keyboard graphics follow current bindings, including remaps, and every action retains a text label. Controller graphics describe the standard mapping using A/X/Y labels. No downloaded artwork or new dependency is needed. The guide scrolls vertically on narrow screens. Run `pnpm exec playwright test tests/e2e/controls-help.spec.ts` for deterministic clock, navigation, remap, responsive/no-overlap, and real server/input checks; screenshots are attached to the browser results. These synthetic checks do not certify physical controllers.
 
 The app supplies one `onPlay({roomId,nickname,vehicleBodyId})` callback plus start, resume, leave, rematch, activity and settings callbacks. `onMenuVisibility` disables gameplay input; `isMenuOpen()` distinguishes menus from the briefing for server presence. Authoritative pause state explains solo pause versus a live room with backup. Session failures appear in the current menu without requiring developer tools.
 

@@ -1,8 +1,9 @@
 import { CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, CAMPAIGN_TITLE, getBossTactics, getCampaignMugshot, getCampaignTarget, getVehicleProfile, isInviteCode, isVehicleBodyId, randomCallsign, sanitizeNickname, VEHICLE_BODIES, type CampaignState, type CampaignTarget, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
 import './style.css';
+import { gamepadControls, keyboardBindings, keyboardControls } from './controls';
 
 export type MenuAction = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back' | 'pause';
-export type Menu = 'home' | 'pause' | 'settings' | null;
+export type Menu = 'home' | 'pause' | 'settings' | 'help' | null;
 export interface UiSettings {
   masterVolume: number;
   musicVolume: number;
@@ -98,6 +99,42 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const idleWarning=doc.createElement('section');idleWarning.className='fo-idle-warning';idleWarning.setAttribute('role','alert');idleWarning.hidden=true;idleWarning.innerHTML='<p>Your unit is idle. You will disconnect in one minute.</p><button data-action="stay-active">STAY ON PATROL</button>';shell.append(idleWarning);
   const one = <T extends HTMLElement = HTMLElement>(selector: string) => shell.querySelector<T>(selector)!;
   const all = <T extends HTMLElement = HTMLElement>(selector: string) => [...shell.querySelectorAll<T>(selector)];
+  const tutorial = one('.fo-prompts'); tutorial.removeAttribute('data-text'); tutorial.hidden = true;
+  const tutorialGraphics = doc.createElement('div');
+  const tutorialHint = doc.createElement('small'); tutorialHint.textContent = 'ESC → CONTROLS HELP · HIDES AFTER 8 SECONDS';
+  tutorial.replaceChildren(tutorialGraphics, tutorialHint); tutorial.setAttribute('aria-label', 'Quick driving controls');
+  const help = doc.createElement('div'); help.className = 'fo-help-view'; help.hidden = true;
+  help.innerHTML = '<h2>Controls help.</h2><p class="fo-muted">A refresher from the motor pool. Close this guide when you are ready to roll.</p><section class="fo-controls-guide" aria-label="Driving controls"><section><h3>KEYBOARD</h3><div data-keyboard-controls></div></section><section><h3>CONTROLLER</h3><p class="fo-controller-note">Standard layout · A / X / Y labels</p><div data-gamepad-controls></div></section></section><button class="fo-secondary" data-action="help-back">BACK</button>';
+  one('.fo-settings').after(help);
+  const addHelpButton = (footer: HTMLElement) => {
+    const button = doc.createElement('button'); button.className = 'fo-text-button fo-help-button'; button.dataset.action = 'help'; button.textContent = 'CONTROLS HELP'; footer.append(button);
+  };
+  addHelpButton(one('.fo-panel-footer'));
+  let tutorialRemaining = 8000;
+  let tutorialStarted: number | null = null;
+  let tutorialTimer: ReturnType<typeof setTimeout> | undefined;
+  let controlsViewKey = '';
+  function updateControls() {
+    const key = JSON.stringify([model.device ?? 'keyboard', settings.bindings]);
+    if (key !== controlsViewKey) {
+      controlsViewKey = key;
+      tutorialGraphics.replaceChildren(model.device === 'gamepad' ? gamepadControls(doc, true) : keyboardControls(doc, settings.bindings, true));
+      tutorialHint.textContent = model.device === 'gamepad' ? 'MENU → CONTROLS HELP · HIDES AFTER 8 SECONDS' : 'ESC → CONTROLS HELP · HIDES AFTER 8 SECONDS';
+      help.querySelector('[data-keyboard-controls]')!.replaceChildren(keyboardControls(doc, settings.bindings));
+      help.querySelector('[data-gamepad-controls]')!.replaceChildren(gamepadControls(doc));
+    }
+    const visible = !disposed && !doc.hidden && menu === null && model.snapshot?.phase === 'playing' && !model.snapshot.paused && !model.error
+      && (model.mode !== 'online' || statusName(model.status) === 'playing') && tutorialRemaining > 0;
+    if (!visible && tutorialStarted !== null) {
+      tutorialRemaining = Math.max(0, tutorialRemaining - ((view?.performance.now() ?? Date.now()) - tutorialStarted));
+      tutorialStarted = null; clearTimeout(tutorialTimer);
+    }
+    tutorial.hidden = !visible;
+    if (visible && tutorialStarted === null) {
+      tutorialStarted = view?.performance.now() ?? Date.now();
+      tutorialTimer = setTimeout(() => { tutorialRemaining = 0; tutorialStarted = null; updateControls(); }, tutorialRemaining);
+    }
+  }
   const targetBadge = doc.createElement('div'); targetBadge.className = 'fo-target-indicator'; targetBadge.hidden = true; targetBadge.setAttribute('role', 'img');
   targetBadge.innerHTML = '<span class="fo-target-arrow" aria-hidden="true"><svg viewBox="0 0 44 44"><path class="fo-target-chevron" d="m8 23 14-14 14 14"/><path class="fo-target-chevron" d="m8 36 14-14 14 14"/></svg></span><strong class="fo-target-label">WANTED SUSPECT</strong><span class="fo-target-distance"></span>';
   shell.append(targetBadge);
@@ -115,6 +152,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const briefing = doc.createElement('section'); briefing.className = 'fo-campaign-briefing'; briefing.hidden = true; briefing.setAttribute('aria-label', 'Campaign dispatch briefing');
   briefing.innerHTML = '<header><span class="fo-kicker">MAJOR CASE / MOTOR DIVISION</span><h2 data-campaign-title></h2><span class="fo-campaign-number"></span></header><div class="fo-campaign-scroll"><div class="fo-campaign-target"><div class="fo-campaign-portrait" role="img"></div><div><span class="fo-campaign-role"></span><h3 data-campaign-name></h3><strong data-campaign-alias></strong><span data-campaign-target-car></span></div></div><h3 class="fo-campaign-dispatch-title"></h3><p data-campaign-briefing></p><section class="fo-campaign-progress"><h3>DISPATCH TRACKER / 10 FILES</h3><ol class="fo-campaign-tracker"></ol></section><details class="fo-campaign-evidence"><summary>CASE FILE / EARNED LEADS</summary><ol class="fo-campaign-casefile"></ol><p class="fo-campaign-no-evidence">No leads filed yet. Resolve this dispatch to unseal the next clue.</p></details></div><footer><button class="fo-primary" data-action="campaign-start">START DISPATCH →</button><span class="fo-campaign-wait" hidden>RECONNECT TO CONTINUE</span><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button></footer>';
   shell.append(briefing);
+  addHelpButton(briefing.querySelector('footer')!);
   const campaignRoster = doc.createElement('section'); campaignRoster.className = 'fo-campaign-roster'; campaignRoster.hidden = true;
   campaignRoster.innerHTML = '<h3>UNITS ON THIS CASE</h3><div class="fo-score-head"><span aria-hidden="true">#</span><span>UNIT</span><span>PING / ms</span><span>PTS</span></div><ol></ol>';
   briefing.querySelector('.fo-campaign-target')!.after(campaignRoster);
@@ -159,7 +197,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     campaignResolution.hidden = !campaign || !hasResult();
     campaignLive.hidden = !campaign || model.snapshot?.phase !== 'playing' || menu !== null;
     shell.classList.toggle('fo-campaign-briefing-open', !briefing.hidden);
-    shell.classList.toggle('fo-campaign-results', Boolean(campaign && hasResult() && menu !== 'settings'));
+    shell.classList.toggle('fo-campaign-results', Boolean(campaign && hasResult() && menu !== 'settings' && menu !== 'help'));
   }
   function portrait(node: HTMLElement, target: CampaignTarget) {
     if (node.dataset.target !== target.id) { node.innerHTML = getCampaignMugshot(target.id); node.dataset.target = target.id; }
@@ -285,19 +323,23 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   }
   function showMenu(next: Menu = 'pause') {
     if(persistentToast && (next===null || next==='home'))clearToast();
-    if (next === 'settings') previousMenu = menu;
+    if (next === 'settings' || next === 'help') previousMenu = menu;
     menu = next;
     shell.classList.toggle('fo-is-playing', menu === null);
     shell.classList.toggle('fo-is-settings', menu === 'settings');
+    shell.classList.toggle('fo-is-help', menu === 'help');
     hide('.fo-menu', menu === null); hide('.fo-menu-backdrop', menu === null); hide('.fo-hero', menu !== 'home'); hide('.fo-bottom', menu !== 'home');
-    const results = hasResult() && !resultDismissed && menu !== 'settings';
+    const results = hasResult() && !resultDismissed && menu !== 'settings' && menu !== 'help';
     hide('.fo-home', menu !== 'home' || results); hide('.fo-pause', menu !== 'pause' || results); hide('.fo-settings', menu !== 'settings'); hide('.fo-results', !results);
-    hide('[data-action="settings"]', menu === 'settings');
+    help.hidden = menu !== 'help';
+    hide('[data-action="settings"]', menu === 'settings' || menu === 'help');
+    one('.fo-panel-footer .fo-help-button').hidden = menu === 'settings' || menu === 'help';
     write('pause-description', model.snapshot?.paused ? 'Your patrol is paused while you are alone. Backup joining resumes the dispatch.' : 'THE DISPATCH IS LIVE. Your unit has its controls released.');
     callbacks.onMenuVisibility?.(menu !== null || lobby());
     updateGarage();
     updateCampaignVisibility();
     updateTargetBadge();
+    updateControls();
     if (menu !== null) focusFirst();
   }
   async function play() {
@@ -314,7 +356,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     catch (error) { notify(error instanceof Error ? error.message : 'Dispatch could not be reached. Try again.'); }
     finally { pending = false; if (!disposed) { all<HTMLButtonElement>('.fo-home button').forEach(button => { button.disabled = false; }); updateGarage(); updateCampaign(); if (model.snapshot?.campaign && lobby() && menu === null) focusFirst(); } }
   }
-  const bindingDefaults: Record<string, string[]> = { throttle: ['KeyW'], brakeReverse: ['KeyS'], left: ['KeyA'], right: ['KeyD'], handbrake: ['ShiftLeft'], fire: ['Space'], siren: ['KeyE'], recover: ['KeyR'] };
+  const bindingDefaults = keyboardBindings;
   const bindingLabels: Record<string, string> = { throttle: 'Accelerate', brakeReverse: 'Brake / reverse', left: 'Steer left', right: 'Steer right', handbrake: 'Handbrake', fire: 'Fire', siren: 'Siren', recover: 'Hold to recover' };
   for (const [action, fallback] of Object.entries(bindingDefaults)) {
     const row = doc.createElement('label'); row.textContent = bindingLabels[action] ?? action;
@@ -352,6 +394,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
       case 'leave': resultDismissed = true; callbacks.onLeave?.(); model = {}; showMenu('home'); hide('.fo-hud', true); notify(''); break;
       case 'settings': showMenu('settings'); break;
       case 'settings-back': showMenu(previousMenu); break;
+      case 'help': showMenu('help'); break;
+      case 'help-back': showMenu(previousMenu); break;
       case 'start': callbacks.onStartRound?.(); break;
       case 'campaign-start': if (canDispatch()) callbacks.onStartRound?.(); break;
       case 'rematch': callbacks.onRematch?.(); break;
@@ -373,9 +417,10 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     event.preventDefault(); event.stopImmediatePropagation();
     const action = bindingAction; bindingAction = null;
     if (event.code !== 'Escape' && !['Enter', 'Tab'].includes(event.code)) settings.bindings[action] = [event.code];
-    one(`[data-binding="${action}"]`).textContent = (settings.bindings[action] ?? bindingDefaults[action] ?? []).join(' / ').replaceAll('Key', ''); persist();
+    one(`[data-binding="${action}"]`).textContent = (settings.bindings[action] ?? bindingDefaults[action] ?? []).join(' / ').replaceAll('Key', ''); persist(); updateControls();
   };
   shell.addEventListener('click', click); shell.addEventListener('input', change); doc.addEventListener('keydown', remapKey, true);
+  doc.addEventListener('visibilitychange', updateControls);
   const scoreRows = new Map<string, HTMLLIElement>();
   const resultRows = new Map<string, HTMLLIElement>();
   const campaignRosterRows = new Map<string, HTMLLIElement>();
@@ -443,7 +488,6 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     shell.classList.toggle('fo-reconnecting', reconnecting);
 
     hide('.fo-start', !snapshot || snapshot.phase !== 'lobby' || model.mode !== 'online' || model.canStart === false || Boolean(snapshot.campaign));
-    write('prompts', model.device === 'gamepad' ? 'LEFT STICK DRIVE · RT/LT DRIVE/BRAKE · A DRIFT · RB FIRE · X SIREN · HOLD Y RECOVER' : 'WASD DRIVE · SHIFT DRIFT · SPACE FIRE · E SIREN · HOLD R RECOVER');
     write('input-hint', model.device === 'gamepad' ? '↕ SELECT · A CONFIRM · B BACK' : '↑ ↓ SELECT · ENTER CONFIRM');
     const recovery = number(model.recoverProgress ?? 0); hide('.fo-recover', recovery <= 0); one<HTMLProgressElement>('.fo-recover progress').value = recovery;
     const authorityPursuit = snapshot?.pursuit;
@@ -479,13 +523,14 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     updateGarage();
     updateCampaign();
     updateTargetBadge();
+    updateControls();
     if (snapshot?.campaign && lobby() && menu === null && (!wasLobby || previousDispatch !== snapshot.campaign.dispatchIndex)) focusFirst();
   }
   function navigate(action: MenuAction) {
     callbacks.onActivity?.();
     if (action === 'pause' || action === 'back') {
       if (bindingAction) { bindingAction = null; return; }
-      if (menu === 'settings') showMenu(previousMenu);
+      if (menu === 'settings' || menu === 'help') showMenu(previousMenu);
       else if (model.snapshot && !hasResult()) { showMenu(menu === null ? 'pause' : null); if (menu === null) callbacks.onResume?.(); }
       return;
     }
@@ -506,7 +551,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   return { update, showMenu, navigate, setTargetIndicator, getVehicle: () => vehicle, getSettings: () => structuredClone(settings), setSettings: (next: Partial<UiSettings>) => {
     settings = { ...settings, ...next };
     for (const input of all<HTMLInputElement | HTMLSelectElement>('[data-setting]')) { const key = input.dataset.setting as keyof UiSettings; if (input instanceof HTMLInputElement && input.type === 'checkbox') input.checked = Boolean(settings[key]); else input.value = String(settings[key]); }
-    persist();
+    persist(); updateControls();
   }, isMenuVisible: () => menu !== null || lobby(), isMenuOpen: () => menu !== null,
-    dispose: () => { disposed = true; clearTimeout(toastTimer); shell.removeEventListener('click', click); shell.removeEventListener('input', change); doc.removeEventListener('keydown', remapKey, true); shell.remove(); } };
+    dispose: () => { disposed = true; clearTimeout(toastTimer); clearTimeout(tutorialTimer); shell.removeEventListener('click', click); shell.removeEventListener('input', change); doc.removeEventListener('keydown', remapKey, true); doc.removeEventListener('visibilitychange', updateControls); shell.remove(); } };
 }
