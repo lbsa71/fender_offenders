@@ -87,6 +87,28 @@ test('each compact case finale shows the final suspect’s own outcome without r
   }
 });
 
+test('short result screens keep the full portrait and next action visible for every case ending', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await fixture(page);
+  const stories: { id: string }[] = await page.evaluate(() => (window as any).campaignFixture.catalog.STORYLINES.map((story: any) => ({ id: story.id })));
+  const portrait = page.locator('.fo-campaign-resolution>.fo-campaign-target .fo-campaign-portrait');
+  for (const viewport of [{ width: 740, height: 420 }, { width: 390, height: 568 }]) {
+    await page.setViewportSize(viewport);
+    for (const [index, story] of stories.entries()) {
+      await set(page, { campaignId: story.id, stage: 9, phase: 'results', complete: true, outcomes: Array.from({ length: 10 }, (_, stage) => outcome(stage, stage % 2 ? 'wrecked' : 'arrested')) });
+      await expect(page.getByRole('button', { name: 'ANOTHER CASE' })).toBeInViewport();
+      await expect(portrait).toBeInViewport();
+      for (const node of [portrait, page.getByRole('button', { name: 'ANOTHER CASE' })]) {
+        const bounds = (await node.boundingBox())!;
+        expect(bounds.x).toBeGreaterThanOrEqual(0); expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+        expect(bounds.y).toBeGreaterThanOrEqual(0); expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
+      }
+      const bounds = (await portrait.boundingBox())!; expect(bounds.width).toBe(96); expect(bounds.height).toBe(96);
+      await page.screenshot({ path: test.info().outputPath(`short-result-story-${index}-${viewport.width}.png`) });
+    }
+  }
+});
+
 test('the review sheet renders all two hundred portraits consistently at detail and HUD sizes', async ({ page }) => {
   await fixture(page);
   const stories: { id: string }[] = await page.evaluate(() => (window as any).campaignFixture.catalog.STORYLINES.map((story: any) => ({ id: story.id })));
