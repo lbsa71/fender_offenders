@@ -8,6 +8,9 @@ export interface BossAiRuntime {
   nextGadgetTick?: number;
 }
 export interface BossDecision { actions: DriverActions; fire: boolean; grenadeTarget: PlanarPose | null }
+export function predictedBombTarget(target: VehicleState, fuseTicks: number): PlanarPose {
+  const seconds=fuseTicks/60;return {x:target.pose.x+target.velocity.x*seconds,z:target.pose.z+target.velocity.z*seconds,yaw:target.pose.yaw};
+}
 export function newBossAi(tick: number): BossAiRuntime { return { targetId: null, attackKind: null, windupUntilTick: 0, nextAttackTick: 0, burstRemaining: 0, nextShotTick: 0, nextGrenadeTick: 0, styleStartedTick: tick, attackOrdinal: 0, evasionTargetId: null, brakeCheckUntilTick: null, breakawayUntilTick: 0, nextBrakeCheckTick: tick }; }
 
 function applyBrakeCheck(vehicle: VehicleState, base: DriverActions, actions: DriverActions, runtime: BossAiRuntime, tactics: BossTactics, tick: number, speedLimit: number, pursuer: boolean): void {
@@ -88,9 +91,9 @@ export function stepBossAi(vehicle: VehicleState, base: DriverActions, officers:
     runtime.attackOrdinal++; runtime.windupUntilTick = tick + tactics.windupTicks; runtime.burstRemaining = tactics.burstShots; runtime.nextShotTick = runtime.windupUntilTick;
   }
   if (!runtime.attackKind || tick < runtime.windupUntilTick) return result;
-  const recover = () => { runtime.attackKind = null; runtime.burstRemaining = 0; runtime.nextAttackTick = tick + tactics.burstRecoveryTicks; };
+  const recover = () => { const grenade=runtime.attackKind==='grenade';runtime.attackKind = null; runtime.burstRemaining = 0; runtime.nextAttackTick = grenade?Math.max(tick+30,runtime.nextGrenadeTick-tactics.windupTicks):tick+tactics.burstRecoveryTicks; };
   if (runtime.attackKind === 'grenade') {
-    if (tick >= runtime.nextGrenadeTick) { result.grenadeTarget = { ...target.pose }; runtime.nextGrenadeTick = tick + tactics.grenadeCooldownTicks; }
+    if (tick >= runtime.nextGrenadeTick) { result.grenadeTarget = predictedBombTarget(target,tactics.grenadeFuseTicks); runtime.nextGrenadeTick = tick + tactics.grenadeCooldownTicks; }
     recover();
   } else if (tick >= runtime.nextShotTick && Math.abs(angle) <= Math.PI / 30) {
     result.fire = true; runtime.burstRemaining--; runtime.nextShotTick = tick + tactics.burstIntervalTicks;

@@ -192,3 +192,48 @@
 .fo-touch-deploy{display:flex;gap:6px}.fo-touch-deploy button{flex:1;min-width:0;border-radius:10px;font-size:9px!important;padding:7px 3px}.fo-touch-deploy:has(button:not([hidden])){min-height:44px}
 
 .fo-touch-deploy:empty{display:none}
+
+/* Less filing cabinet, more getaway: one story beat and one clear next action. */
+.fo-ui .fo-garage-card{padding:12px 14px}
+.fo-ui .fo-garage-card button{margin-top:12px;min-height:36px}
+.fo-ui .fo-vehicle-role{min-height:0;margin:6px 0 0}
+.fo-ui .fo-campaign-briefing [data-campaign-briefing]{font-size:12px;line-height:1.6;margin:0 0 14px}
+.fo-ui .fo-tutorial-lesson{border:0;border-left:3px solid #ae8327;padding:8px 10px;margin:0 0 6px}
+.fo-ui .fo-tutorial-lesson strong{font:800 14px/1.2 'Arial Narrow',Arial,sans-serif}
+.fo-ui .fo-tutorial-lesson p{font-size:11px;line-height:1.5;margin:5px 0 0}
+.fo-ui .fo-campaign-briefing>footer{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fo-ui .fo-campaign-briefing>footer .fo-primary,.fo-ui .fo-campaign-briefing>footer .fo-campaign-wait{grid-column:1/-1}
+.fo-ui.fo-campaign-briefing-open .fo-campaign-briefing>footer .fo-text-button{margin:0;font-size:8px!important}
+.fo-ui .fo-panel-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:18px;padding-top:14px}
+.fo-ui .fo-panel-footer .fo-text-button{width:auto;margin:0;font-size:8px!important}
+.fo-ui .fo-input-hint{display:none}
+.fo-ui .fo-instruments{gap:0;padding:10px 12px}
+.fo-ui .fo-car-state{width:130px}
+.fo-ui .fo-round>span{font-size:8px}
+.fo-ui.fo-campaign-results .fo-menu{display:flex;align-items:center;justify-content:center;inset:96px 20px 24px}
+.fo-ui.fo-campaign-results .fo-menu:has(.fo-hero[hidden]){display:flex}
+.fo-ui.fo-campaign-results .fo-menu .fo-panel{width:100%;max-width:540px;margin:0}
+.fo-ui.fo-campaign-results .fo-results{display:flex;flex-direction:column;gap:12px}
+.fo-ui.fo-campaign-results .fo-results>*{order:0;flex:none}
+.fo-ui.fo-campaign-results .fo-results>.fo-kicker{display:none}
+.fo-ui.fo-campaign-results .fo-campaign-resolution{width:100%;max-height:none;overflow:visible;padding:0;border:0;margin:0}
+.fo-ui .fo-campaign-new-lead{margin:0;padding:12px 14px;border:0;background:#e7e6d5}
+.fo-ui .fo-campaign-new-lead p{font-size:12px;line-height:1.6}
+.fo-ui .fo-campaign-new-lead>.fo-kicker{font-size:8px}
+.fo-ui .fo-campaign-resolution-label{font-size:18px;color:#245638;margin:0 0 12px}
+.fo-ui .fo-result-outcome{font-size:10px;line-height:1.5;margin:0}
+.fo-ui .fo-results>.fo-primary,.fo-ui .fo-results>.fo-secondary{width:100%}
+@media(max-width:740px) and (min-height:600px){
+ .fo-ui.fo-campaign-briefing-open .fo-garage{height:250px}
+ .fo-ui.fo-campaign-briefing-open .fo-campaign-briefing{top:360px;bottom:20px}
+ .fo-ui .fo-garage-card{padding:9px}
+ .fo-ui .fo-vehicle-role{display:none}
+}
+@media(max-width:740px) and (max-height:599px){
+ .fo-ui .fo-garage-card{padding:6px}
+ .fo-ui .fo-garage-card button{font-size:7px;min-height:32px;margin-top:8px}
+ .fo-ui .fo-vehicle-role{display:none}
+ .fo-ui .fo-campaign-briefing [data-campaign-briefing]{font-size:11px}
+ .fo-ui .fo-campaign-briefing>footer{gap:8px}
+ .fo-ui.fo-campaign-results .fo-menu{inset:80px 15px 16px}
+}

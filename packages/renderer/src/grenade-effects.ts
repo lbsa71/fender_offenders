@@ -16,7 +16,7 @@ function valid(g:GrenadeState):boolean{return [g.origin.x,g.origin.z,g.target.x,
 export function grenadeVisualPose(g:GrenadeState,tick:number,reducedMotion=false):GrenadeVisualPose|null{
  if(!valid(g)||!Number.isFinite(tick))return null;
  const elapsed=Math.max(0,tick-g.bornTick),progress=Math.max(0,Math.min(1,elapsed/(g.landsAtTick-g.bornTick))),landed=tick>=g.landsAtTick,settling=Math.max(0,tick-g.landsAtTick);
- return{x:g.origin.x+(g.target.x-g.origin.x)*progress,z:g.origin.z+(g.target.z-g.origin.z)*progress,y:reducedMotion?.45:landed?.45+Math.abs(Math.sin(settling*.42))*.27*Math.exp(-settling/12):1.2-.75*progress+24*progress*(1-progress),spin:reducedMotion?0:landed?Math.sin(settling*.3)*.1*Math.exp(-settling/10):elapsed*.17,landed};
+ return{x:g.origin.x+(g.target.x-g.origin.x)*progress,z:g.origin.z+(g.target.z-g.origin.z)*progress,y:reducedMotion?.45:landed?.45+Math.abs(Math.sin(settling*.42))*.27*Math.exp(-settling/12):(g.originHeight??1.2)*(1-progress)+.45*progress+24*progress*(1-progress),spin:reducedMotion?0:landed?Math.sin(settling*.3)*.1*Math.exp(-settling/10):elapsed*.17,landed};
 }
 interface GrenadeSlot{id:string|null;body:TransformNode;warning:TransformNode;fuse:InstancedMesh;smoke:InstancedMesh[];landed:boolean;fuseBeat:number}
 interface BlastSlot{id:string|null;particles:GrenadeBlastParticles;age:number;fresh:boolean;radius:number;reducedMotion:boolean;reducedFlash:boolean}

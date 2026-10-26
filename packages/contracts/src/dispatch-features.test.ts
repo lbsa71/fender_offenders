@@ -20,3 +20,12 @@ it('unlocks every police weapon one or two dispatches after its suspect introduc
  for(let stage=7;stage<10;stage++)expect(getDispatchFeatures(stage).lesson).toContain('oil');
  for(let stage=8;stage<10;stage++)expect(getDispatchFeatures(stage).lesson).toContain('blades');
 });
+
+it('keeps predictive bomb and helicopter counterplay in compact equipment lessons',()=>{
+ for(const stage of [2,3,4,8,9])expect(getDispatchFeatures(stage).lesson).toContain('Enemy bombs predict your route');
+ for(let stage=0;stage<10;stage++){
+  const lesson=getDispatchFeatures(stage).lesson;
+  if([4,8,9].includes(stage)){expect(lesson).toContain('black chopper');expect(lesson).toContain('amber ground marker');expect(lesson).toContain('this dispatch');}
+  else expect(lesson).not.toContain('black chopper');
+ }
+});

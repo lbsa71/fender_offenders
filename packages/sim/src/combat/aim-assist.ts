@@ -5,11 +5,11 @@ export const AIM_ASSIST_LIMITS = Object.freeze({ maxAngleRadians: 4 * Math.PI / 
 export type AimLineBlocked = (from: Point, to: Point) => boolean;
 
 /** A one-time, visible-target correction. Does not change vehicle state or lead a moving target. */
-export function selectAssistedYaw(shooter: VehicleState, candidates: readonly VehicleState[], tick: number, segmentBlocked: AimLineBlocked, suspectEntityId?: string): number {
+export function selectAssistedYaw(shooter: VehicleState, candidates: readonly VehicleState[], tick: number, segmentBlocked: AimLineBlocked, suspectEntityId?: string, airTargetId?:string): number {
   const start = shooter.pose, fx = Math.sin(start.yaw), fz = Math.cos(start.yaw);
   const targets: { vehicle: VehicleState; yaw: number; angle: number; distance: number }[] = [];
   for (const vehicle of candidates) {
-    if (vehicle.entityId === shooter.entityId || vehicle.status !== 'active' || vehicle.protectedUntilTick > tick || vehicle.playerId === null && vehicle.entityId !== suspectEntityId) continue;
+    if (vehicle.entityId === shooter.entityId || vehicle.status !== 'active' || vehicle.protectedUntilTick > tick || vehicle.playerId === null && vehicle.entityId !== suspectEntityId && vehicle.entityId !== airTargetId) continue;
     const dx = vehicle.pose.x - start.x, dz = vehicle.pose.z - start.z, distance = Math.hypot(dx, dz);
     if (distance === 0 || distance > AIM_ASSIST_LIMITS.range || dx * fx + dz * fz <= 0 || Math.abs(dx * fz - dz * fx) > AIM_ASSIST_LIMITS.lateralRadius) continue;
     const yaw = Math.atan2(dx, dz), angle = Math.abs(Math.atan2(Math.sin(yaw - start.yaw), Math.cos(yaw - start.yaw)));

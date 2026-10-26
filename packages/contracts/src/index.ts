@@ -4,13 +4,15 @@ export { ROAD_GADGET_RULES, withRoadGadgets } from './road-gadgets';
 export type { RoadGadgetState } from './road-gadgets';
 import type { RoadGadgetState } from './road-gadgets';
 export const PROTOCOL_VERSION = 5;
+export * from './helicopter';
+import type { HelicopterState } from './helicopter';
 export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v17';
-export type { CampaignState, CampaignOutcome, DispatchOutcome, CampaignTarget, CampaignDispatch } from './campaign-types';
-export { CAMPAIGN_ID, CAMPAIGN_TITLE, CAMPAIGN_TARGETS, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, getCampaignTarget } from './campaign';
+export const GAMEPLAY_REVISION = 'arcade-v19';
+export type { CampaignState, CampaignOutcome, DispatchOutcome, CampaignTarget, CampaignDispatch, CampaignStoryline } from './campaign-types';
+export { CAMPAIGN_ID, CAMPAIGN_TITLE, CAMPAIGN_TARGETS, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, STORYLINES, ALL_CAMPAIGN_TARGETS, ALL_CAMPAIGN_DISPATCHES, getStoryline, isStorylineId, getCampaignDispatch, findCampaignDispatch, getCampaignTarget } from './campaign';
 export { getCampaignMugshot, type CampaignMugshotVariant } from './campaign-mugshots';
 export { randomCallsign } from './callsigns';
 export { BOSS_TACTICS, getBossTactics } from './boss-tactics';
@@ -66,12 +68,12 @@ export interface ProjectileState {
   bornTick: number; expiresTick: number; sourceCommandSequence: number; sourceShotOrdinal: number;
   volleyId?: string; barrelIndex?: 0 | 1; damage?: number;
 }
-export type RenderProjectileState = ProjectileState & { presentationAgeSeconds?: number };
+export type RenderProjectileState = ProjectileState & { presentationAgeSeconds?: number; tracerHeight?: number; tracerSlope?: number };
 /** Authority chooses a fixed landing point; clients draw the lob and fuse warning. */
 export interface GrenadeState {
   entityId: string; ownerEntityId: string; origin: PlanarPose; target: PlanarPose;
   bornTick: number; landsAtTick: number; detonatesAtTick: number;
-  blastRadius: number; damage: number;
+  blastRadius: number; damage: number; originHeight?: number;
 }
 export interface PlayerScore {
   playerId: string; nickname: string; score: number; wrecks: number;
@@ -97,6 +99,7 @@ export interface WorldSnapshot {
   vehicles: VehicleState[]; projectiles: ProjectileState[]; scores: PlayerScore[];
   props?: PropState[];
   grenades?: GrenadeState[];
+  helicopter?: HelicopterState;
   gadgets?: RoadGadgetState[];
   local: LocalAuthorityState | null;
   resetReason?: 'join' | 'reconnect' | 'input-backlog' | 'resync';
@@ -145,6 +148,7 @@ export interface RenderFrame {
   vehicles: VehicleState[]; projectiles: RenderProjectileState[]; cameraTarget: PlanarPose | null;
   props?: PropState[];
   grenades?: GrenadeState[];
+  helicopter?: HelicopterState;
   gadgets?: RoadGadgetState[];
   /** Presentation clock in authority ticks, buffered online and exact in practice. */
   serverTick?: number;

@@ -10,7 +10,7 @@ export interface DispatchFeatures extends DispatchDrivingContext {
 const lessons = [
   ['ROOKIE PATROL', 'Catch up → match speed → stay close for 3 seconds. Arresting is automatic.'],
   ['SUSPECT GUNS', 'The suspect has forward guns first. Approach from behind or a flank, cut in front and match speed to arrest. Police guns arrive next dispatch.'],
-  ['UNLOCKED: GUNS!', 'Police guns are approved. Fire forward in short bursts: recoil affects handling. Suspect bombs: leave the marked circle before it explodes.'],
+  ['UNLOCKED: GUNS!', 'Police guns are approved. Fire forward in short bursts: recoil affects handling. Enemy bombs predict your route, then lock the marked circle for 1 second. Change speed or direction.'],
   ['WET ROADS', 'Ease off. Steer gently. Wet tyres have opinions. Puddles reduce grip.'],
 ] as const;
 export function getDispatchFeatures(index: number): DispatchFeatures {
@@ -18,6 +18,8 @@ export function getDispatchFeatures(index: number): DispatchFeatures {
   const titles = ['ROOKIE PATROL','SUSPECT GUNS','UNLOCKED: GUNS!','WET ROADS','UNLOCKED: BOMBS!','OIL SLICKS','BLADED HUBCAPS','UNLOCKED: OIL!','UNLOCKED: HUBCAP BLADES!','FULL MOTOR POOL'];
   const reminders: string[] = [];
   if(stage>=2)reminders.push('Fire guns forward in short bursts.');
+  if([3,4,8,9].includes(stage))reminders.push('Enemy bombs predict your route: change speed or direction before the fixed 0.8-second blast.');
+  if([4,8,9].includes(stage))reminders.push('A black chopper returns: shoot toward its amber ground marker to down it for this dispatch.');
   if(stage>=4)reminders.push('Throw a bomb ahead; leave its marked circle. Bombs and gadgets share a 12-second cooldown.');
   if(stage>=7)reminders.push('Drop oil behind after a cutoff. Oil briefly reduces grip; steer around marked patches.');
   if(stage>=8)reminders.push('Extend side blades after their amber warning; front cutoffs still work.');

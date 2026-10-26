@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { Client, type Room, type SeatReservation } from '@colyseus/sdk';
-import { CAMPAIGN_ID, CAMPAIGN_DISPATCHES, getCampaignTarget, PROTOCOL_VERSION, GAMEPLAY_REVISION, unpackSnapshot, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
+import { isStorylineId, getCampaignDispatch, getCampaignTarget, PROTOCOL_VERSION, GAMEPLAY_REVISION, unpackSnapshot, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
 import { districtMap } from '@fender/content';
 
 const endpoint = process.env.TEST_SERVER_URL || 'http://127.0.0.1:2567';
@@ -44,9 +44,10 @@ try {
     assert.equal(state?.phase, 'playing', 'backup joins the already live dispatch');
     assert.equal(state.scores.length, 2);
     assert.ok(state.local?.vehicle, 'each player needs an authoritative car');
-    assert.equal(state.campaign?.campaignId, CAMPAIGN_ID, 'production rooms run the authored campaign');
+    assert.ok(isStorylineId(state.campaign?.campaignId), 'production rooms run one of five authored cases');
+    assert.equal(state.campaign?.campaignId,states.get(rooms[0]!.sessionId)?.campaign?.campaignId,'late joiners share the room storyline');
     assert.equal(state.campaign.dispatchIndex, 0); assert.deepEqual(state.campaign.outcomes, []);
-    assert.equal(state.vehicles.find(vehicle => vehicle.entityId === state.pursuit?.suspectId)?.bodyAssetId, getCampaignTarget(CAMPAIGN_DISPATCHES[0]!.targetId).vehicleBodyId, 'the visible target uses the briefing car');
+    assert.equal(state.vehicles.find(vehicle => vehicle.entityId === state.pursuit?.suspectId)?.bodyAssetId, getCampaignTarget(getCampaignDispatch(state.campaign!).targetId).vehicleBodyId, 'the visible target uses the briefing car');
   }
 } finally {
   for (const room of rooms) room.reconnection.enabled = false;

@@ -3,17 +3,22 @@ import { createServer } from 'node:http';
 import { matchMaker } from '@colyseus/core';
 import { createGameServer } from '../../apps/server/src/index';
 import type { Simulation } from '@fender/sim';
-import { neutralActions } from '@fender/contracts';
+import { CAMPAIGN_ID, STORYLINES, neutralActions } from '@fender/contracts';
 
-const port=Number(process.env.PORT??2867),server=await createGameServer(port,'127.0.0.1');
+const port=Number(process.env.PORT??2867),server=await createGameServer(port,'127.0.0.1',{campaignId:CAMPAIGN_ID});
 const fixtures=createServer((req,res)=>{
- const route=/^\/room\/([A-Za-z0-9_-]{8,64})\/(stage|arrest|gadget|contact)\/(\d)$/.exec(req.url??'');
+ const route=/^\/room\/([A-Za-z0-9_-]{8,64})\/(story|stage|arrest|gadget|contact)\/(\d)$/.exec(req.url??'');
  if(req.method!=='POST'||!route){res.writeHead(404).end();return;}
  const room=matchMaker.getLocalRoomById(route[1]!) as unknown as {sim:Simulation}|undefined;
  if(!room){res.writeHead(404).end('Room missing');return;}
  const sim=room.sim,c=sim.checkpoint(),officer=c.state.records.find(r=>r.vehicle.playerId!==null);
  if(!officer||!c.state.campaign){res.writeHead(409).end();return;}
- if(route[2]==='stage'){
+ if(route[2]==='story'){
+   const story=STORYLINES[Number(route[3])];if(!story){res.writeHead(400).end();return;}
+   c.state.phase='results';c.state.phaseEnd=null;c.state.campaign.status='complete';c.state.campaign.dispatchIndex=9;
+   c.state.campaign.outcomes=Array.from({length:10},(_,dispatchIndex)=>({dispatchIndex,outcome:'arrested',playerId:officer.vehicle.playerId!,callsign:'Fixture officer',elapsedTicks:180}));
+   sim.restore(c);sim.rematch(officer.vehicle.playerId!,story.id);
+ }else if(route[2]==='stage'){
    const stage=Number(route[3]);c.state.phase='results';c.state.campaign.status='active';c.state.campaign.dispatchIndex=Math.max(0,stage-1);
    c.state.campaign.outcomes=Array.from({length:stage},(_,dispatchIndex)=>({dispatchIndex,outcome:'arrested',playerId:officer.vehicle.playerId!,callsign:'Fixture officer',elapsedTicks:180}));
    sim.restore(c);sim.rematch(officer.vehicle.playerId!);

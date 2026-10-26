@@ -11,11 +11,11 @@ async function fixture(page: Page) {
 const set = (page: Page, options: Record<string, unknown>) => page.evaluate(options => (window as any).campaignFixture.set(options), options);
 const outcome = (dispatchIndex: number, result: 'arrested' | 'wrecked', playerId = 'backup') => ({ dispatchIndex, outcome: result, playerId, callsign: playerId === 'backup' ? 'Parking Menace' : 'Officer Rookie', elapsedTicks: 180 });
 
-test('all ten suspects keep their identity but have visibly different outcome illustrations', async ({ page }) => {
+test('all fifty suspects keep their identity but have visibly different outcome illustrations', async ({ page }) => {
   await fixture(page);
   const results = await page.evaluate(async url => {
     const { getCampaignMugshot } = await import(url);
-    const { targets } = { targets: (window as any).campaignFixture.catalog.CAMPAIGN_TARGETS };
+    const { targets } = { targets: (window as any).campaignFixture.catalog.ALL_CAMPAIGN_TARGETS };
     const raster = async (svg: string) => {
       const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
       try {
@@ -36,7 +36,7 @@ test('all ten suspects keep their identity but have visibly different outcome il
     }
     return results;
   }, catalogUrl);
-  expect(results).toHaveLength(30);
+  expect(results).toHaveLength(150);
   for (const result of results) expect(result.changedPixels, `${result.id}: ${result.variant} must change visible artwork`).toBeGreaterThan(160 * 160 * .02);
 });
 
@@ -69,31 +69,37 @@ test('results select bandages, bars or gloating from the shared outcome and refr
   expect(await page.locator('.fo-campaign-briefing .fo-campaign-portrait svg').innerHTML()).toBe(original);
 });
 
-test('campaign finale portraits retain each ringleader’s individual resolution', async ({ page }) => {
+test('each compact case finale shows the final suspect’s own outcome without reviving the campaign dashboard', async ({ page }) => {
   await fixture(page);
-  const outcomes = Array.from({ length: 10 }, (_, index) => outcome(index, index % 2 ? 'wrecked' : 'arrested'));
-  await set(page, { stage: 9, phase: 'results', complete: true, outcomes });
-  const bosses = page.locator('.fo-campaign-bosses .fo-campaign-portrait svg');
-  await expect(bosses).toHaveCount(4);
-  const actual = await bosses.evaluateAll(nodes => nodes.map(node => ({ id: node.closest<HTMLElement>('.fo-campaign-portrait')!.dataset.target, variant: node.getAttribute('data-portrait-variant') })));
-  const expected = await page.evaluate(outcomes => {
-    const { CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES } = (window as any).campaignFixture.catalog;
-    return CAMPAIGN_BOSSES.map((boss: { id: string }) => ({ id: boss.id, variant: outcomes.find(entry => CAMPAIGN_DISPATCHES[entry.dispatchIndex].targetId === boss.id)!.outcome }));
-  }, outcomes);
-  expect(actual).toEqual(expected);
+  const stories = await page.evaluate(() => (window as any).campaignFixture.catalog.STORYLINES.map((story: any) => ({ id: story.id, targetId: story.dispatches[9].targetId })));
+  const portrait = page.locator('.fo-campaign-resolution>.fo-campaign-target .fo-campaign-portrait');
+  for (const story of stories) for (const variant of ['arrested', 'wrecked'] as const) {
+    const outcomes = Array.from({ length: 10 }, (_, index) => outcome(index, index === 9 ? variant : variant === 'arrested' ? 'wrecked' : 'arrested'));
+    await set(page, { campaignId: story.id, stage: 9, phase: 'results', complete: true, outcomes });
+    await expect(portrait).toHaveAttribute('data-target', story.targetId);
+    await expect(portrait.locator('svg')).toHaveAttribute('data-portrait-variant', variant);
+    await expect(portrait).toBeInViewport();
+    await expect(page.getByRole('button', { name: 'ANOTHER CASE' })).toBeInViewport();
+    await expect(page.locator('.fo-campaign-bosses,.fo-campaign-casefile,.fo-campaign-tracker')).toHaveCount(0);
+  }
 });
 
-test('the review sheet renders all forty portraits consistently at detail and HUD sizes', async ({ page }) => {
+test('the review sheet renders all two hundred portraits consistently at detail and HUD sizes', async ({ page }) => {
+  await fixture(page);
+  const stories: { id: string }[] = await page.evaluate(() => (window as any).campaignFixture.catalog.STORYLINES.map((story: any) => ({ id: story.id })));
   await page.setViewportSize({ width: 1100, height: 2400 });
-  await page.goto(`/@fs/${workspace}/packages/ui/dev/outcome-portraits.html`);
-  await expect(page.locator('.portrait-row')).toHaveCount(10);
-  await expect(page.locator('.portrait-art svg')).toHaveCount(40);
-  expect(await page.locator('.portrait-art svg').evaluateAll(nodes => nodes.every(node => node.getAttribute('viewBox') === '0 0 160 160'))).toBe(true);
-  for (const size of [160, 96]) {
-    await page.locator('.portrait-grid').evaluate((node, size) => (node as HTMLElement).style.setProperty('--portrait-size', `${size}px`), size);
-    const path = test.info().outputPath(`all-suspects-${size}.png`);
-    await page.locator('main').screenshot({ path });
-    await test.info().attach(`All suspects at ${size}px`, { path, contentType: 'image/png' });
+  for (const [index, story] of stories.entries()) {
+    await page.goto(`/@fs/${workspace}/packages/ui/dev/outcome-portraits.html?storyline=${story.id}`);
+    await expect(page.locator('.portrait-art svg')).toHaveCount(40);
+    for (const size of [160, 96]) {
+      await page.locator('.portrait-grid').evaluate((node, size) => (node as HTMLElement).style.setProperty('--portrait-size', `${size}px`), size);
+      for (const art of await page.locator('.portrait-art').all()) {
+        const bounds = await art.boundingBox(); expect(bounds?.width).toBe(size); expect(bounds?.height).toBe(size);
+      }
+      const path = test.info().outputPath(`story-${index}-suspects-${size}.png`);
+      await page.screenshot({ path, fullPage: true });
+      await test.info().attach(`Story ${index + 1} suspects at ${size}px`, { path, contentType: 'image/png' });
+    }
   }
 });
 
