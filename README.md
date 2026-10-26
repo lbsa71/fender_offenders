@@ -8,7 +8,7 @@ Fender Offenders is a playable browser arcade driving and vehicle-combat alpha i
 
 This is a playable alpha, not a release candidate. [Execution status](spec/EXECUTION_STATUS.md) records all 49 implementation tasks, observed checks, and remaining acceptance gates. Fender Offenders remains a working name without trademark clearance.
 
-Documentation reviewed: **2026-10-25**, for the tutorial room build (`arcade-v11`, protocol 3, map `sunset-borough-2`). Civilian cars are unarmed, wrecks split into their original physical components, and dusk/night lamps stay illuminated at any camera distance. Every playable campaign now uses a server room; local previews retain bounded stepping and online input uses an independent fixed-step timer with a four-tick stall cap. The paperwork is catching up with the patrol car.
+Documentation reviewed: **2026-10-26**, for the combined source build `arcade-v12`, protocol 3, map `sunset-borough-2`. Suspects make sharper swerves and harder brake checks only against a nearby officer closing the gap; bomb blasts use soft fire/smoke/ember particles, and pedestrians flee players and suspects. The progressive tutorial, persisted touch/controller/keyboard selection and independent online input clock remain integrated. Civilian cars are unarmed, wrecks split into their original physical components, and dusk/night lamps stay illuminated at any camera distance. Hosted rollout is recorded separately in [execution status](spec/EXECUTION_STATUS.md). The paperwork is catching up with the patrol car.
 
 ## Run locally
 

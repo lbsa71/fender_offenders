@@ -1,6 +1,6 @@
 # Armed campaign targets and player callsigns
 
-Status: implemented; human difficulty and audiovisual approval remain open. Reviewed: 2026-10-25. Gameplay revision: `arcade-v11`, protocol 3. This extends the [ten-dispatch campaign](CAMPAIGN.md).
+Status: implemented locally; human difficulty and audiovisual approval remain open. Reviewed: 2026-10-26. Gameplay revision: `arcade-v12`, protocol 3. This extends the [ten-dispatch campaign](CAMPAIGN.md).
 
 *The suspects have read the equipment budget. Regrettably, they found the grenade column.*
 
@@ -8,14 +8,18 @@ Nico is unarmed for the first arrest lesson. Targets from dispatch 2 can fight b
 
 | Ringleader | Driving | Attack and counterplay |
 | --- | --- | --- |
-| Mabel / The Clamp, dispatch 2 | Deliberate brake checks | Short forward bursts; avoid the bumper, flank, then close during recovery |
-| Hector / Hot Stamp, dispatch 5 | Lane weaving | Lobbed grenades; leave the marked landing area before the fuse expires |
-| Iris / Siren Song, dispatch 8 | Faster serpentine rhythm | Four-volley drive-by bursts; stay off the nose and match speed during recovery |
+| Mabel / The Clamp, dispatch 2 | Hard brake checks against a closing officer behind | Short forward bursts; avoid the bumper, flank, then close during recovery |
+| Hector / Hot Stamp, dispatch 5 | Broad swerves against a closing officer nearby | Lobbed grenades; leave the marked landing area before the fuse expires |
+| Iris / Siren Song, dispatch 8 | Sharper, faster swerves against a closing officer nearby | Four-volley drive-by bursts; stay off the nose and match speed during recovery |
 | Aldo / The Chairman, dispatch 10 | Interception | Five-volley bursts alternating with grenades; break the firing line and exploit recovery |
 
 ## Difficulty and authority
 
 The [ten authored profiles](../packages/contracts/src/boss-tactics.ts) use difficulty 1–10, shorter attack windups and recovery periods, quicker escape lines, larger grenade zones and more demanding bursts. The opening target has weapon `none`; Mabel introduces forward bursts in dispatch 2. The finale combines previously introduced attacks. Player vehicle profiles, collision shapes, weapon cadence and arrest conditions retain their existing rules; progression does not secretly weaken a player's car.
+
+Evasive steering and brake checks require a visible, eligible officer less than 22 m away whose relative velocity is reducing the gap by more than 0.5 m/s. Matching speed, falling behind or remaining distant does not trigger either tactic; normal route steering/braking continues. Brake checks also require the officer more than 2 m behind and within 6 m laterally. Every eligible officer is considered independently of the nearest weapon target. An officer in front cannot hide a second officer gaining from behind.
+
+Entering a closing pursuit starts the maneuver immediately. Losing the closing condition cancels it. Weavers use twice their authored steering amplitude, clamped to the normal steering range, preserving each profile's period. Brake checks combine full service braking with the existing handbrake, cancel throttle, and stop applying brake-to-reverse input below 0.5 m/s forward speed. Their existing 90-tick check window and profile period remain bounded. The suspect has finally noticed the patrol car in the mirror.
 
 AI selects active, connected officers using authoritative positions and visibility. It observes range, line of sight, protection, weapon alignment, windup, burst cadence and recovery. AI bullets are real projectiles emitted from the forward gun tips, with authoritative damage and the existing world/car sweep tests. AI can wreck an officer but cannot earn player points or resolve its own dispatch. Only a player arrest or credited player destruction resolves the target.
 
@@ -27,7 +31,7 @@ Lobby, countdown, results, wrecked/respawning targets and absent eligible office
 
 `GrenadeState` is engine-independent. Compact wire tuples carry the fixed trajectory/timing; they do not send cosmetic flight transforms. Local practice supplies the exact simulation tick. Online presentation advances a monotonic authority clock and retires expired warnings, preserving the frozen campaign phases.
 
-The renderer draws the lob, fuse and blast-area warning from authority. Explosion events produce pooled cartoon blast, smoke, rings and original synthesized sound; event deduplication and retired grenade IDs prevent repeated blasts or stale warning resurrection. Reduced flashes and motion, volume limits, match changes, garage entry and disposal follow the existing presentation lifecycle.
+The renderer draws the lob, fuse and blast-area warning from authority. Explosion events produce a bounded soft particle burst: outward fire that cools and fades, rising translucent smoke, ballistic embers and original synthesized sound. Eight reusable blast slots share one procedural alpha texture, with at most 640 particles; solid blast spheres and decorative shock rings are removed. The gameplay warning perimeter retains the actual damage radius. Event deduplication and retired grenade IDs prevent repeated blasts or stale warning resurrection. Reduced flashes and motion, volume limits, match changes, garage entry and disposal follow the existing presentation lifecycle.
 
 ## Callsigns
 

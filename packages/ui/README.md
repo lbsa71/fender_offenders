@@ -1,6 +1,6 @@
 # Dispatch interface
 
-Reviewed: 2026-10-26 for `arcade-v11` / protocol 3. *The dispatch desk supplies clues, car keys and a suspiciously cheerful damage report.*
+Reviewed: 2026-10-26 for `arcade-v12` / protocol 3. *The dispatch desk supplies clues, car keys and a suspiciously cheerful damage report.*
 
 `mountGameUi(root, callbacks)` mounts the responsive game shell, menus, settings, HUD, room invites, and results. The UI consumes `UiModel`; its snapshot and scores are read-only projections. Nicknames, errors, room codes, and score rows are written as text, never HTML.
 

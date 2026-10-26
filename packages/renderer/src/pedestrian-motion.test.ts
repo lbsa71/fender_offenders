@@ -23,16 +23,37 @@ it('waits at a zebra crossing for fast traffic instead of stepping into its path
   const motion = new PedestrianMotion([route], 1); motion.update([car(4, -60, 0, 28)], 1 / 60);
   const person = motion.getStates()[0]!; expect(person.x).toBeLessThanOrEqual(-8.8); expect(person.mode).not.toBe('walking');
 });
-it.each([[0, 28, 0], [0, -28, 0], [20, 14, 1.9]])('runs from approaching cars including reverse/turn motion (%s,%s,%s)', (vx, vz, turn) => {
+it.each(['traffic-patrol', 'patrol'])('waits for ordinary %s traffic without fleeing', bodyAssetId => {
   const motion = new PedestrianMotion([route], 1);
-  motion.update([car(-10.2 - vx * .5, -10.2 - vz * .5, vx, vz, 'approaching', turn)], 1 / 60);
+  // Seven metres from the pavement: close enough to trigger the old panic rule,
+  // but outside the overlap guard. Traffic must still block this crossing.
+  motion.update([{ ...car(-3.2, -24.2, 0, 28), bodyAssetId }], 1 / 60);
+  expect(motion.getStates()[0]!.mode).toBe('waiting');
+  expect(motion.getStates()[0]!.x).toBe(-10.2);
+});
+it.each(['officer', 'suspect'])('flees an approaching %s using identity rather than body style', kind => {
+  const motion = new PedestrianMotion([route], 1);
+  const vehicle = { ...car(-3.2, -24.2, 0, 28, 'wanted'), bodyAssetId: 'traffic-patrol', playerId: kind === 'officer' ? 'player' : null };
+  motion.update([vehicle], 1 / 60, kind === 'suspect' ? vehicle.entityId : undefined);
+  expect(motion.getStates()[0]!.mode).toBe('running');
+});
+it('keeps ordinary traffic overlap protection without starting a running animation', () => {
+  const motion = new PedestrianMotion([route], 1), vehicle = car(-10.2, -10.2);
+  motion.update([vehicle], 0);
+  const person = motion.getStates()[0]!;
+  expect(person.hiddenSafety || separation(person, vehicle) > 4.6).toBe(true);
+  expect(person.mode).not.toBe('running');
+});
+it.each([[0, 28, 0], [0, -28, 0], [20, 14, 1.9]])('runs from approaching officers including reverse/turn motion (%s,%s,%s)', (vx, vz, turn) => {
+  const motion = new PedestrianMotion([route], 1);
+  motion.update([{ ...car(-10.2 - vx * .5, -10.2 - vz * .5, vx, vz, 'approaching', turn), playerId: 'officer' }], 1 / 60);
   expect(motion.getStates()[0]!.mode).toBe('running');
 });
 it('uses every car, including traffic, and never exposes a person inside a late teleported vehicle', () => {
   const motion = new PedestrianMotion([route], 1), vehicles = [car(70, 70, 0, 0, 'local'), car(-10.2, -10.2, 0, 0, 'traffic')];
   motion.update(vehicles, 0);
   for (const person of motion.getStates().filter(person => !person.hiddenSafety)) expect(vehicles.every(vehicle => separation(person, vehicle) > 4)).toBe(true);
-  expect(motion.getStates()[0]!.mode).toBe('running');
+  expect(motion.getStates()[0]!.mode).not.toBe('running');
 });
 it('reserves clearance for a fully stretched car and swinging running arms', () => {
   const motion = new PedestrianMotion([route], 1), vehicle = car(-5.8, -10.2);
@@ -44,16 +65,16 @@ it('detects car motion swept between render frames rather than only endpoint ove
   const person = motion.getStates()[0]!;
   expect(person.hiddenSafety || Math.abs(person.x + 10.2) > 4.1 || person.z < -39.2 || person.z > 19.2).toBe(true);
 });
-it('runs back along the zebra crossing to pavement when a car approaches mid-crossing', () => {
+it('runs back along the zebra crossing to pavement when a suspect approaches mid-crossing', () => {
   const motion = new PedestrianMotion([route], 1); for (let i = 0; i < 180; i++) motion.update([], 1 / 60);
   const before = motion.getStates()[0]!; expect(before.x).toBeGreaterThan(-8.8);
-  motion.update([car(4, -45, 0, 28)], 1 / 60); const after = motion.getStates()[0]!;
+  motion.update([car(4, -45, 0, 28, 'suspect')], 1 / 60, 'suspect'); const after = motion.getStates()[0]!;
   expect(after.mode).toBe('running'); expect(after.x).toBeLessThan(before.x);
 });
 it('keeps safety during repeated top-speed incursions and never retreats inside buildings or arbitrary road space', () => {
   const motion = new PedestrianMotion();
   for (let frame = 0; frame < 180; frame++) {
-    const vehicles = [car(10.2, -70 + frame * .6, 0, 36), car(-70 + frame * .7, -10.2, 42, 0, 'turner', 1.4)]; motion.update(vehicles, 1 / 60);
+    const vehicles = [car(10.2, -70 + frame * .6, 0, 36), { ...car(-70 + frame * .7, -10.2, 42, 0, 'turner', 1.4), playerId: 'officer' }]; motion.update(vehicles, 1 / 60);
     for (const person of motion.getStates().filter(person => !person.hiddenSafety)) {
       expect(vehicles.every(vehicle => separation(person, vehicle) > 4)).toBe(true);
       const onZebra = PEDESTRIAN_ROUTES.some(route => route.points.some((a, i) => {
@@ -75,15 +96,15 @@ it('reset deterministically clears old sweeps and dispose permanently removes th
   const motion = new PedestrianMotion(); const initial = motion.getStates(); motion.update([car(0, 0, 24, 0)], .2); motion.reset(); expect(motion.getStates()).toEqual(initial);
   motion.dispose(); motion.update([], .1); motion.reset(); expect(motion.getStates()).toEqual([]);
 });
-it('uses ordinary early running and crossing waits without emergency relocation for a normal lane pass', () => {
+it('uses crossing waits without running or emergency relocation for an ordinary lane pass', () => {
   const motion = new PedestrianMotion();
-  for (let i = 0; i < 300; i++) motion.update([car(4, -70 + i * 28 / 60, 0, 28)], 1 / 60);
+  for (let i = 0; i < 300; i++) { motion.update([car(4, -70 + i * 28 / 60, 0, 28)], 1 / 60); expect(motion.getStates().some(p => p.mode === 'running')).toBe(false); }
   expect(motion.getDiagnostics().emergencyRetreats).toBe(0);
   expect(motion.getStates().filter(person => person.hiddenSafety)).toHaveLength(0);
 });
-it('runs sideways into clear pavement for a curb-hugging car without repeated emergency hops', () => {
+it('runs sideways into clear pavement for a curb-hugging officer without repeated emergency hops', () => {
   const motion = new PedestrianMotion();
-  for (let i = 0; i < 84; i++) motion.update([car(8, -52 + i * 28 / 60, 0, 28)], 1 / 60);
+  for (let i = 0; i < 84; i++) motion.update([{ ...car(8, -52 + i * 28 / 60, 0, 28), playerId: 'officer' }], 1 / 60);
   expect(motion.getDiagnostics().emergencyRetreats).toBeLessThanOrEqual(1);
   expect(motion.getStates().filter(person => person.hiddenSafety)).toHaveLength(0);
 });

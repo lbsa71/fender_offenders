@@ -19,7 +19,7 @@ async function peer(roomId?:string){
  room.onMessage('snapshot',(wire:WireSnapshot)=>states.push(unpackSnapshot(wire,states.at(-1)?.props)));
  room.onMessage('events',(batch:GameEvent[])=>events.push(...batch));room.onMessage('latency-probe',({nonce}:{nonce:string})=>room.send('latency-pong',{nonce}));
  room.send('resync');await until(()=>states.length>0,'Initial boss encounter baseline');
- return{room,events,get state(){return states.at(-1)!;}};
+ return{room,events,states,get state(){return states.at(-1)!;}};
 }
 function encounter(host:Awaited<ReturnType<typeof peer>>,stage=0){
  const sim=(matchMaker.getLocalRoomById(host.room.roomId) as unknown as {sim:Simulation}).sim;
@@ -36,6 +36,21 @@ function encounter(host:Awaited<ReturnType<typeof peer>>,stage=0){
 beforeAll(async()=>{server=await createGameServer(2722);});
 afterEach(async()=>{ await disposeTestRooms();await Promise.all(rooms.splice(0).map(room=>room.connection.isOpen?room.leave(true):Promise.resolve()));});
 afterAll(async()=>{await server?.gracefullyShutdown(false);});
+
+it.each([[1,'distant'],[1,'closing'],[4,'distant'],[4,'closing']] as const)('replicates dispatch %s driving under a %s pursuit through both real clients',async(stage,approach)=>{
+ const host=await peer(),guest=await peer(host.room.roomId),{sim,bossId}=encounter(host,stage),c=sim.checkpoint();
+ const boss=c.state.records.find(r=>r.vehicle.entityId===bossId)!,officer=c.state.records.find(r=>r.vehicle.playerId===host.room.sessionId)!;
+ boss.vehicle.velocity={x:12,z:0,yawRate:0};delete boss.bossAi;
+ officer.vehicle.pose={x:approach==='closing'?-14:-44,z:-76,yaw:Math.PI/2};officer.vehicle.velocity={x:18,z:0,yawRate:0};
+ sim.restore(c);host.room.send('resync');guest.room.send('resync');
+ await until(()=>host.states.some(s=>s.serverTick>=c.tick+45),'The live authority must publish 0.75 seconds of suspect driving');
+ const sample=host.states.find(s=>s.serverTick>=c.tick+45)!,history=host.states.filter(s=>s.serverTick>=c.tick+30&&s.serverTick<=sample.serverTick).map(s=>s.vehicles.find(v=>v.entityId===bossId)!);
+ expect(history.length).toBeGreaterThan(0);
+ if(stage===1){const speed=Math.min(...history.map(v=>Math.hypot(v.velocity.x,v.velocity.z)));if(approach==='closing')expect(speed).toBeLessThan(2);else expect(speed).toBeGreaterThan(8);}
+ else{const displacement=Math.max(...history.map(v=>Math.abs(v.pose.z+76)));if(approach==='closing')expect(displacement).toBeGreaterThan(1);else expect(displacement).toBeLessThan(.2);}
+ await until(()=>guest.states.some(s=>s.serverTick===sample.serverTick),'Both observers must receive the same authoritative driving tick');
+ expect(guest.states.find(s=>s.serverTick===sample.serverTick)!.vehicles.find(v=>v.entityId===bossId)).toEqual(sample.vehicles.find(v=>v.entityId===bossId));
+});
 
 it('the authoritative second target fires real shots, damages an officer and shares the attack with both clients',async()=>{
  const host=await peer(),guest=await peer(host.room.roomId),{bossId}=encounter(host,1);
