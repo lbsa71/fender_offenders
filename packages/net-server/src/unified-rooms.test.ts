@@ -62,5 +62,8 @@ it('warns on inactivity, accepts deliberate activity, and closes intentionally a
   a.room.send('activity');await sleep(40);now+=839_999;a.authority.sweep();await sleep(30);expect(a.room.connection.isOpen).toBe(true);
   now+=1;a.authority.sweep();await until(()=>a.warnings.length===2);
   a.room.send('ping',1);a.room.send('input',{commands:[{sessionEpoch:a.state.sessionEpoch,sequence:0,clientTick:0,actions:neutralActions()}]});await sleep(30);
-  now+=60_000;a.authority.sweep();await until(()=>!a.room.connection.isOpen);expect(getRoomMetrics()).toMatchObject({connectedPlayers:0,reconnectingPlayers:0,emptyRooms:1});
+  now+=60_000;a.authority.sweep();await until(()=>!a.room.connection.isOpen);
+  // The client's close event can precede the server's completed onLeave.
+  await until(()=>getRoomMetrics().reconnectingPlayers===0);
+  expect(getRoomMetrics()).toMatchObject({connectedPlayers:0,reconnectingPlayers:0,emptyRooms:1});
 });

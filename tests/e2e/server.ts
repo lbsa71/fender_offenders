@@ -3,10 +3,11 @@ import { createServer } from 'node:http';
 import { matchMaker } from '@colyseus/core';
 import { createGameServer } from '../../apps/server/src/index';
 import type { Simulation } from '@fender/sim';
+import { neutralActions } from '@fender/contracts';
 
 const port=Number(process.env.PORT??2867),server=await createGameServer(port,'127.0.0.1');
 const fixtures=createServer((req,res)=>{
- const route=/^\/room\/([A-Za-z0-9_-]{8,64})\/(stage|arrest|gadget)\/(\d)$/.exec(req.url??'');
+ const route=/^\/room\/([A-Za-z0-9_-]{8,64})\/(stage|arrest|gadget|contact)\/(\d)$/.exec(req.url??'');
  if(req.method!=='POST'||!route){res.writeHead(404).end();return;}
  const room=matchMaker.getLocalRoomById(route[1]!) as unknown as {sim:Simulation}|undefined;
  if(!room){res.writeHead(404).end('Room missing');return;}
@@ -30,6 +31,11 @@ const fixtures=createServer((req,res)=>{
    // Forced fixture placement is an explicit server intervention. A routine
    // snapshot must not replace the continuously driven local car.
    officer.vehicle.discontinuityId++;suspect.vehicle.discontinuityId++;
+   if(route[2]==='contact'){
+     c.state.records=[officer,suspect];officer.vehicle.pose={x:0,z:-30,yaw:0};suspect.vehicle.pose={x:0,z:-25.5,yaw:Math.PI};
+     const step=sim.step.bind(sim);let sequence=0;
+     sim.step=inputs=>step(new Map([...inputs,[suspect.vehicle.entityId,{actions:{...neutralActions(),throttle:.2},sessionEpoch:'bumper-fixture',sourceCommandSequence:sequence++}]]));
+   }
    sim.restore(c);
  }
  res.writeHead(204).end();

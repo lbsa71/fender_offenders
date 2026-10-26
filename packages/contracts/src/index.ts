@@ -3,12 +3,12 @@ export type { DispatchFeatures, DispatchDrivingContext } from './dispatch-featur
 export { ROAD_GADGET_RULES, withRoadGadgets } from './road-gadgets';
 export type { RoadGadgetState } from './road-gadgets';
 import type { RoadGadgetState } from './road-gadgets';
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v15';
+export const GAMEPLAY_REVISION = 'arcade-v16';
 export type { CampaignState, CampaignOutcome, DispatchOutcome, CampaignTarget, CampaignDispatch } from './campaign-types';
 export { CAMPAIGN_ID, CAMPAIGN_TITLE, CAMPAIGN_TARGETS, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, getCampaignTarget } from './campaign';
 export { getCampaignMugshot } from './campaign-mugshots';
@@ -32,7 +32,7 @@ export interface DriverActions {
 export const neutralActions = (): DriverActions => ({ steer: 0, throttle: 0, brakeReverse: 0, handbrake: false, fire: false, sirenToggle: false, recover: false });
 export interface InputCommand { sessionEpoch: string; sequence: number; clientTick: number; actions: DriverActions }
 /** Driver-produced movement; the room validates it and owns identity, health and outcomes. */
-export interface LocalVehicleMotion { sequence: number; discontinuityId: number; pose: PlanarPose; velocity: PlanarVelocity }
+export interface LocalVehicleMotion { sequence: number; discontinuityId: number; pose: PlanarPose; velocity: PlanarVelocity; contactRevision?: number }
 export interface InputBatch { kind: 'input'; commands: InputCommand[]; motion?: LocalVehicleMotion }
 export interface AppliedDriverInput { actions: DriverActions; sessionEpoch: string; sourceCommandSequence: number | null; localDriving?: boolean; motion?: LocalVehicleMotion }
 export interface InputSource { sample(): DriverActions; activeDevice(): DeviceKind; resetHeldState(): void; dispose(): void }
@@ -55,7 +55,11 @@ export interface DriverRuntimeState {
   /** Accepted-volley handling load and prediction clock. Omitted legacy values default to zero. */
   recoilStrength?: number; simulatedTick?: number;
 }
-export interface LocalAuthorityState { vehicle: VehicleState; driver: DriverRuntimeState; lastConsumedSequence: number }
+/** Cumulative server contact adjustments within one vehicle life. */
+export interface ContactAdjustment { revision: number; pose: PlanarPose; velocity: PlanarVelocity }
+export const zeroContactAdjustment = (): ContactAdjustment => ({revision:0,pose:{x:0,z:0,yaw:0},velocity:{x:0,z:0,yawRate:0}});
+export interface VehicleContactDelta { entityId: string; pose: PlanarPose; velocity: PlanarVelocity }
+export interface LocalAuthorityState { vehicle: VehicleState; driver: DriverRuntimeState; lastConsumedSequence: number; contact?: ContactAdjustment }
 export interface ProjectileState {
   entityId: string; ownerEntityId: string; pose: PlanarPose; velocity: PlanarVelocity;
   bornTick: number; expiresTick: number; sourceCommandSequence: number; sourceShotOrdinal: number;

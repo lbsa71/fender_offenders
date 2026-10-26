@@ -2,7 +2,7 @@ import { Client, ErrorCode, MatchMakeError, ServerError, type Room, type SeatRes
 import { predictVehicle } from '@fender/sim';
 import { ProjectilePresentation } from './projectile-presentation';
 import { withRoadGadgets } from '@fender/contracts';
-import { GAMEPLAY_REVISION, PROTOCOL_VERSION, getDispatchFeatures, DEFAULT_DRIVING_CONTEXT, isInviteCode, isRecord, unpackSnapshot, type CollisionMap, type GameEvent, type GameSession, type InputCommand, type JoinResult, type LocalAuthorityState, type LocalVehicleMotion, type PropState, type RenderFrame, type SessionRequest, type SessionStatus, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
+import { GAMEPLAY_REVISION, PROTOCOL_VERSION, zeroContactAdjustment, getDispatchFeatures, DEFAULT_DRIVING_CONTEXT, isInviteCode, isRecord, unpackSnapshot, type CollisionMap, type GameEvent, type GameSession, type InputCommand, type JoinResult, type LocalAuthorityState, type LocalVehicleMotion, type PropState, type RenderFrame, type SessionRequest, type SessionStatus, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
 const clone = <T>(v: T): T => structuredClone(v);
 const wrap = (n: number) => Math.atan2(Math.sin(n), Math.cos(n));
 const frozenCampaign = (state: WorldSnapshot) => state.paused === true || Boolean(state.campaign) && state.phase !== 'playing';
@@ -29,6 +29,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
   let state: SessionStatus = { state: 'idle' }, disposed = false, playerId = '', roomId = '';
   let rtt = 0, correctionX = 0, correctionZ = 0, lastRenderAt = performance.now(), lastSnapshotAt = performance.now();
   let predictionAt = performance.now();
+  let appliedContact = zeroContactAdjustment();
   let lastLocalFrame: VehicleState['pose'] | null = null;
   let lateUntimedInput = false;
   let playbackTick: number | null = null;
@@ -64,6 +65,15 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
         result.pose.yaw += result.velocity.yawRate * dt;
       }
       return result;
+    });
+  }
+  function visibleCollisionProxies(estimatedTick: number): VehicleState[] {
+    // Contact uses the external trajectory the driver sees. A separate future
+    // collider can jump on packet arrival even while the rendered car is steady.
+    return remoteAt(playbackTick ?? estimatedTick-REMOTE_BUFFER_TICKS).map(vehicle=>{
+      const offset=remoteCorrections.get(vehicle.entityId);
+      if(offset){vehicle.pose.x+=offset.x;vehicle.pose.z+=offset.z;vehicle.pose.yaw+=offset.yaw;}
+      return vehicle;
     });
   }
   function propsAt(tick: number): PropState[] {
@@ -124,9 +134,17 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       if (!predicted || reset || frozen) {
         if(oldPose&&predicted&&reset){corrections++;maxCorrection=Math.max(maxCorrection,Math.hypot(oldPose.x-next.local.vehicle.pose.x,oldPose.z-next.local.vehicle.pose.z));}
         predicted = clone(next.local); predictionAt = performance.now();
+        appliedContact = clone(next.local.contact ?? zeroContactAdjustment());
       } else {
         // Local movement is advanced once, by local input. Ordinary room
         // updates own shared state, not this car's steering or velocity.
+        const contact = next.local.contact;
+        if (contact && contact.revision > appliedContact.revision) {
+          for (const axis of ['x','z','yaw'] as const) predicted.vehicle.pose[axis] += contact.pose[axis]-appliedContact.pose[axis];
+          for (const axis of ['x','z','yawRate'] as const) predicted.vehicle.velocity[axis] += contact.velocity[axis]-appliedContact.velocity[axis];
+          predicted.vehicle.pose.yaw = wrap(predicted.vehicle.pose.yaw);
+          appliedContact = clone(contact);
+        }
         const { health, maxHealth, protectedUntilTick, respawnAtTick, sirenOn } = next.local.vehicle;
         Object.assign(predicted.vehicle,{health,maxHealth,protectedUntilTick,respawnAtTick,sirenOn});
       }
@@ -213,11 +231,11 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
         const actions = snapshot.phase === 'playing' ? command.actions : { ...command.actions, fire: false };
         const simulationTick = Math.max(snapshot.serverTick, predicted.driver.simulatedTick ?? 0) + 1;
         const drivingContext = withRoadGadgets(snapshot.campaign ? getDispatchFeatures(snapshot.campaign.dispatchIndex) : DEFAULT_DRIVING_CONTEXT, snapshot.gadgets ?? [], simulationTick);
-        const result = predictVehicle(map, predicted.vehicle, predicted.driver, actions, remoteAt(estimatedTick).filter(v => v.entityId !== predicted!.vehicle.entityId), undefined, simulationTick, drivingContext);
+        const result = predictVehicle(map, predicted.vehicle, predicted.driver, actions, visibleCollisionProxies(estimatedTick).filter(v => v.entityId !== predicted!.vehicle.entityId), undefined, simulationTick, drivingContext);
         predicted.vehicle = result.vehicle; predicted.driver = result.driver;
         const timed = localTickTimeMs !== undefined && Number.isFinite(localTickTimeMs);
         predictionAt = timed ? Math.max(now - 1000, Math.min(now, localTickTimeMs!)) : now;
-        if(predicted.vehicle.status==='active')entry.motion={sequence:command.sequence,discontinuityId:predicted.vehicle.discontinuityId,pose:{...predicted.vehicle.pose},velocity:{...predicted.vehicle.velocity}};
+        if(predicted.vehicle.status==='active')entry.motion={sequence:command.sequence,discontinuityId:predicted.vehicle.discontinuityId,contactRevision:appliedContact.revision,pose:{...predicted.vehicle.pose},velocity:{...predicted.vehicle.velocity}};
         // A late untimed caller may advance only one tick. Preserve its last
         // displayed travel after render correction has been applied, not before.
         if (!timed && lastLocalFrame && predictionAt - previousTickTime > 1000 / 60 + 2) lateUntimedInput = true;

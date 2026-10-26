@@ -1,4 +1,4 @@
-import type { WorldSnapshot, VehicleState, DriverRuntimeState, ProjectileState, PropState } from './index';
+import type { WorldSnapshot, VehicleState, DriverRuntimeState, ProjectileState, PropState, ContactAdjustment } from './index';
 import { getVehicleProfile } from './vehicle-profiles';
 type VehicleWire = [string, string | null, string, number, number, number, number, number, number, number, VehicleState['status'], number, number | null, boolean, number, number?];
 type PropWire = [string, PropState['kind'], number, number, number, number, number, number, number, number, 0 | 1, boolean, number];
@@ -12,7 +12,7 @@ export interface WireSnapshot {
   v: [number, string, string]; e: string; t: number; m: string;
   p: WorldSnapshot['phase']; end: number | null;
   cars: VehicleWire[]; shots: ProjectileWire[];
-  scores: WorldSnapshot['scores']; local: [string, DriverRuntimeState, number] | null;
+  scores: WorldSnapshot['scores']; local: [string, DriverRuntimeState, number, ContactAdjustment?] | null;
   reset?: WorldSnapshot['resetReason']; pursuit?: WorldSnapshot['pursuit'];
   campaign?: WorldSnapshot['campaign'];
   paused?: boolean;
@@ -25,7 +25,7 @@ export interface WireSnapshot {
 export function packSnapshot(s: WorldSnapshot): WireSnapshot {
   return { v: [s.protocolVersion, s.mapRevision, s.gameplayRevision], e: s.sessionEpoch, t: s.serverTick, m: s.matchId, p: s.phase, end: s.phaseEndsAtTick,
     cars: s.vehicles.map(packCar), shots: s.projectiles.map(p => [p.entityId, p.ownerEntityId, q(p.pose.x), q(p.pose.z), q(p.pose.yaw), q(p.velocity.x), q(p.velocity.z), p.bornTick, p.expiresTick, p.sourceCommandSequence, p.sourceShotOrdinal,...(p.volleyId!==undefined?[p.volleyId,p.barrelIndex,p.damage]:[])] as ProjectileWire),
-    scores: s.scores.map(score => ({ ...score, pingMs: score.pingMs ?? null })), local: s.local ? [s.local.vehicle.entityId, s.local.driver, s.local.lastConsumedSequence] : null, reset: s.resetReason, pursuit: s.pursuit,
+    scores: s.scores.map(score => ({ ...score, pingMs: score.pingMs ?? null })), local: s.local ? s.local.contact ? [s.local.vehicle.entityId,s.local.driver,s.local.lastConsumedSequence,structuredClone(s.local.contact)] : [s.local.vehicle.entityId,s.local.driver,s.local.lastConsumedSequence] : null, reset: s.resetReason, pursuit: s.pursuit,
     ...(s.campaign ? { campaign: structuredClone(s.campaign) } : {}),
     ...(s.paused !== undefined ? { paused: s.paused } : {}),
     ...(s.gadgets?.length ? { gadgets: s.gadgets.map(g => [g.entityId,g.ownerEntityId,g.kind,q(g.pose.x),q(g.pose.z),q(g.pose.yaw),g.bornTick,g.activeAtTick,g.expiresTick] as GadgetWire) } : {}),
@@ -40,7 +40,7 @@ export function unpackSnapshot(s: WireSnapshot, previousProps: readonly PropStat
   let props=decodedProps;
   if(s.propsPatch){const merged=new Map(previousProps.map(p=>[p.entityId,{...p,position:{...p.position},rotation:{...p.rotation}}]));for(const prop of decodedProps)merged.set(prop.entityId,prop);props=[...merged.values()];}
   return { protocolVersion: s.v[0], mapRevision: s.v[1], gameplayRevision: s.v[2], sessionEpoch: s.e, serverTick: s.t, matchId: s.m, phase: s.p, phaseEndsAtTick: s.end, vehicles, projectiles, scores: s.scores.map(score => ({ ...score, pingMs: score.pingMs ?? null })),
-    local: s.local && car ? { vehicle: car, driver: s.local[1], lastConsumedSequence: s.local[2] } : null, resetReason: s.reset, pursuit: s.pursuit,
+    local: s.local && car ? { vehicle: car, driver: s.local[1], lastConsumedSequence: s.local[2],...(s.local[3]?{contact:structuredClone(s.local[3])}:{}) } : null, resetReason: s.reset, pursuit: s.pursuit,
     ...(s.campaign ? { campaign: structuredClone(s.campaign) } : {}),
     gadgets: (s.gadgets ?? []).map(g => ({ entityId:g[0],ownerEntityId:g[1],kind:g[2],pose:{x:g[3],z:g[4],yaw:g[5]},bornTick:g[6],activeAtTick:g[7],expiresTick:g[8] })),
     ...(s.paused !== undefined ? { paused: s.paused } : {}),

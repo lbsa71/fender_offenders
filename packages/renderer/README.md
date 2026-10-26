@@ -95,3 +95,14 @@ The old absolute capture directories above are historical outputs and are not tr
 The current live app includes all the effects above, ten armed campaign stages and local/online authority clocks. The 2026-10-24 UI fix applies target-badge positions without a growing CSS transition; app pacing allows fifteen local catch-up ticks while preserving four online input ticks. These improve two measured regressions, not the renderer's complete sustained budget.
 
 Next work: portable native fixture paths under F02/Q01, human visual/audio acceptance, named WebGL2 browser/context-loss coverage, full eight-player frame/load traces and ten-rematch GPU/memory stability under R03–R06/Q02/Q05/Q08. Original procedural assets are [GPL-3.0-or-later](../../LICENSE); dependency notices remain separate. The car parts may fly away, but the resource counts must come back down.
+
+
+## Visible water from the driving camera
+
+All six shallow water sites render from dispatch 1. Puddle visibility is independent of the authoritative slippery-road unlock in dispatch 4. Surface and border triangle winding matches the right-handed game scene after the X-coordinate conversion. The rectangular garden pool occupies its full authored 9 × 5 m footprint.
+
+`pnpm test:water` starts its own renderer server on 5225 and compares actual visible water pixels with the same surface hidden, using normal follow-camera positions on nearby roads at low/medium quality. It rejects invisible/cull-facing water and shader errors; captures and counts are saved under `work/water-driving-visibility`. It runs in the local pre-push gate. `RENDER_SCENARIO_URL` optionally selects an already-running renderer fixture for manual investigation. These captures establish visibility, not sustained performance or owner visual approval.
+
+Visible water now reflects nearby scene geometry through one shared planar target (256 × 256 medium/high; 128 × 128 alternate-frame refresh on low). Water is excluded from its own capture; the pass is unscheduled when no water is in view. Pool/pond share a plane, with a 25 cm approximation for simultaneously visible road puddles. Crossing wave normals distort the reflection and add narrow creases; low and reduced motion freeze decorative ripple time.
+
+`pnpm test:water` also runs `water-finish-check.ts`: actual car glass/paint/chrome shaders, exact uninstanced breakup pieces, all presets and the garage must exclude water code. A nearby colored marker changes only its reflected water pixels, proving captured scenery rather than painted bands. The separate water/street-light defines are required shader-cache keys. Captures/evidence are written to `work/water-finish`.

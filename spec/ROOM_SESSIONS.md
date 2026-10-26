@@ -1,6 +1,6 @@
 # Every campaign has a room
 
-Status: implemented for `arcade-v14`, protocol 4. Updated: 2026-10-26. Evidence is recorded in [execution status](EXECUTION_STATUS.md#unified-room-sessions). Named-hardware capacity and public deployment acceptance remain separate gates.
+Status: implemented for `arcade-v15`, protocol 5. Updated: 2026-10-26. Evidence is recorded in [execution status](EXECUTION_STATUS.md#unified-room-sessions). Named-hardware capacity and public deployment acceptance remain separate gates.
 
 *One officer is a task force. Two officers are a task force with witnesses.*
 
@@ -18,7 +18,7 @@ The briefing retains the dossier, motor pool and explicit **Start dispatch** act
 
 Any connected officer can open the next briefing, retry a timeout or start a new campaign after the finale. Phase guards admit one transition. Completed outcomes retain dispatch index, method, resolving player ID, credited callsign and elapsed ticks. Callsigns remain readable after participants leave. Personal scores belong to the current session; joining another room follows that room's campaign.
 
-Your car runs one continuous local controller whether the room holds one officer or eight. Completed motion is sent outward for room validation; ordinary snapshots cannot replay your steering. The room still mediates contacts, damage, equipment and campaign outcomes. External cars are interpolated. Explicit corrections, pause, reconnect and life changes establish a fresh local baseline.
+Your car runs one continuous local controller whether the room holds one officer or eight. Completed motion is sent outward for room validation; ordinary snapshots cannot replay your steering. The room still mediates contacts, damage, equipment and campaign outcomes. External cars are interpolated. Contact corrections apply once to the current car without resetting its steering or queued input. Movement already in flight is translated by the room so it cannot undo that separation. Hard corrections, pause, reconnect and life changes establish a fresh local baseline.
 
 ## Pause and reconnect
 

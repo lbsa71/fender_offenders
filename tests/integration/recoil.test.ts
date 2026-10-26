@@ -19,7 +19,7 @@ async function connect(roomId?: string) {
   const session = createOnlineSession(endpoint, districtMap); sessions.push(session);
   await session.connect({ roomId: roomId ?? randomUUID(), nickname: 'Recoil officer', vehicleBodyId: 'patrol' }); return session;
 }
-it.each(['arcade-v8', 'arcade-v9', 'arcade-v10', 'arcade-v11', 'arcade-v12', 'arcade-v13', 'arcade-v14'])('rejects the earlier %s gameplay build rather than mixing handling rules', async revision => {
+it.each(['arcade-v8', 'arcade-v9', 'arcade-v10', 'arcade-v11', 'arcade-v12', 'arcade-v13', 'arcade-v14', 'arcade-v15'])('rejects the earlier %s gameplay build rather than mixing handling rules', async revision => {
   await expect(new Client(endpoint).create('district', { nickname: 'Old build', protocolVersion: PROTOCOL_VERSION, mapRevision: districtMap.revision, gameplayRevision: revision })).rejects.toThrow(/version-mismatch/);
 });
 it('predicts the kick immediately and replicates the accepted recoil state to the real room', async () => {

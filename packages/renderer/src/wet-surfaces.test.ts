@@ -4,25 +4,46 @@ import { Scene } from '@babylonjs/core/scene';
 import { WetSurfaces } from './wet-surfaces';
 import { DISTRICT_WATER } from '@fender/content';
 import { ROAD_PUDDLES } from '@fender/content';
+import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { MeshBuilder } from './primitives';
 
 let engine: NullEngine, scene: Scene, water: WetSurfaces;
-beforeEach(() => { engine = new NullEngine(); scene = new Scene(engine); water = new WetSurfaces(scene); });
+beforeEach(() => { engine = new NullEngine(); scene = new Scene(engine); scene.useRightHandedSystem = true; water = new WetSurfaces(scene); });
 afterEach(() => { water.dispose(); scene.dispose(); engine.dispose(); });
-it('hides early road puddles and renders the exact later physics polygon on every preset',()=>{
- water.setWetRoads(false);expect(water.getStats().waterSurfaces).toBe(2);
- for(const quality of ['low','medium','high'] as const){water.setWetRoads(true);water.update(.1,quality,false);expect(water.getStats().waterSurfaces).toBe(6);
+it('keeps decorative puddles visible and renders the exact physics polygon on every preset',()=>{
+ expect(water.getStats().waterSurfaces).toBe(6);
+ for(const quality of ['low','medium','high'] as const){water.update(.1,quality,false);expect(water.getStats().waterSurfaces).toBe(6);
  for(const zone of ROAD_PUDDLES){const mesh=water.meshes.find(m=>m.name===`wet-${zone.id}`)!,positions=mesh.getVerticesData('position')!;
  for(let i=0;i<zone.polygonXZ.length/2;i++){expect(-(positions[(i+1)*3]!+mesh.position.x)).toBeCloseTo(zone.polygonXZ[i*2]!,5);expect(positions[(i+1)*3+2]!+mesh.position.z).toBeCloseTo(zone.polygonXZ[i*2+1]!,5);}}
  }
 });
 
-it('shares one opaque PBR surface across authored sites, without reflection render targets', () => {
+it('shares one opaque PBR surface across authored sites, without per-site reflection targets', () => {
   expect(water.meshes).toHaveLength(DISTRICT_WATER.length);
   for (const [i, mesh] of water.meshes.entries()) {
     expect(mesh.material).toBe(water.material); expect(mesh.isPickable).toBe(false);
     expect(mesh.position.asArray()).toEqual([-DISTRICT_WATER[i]!.x, DISTRICT_WATER[i]!.y, DISTRICT_WATER[i]!.z]);
   }
   expect(water.material.alpha).toBe(1); expect(scene.customRenderTargets).toHaveLength(0); expect(scene.lights).toHaveLength(0);
+});
+it('bounds visible scene reflections to one small target, excludes water feedback and releases it', () => {
+  const camera = new FreeCamera('driving', new Vector3(-34, 43, -116), scene); camera.setTarget(new Vector3(-42, 0, -76)); scene.activeCamera = camera;
+  const nearby = MeshBuilder.CreateBox('nearby-object', { size: 2 }, scene); nearby.position.set(-42, 2, -61);
+  water.update(.1, 'medium', false);
+  expect(scene.customRenderTargets).toHaveLength(1);
+  const reflection = scene.customRenderTargets[0]!;
+  expect(reflection.getSize().width).toBeLessThanOrEqual(256);
+  expect(reflection.renderList).toContain(nearby);
+  expect(reflection.renderList!.some(mesh => mesh.material === water.material)).toBe(false);
+  for (let i = 0; i < 10; i++) water.update(.1, i % 2 ? 'low' : 'high', false);
+  expect(scene.customRenderTargets).toEqual([reflection]);
+  camera.setTarget(new Vector3(-42, 90, -200)); water.update(.1, 'medium', false);
+  expect(scene.customRenderTargets).toHaveLength(0);
+  camera.setTarget(new Vector3(-42, 0, -76)); water.update(.1, 'medium', false);
+  expect(scene.customRenderTargets).toEqual([reflection]);
+  water.dispose(); expect(scene.customRenderTargets).toHaveLength(0); expect(scene.textures).not.toContain(reflection);
+  nearby.dispose();
 });
 it('freezes decorative time immediately for reduced motion and low quality', () => {
   water.update(.1, 'high', false); expect(water.time).toBeCloseTo(.1);
