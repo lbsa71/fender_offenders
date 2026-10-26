@@ -99,8 +99,8 @@ Pulling the stick backward brakes a forward-moving car before reversing, just li
 | `pnpm test:unit` | Run isolated logic with controlled dependencies; no sockets, real physics or renderer adapters |
 | `pnpm test:integration` | Run real physics/render adapters, HTTP/Colyseus rooms, prediction, hosting and tooling checks |
 | `pnpm test:ui` | Five fast UI fixtures with mocked game state; real DOM/CSS, no physics, renderer or sockets |
-| `pnpm test:e2e` | Local game browser checks, mocked UI fixtures, and native water visibility |
-| `pnpm test:water` | Actual opening-dispatch water pixels from normal driving cameras on low/medium; owns a temporary renderer server |
+| `pnpm test:e2e` | Local game browser checks, mocked UI fixtures, and native water visibility/reflection |
+| `pnpm test:water` | Native driving-camera water pixels, scene-reflection color response and isolated car/garage glass; owns a temporary renderer server |
 | `pnpm hooks:install` | Install the local Git pre-push hook; also runs automatically on local dependency installation |
 | `pnpm test:load` | Run eight real SDK clients against the local server; write a payload-estimate report |
 | `pnpm test:deploy` | Check production readiness/HTML and two real multiplayer WebSocket clients at `TEST_SERVER_URL` |
