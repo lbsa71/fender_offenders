@@ -11,7 +11,9 @@ const REMOTE_EXTRAPOLATION_TICKS = 18;
 const REMOTE_STALE_MS = 1000;
 function correctionFraction(x: number, z: number, speed: number, dt: number) {
   const length = Math.hypot(x, z);
-  const catchupSpeed = speed > .05 ? speed * .5 : 4;
+  // Repay the rate mismatch of a 20Hz authority versus 60Hz local prediction,
+  // while keeping catch-up slower than the car so it cannot reverse motion.
+  const catchupSpeed = speed > .05 ? speed * .8 : 4;
   return length ? Math.min(1 - Math.exp(-dt * 5), catchupSpeed * dt / length) : 0;
 }
 export function interpolateVehicle(a: VehicleState, b: VehicleState, t: number): VehicleState {

@@ -555,3 +555,35 @@ it('does not manufacture lead from a late input callback when no frame displayed
     }
   } finally { await session.dispose(); }
 });
+
+it.each([false, true])('settles local visual lead when 16ms input outruns a sustained 20Hz authority (timed input: %s)', async timed => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
+  const source = unpackSnapshot(snapshot(100)); source.local!.vehicle.pose.z = -76; source.local!.vehicle.velocity.z = 20;
+  source.local!.driver.simulatedTick = source.serverTick;
+  wire.initial = packSnapshot(source);
+  const session = createOnlineSession('ws://clock-fixture', map), actions = { ...neutralActions(), throttle: 1 };
+  let authority = source.local!, tick = source.serverTick, sequence = 0, previousZ: number | null = null;
+  const leads: number[] = [], steps: number[] = [];
+  await session.connect({ roomId: crypto.randomUUID(), nickname: 'Same clock on every OS' });
+  const authorityTimer = setInterval(() => {
+    authority = { ...predictVehicle(map, authority.vehicle, authority.driver, actions, [], undefined, ++tick), lastConsumedSequence: Math.max(-1, sequence - 3) };
+    // The actual room publishes every third step and coalesces old held inputs,
+    // retaining two samples. No acknowledgment gate is allowed on fresh steering.
+    if ((tick - source.serverTick) % 3 === 0) wire.handlers.get('snapshot')!(packSnapshot({ ...source, serverTick: tick, local: authority, vehicles: [authority.vehicle, source.vehicles[1]!] }));
+  }, 50);
+  const inputTimer = setInterval(() => session.submit({ sessionEpoch: source.sessionEpoch, sequence: sequence++, clientTick: sequence, actions }, timed ? performance.now() : undefined), 16);
+  const renderTimer = setInterval(() => {
+    const z = session.sampleFrame()!.vehicles.find(car => car.entityId === 'local')!.pose.z;
+    if (performance.now() > 1000) { leads.push(z - authority.vehicle.pose.z); if (previousZ !== null) steps.push(z - previousZ); }
+    previousZ = z;
+  }, 8);
+  try {
+    vi.advanceTimersByTime(6000);
+    expect(Math.max(...leads), 'Coalesced acknowledgements must not grow a permanent visual lead').toBeLessThan(8.4);
+    const middle = leads.slice(Math.floor(leads.length / 3), Math.floor(leads.length * 2 / 3)), final = leads.slice(Math.floor(leads.length * 2 / 3));
+    expect(Math.max(...final) - Math.max(...middle), 'A slower authority must reach a stable correction offset').toBeLessThan(1);
+    expect(Math.min(...steps), 'Paying back lead must preserve forward motion').toBeGreaterThan(0);
+    session.submit({ sessionEpoch: source.sessionEpoch, sequence: sequence++, clientTick: sequence, actions: { ...actions, steer: 1 } });
+    expect(session.sampleFrame()!.vehicles.find(car => car.entityId === 'local')!.velocity.yawRate).toBeGreaterThan(.01);
+  } finally { clearInterval(authorityTimer); clearInterval(inputTimer); clearInterval(renderTimer); await session.dispose(); }
+});
