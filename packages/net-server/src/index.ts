@@ -215,11 +215,12 @@ export class DrivingRoom extends Room {
         ...latest.actions,
         sirenToggle: consumed.reduce((toggle, entry) => toggle !== entry.actions.sirenToggle, false),
         recover: consumed.some(entry => entry.actions.recover),
+        deploy: consumed.find(entry => entry.actions.deploy)?.actions.deploy,
       } };
       if (cmd) { d.last = cmd; d.ack = cmd.sequence; }
       const held = interactive && d.last && started - d.lastInputAt < 100;
       const localDriving = interactive && d.localDriving && started - d.motionAt < 100 && d.motion?.discontinuityId === this.sim.authority(d.client.sessionId)?.vehicle.discontinuityId;
-      const actions = d.localDriving && !localDriving ? { ...neutralActions(), handbrake: true } : cmd ? cmd.actions : held ? { ...d.last!.actions, sirenToggle: false, recover: false } : { ...neutralActions(), handbrake: true };
+      const actions = d.localDriving && !localDriving ? { ...neutralActions(), handbrake: true } : cmd ? cmd.actions : held ? { ...d.last!.actions, sirenToggle: false, recover: false, deploy: undefined } : { ...neutralActions(), handbrake: true };
       inputs.set(d.entityId, { actions, sessionEpoch: d.epoch, sourceCommandSequence: d.last?.sequence ?? null, ...(localDriving ? { localDriving: true, ...(d.pendingMotion ? { motion: d.pendingMotion } : {}) } : {}) });
       d.pendingMotion = null;
     }

@@ -1,6 +1,6 @@
 # Product specification
 
-Status: product baseline for the integrated `arcade-v16` alpha and remaining release acceptance. Updated: 2026-10-26 for longer avenues and suspect road gadgets. [Execution status](EXECUTION_STATUS.md) records dated evidence; requirements below do not imply completed acceptance.
+Status: product baseline for the integrated `arcade-v17` alpha and remaining release acceptance. Updated: 2026-10-26 for longer avenues and suspect road gadgets. [Execution status](EXECUTION_STATUS.md) records dated evidence; requirements below do not imply completed acceptance.
 
 *Ten dispatches. Six cars. One district with a very relaxed attitude toward insurance premiums.*
 
@@ -128,7 +128,7 @@ Settings expose persisted Automatic, Touch, Controller and Keyboard schemes. Aut
 
 ## 9. District, traffic, and pursuit challenge
 
-- Integrated `arcade-v16` district: 400 m by 400 m, extending the original 250 m town around the same centre. Long 400 m main streets and 312 m pursuit straights allow normal full-speed driving; cross streets and the original dirt shortcuts preserve cutoff choices. Human handling/camera acceptance remains open.
+- Integrated `arcade-v17` district: 400 m by 400 m, extending the original 250 m town around the same centre. Long 400 m main streets and 312 m pursuit straights allow normal full-speed driving; cross streets and the original dirt shortcuts preserve cutoff choices. Human handling/camera acceptance remains open.
 - Include at least one loop, multiple intersections, a commercial block, a residential edge, an industrial space, and two dirt shortcuts.
 - Roads must allow two cars to pass and must avoid repeated camera occlusion from tall buildings.
 - Buildings near the camera may fade visually; their physical blockers remain unchanged and readable.

@@ -113,7 +113,7 @@ test('temporary keyboard and controller cards clear the instruments and invite a
 
 test('live patrol can reopen controls help with driving input safely released', async ({ page }) => {
   await page.goto('/'); await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
-  await dispatchFixture(page, 1);
+  await dispatchFixture(page, 2);
   await page.getByRole('button', { name: 'START DISPATCH' }).click();
   const snapshot = () => page.evaluate(() => (window as any).__FENDER_DEBUG__?.snapshot);
   await expect.poll(async () => (await snapshot())?.phase).toBe('playing');
@@ -154,6 +154,8 @@ test('help preserves the unarmed opener and updates the gun unlock and dispatch 
   const fire = help.getByText('Fire', { exact: true }); await expect(fire).toHaveCount(2);
   for (let i = 0; i < 2; i++) await expect(fire.nth(i)).toBeHidden();
   await stage(1);
+  for(let i=0;i<2;i++)await expect(fire.nth(i)).toBeHidden();
+  await stage(2);
   for (let i = 0; i < 2; i++) await expect(fire.nth(i)).toBeVisible();
   await stage(3);
   await expect(page.locator('.fo-help-view [data-control-lesson]')).toContainText('Puddles reduce grip');

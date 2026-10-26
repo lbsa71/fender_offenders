@@ -1,6 +1,6 @@
 # Armed campaign targets and player callsigns
 
-Status: implemented locally; human difficulty and audiovisual approval remain open. Reviewed: 2026-10-26. Gameplay revision: `arcade-v16`, protocol 5. This extends the [ten-dispatch campaign](CAMPAIGN.md).
+Status: implemented locally; human difficulty and audiovisual approval remain open. Reviewed: 2026-10-26. Gameplay revision: `arcade-v17`, protocol 5. This extends the [ten-dispatch campaign](CAMPAIGN.md).
 
 *The suspects have read the equipment budget. Regrettably, they found the grenade column.*
 
@@ -37,9 +37,13 @@ Otis (dispatch 6) drops oil when a visible, eligible officer closes from behind 
 
 Tess (dispatch 7) warns before extending hubcap blades against a nearby closing officer. Four amber wheel rings remain visible for 60 ticks (one second), followed by 90 ticks (1.5 seconds) of short side blades. A connected, active, unprotected officer receives at most eight damage once per deployment, only alongside the suspect (less than 2.1 m longitudinal separation and 1.3–2.65 m lateral separation), with clear world line of sight. Front and rear approaches are outside that side band. Normal front-cutoff arrest progress remains valid while blades are active.
 
-Both gadgets wait 720 ticks (twelve seconds) between deployments and share a maximum of eight active/warning instances. Wrecked/protected owners, dispatch completion, timeout, retry and reset clear them. Trusted checkpoints retain active gadgets, cooldowns and already-hit vehicle IDs; restore/replay cannot apply the same blade hit twice. The opening five dispatches and their original four teaching lessons remain free of these gadgets. Briefings describe the equipment, and pause help retains the new avoidance lessons.
+Both gadgets wait 720 ticks (twelve seconds) between deployments and share a maximum of eight active/warning instances. Wrecked/protected owners, dispatch completion, timeout, retry and reset clear them. Trusted checkpoints retain active gadgets, cooldowns and already-hit vehicle IDs; restore/replay cannot apply the same blade hit twice. The opening five dispatches remain free of road gadgets. Briefings describe the equipment, and pause help retains the new avoidance lessons.
 
 The renderer reuses eight slots, 88 meshes and four original materials, without new textures or lights. Oil has an irregular dark footprint and restrained sheen inside its marked perimeter; warning rings and extended steel blades have distinct silhouettes. Reduced motion holds blade orientation steady and adds no flashing. Expiry, stale snapshots, garage entry, match changes and disposal hide or release the same bounded pool.
+
+## Police procurement
+
+Suspects introduce guns/bombs/oil/blades in dispatches 2/3/6/7; officers unlock them in 3/5/8/9 and retain them afterward. The authority rejects locked or invalid deployment requests, protection, non-playing phases and cooldown violations. Police bombs land sixteen metres ahead, with a 90-tick fixed fuse, 4.5 m radius and 24 maximum center damage. World obstruction and bounds block unsafe throws without consuming the cooldown. Bombs and manual gadgets share a checkpointed 720-tick officer cooldown. Police bombs/blades damage only the marked suspect and retain normal attacker credit and wreck progression. Existing suspect attacks and gadget warnings/durations are unchanged. Shared oil is still slippery for other unprotected cars. All unlocked weapon controls/reminders persist through later briefings and pause help; [tutorial controls](TUTORIAL.md) records the bindings. Procurement studies the suspect equipment before signing the purchase order.
 
 ## Grenade presentation and networking
 

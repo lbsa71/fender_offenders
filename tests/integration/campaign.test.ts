@@ -106,7 +106,8 @@ it('shares an arrest, allows any connected officer to progress, preserves scores
 
 it('a real client shooting the target advances without recording an arrest', async () => {
   const host = await peer(), guest = await peer(host.room.roomId), sim = authority(host.room.roomId);
-  expect(host.state.campaign).toBeDefined();stageArrest(sim,host.room.sessionId);await until(()=>host.state.phase==='results','Earn opening arrest');host.room.send('rematch');await until(()=>host.state.campaign!.dispatchIndex===1,'Open armed dispatch');
+  expect(host.state.campaign).toBeDefined();stageArrest(sim,host.room.sessionId);await until(()=>host.state.phase==='results','Earn opening arrest');host.room.send('rematch');await until(()=>host.state.campaign!.dispatchIndex===1,'Open suspect gun dispatch');
+  stageArrest(sim,host.room.sessionId);await until(()=>host.state.phase==='results','Earn second arrest');host.room.send('rematch');await until(()=>host.state.campaign!.dispatchIndex===2,'Open police gun dispatch');
   const checkpoint = sim.checkpoint(), target = checkpoint.state.records.find(record => record.vehicle.entityId === checkpoint.state.pursuit!.suspectId)!;
   checkpoint.state.phase = 'playing'; checkpoint.state.phaseEnd = checkpoint.tick + 2000;
   checkpoint.state.records = checkpoint.state.records.filter(record => record.vehicle.playerId !== null || record === target);
@@ -117,10 +118,10 @@ it('a real client shooting the target advances without recording an arrest', asy
   sim.restore(checkpoint); host.room.send('resync'); await until(() => host.state.phase === 'playing', 'Prepared live shooting encounter');
   host.room.send('input', { kind: 'input', commands: [{ sessionEpoch: host.state.sessionEpoch, sequence: 0, clientTick: 0, actions: { ...neutralActions(), fire: true } }] });
   await until(() => host.state.phase === 'results' && guest.state.phase === 'results', 'Target shot down');
-  expect(host.state.campaign!.outcomes[1]).toMatchObject({ dispatchIndex: 1, outcome: 'wrecked', playerId: host.room.sessionId });
+  expect(host.state.campaign!.outcomes[2]).toMatchObject({ dispatchIndex: 2, outcome: 'wrecked', playerId: host.room.sessionId });
   expect(guest.state.campaign).toEqual(host.state.campaign); expect(host.state.pursuit!.winnerPlayerId).toBe(host.room.sessionId);
-  expect(host.state.scores.find(score => score.playerId === host.room.sessionId)!.score).toBe(4);
-  host.room.send('rematch'); await until(() => host.state.campaign!.dispatchIndex === 2, 'Wreck resolution advances');
+  expect(host.state.scores.find(score => score.playerId === host.room.sessionId)!.score).toBe(7);
+  host.room.send('rematch'); await until(() => host.state.campaign!.dispatchIndex === 3, 'Wreck resolution advances');
 });
 
 it('rejects real solo fire input in the opener and gives a joining officer the same unarmed dispatch',async()=>{

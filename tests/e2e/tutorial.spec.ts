@@ -21,18 +21,19 @@ test('teaches an unarmed first arrest with temporary remapped controls and both 
  await page.getByText('KEYBOARD BINDINGS',{exact:true}).click();await expect(page.locator('[data-binding="fire"]')).toBeHidden();
 });
 
-test('an arrest unlocks guns for the room and later briefings teach bombs and puddles',async({page,browser})=>{
+test('an arrest teaches suspect guns before police guns unlock and later briefings teach bombs and puddles',async({page,browser})=>{
  await page.goto('/');await page.getByRole('button',{name:'HIT THE STREETS'}).click();await page.getByRole('button',{name:'START DISPATCH'}).click();
  await expect(page.locator('[data-tutorial-controls]')).toBeVisible();await arrestFixture(page);
  await expect(page.getByText('ARREST CERTIFIED',{exact:true})).toBeVisible();await page.getByRole('button',{name:'NEXT BRIEFING'}).click();
- await expect(page.locator('[data-tutorial-lesson]')).toContainText('UNLOCKED: GUNS!');
+ await expect(page.locator('[data-tutorial-lesson]')).toContainText('SUSPECT GUNS');
+ await dispatchFixture(page,2);await expect(page.locator('[data-tutorial-lesson]')).toContainText('UNLOCKED: GUNS!');
  await page.getByRole('button',{name:'START DISPATCH'}).click();
  await page.keyboard.press('Escape');await page.getByRole('button',{name:'CONTROLS HELP',exact:true}).click();
  await expect(page.locator('.fo-help-view [data-control="fire"]')).toHaveCount(2);
  for(const row of await page.locator('.fo-help-view [data-control="fire"]').all())await expect(row).toBeVisible();
  await page.keyboard.press('Escape');await page.getByRole('button',{name:'BACK ON PATROL'}).click();
  await page.keyboard.down('Space');await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.snapshot.local.driver.shotOrdinal??0)).toBeGreaterThan(0);await page.keyboard.up('Space');
- await dispatchFixture(page,2);await expect(page.locator('[data-tutorial-lesson]')).toContainText('Leave the marked circle');
+ await dispatchFixture(page,2);await expect(page.locator('[data-tutorial-lesson]')).toContainText('marked circle');
  await dispatchFixture(page,3);await expect(page.locator('[data-tutorial-lesson]')).toContainText('Puddles reduce grip');
  await page.getByRole('button',{name:'START DISPATCH'}).click();await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.stats.renderer.waterSurfaces)).toBe(6);
  await page.keyboard.press('Escape');await page.getByRole('button',{name:'CONTROLS HELP',exact:true}).click();

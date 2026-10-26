@@ -107,3 +107,12 @@ it('Hector broadcasts a fixed grenade warning to peers and a late joiner, then e
  expect(host.state.local!.vehicle.health).toBeLessThan(100);expect(host.state.campaign!.dispatchIndex).toBe(4);expect(host.state.campaign!.outcomes).toHaveLength(4);
  expect(host.state.scores.every(score=>score.score===0)).toBe(true);
 });
+
+it.each([[4,'bomb'],[7,'oil'],[8,'blades']] as const)('replicates officer %s %s through input admission to peers and a late joiner',async(stage,kind)=>{
+ const host=await peer(),guest=await peer(host.room.roomId);encounter(host,stage);host.room.send('input',{kind:'input',commands:[{sessionEpoch:host.state.sessionEpoch,sequence:0,clientTick:0,actions:{steer:0,throttle:0,brakeReverse:0,handbrake:false,fire:false,sirenToggle:false,recover:false,deploy:kind}},{sessionEpoch:host.state.sessionEpoch,sequence:1,clientTick:1,actions:{steer:0,throttle:0,brakeReverse:0,handbrake:false,fire:false,sirenToggle:false,recover:false}},{sessionEpoch:host.state.sessionEpoch,sequence:2,clientTick:2,actions:{steer:0,throttle:0,brakeReverse:0,handbrake:false,fire:false,sirenToggle:false,recover:false}},{sessionEpoch:host.state.sessionEpoch,sequence:3,clientTick:3,actions:{steer:0,throttle:0,brakeReverse:0,handbrake:false,fire:false,sirenToggle:false,recover:false}}]});
+ const list=(state:WorldSnapshot)=>kind==='bomb'?state.grenades:state.gadgets;
+ await until(()=>host.states.some(s=>list(s)?.some(g=>g.ownerEntityId===s.local!.vehicle.entityId)),'Officer deployment must pass real room admission');
+ const sample=host.states.find(s=>list(s)?.some(g=>g.ownerEntityId===s.local!.vehicle.entityId))!,weapon=list(sample)!.find(g=>g.ownerEntityId===sample.local!.vehicle.entityId)!;
+ await until(()=>guest.states.some(s=>s.serverTick===sample.serverTick),'Backup receives the same deployment tick');expect(list(guest.states.find(s=>s.serverTick===sample.serverTick)!)).toEqual(list(sample));
+ const late=await peer(host.room.roomId);expect(list(late.state)).toContainEqual(weapon);expect(late.state.campaign!.dispatchIndex).toBe(stage);expect(sample.local!.driver.nextDeployTick).toBe(weapon.bornTick+720);
+});

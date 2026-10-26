@@ -19,13 +19,13 @@ async function connect(roomId?: string) {
   const session = createOnlineSession(endpoint, districtMap); sessions.push(session);
   await session.connect({ roomId: roomId ?? randomUUID(), nickname: 'Recoil officer', vehicleBodyId: 'patrol' }); return session;
 }
-it.each(['arcade-v8', 'arcade-v9', 'arcade-v10', 'arcade-v11', 'arcade-v12', 'arcade-v13', 'arcade-v14', 'arcade-v15'])('rejects the earlier %s gameplay build rather than mixing handling rules', async revision => {
+it.each(['arcade-v8', 'arcade-v9', 'arcade-v10', 'arcade-v11', 'arcade-v12', 'arcade-v13', 'arcade-v14', 'arcade-v15', 'arcade-v16'])('rejects the earlier %s gameplay build rather than mixing handling rules', async revision => {
   await expect(new Client(endpoint).create('district', { nickname: 'Old build', protocolVersion: PROTOCOL_VERSION, mapRevision: districtMap.revision, gameplayRevision: revision })).rejects.toThrow(/version-mismatch/);
 });
 it('predicts the kick immediately and replicates the accepted recoil state to the real room', async () => {
   const host = await connect(), guest = await connect(host.getIdentity().roomId);
   const sim = (matchMaker.getLocalRoomById(host.getIdentity().roomId) as unknown as { sim: Simulation }).sim;
-  const checkpoint = sim.checkpoint(); checkpoint.state.campaign!.dispatchIndex=1; checkpoint.state.phase = 'playing'; checkpoint.state.phaseEnd = checkpoint.tick + 18000;
+  const checkpoint = sim.checkpoint(); checkpoint.state.campaign!.dispatchIndex=2; checkpoint.state.phase = 'playing'; checkpoint.state.phaseEnd = checkpoint.tick + 18000;
   for (const r of checkpoint.state.records) {
     r.vehicle.pose = { x: r.vehicle.playerId === host.getIdentity().playerId ? 0 : 80, z: -40, yaw: 0 };
     r.vehicle.velocity = { x: 0, z: 20, yawRate: 0 }; r.vehicle.protectedUntilTick = 0;

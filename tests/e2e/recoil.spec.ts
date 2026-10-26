@@ -5,7 +5,7 @@ test('held gunfire trades driving speed and steering control for firepower, then
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.addInitScript(() => localStorage.setItem('fender-garage-v1', JSON.stringify({ vehicleBodyId: 'patrol' })));
   await page.goto('/'); await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
-  await dispatchFixture(page,1);
+  await dispatchFixture(page,2);
   await page.getByRole('button', { name: 'START DISPATCH', exact: false }).click();
   const state = () => page.evaluate(() => (window as any).__FENDER_DEBUG__?.snapshot);
   await expect.poll(async () => (await state())?.phase).toBe('playing');

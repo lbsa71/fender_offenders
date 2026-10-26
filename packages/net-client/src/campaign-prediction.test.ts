@@ -44,7 +44,7 @@ it.each([{phase:'lobby' as const,campaign:false},{phase:'playing' as const,campa
  try{await session.connect({roomId: crypto.randomUUID(),nickname:'Live prediction'});submit(session);expect(localPose(session).z).toBeGreaterThan(0);expect(session.getSnapshot()!.local!.vehicle.pose.z).toBe(0);}finally{await session.dispose();}
 });
 it('uses the snapshot clock for recoil cadence when a legacy local baseline omits the prediction tick',async()=>{
- const initial=state();initial.campaign!.dispatchIndex=1;initial.local!.driver.nextFireTick=104;
+ const initial=state();initial.campaign!.dispatchIndex=2;initial.local!.driver.nextFireTick=104;
  transport.initial=packSnapshot(initial);const session=createOnlineSession('ws://campaign-prediction',map);
  try{
   await session.connect({roomId:crypto.randomUUID(),nickname:'Recoil clock'});

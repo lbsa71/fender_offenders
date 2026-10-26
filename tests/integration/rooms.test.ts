@@ -23,7 +23,7 @@ async function peer(roomId?: string, address = endpoint): Promise<Peer> {
   const sdk = new Client(address);
   const room = roomId ? await sdk.joinById(roomId, options) : await sdk.create('district', options);
   room.reconnection.minUptime = 0; room.reconnection.minDelay = 200; room.reconnection.maxDelay = 300; room.reconnection.maxEnqueuedMessages = 0;
-  if(!roomId){const sim=(matchMaker.getLocalRoomById(room.roomId) as unknown as {sim:Simulation}).sim;const fixture=sim.checkpoint();fixture.state.campaign!.dispatchIndex=1;sim.restore(fixture);}
+  if(!roomId){const sim=(matchMaker.getLocalRoomById(room.roomId) as unknown as {sim:Simulation}).sim;const fixture=sim.checkpoint();fixture.state.campaign!.dispatchIndex=2;sim.restore(fixture);}
   const p: Peer = { room, state: null, history: [], events: [], sequence: 0 };
   room.onMessage('snapshot', (wire: WireSnapshot) => { p.state = unpackSnapshot(wire, wire.m === p.state?.matchId ? p.state?.props : undefined); p.history.push(p.state); });
   room.onMessage('events', (events: GameEvent[]) => p.events.push(...events));

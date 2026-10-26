@@ -1,7 +1,7 @@
 import type { ControlScheme, DeviceKind, DriverActions, TouchControls } from '@fender/contracts';
 
 export type MenuAction = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back' | 'pause';
-export type BoundAction = 'throttle' | 'brakeReverse' | 'left' | 'right' | 'handbrake' | 'fire' | 'siren' | 'recover';
+export type BoundAction = 'throttle' | 'brakeReverse' | 'left' | 'right' | 'handbrake' | 'fire' | 'siren' | 'recover' | 'bomb' | 'oil' | 'blades';
 export interface InputSettings {
   controlScheme: ControlScheme;
   stickDeadzone: number;
@@ -13,7 +13,7 @@ export interface InputSettings {
 export const DEFAULT_INPUT_SETTINGS: InputSettings = {
   controlScheme: 'auto',
   stickDeadzone: 0.16, triggerDeadzone: 0.08, sensitivity: 1, steeringRamp: 8,
-  bindings: { throttle: ['KeyW', 'ArrowUp'], brakeReverse: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'], handbrake: ['ShiftLeft', 'ShiftRight'], fire: ['Space'], siren: ['KeyE'], recover: ['KeyR'] },
+  bindings: { throttle: ['KeyW', 'ArrowUp'], brakeReverse: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'], handbrake: ['ShiftLeft', 'ShiftRight'], fire: ['Space'], siren: ['KeyE'], recover: ['KeyR'], bomb: ['KeyF'], oil: ['KeyQ'], blades: ['KeyC'] },
 };
 const neutral = (): DriverActions => ({ steer: 0, throttle: 0, brakeReverse: 0, handbrake: false, fire: false, sirenToggle: false, recover: false });
 const neutralTouch = (): TouchControls => ({ steer: 0, throttle: 0, brakeReverse: 0, handbrake: false, fire: false, siren: false, recover: false });
@@ -51,6 +51,7 @@ export class InputController {
   private activePad: PadState | null = null;
   private touchState = neutralTouch();
   private touchSirenPending = false;
+  private touchDeployPending: TouchControls['deploy'];
   private menuPrevious = new Set<MenuAction>();
   private repeatAt = 0;
   private repeatAction: MenuAction | null = null;
@@ -67,6 +68,7 @@ export class InputController {
     if (!this.enabled || !this.focused || !this.accepts('touch')) return;
     this.activate('touch');
     if (state.siren && !this.touchState.siren) this.touchSirenPending = true;
+    if(state.deploy && state.deploy!==this.touchState.deploy)this.touchDeployPending=state.deploy;
     this.touchState = { ...state, steer: Number.isFinite(state.steer) ? clamp(state.steer, -1, 1) : 0, throttle: clamp(state.throttle, 0, 1), brakeReverse: clamp(state.brakeReverse, 0, 1) };
   }
   key(code: string, down: boolean): void {
@@ -75,7 +77,7 @@ export class InputController {
   }
   reset(): void {
     this.keys.forEach(code => this.blockedKeys.add(code));
-    this.keys.clear(); this.touchState = neutralTouch(); this.touchSirenPending = false; this.steering = 0; this.lastTime = null; this.recoverStarted = null; this.recoverProgress = 0; this.recoverSent = false; this.sirenWasDown = false; this.padBlocked = true;
+    this.keys.clear(); this.touchState = neutralTouch(); this.touchSirenPending = false; this.touchDeployPending=undefined; this.steering = 0; this.lastTime = null; this.recoverStarted = null; this.recoverProgress = 0; this.recoverSent = false; this.sirenWasDown = false; this.padBlocked = true;
     this.onNeutralize();
   }
   setEnabled(enabled: boolean): void { if (enabled !== this.enabled) { this.enabled = enabled; this.reset(); } }
@@ -127,8 +129,9 @@ export class InputController {
     this.recoverProgress = this.recoverStarted === null ? 0 : clamp((now - this.recoverStarted) / 1000, 0, 1);
     const recover = this.recoverProgress === 1 && !this.recoverSent;
     if (recover) this.recoverSent = true;
-    const actions = { steer: this.device === 'touch' ? touch.steer : clamp(Math.abs(analog) > .001 ? analog : this.steering, -1, 1), throttle: Math.max(touch.throttle, Number(held('throttle')), trigger(7), -longitudinal), brakeReverse: Math.max(touch.brakeReverse, Number(held('brakeReverse')), trigger(6), longitudinal), handbrake: touch.handbrake || held('handbrake') || b(0), fire: touch.fire || held('fire') || b(5), sirenToggle: this.touchSirenPending || siren && !this.sirenWasDown, recover };
-    this.touchSirenPending = false;
+    const deploy = this.touchDeployPending ?? touch.deploy ?? (held('bomb') || b(4) ? 'bomb' : held('oil') || b(10) ? 'oil' : held('blades') || b(11) ? 'blades' : undefined);
+    const actions: DriverActions = { ...(deploy ? {deploy} : {}), steer: this.device === 'touch' ? touch.steer : clamp(Math.abs(analog) > .001 ? analog : this.steering, -1, 1), throttle: Math.max(touch.throttle, Number(held('throttle')), trigger(7), -longitudinal), brakeReverse: Math.max(touch.brakeReverse, Number(held('brakeReverse')), trigger(6), longitudinal), handbrake: touch.handbrake || held('handbrake') || b(0), fire: touch.fire || held('fire') || b(5), sirenToggle: this.touchSirenPending || siren && !this.sirenWasDown, recover };
+    this.touchSirenPending = false; this.touchDeployPending=undefined;
     this.sirenWasDown = siren;
     return actions;
   }

@@ -1,6 +1,7 @@
 /** Room-owned equipment and road conditions, derived from the authoritative dispatch. */
 export interface DispatchDrivingContext {
   gunsEnabled: boolean; wetRoads: boolean;
+  bombsEnabled?: boolean; oilEnabled?: boolean; bladesEnabled?: boolean;
   oilSlicks?: readonly { ownerEntityId: string; pose: { x: number; z: number }; radius: number }[];
 }
 export interface DispatchFeatures extends DispatchDrivingContext {
@@ -8,15 +9,22 @@ export interface DispatchFeatures extends DispatchDrivingContext {
 }
 const lessons = [
   ['ROOKIE PATROL', 'Catch up → match speed → stay close for 3 seconds. Arresting is automatic.'],
-  ['UNLOCKED: GUNS!', 'Procurement finally approved the noisy accessories. Fire forward in short bursts: recoil affects handling.'],
-  ['BOMBS AHEAD', 'Leave the marked circle before it explodes. Bombs stay where the suspect aimed them.'],
+  ['SUSPECT GUNS', 'The suspect has forward guns first. Approach from behind or a flank, cut in front and match speed to arrest. Police guns arrive next dispatch.'],
+  ['UNLOCKED: GUNS!', 'Police guns are approved. Fire forward in short bursts: recoil affects handling. Suspect bombs: leave the marked circle before it explodes.'],
   ['WET ROADS', 'Ease off. Steer gently. Wet tyres have opinions. Puddles reduce grip.'],
 ] as const;
 export function getDispatchFeatures(index: number): DispatchFeatures {
   const stage = Number.isFinite(index) ? Math.max(0, Math.min(9, Math.floor(index))) : 0;
-  const lesson = lessons[stage] ?? (stage === 5 ? ['OIL SLICKS', 'Steer around the marked oil. It briefly reduces grip; normal grip returns as soon as you leave.'] : stage === 6 ? ['BLADED HUBCAPS', 'Amber hubcaps give a full second of warning. Leave side clearance until the short blades retract; a front cutoff still works.'] : undefined);
-  return { gunsEnabled: stage >= 1, wetRoads: stage >= 3, arrestOnly: stage === 0,
-    lessonTitle: lesson?.[0] ?? 'ON PATROL', lesson: lesson?.[1] ?? 'Arrest for 3 points. Wreck the suspect for 1. Stay out of marked blast circles.' };
+  const titles = ['ROOKIE PATROL','SUSPECT GUNS','UNLOCKED: GUNS!','WET ROADS','UNLOCKED: BOMBS!','OIL SLICKS','BLADED HUBCAPS','UNLOCKED: OIL!','UNLOCKED: HUBCAP BLADES!','FULL MOTOR POOL'];
+  const reminders: string[] = [];
+  if(stage>=2)reminders.push('Fire guns forward in short bursts.');
+  if(stage>=4)reminders.push('Throw a bomb ahead; leave its marked circle. Bombs and gadgets share a 12-second cooldown.');
+  if(stage>=7)reminders.push('Drop oil behind after a cutoff. Oil briefly reduces grip; steer around marked patches.');
+  if(stage>=8)reminders.push('Extend side blades after their amber warning; front cutoffs still work.');
+  const introduction = lessons[stage]?.[1] ?? (stage===5?'Suspect oil: steer around marked patches. Normal grip returns on exit.':stage===6?'Suspect blades: amber hubcaps warn for a full second. Leave side clearance until they retract.':'');
+  return { gunsEnabled: stage >= 2, bombsEnabled: stage >= 4, oilEnabled: stage >= 7, bladesEnabled: stage >= 8, wetRoads: stage >= 3, arrestOnly: stage === 0,
+    lessonTitle: titles[stage]!, lesson: [introduction,...reminders].filter(Boolean).join(' ') };
+
 }
 /** Legacy combat fixtures have guns; wet-road fixtures explicitly enable their context. */
 export const DEFAULT_DRIVING_CONTEXT: Readonly<DispatchDrivingContext> = Object.freeze({ gunsEnabled: true, wetRoads: false });

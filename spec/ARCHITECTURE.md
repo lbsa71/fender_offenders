@@ -1,6 +1,6 @@
 # Architecture
 
-Status: architecture and acceptance targets for the integrated `arcade-v16` / protocol 5 alpha. Updated: 2026-10-26 for continuous local driving, longer avenues and bounded road gadgets. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
+Status: architecture and acceptance targets for the integrated `arcade-v17` / protocol 5 alpha. Updated: 2026-10-26 for continuous local driving, longer avenues and bounded road gadgets. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
 
 *One authority drives the rules. Everyone else gets a dashboard, not a spare steering wheel.*
 
@@ -223,3 +223,5 @@ Keep room admission configuration, allowed origins, timeouts, and build identity
 These references are background, not a dependency lock or a fresh compatibility audit. Use the pinned manifest, source and real-adapter tests for the current implementation. The architecture has enough moving parts without letting the documentation invent another reconciler.
 
 Dispatch capabilities derive from the shared catalog and authoritative campaign index. Simulation and prediction receive the same gun/wet-road context; the renderer consumes matching gun fittings and water footprints. Pursuit contenders publish their eligibility guidance alongside progress. See [tutorial rules and acceptance](TUTORIAL.md).
+
+Police deployment uses the normalized optional bomb/oil/blades intent. The room derives unlocks and landing/footprint geometry, owns the shared cooldown and normal credited damage, and publishes the existing grenade/gadget states. Devices provide bindings or labeled touch buttons; help reflects all retained unlocks. The local drivetrain and protocol 5 contact ledger retain their continuous ownership.
