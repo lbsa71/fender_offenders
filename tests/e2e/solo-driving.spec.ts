@@ -4,10 +4,11 @@ import { predictVehicle } from '@fender/sim';
 import { districtMap } from '@fender/content';
 import { getDispatchFeatures, type InputCommand, type LocalAuthorityState } from '@fender/contracts';
 
-test('steering press and release follow direct local physics through ordered network jitter', async ({page})=>{
+test('steering press and release follow direct local physics through jitter and a 650ms TCP stall', async ({page})=>{
   test.setTimeout(60000);
   const serverPort=Number(process.env.FENDER_E2E_SERVER_PORT??2867),proxyPort=serverPort+4;
-  const proxy=await createTcpProxy(proxyPort,serverPort,{oneWayLatencyMs:80,jitterMs:50});
+  const profile={oneWayLatencyMs:80,jitterMs:50,stallAtMs:undefined as number|undefined,stallDurationMs:650},began=performance.now();
+  const proxy=await createTcpProxy(proxyPort,serverPort,profile);
   // Read the actual commands and frames once, without changing their results.
   await page.route('**/packages/net-client/src/index.ts*',async route=>{
     const response=await route.fetch(),source=await response.text();expect(source).toContain('return api;');
@@ -30,7 +31,7 @@ test('steering press and release follow direct local physics through ordered net
     await page.waitForFunction(()=>(window as any).__FENDER_DEBUG__?.snapshot?.phase==='playing'&&(window as any).__FENDER_DEBUG__.input.focused);
     await page.waitForTimeout(250);
     await page.evaluate(()=>{const driver=(window as any).__FO_DRIVER__;(window as any).__FO_STEERING__={initial:structuredClone(driver.getSnapshot().local),commands:[],frames:[]};});
-    await page.keyboard.down('w');await page.waitForTimeout(500);
+    await page.keyboard.down('w');profile.stallAtMs=performance.now()-began+500;await page.waitForTimeout(500);
     for(const key of ['d','a','d','a']){await page.keyboard.down(key);await page.waitForTimeout(120);await page.keyboard.up(key);await page.waitForTimeout(600);}
     await page.keyboard.up('w');await page.waitForTimeout(200);
     const trace:{initial:LocalAuthorityState;commands:{at:number;logical:number;command:InputCommand}[];frames:{at:number;sampleAt:number;pose:{yaw:number};velocity:{yawRate:number};life:number;pending:number}[]}=await page.evaluate(()=>(window as any).__FO_STEERING__);

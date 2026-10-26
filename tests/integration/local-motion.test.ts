@@ -147,13 +147,30 @@ it('does not let repeated movement reports purchase unlimited travel without ser
   const clock=vi.spyOn(performance,'now').mockReturnValue(now);
   try{
     for(let sequence=0;sequence<45;sequence++){
-      await f.send([f.command(sequence)],f.motion(sequence,{discontinuityId:life,pose:{x:0,z:start+(sequence+1)*.3,yaw:0},velocity:{x:0,z:18,yawRate:0}}));
+      const commandSequence=sequence*4+3;
+      await f.send([f.command(commandSequence)],f.motion(commandSequence,{discontinuityId:life,pose:{x:0,z:start+sequence+1,yaw:0},velocity:{x:0,z:18,yawRate:0}}));
       f.controlled.step();
       // Measure the admitted movement at rejection, before later safety-brake
       // physics ticks can legitimately carry the corrected car farther.
       if(f.authority().vehicle.discontinuityId!==life)break;
     }
     expect(f.authority().vehicle.discontinuityId,'The room must explicitly reject excess travel rather than trusting packet cadence').toBe(life+1);
-    expect(f.authority().vehicle.pose.z-start,'Only a bounded jitter allowance can precede elapsed server time').toBeLessThan(10);
+    expect(f.authority().vehicle.pose.z-start,'Only the one-second bounded burst allowance can precede elapsed server time').toBeLessThan(29);
+  }finally{clock.mockRestore();}
+});
+
+it('admits an ordered 650ms movement burst after a transport stall without correcting a legitimate local driver',async()=>{
+  const f=await fixture(),life=f.authority().vehicle.discontinuityId,start=f.authority().vehicle.pose.z;
+  let now=performance.now();const clock=vi.spyOn(performance,'now').mockImplementation(()=>now);
+  try{
+    await f.send([f.command(0),f.command(1)],f.motion(1,{pose:{x:0,z:start+.8,yaw:0}}));f.controlled.step();
+    now+=650;
+    for(let batch=1;batch<=20;batch++){
+      const sequence=batch*2+1;
+      await f.send([f.command(sequence-1),f.command(sequence)],f.motion(sequence,{discontinuityId:life,pose:{x:0,z:start+.8*(batch+1),yaw:0}}));
+      f.controlled.step();
+    }
+    expect(f.authority().vehicle.discontinuityId,'Valid ordered movement must not become a teleport correction after ordinary TCP stalls').toBe(life);
+    expect(f.authority().vehicle.pose.z).toBeCloseTo(start+16.8,6);
   }finally{clock.mockRestore();}
 });

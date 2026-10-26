@@ -25,7 +25,7 @@ function validLocalMotion(value: unknown, command: InputCommand, vehicle: Vehicl
   if (distance > maxSpeed * Math.max(1 / 60, seconds) + .25) return false;
   // A bounded allowance absorbs ordered packet bursts. Only elapsed server
   // time replenishes it; extra command IDs or packets cannot buy more travel.
-  const capacity = maxSpeed * .3 + .25, budget = driver.motionBudget;
+  const capacity = maxSpeed + .25, budget = driver.motionBudget;
   const available = budget ? Math.min(capacity, budget.distance + Math.max(0, now - budget.at) / 1000 * maxSpeed) : capacity;
   if (distance > available) return false;
   driver.motionBudget = { distance: available - distance, at: now };

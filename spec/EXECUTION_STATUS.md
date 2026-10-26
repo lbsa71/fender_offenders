@@ -28,6 +28,12 @@ The first pre-push run blocked publication on the unchanged hard-collision brows
 
 After the impact correction, fresh full verification passes **703 tests across 74 files on Windows (22.24 s) and Linux (21.76 s)**, types/docs, assets and production build. The full local browser/UI gate is rerun before pushing; no browser assertion is waived.
 
+Publication `2f06670` passed all **42 local browser scenarios and five UI fixtures**, [CI including its production-container smoke](https://github.com/lbsa71/fender_offenders/actions/runs/40295747707), and Render reported it live with bundle `index-D5PYV8Ph.js`. Hosted solo start → live backup joining passed. The fresh steering trace nevertheless exposed a **17.21 m explicit correction** after a stall. The initial 300 ms movement allowance was too short for legitimate ordered traffic; publication alone was not accepted as a completed steering fix.
+
+A controlled-clock 650 ms transport-stall regression was RED: a valid ordered 16.8 m movement burst incorrectly incremented the correction generation. The burst allowance is now one second plus 0.25 m, replenished only by server time. Per-report bounds, lifetime/sequence checks, stale braking and long-term rate limits remain. The zero-elapsed-time flood test now sends 45 one-metre reports and checks the explicit **29 m** bound appropriate to that declared policy; the old 10 m bound is superseded, not claimed as passing. All nine motion-admission checks pass. The actual steering browser sequence now also includes a 650 ms ordered TCP stall, retaining exact rate/yaw parity and a single correction generation; it passes.
+
+The stall correction passes **704 tests across 74 files on Windows (22.25 s) and Linux (21.55 s)**, type/document checks, assets and production build. The complete local browser/UI gate runs again before corrective publication.
+
 The compatible build is **protocol 4 / `arcade-v14`**, on unchanged map `sunset-borough-2`. Deploy client and server together through main/CI. The garage paperwork now follows the steering wheel instead of holding it.
 
 ## 2026-10-26 · Immediate local driving and buffered traffic
