@@ -90,6 +90,14 @@ export class MotorAudio {
     this.envelope(gain, length, scale, rattle); source.connect(gain); gain.connect(this.master!); this.register(source, [gain], length);
   }
 
+  /** Original short water wash with a falling bubble tail, inside the shared voice budget. */
+  splash(strength: number, volumeScale = 1): void {
+    const speed = this.unit(strength), volume = this.unit(volumeScale);
+    if (!speed || !volume || !this.audible()) return;
+    const wash = volume * (.25 + speed * .65);
+    this.noise(.14 + speed * .17, 1500 + speed * 2300, wash);
+    this.tone('sine', .16 + speed * .10, [[0, 420], [.18, 740], [1, 160]], wash * .3);
+  }
   /** Severity changes the gag; attenuation only changes its loudness. */
   crash(strength: number, volumeScale = 1): void {
     const severity = this.unit(strength), volume = this.unit(volumeScale);
