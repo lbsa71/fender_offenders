@@ -26,11 +26,11 @@ test('native patrol audio plays in a live room, silences on pause, and resumes w
     return Math.max(...samples.map(Math.abs));
   });
   await expect.poll(peak).toBeGreaterThan(.005);
-  expect(downloads).toBe(38);
+  expect(downloads).toBe(41);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'BACK ON PATROL' })).toBeVisible();
   await expect.poll(peak).toBeLessThan(.00001);
   await page.getByRole('button', { name: 'BACK ON PATROL' }).click();
   await expect.poll(peak).toBeGreaterThan(.005);
-  expect(downloads).toBe(38);
+  expect(downloads).toBe(41);
 });

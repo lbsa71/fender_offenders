@@ -38,9 +38,12 @@ export const AUDIO_URLS = {
   oil1: new URL('../../content/audio/patrol/oil-1.wav', import.meta.url).href,
   blades0: new URL('../../content/audio/patrol/blades-0.wav', import.meta.url).href,
   blades1: new URL('../../content/audio/patrol/blades-1.wav', import.meta.url).href,
+  splash0: new URL('../../content/audio/patrol/splash-0.wav', import.meta.url).href,
+  splash1: new URL('../../content/audio/patrol/splash-1.wav', import.meta.url).href,
+  splash2: new URL('../../content/audio/patrol/splash-2.wav', import.meta.url).href,
 } as const;
 export type LoopKind = 'idle' | 'drive' | 'tires' | 'road' | 'siren';
-export type SampleKind = 'light' | 'medium' | 'heavy' | 'shot' | 'hit' | 'wreck' | 'lob' | 'land' | 'fuse' | 'blast' | 'boing' | 'squeak' | 'oil' | 'blades';
+export type SampleKind = 'light' | 'medium' | 'heavy' | 'shot' | 'hit' | 'wreck' | 'lob' | 'land' | 'fuse' | 'blast' | 'boing' | 'squeak' | 'oil' | 'blades' | 'splash';
 export interface AudioBank { loops: Record<LoopKind, AudioBuffer>; effects: Record<SampleKind, AudioBuffer[]> }
 export async function loadAudioBank(context: AudioContext, signal: AbortSignal): Promise<AudioBank> {
   const entries = await Promise.all(Object.entries(AUDIO_URLS).map(async ([key, url]) => {
@@ -63,6 +66,7 @@ export async function loadAudioBank(context: AudioContext, signal: AbortSignal):
       squeak: [clips.squeak0, clips.squeak1],
       oil: [clips.oil0, clips.oil1],
       blades: [clips.blades0, clips.blades1],
+      splash: [clips.splash0, clips.splash1, clips.splash2],
     },
   };
 }

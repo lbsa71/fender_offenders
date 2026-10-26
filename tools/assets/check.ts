@@ -42,7 +42,7 @@ const audioFlag=process.argv.indexOf('--audio-root');
 const audioRoot=resolve(audioFlag<0?'packages/content/audio/patrol':process.argv[audioFlag+1]);
 const audioManifest=JSON.parse(await readFile(resolve(audioRoot,'manifest.json'),'utf8'));
 let audioBytes=0;
-if(audioManifest.sourceLicense!=='CC0-1.0'||audioManifest.assets.length!==38)failures.push('Audio provenance/catalog missing');
+if(audioManifest.sourceLicense!=='CC0-1.0'||audioManifest.assets.length!==41)failures.push('Audio provenance/catalog missing');
 for(const asset of audioManifest.assets){
   if(!/^[a-z]+(?:-\d)?\.wav$/.test(asset.file)){failures.push(`Invalid audio filename: ${asset.file}`);continue;}
   const bytes=await readFile(resolve(audioRoot,asset.file));audioBytes+=bytes.byteLength;

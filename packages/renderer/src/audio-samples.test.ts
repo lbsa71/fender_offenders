@@ -50,6 +50,7 @@ const bank = () => ({
     fuse: [clip('fuse-a'), clip('fuse-b')], blast: [clip('blast-a'), clip('blast-b')],
     boing: [clip('boing-a'), clip('boing-b')], squeak: [clip('squeak-a'), clip('squeak-b')],
     oil: [clip('oil-a'), clip('oil-b')], blades: [clip('blades-a'), clip('blades-b')],
+    splash: [clip('splash-a'), clip('splash-b'), clip('splash-c')],
   },
 });
 async function setup(random = () => .1) {
@@ -61,6 +62,19 @@ async function setup(random = () => .1) {
 const path = (node: Node, kind: string): Node => { let current: Node | null = node; while (current && current.kind !== kind) current = current.output; expect(current, `${kind} in playback path`).not.toBeNull(); return current!; };
 
 describe('recorded patrol sound bank', () => {
+  it('plays varied water spray with speed strength, distance and stereo placement', async () => {
+    const { audio, context, samples } = await setup();
+    audio.splash(.3, 1, -.6); const slow = context.recordings.at(-1)!;
+    expect(samples.effects.splash).toContain(slow.buffer);
+    audio.splash(1, 1, -.6); const fast = context.recordings.at(-1)!;
+    expect(samples.effects.splash).toContain(fast.buffer); expect(fast.buffer).not.toBe(slow.buffer);
+    expect(path(fast, 'gain').gain.value).toBeGreaterThan(path(slow, 'gain').gain.value);
+    audio.splash(1, .2, .6); const distant = context.recordings.at(-1)!;
+    expect(path(distant, 'gain').gain.value).toBeCloseTo(path(fast, 'gain').gain.value * .2);
+    expect(path(distant, 'pan').pan.value).toBe(.6);
+    const count = context.recordings.length; audio.splash(0); audio.suspended = true; audio.splash(1);
+    expect(context.recordings).toHaveLength(count); audio.dispose();
+  });
   it('plays every grenade and suspension cue from its own varied, spatial bank', async () => {
     const { audio, context, samples } = await setup();
     for (const kind of ['lob', 'land', 'fuse', 'blast', 'boing', 'squeak'] as const) {

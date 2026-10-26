@@ -6,6 +6,12 @@ Updated: 2026-10-26. Documentation/credits/GPL were pushed in `c5b1161`, car pre
 
 `Implemented` means the principal code path exists with the evidence cited here; it does not waive outstanding release gates. `Partial` means code exists but a named deliverable or acceptance check remains. `Open` means the deciding gate has not been demonstrated. The plan retains task IDs/dependencies and gates while reflecting the delivered campaign/profile/art choices.
 
+## 2026-10-26 · Full sound bank integrated with current main
+
+Audio commit `74e351c` is merged with current main `75578bf` in `cf87e71`, retaining gadget and splash lifecycle cleanup, all water/browser gates, credits and both dated ledgers. The final bank contains **41 clips / 1,869,484 bytes** under the 2 MB budget. Three original spray/wash/droplet variants replace the incoming splash synthesis after loading; fallback coverage remains. No network, handling, damage or protocol behavior changes.
+
+Observed additional RED: the sampled splash test found no water recording; the native crossing test found no stereo position. Both pass with strength/attenuation-aware sample playback and camera-relative pan. Final merged verification passes **788 tests across 84 files in 25.49 seconds**, types/docs, asset hashes/format/budget, production build, native renderer/audio and the built-server production smoke (HTML, readiness, solo start, live late join, shared campaign and per-player ping). Native overlap peaks remain below 0.937; mute is exactly zero. The full local browser/UI/water/audio gate remains attached to the subsequent push. Human listening and device/performance acceptance remain separate; a waveform report does not have ears.
+
 ## 2026-10-26 · Complete gameplay audio pass, before tire-splash integration
 
 The owner's follow-up requested all sound effects and publication to main. The bank expands to **38 clips / 1,775,752 bytes** with two variants each for grenade throw, landing, burning fuse, blast, suspension spring/rubber, oil discharge and blade extension. Six body-specific engine tunings share the original two engine recordings. Oil plays at release and blades at activation, once per ID; stale/distant snapshots are silent. Grenades now use camera-relative stereo placement. Source licenses and the deterministic build recipe remain unchanged; the measured bank stays below its new **2 MB** budget.

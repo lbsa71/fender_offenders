@@ -51,9 +51,10 @@ try {
       if (tick === 204) audio.crash(.2); if (tick === 216) audio.crash(.5); if (tick === 230) audio.crash(1);
       if (tick === 240) audio.effect('wreck', 1, 'hero');
     };
-    const newCues = ['lob', 'land', 'fuse', 'blast', 'boing', 'squeak', 'oil', 'blades'];
+    const newCues = ['lob', 'land', 'fuse', 'blast', 'boing', 'squeak', 'oil', 'blades', 'splash'];
     const playCue = (a, kind, pan = 0) => {
-      if (kind === 'boing' || kind === 'squeak') a.cartoon(kind);
+      if (kind === 'splash') a.splash(1, 1, pan);
+      else if (kind === 'boing' || kind === 'squeak') a.cartoon(kind);
       else if (kind === 'oil' || kind === 'blades') a.effect(kind, 1, undefined, pan);
       else a.grenade(kind, 1, 'audition', pan);
     };
@@ -73,7 +74,7 @@ try {
       }, { timeline: true }),
     ];
     for (const kind of newCues) results.push(await render(kind, Current, 2, a => playCue(a, kind)));
-    results.push(await render('All remaining effects', Current, 12, (a, t) => {
+    results.push(await render('All remaining effects', Current, 13.5, (a, t) => {
       const tick = Math.round(t * 20);
       if (tick % 30 === 0) playCue(a, newCues[tick / 30]);
     }, { timeline: true }));
@@ -87,7 +88,7 @@ try {
       if (tick % 4 === 0) for (let i = 0; i < 8; i++) a.effect('shot', .4, undefined, (i - 4) / 5);
       if (tick === 10) for (let i = 0; i < 8; i++) a.grenade('blast', 1, `bomb-${i}`);
       if (tick === 40) for (let i = 0; i < 8; i++) a.effect('wreck', 1, `car-${i}`);
-      if (tick % 10 === 0) { a.effect('blades'); a.effect('oil'); a.cartoon('boing'); a.grenade('fuse'); }
+      if (tick % 10 === 0) { a.effect('blades'); a.effect('oil'); a.cartoon('boing'); a.grenade('fuse'); a.splash(1); }
       if (a.getStats().voices > 12) throw Error('Grenade/gadget voice budget exceeded');
     }, { timeline: true }));
     return results;
@@ -117,6 +118,6 @@ try {
     await writeFile(`work/audio/${file}`, wav(channels, auditionGain)); report.push({ ...clip, file, auditionGain });
   }
   await writeFile('work/audio/report.json', JSON.stringify({ baseline, renderer: 'Chromium native stereo OfflineAudioContext', sampleRate: 44100, chapters: { idle: 0, acceleration: 1, coast: 5, dirt: 6, driftAndSiren: 7, shots: 9, lightCrash: 10.2, mediumCrash: 10.8, heavyCrash: 11.5, wreck: 12 }, clips: report }, null, 2));
-  await writeFile('work/audio/listen.html', '<!doctype html><html lang="en"><meta charset="utf-8"><title>Fender Offenders audio comparison</title><style>body{max-width:720px;margin:60px auto;padding:24px;background:#14252a;color:#f5eddc;font:18px/1.6 system-ui}audio{width:100%}h1{line-height:1.2}small{color:#c6d2d3}</style><h1>The motor pool found its voice</h1><p>The same 15-second scene, matched in average loudness for comparison.</p><h2>Before</h2><audio controls src="before.wav"></audio><h2>After</h2><audio controls src="after.wav"></audio><p>0s idle · 1s accelerate · 5s coast · 6s dirt · 7s drift and siren · 9s fire · 10.2s light crash · 10.8s medium crash · 11.5s heavy crash · 12s wreck.</p><small>Native browser render. Listening approval on headphones and laptop speakers remains with the player.</small></html>');
+  await writeFile('work/audio/listen.html', '<!doctype html><html lang="en"><meta charset="utf-8"><title>Fender Offenders audio comparison</title><style>body{max-width:720px;margin:60px auto;padding:24px;background:#14252a;color:#f5eddc;font:18px/1.6 system-ui}audio{width:100%}h1{line-height:1.2}small{color:#c6d2d3}</style><h1>The motor pool found its voice</h1><p>The same 15-second scene, matched in average loudness for comparison.</p><h2>Before</h2><audio controls src="before.wav"></audio><h2>After</h2><audio controls src="after.wav"></audio><p>0s idle · 1s accelerate · 5s coast · 6s dirt · 7s drift and siren · 9s fire · 10.2s light crash · 10.8s medium crash · 11.5s heavy crash · 12s wreck.</p><h2>Grenades, suspension, gadgets and water</h2><audio controls src="all-effects.wav"></audio><p>Throw, landing, fuse, blast, spring, rubber, oil, blades and splash, every 1.5 seconds.</p><h2>Six vehicle tunings</h2><audio controls src="vehicles.wav"></audio><p>Patrol, interceptor, roadster, army, ambulance and fire-chief, two seconds each at the same speed and load.</p><small>Native browser render. Listening approval on headphones and laptop speakers remains with the player.</small></html>');
   console.log(JSON.stringify(report, null, 2));
 } finally { await browser.close(); await server.close(); }

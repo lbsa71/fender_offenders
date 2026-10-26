@@ -10,7 +10,7 @@ const ENGINE_TUNING: Record<VehicleBodyId, { pitch: number; brightness: number }
 };
 const LEVELS: Record<SampleKind, number> = {
   light: .23, medium: .32, heavy: .4, shot: .3, hit: .24, wreck: .5,
-  lob: .17, land: .22, fuse: .12, blast: .5, boing: .13, squeak: .09, oil: .2, blades: .24,
+  lob: .17, land: .22, fuse: .12, blast: .5, boing: .13, squeak: .09, oil: .2, blades: .24, splash: .24,
 };
 interface AudioOptions {
   loadBank?: (context: AudioContext, signal: AbortSignal) => Promise<AudioBank>;
@@ -190,9 +190,10 @@ export class MotorAudio {
     this.envelope(gain, length, scale, rattle); source.connect(gain); gain.connect(this.master!); this.register(source, [gain], length);
   }
 
-  /** Original short water wash with a falling bubble tail, inside the shared voice budget. */
-  splash(strength: number, volumeScale = 1): void {
+  /** Authored tire wash and scattered droplets, inside the shared voice budget. */
+  splash(strength: number, volumeScale = 1, pan = 0): void {
     const speed = this.unit(strength), volume = this.unit(volumeScale);
+    if (this.bank) { if (speed) this.sample('splash', volume * (.25 + speed * .65), pan); return; }
     if (!speed || !volume || !this.audible()) return;
     const wash = volume * (.25 + speed * .65);
     this.noise(.14 + speed * .17, 1500 + speed * 2300, wash);

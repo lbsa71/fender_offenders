@@ -1,5 +1,5 @@
 {
-  "revision": "patrol-audio-2",
+  "revision": "patrol-audio-3",
   "date": "2026-10-26",
   "sampleRate": 24000,
   "channels": 1,
@@ -461,6 +461,36 @@
         "kenney:Audio/impactMetal_medium_004.ogg",
         "kenney:Audio/impactMetal_light_003.ogg",
         "original: blade extension scrape"
+      ]
+    },
+    {
+      "file": "splash-0.wav",
+      "sha256": "e4188cda097d29620d39a22a68f32026076717a2ed04faadc3fe721c5202a9d6",
+      "bytes": 31244,
+      "duration": 0.65,
+      "loop": false,
+      "sources": [
+        "original: tire water displacement, spray and scattered droplets"
+      ]
+    },
+    {
+      "file": "splash-1.wav",
+      "sha256": "a01828df8bd9153279c5e73e11a292296c06080424a8874dca3607fe4aae3e0f",
+      "bytes": 31244,
+      "duration": 0.65,
+      "loop": false,
+      "sources": [
+        "original: tire water displacement, spray and scattered droplets"
+      ]
+    },
+    {
+      "file": "splash-2.wav",
+      "sha256": "d793cce8384d54e9576ce3b72241e6b674278b7be597b68149311e4362251536",
+      "bytes": 31244,
+      "duration": 0.65,
+      "loop": false,
+      "sources": [
+        "original: tire water displacement, spray and scattered droplets"
       ]
     }
   ]

@@ -76,7 +76,7 @@ export const districtMap: CollisionMap = {
 export { VEHICLE_BODIES } from '@fender/contracts';
 export { DISTRICT_WATER, ROAD_PUDDLES, waterFootprint } from './water';
 export const ASSET_PROVENANCE = {
-  revision: 'procedural-and-patrol-audio-2',
+  revision: 'procedural-and-patrol-audio-3',
   creator: 'Fender Offenders project',
   source: 'packages/renderer/src, packages/content/src and packages/content/audio/patrol/manifest.json',
   status: 'shipping',

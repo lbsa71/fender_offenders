@@ -220,7 +220,18 @@ for i in range(2):
           [f"kenney:Audio/impactMetal_light_{i+3:03}.ogg", f"kenney:Audio/impactMetal_medium_{i+3:03}.ogg",
            f"kenney:Audio/impactMetal_light_{i+2:03}.ogg", "original: blade extension scrape"])
 
-manifest = {"revision": "patrol-audio-2", "date": "2026-10-26", "sampleRate": RATE, "channels": 1, "bits": 16,
+for i in range(3):
+    t = np.arange(round(.65 * RATE)) / RATE
+    # Broad tire fan, low water displacement and many small droplets, with no pitched coda.
+    spray = filt(RNG.normal(0, 1, len(t)), [700, 7000], "bandpass") * np.exp(-t * 12) * .6
+    wash = filt(RNG.normal(0, 1, len(t)), [100, 1100], "bandpass") * np.exp(-t * 9) * .8
+    droplets = np.zeros(len(t))
+    for at in RNG.uniform(.06, .5, 30):
+        start = int(at * RATE); bt = t[:len(t)-start]
+        droplets[start:] += np.sin(2 * np.pi * (RNG.uniform(650, 2400) * bt + 1800 * bt * bt)) * np.exp(-bt * 220) * RNG.uniform(.1, .3)
+    write(f"splash-{i}", spray + wash + droplets, ["original: tire water displacement, spray and scattered droplets"])
+
+manifest = {"revision": "patrol-audio-3", "date": "2026-10-26", "sampleRate": RATE, "channels": 1, "bits": 16,
             "sourceLicense": "CC0-1.0", "originalCodeAndArrangements": "GPL-3.0-or-later", "sourceArchives": SOURCES, "assets": records}
 (OUT / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 print(f'Built {len(records)} clips: {sum(r["bytes"] for r in records):,} bytes. No source archive enters the browser build.')

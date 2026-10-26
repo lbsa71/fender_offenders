@@ -232,7 +232,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     objective.update(frame,time,reducedMotion);
     for(const cue of splashes.update(frame.vehicles,dt,settings.quality,reducedMotion))if(cue.sound){
       const wheel=cue.wheels[0]!,volume=combatVolume(wheel,cue.entityId===frame.localEntityId);
-      if(volume>0)audio.splash(cue.strength,volume);
+      if(volume>0)audio.splash(cue.strength,volume,cue.entityId===frame.localEntityId?0:combatPan(wheel));
     }
     environment.update(frame.props??[]);water.update(dt,settings.quality,reducedMotion);
     lightDetail.update(frame,cars,environment.lighting.sources,environment.lampGlow,settings.quality,settings.reducedFlash);

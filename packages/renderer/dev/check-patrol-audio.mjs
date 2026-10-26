@@ -19,7 +19,7 @@ try {
     const { MotorAudio } = await import(url), original = MotorAudio.prototype.update;
     MotorAudio.prototype.update = function (speed, siren, time, active, driving) { window.soundTrace = { speed, siren, active, driving }; window.soundAudio = this; return original.call(this, speed, siren, time, active, driving); };
     window.soundCalls = [];
-    for (const method of ['effect', 'grenade']) {
+    for (const method of ['effect', 'grenade', 'splash']) {
       const play = MotorAudio.prototype[method];
       MotorAudio.prototype[method] = function (...args) { window.soundCalls.push({ method, args }); return play.apply(this, args); };
     }
@@ -36,7 +36,7 @@ try {
   await page.getByRole('button', { name: 'Enable audio' }).click();
   await page.evaluate(async () => { await window.soundAudio.ready; window.fixture.step(); });
   assert.equal((await page.evaluate(() => window.soundAudio.getStats())).bank, 'ready');
-  assert.equal(downloads.length, 38); assert.ok(downloads.every(r => r.status === 200));
+  assert.equal(downloads.length, 41); assert.ok(downloads.every(r => r.status === 200));
   const count = downloads.length;
   await page.getByRole('button', { name: 'Enable audio' }).click();
   assert.equal(downloads.length, count, 'activation must reuse the decoded bank');
@@ -77,6 +77,16 @@ try {
     f.step(); return window.soundCalls.find(c => c.method === 'grenade' && c.args[0] === 'blast');
   });
   assert.ok(grenade?.args[1] > 0 && Math.abs(grenade.args[3]) > .2, 'grenades use camera-relative stereo placement');
+  const splash = await page.evaluate(() => {
+    const f = window.fixture, hero = f.frame.vehicles[0], peer = f.frame.vehicles[1];
+    window.soundCalls.length = 0; f.frame.gadgets = [];
+    hero.pose = { x: 16, z: -37, yaw: 0 }; hero.discontinuityId++;
+    peer.pose = { x: 4, z: -41, yaw: 0 }; peer.velocity = { x: 0, z: 14, yawRate: 0 }; peer.discontinuityId++;
+    f.renderer.setSettings({ reducedShake: false }); f.step(.05);
+    for (let i = 0; i < 8; i++) { peer.pose.z += .6; f.step(.05); }
+    return window.soundCalls.find(c => c.method === 'splash');
+  });
+  assert.ok(splash?.args[1] > 0 && splash.args[1] < 1 && Math.abs(splash.args[2]) > .2, 'a nearby tire crossing produces attenuated, spatial splash audio');
   await page.evaluate(() => { const f = window.fixture; f.frame.vehicles = []; f.step(); });
   assert.equal((await page.evaluate(() => window.soundTrace)).active, false, 'missing local car must silence continuous audio');
   await page.evaluate(() => window.fixture.renderer.dispose());
