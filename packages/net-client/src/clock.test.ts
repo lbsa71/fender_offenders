@@ -4,7 +4,7 @@ import { createOnlineSession } from './index.js';
 import { predictVehicle } from '@fender/sim';
 import type { CollisionMap } from '@fender/contracts';
 
-const wire = vi.hoisted(() => ({ handlers: new Map<string, (message: unknown) => void>(), initial: null as unknown, deferBaseline: false, sent: [] as string[] }));
+const wire = vi.hoisted(() => ({ handlers: new Map<string, (message: unknown) => void>(), initial: null as unknown, deferBaseline: false, sent: [] as string[], queued: [] as import('@fender/contracts').InputCommand[] }));
 vi.mock('@colyseus/sdk', () => ({ Client: class {
   http={post:async()=>({data:{}})};
   async consumeSeatReservation() { return {
@@ -12,7 +12,7 @@ vi.mock('@colyseus/sdk', () => ({ Client: class {
     connection: { isOpen: true, reconnect() {}, close() {} },
     onMessage(type: string, handler: (value: unknown) => void) { wire.handlers.set(type, handler); },
     onDrop() {}, onReconnect() {}, onLeave() {}, onError() {},
-    send(type: string) { wire.sent.push(type);if (type === 'resync') wire.handlers.get('snapshot')!({ ...(wire.initial as WireSnapshot), reset: wire.deferBaseline ? 'join' : 'resync' }); },
+    send(type: string, message?: { commands?: import('@fender/contracts').InputCommand[] }) { wire.sent.push(type);if(type==='input'&&message?.commands)wire.queued.push(...message.commands);if (type === 'resync') wire.handlers.get('snapshot')!({ ...(wire.initial as WireSnapshot), reset: wire.deferBaseline ? 'join' : 'resync' }); },
     async leave() { return 4000; },
     removeAllListeners() { wire.handlers.clear(); },
   }; }
@@ -26,7 +26,7 @@ function snapshot(tick: number, options: { direction?: number; epoch?: string; m
   const state: WorldSnapshot = { protocolVersion: 1, mapRevision: map.revision, gameplayRevision: 'arcade-v1', sessionEpoch: options.epoch ?? 'clock-epoch', serverTick: tick, matchId: options.matchId ?? 'clock-fixture', phase: 'playing', phaseEndsAtTick: null, vehicles: [local, car('remote', direction * tick / 6)], projectiles: [], scores: [], local: { vehicle: local, driver: { resolvedSteering: 0, reverseHoldTicks: 0, nextFireTick: 0, shotOrdinal: 0, nextRecoveryTick: 0, lastDamageTick: null }, lastConsumedSequence: -1 } };
   return packSnapshot(state);
 }
-afterEach(() => { vi.useRealTimers(); wire.handlers.clear(); wire.deferBaseline = false; });
+afterEach(() => { vi.useRealTimers(); wire.handlers.clear(); wire.deferBaseline = false; wire.queued = []; });
 
 it('retains sequenced room notices across snapshots so slow or hidden views cannot miss them',async()=>{
   wire.initial=snapshot(100);const session=createOnlineSession('ws://clock-fixture',map),statuses:unknown[]=[];session.onStatus(status=>statuses.push(status));
@@ -556,7 +556,27 @@ it('does not manufacture lead from a late input callback when no frame displayed
   } finally { await session.dispose(); }
 });
 
-it.each([false, true])('settles local visual lead when 16ms input outruns a sustained 20Hz authority (timed input: %s)', async timed => {
+it('does not repay more correction than a late untimed input advanced before its next rendered frame', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
+  const source = unpackSnapshot(snapshot(100)); source.local!.vehicle.velocity.z = 20;
+  wire.initial = packSnapshot(source);
+  const session = createOnlineSession('ws://clock-fixture', map), actions = { ...neutralActions(), throttle: 1 };
+  const local = () => session.sampleFrame()!.vehicles.find(car => car.entityId === 'local')!;
+  try {
+    await session.connect({ roomId: crypto.randomUUID(), nickname: 'No delayed tow truck' });
+    session.submit({ sessionEpoch: source.sessionEpoch, sequence: 0, clientTick: 0, actions });
+    vi.advanceTimersByTime(16); local();
+    const next = structuredClone(source); next.serverTick++; next.local!.lastConsumedSequence = 0; next.local!.vehicle.pose.z -= 2;
+    wire.handlers.get('snapshot')!(packSnapshot(next)); const before = local();
+    vi.advanceTimersByTime(80);
+    session.submit({ sessionEpoch: source.sessionEpoch, sequence: 1, clientTick: 1, actions: { ...actions, steer: 1 } });
+    const after = local();
+    expect(after.pose.z, 'Correction must not reverse the last displayed position after a late input callback').toBeGreaterThanOrEqual(before.pose.z - .00001);
+    expect(after.velocity.yawRate, 'Late steering must still apply immediately').toBeGreaterThan(.01);
+  } finally { await session.dispose(); }
+});
+
+it.each([false, true].flatMap(timed => [0, 8, 16, 24, 32].flatMap(flushPhase => [0, 1, 2].map(publishPhase => ({ timed, flushPhase, publishPhase })))))('settles local lead with 16ms input and 20Hz authority ($timed / flush $flushPhase / publish $publishPhase)', async ({ timed, flushPhase, publishPhase }) => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
   const source = unpackSnapshot(snapshot(100)); source.local!.vehicle.pose.z = -76; source.local!.vehicle.velocity.z = 20;
   source.local!.driver.simulatedTick = source.serverTick;
@@ -565,16 +585,18 @@ it.each([false, true])('settles local visual lead when 16ms input outruns a sust
   let authority = source.local!, tick = source.serverTick, sequence = 0, previousZ: number | null = null;
   const leads: number[] = [], steps: number[] = [];
   await session.connect({ roomId: crypto.randomUUID(), nickname: 'Same clock on every OS' });
+  vi.advanceTimersByTime(flushPhase); const started = performance.now();
   const authorityTimer = setInterval(() => {
-    authority = { ...predictVehicle(map, authority.vehicle, authority.driver, actions, [], undefined, ++tick), lastConsumedSequence: Math.max(-1, sequence - 3) };
-    // The actual room publishes every third step and coalesces old held inputs,
-    // retaining two samples. No acknowledgment gate is allowed on fresh steering.
-    if ((tick - source.serverTick) % 3 === 0) wire.handlers.get('snapshot')!(packSnapshot({ ...source, serverTick: tick, local: authority, vehicles: [authority.vehicle, source.vehicles[1]!] }));
+    const consumed = wire.queued.splice(0, Math.max(1, wire.queued.length - 2));
+    authority = { ...predictVehicle(map, authority.vehicle, authority.driver, actions, [], undefined, ++tick), lastConsumedSequence: consumed.at(-1)?.sequence ?? authority.lastConsumedSequence };
+    // Use the facade's real 30Hz flush before server coalescing/publication.
+    // In-flight and unsent input must remain pending alongside its two queued samples.
+    if ((tick - source.serverTick + publishPhase) % 3 === 0) wire.handlers.get('snapshot')!(packSnapshot({ ...source, serverTick: tick, local: authority, vehicles: [authority.vehicle, source.vehicles[1]!] }));
   }, 50);
   const inputTimer = setInterval(() => session.submit({ sessionEpoch: source.sessionEpoch, sequence: sequence++, clientTick: sequence, actions }, timed ? performance.now() : undefined), 16);
   const renderTimer = setInterval(() => {
     const z = session.sampleFrame()!.vehicles.find(car => car.entityId === 'local')!.pose.z;
-    if (performance.now() > 1000) { leads.push(z - authority.vehicle.pose.z); if (previousZ !== null) steps.push(z - previousZ); }
+    if (performance.now() - started > 1000) { leads.push(z - authority.vehicle.pose.z); if (previousZ !== null) steps.push(z - previousZ); }
     previousZ = z;
   }, 8);
   try {

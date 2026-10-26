@@ -31,6 +31,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
   let rtt = 0, correctionX = 0, correctionZ = 0, correctionYaw = 0, lastRenderAt = performance.now(), lastSnapshotAt = performance.now();
   let predictionAt = performance.now();
   let lastLocalFrame: VehicleState['pose'] | null = null;
+  let lateUntimedInput = false;
   let playbackTick: number | null = null;
   const remoteCorrections = new Map<string, { x: number; z: number; yaw: number }>();
   let corrections = 0, maxCorrection = 0, receivedBytes = 0, sentBytes = 0;
@@ -99,7 +100,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
     const oldPose = localPose(performance.now());
     const oldRemotes = !reset && !frozen && !restoreRemoteTimeline && playbackTick !== null ? new Map(remoteAt(playbackTick).map(car => [car.entityId, car])) : null;
     snapshot = next; lastSnapshotAt = performance.now();projectilePresentation.receive(next,Boolean(reset));
-    if (reset) { pending = []; outgoing = []; history = []; correctionX = correctionZ = correctionYaw = 0; playbackTick = null; lastLocalFrame = null; }
+    if (reset) { pending = []; outgoing = []; history = []; correctionX = correctionZ = correctionYaw = 0; playbackTick = null; lastLocalFrame = null; lateUntimedInput = false; }
     if (reset || frozen || restoreRemoteTimeline) remoteCorrections.clear();
     if (frozen) correctionX = correctionZ = correctionYaw = 0;
     history.push({ state: next, arrived: lastSnapshotAt }); if (history.length > 40) history.shift();
@@ -216,13 +217,9 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
         predicted.vehicle = result.vehicle; predicted.driver = result.driver;
         const timed = localTickTimeMs !== undefined && Number.isFinite(localTickTimeMs);
         predictionAt = timed ? Math.max(now - SNAPSHOT_GRACE_MS, Math.min(now, localTickTimeMs!)) : now;
-        // Callers without an accumulator timestamp may miss a tick. Preserve
-        // already displayed forward travel while applying their new controls.
-        if (!timed && lastLocalFrame && predictionAt - previousTickTime > 1000 / 60 + 2) {
-          const nextPose = localPose(now)!;
-          const dx = lastLocalFrame.x - nextPose.x - correctionX, dz = lastLocalFrame.z - nextPose.z - correctionZ;
-          if (dx * predicted.vehicle.velocity.x + dz * predicted.vehicle.velocity.z > 0) { correctionX += dx; correctionZ += dz; }
-        }
+        // A late untimed caller may advance only one tick. Preserve its last
+        // displayed travel after render correction has been applied, not before.
+        if (!timed && lastLocalFrame && predictionAt - previousTickTime > 1000 / 60 + 2) lateUntimedInput = true;
       }
     },
     neutralize() { outgoing = []; pending = []; room?.send('neutralize'); },
@@ -237,7 +234,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       if (disposed) return;
       disposed = true; clearInterval(flushTimer); clearInterval(pingTimer); outgoing = []; pending = [];projectilePresentation.dispose();
       remoteCorrections.clear();
-      lastLocalFrame = null;
+      lastLocalFrame = null; lateUntimedInput = false;
       if (room) {
         room.reconnection.enabled = false;
         if (room.connection.isOpen) {
@@ -283,6 +280,11 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       if (predicted) {
         const vehicle = clone(predicted.vehicle); vehicle.pose = localPose(now)!;
         vehicle.pose.x += correctionX; vehicle.pose.z += correctionZ; vehicle.pose.yaw += correctionYaw;
+        if (lateUntimedInput && lastLocalFrame) {
+          const dx = lastLocalFrame.x - vehicle.pose.x, dz = lastLocalFrame.z - vehicle.pose.z;
+          if (dx * vehicle.velocity.x + dz * vehicle.velocity.z > 0) { correctionX += dx; correctionZ += dz; vehicle.pose.x += dx; vehicle.pose.z += dz; }
+        }
+        lateUntimedInput = false;
         lastLocalFrame = { ...vehicle.pose };
         const index = vehicles.findIndex(v => v.entityId === vehicle.entityId); if (index >= 0) vehicles[index] = vehicle; else vehicles.push(vehicle);
       }
