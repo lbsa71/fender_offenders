@@ -57,7 +57,10 @@ test('results select bandages, bars or gloating from the shared outcome and refr
     for (const viewport of [{ width: 1440, height: 900 }, { width: 960, height: 640 }, { width: 520, height: 760 }]) {
       await page.setViewportSize(viewport); await portrait.scrollIntoViewIfNeeded();
       await expect(portrait).toBeInViewport();
-      const size = await portrait.boundingBox(); expect(size?.width).toBe(96); expect(size?.height).toBe(96);
+      await expect.poll(async () => {
+        const size = await portrait.boundingBox();
+        return size && { width: size.width, height: size.height };
+      }).toEqual({ width: 96, height: 96 });
       await page.screenshot({ path: test.info().outputPath(`result-${result.variant}-${viewport.width}.png`) });
     }
     await expect(portrait).toHaveAccessibleName(new RegExp(`Mabel Clench.*${result.description}`, 'i'));

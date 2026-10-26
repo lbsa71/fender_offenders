@@ -16,6 +16,8 @@ Fresh merged verification passes **933 unit/integration tests across 93 files in
 
 Remote main then gained `bbe885c`, adding three public music files. The first pre-push run was deliberately stopped before publication so these files could be integrated. That incomplete run is not counted as a passing gate. The final merged source retains all music assets and reruns the complete unmodified pre-push gate.
 
+That complete browser run passed **62 of 63 scenarios** and blocked publication on the new portrait size assertion: it sampled **92.340393 px** during the existing 220 ms entrance scale animation rather than its final 96 px. The assertion now polls for the exact unchanged **96 × 96 px** bounds before capturing the result. All **three focused repeats** pass in **16.0 seconds** with the real animation enabled. No production behavior or size expectation changed; evidence is under `work/outcome-portraits-animation-red` and `work/outcome-portraits-animation-verified`. The complete local gate runs again before publication.
+
 ## 2026-10-26 · Outcome portraits with fixed suspect identities
 
 Implemented on `codex/suspect-outcome-portraits`, based on `814a0da`, reusing this chat's existing managed worktree. All ten suspects now have briefing, arrested, wrecked and escaped portraits. Every variant uses the exact same authored head/body geometry, hair, skin/clothing palette, accessories, framing and vector line style; only explicitly separated expression/outcome layers change. Arrest adds bars, wreck adds non-graphic bandages and an arm sling, and escape adds a grin, wink and thumbs-up. The booking desk now keeps the after photos too.
