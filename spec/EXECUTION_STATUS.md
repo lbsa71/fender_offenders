@@ -24,6 +24,10 @@ The earlier pre-budget combined verification passed **700 headless tests across 
 
 Final combined verification after the movement budget and fixture changes passes **701 tests across 74 files on Windows (22.66 s) and Linux (21.88 s)**, types/document checks, assets and production build. The tutorial arrest → unlock → bomb/puddle browser scenario also passes with its original assertions.
 
+The first pre-push run blocked publication on the unchanged hard-collision browser scenario: no confirmed impact burst appeared in 60 seconds. A focused simulation test reproduced the missing crash at an already resolved wall contact; ordinary braking away from geometry already passed. The room now checks actual static geometry within the solver's 5 mm contact tolerance using its previously observed incoming velocity, without changing the submitted movement or trusting a client crash flag. Both contact/braking tests and the original browser impact/health assertions pass. The incomplete browser run was stopped after this failure; it is not counted as a passing gate.
+
+After the impact correction, fresh full verification passes **703 tests across 74 files on Windows (22.24 s) and Linux (21.76 s)**, types/docs, assets and production build. The full local browser/UI gate is rerun before pushing; no browser assertion is waived.
+
 The compatible build is **protocol 4 / `arcade-v14`**, on unchanged map `sunset-borough-2`. Deploy client and server together through main/CI. The garage paperwork now follows the steering wheel instead of holding it.
 
 ## 2026-10-26 · Immediate local driving and buffered traffic

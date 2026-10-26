@@ -408,7 +408,19 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
         const direct = localInput?.localDriving && (phase === 'playing' || phase === 'lobby');
         if (direct) {
           const motion = localInput.motion;
-          if (motion && motion.discontinuityId === r.vehicle.discontinuityId) { r.vehicle.pose = clone(motion.pose); r.vehicle.velocity = clone(motion.velocity); }
+          if (motion && motion.discontinuityId === r.vehicle.discontinuityId) {
+            const priorVelocity = clone(r.vehicle.velocity);
+            r.vehicle.pose = clone(motion.pose); r.vehicle.velocity = clone(motion.velocity);
+            // Local physics can deliver the already separated, stopped car.
+            // Confirm actual map contact within the solver's millimetre gap,
+            // using the room's incoming velocity; never trust a client crash.
+            const speed = Math.hypot(priorVelocity.x, priorVelocity.z);
+            if (speed >= 3) {
+              const probe = clone(r.vehicle); probe.velocity = priorVelocity;
+              probe.pose.x += priorVelocity.x / speed * .005; probe.pose.z += priorVelocity.z / speed * .005;
+              resolveStatic(probe, map, solids, observeImpact);
+            }
+          }
           localDriving.set(r.vehicle.entityId, { pose: clone(r.vehicle.pose), velocity: clone(r.vehicle.velocity), discontinuityId: r.vehicle.discontinuityId });
           r.driver.recoilStrength = Math.max(0, (r.driver.recoilStrength ?? 0) - config.weapon.recoilRecovery * FIXED_DELTA);
           resolveStatic(r.vehicle, map, solids, observeImpact);
