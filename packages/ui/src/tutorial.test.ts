@@ -1,5 +1,12 @@
 import { expect, it } from 'vitest';
 import { controlHints, placeControlCard } from './tutorial';
+it('uses touch gestures and button names while preserving the campaign gun unlock',()=>{
+ const hints=controlHints('touch',{},false);
+ expect(hints.find(h=>h.action==='throttle')!.glyph).toBe('DRAG ↑');
+ expect(hints.find(h=>h.action==='handbrake')!.glyph).toBe('DRIFT');
+ expect(hints.some(h=>h.action==='fire')).toBe(false);
+ expect(controlHints('touch',{},true).find(h=>h.action==='fire')!.glyph).toBe('FIRE');
+});
 it('shows actual remapped driving keys and only unlocked weapon controls',()=>{
  const hints=controlHints('keyboard',{throttle:['KeyI'],fire:['KeyF']},false);
  expect(hints.find(h=>h.action==='throttle')!.glyph).toBe('I');expect(hints.some(h=>h.action==='fire')).toBe(false);

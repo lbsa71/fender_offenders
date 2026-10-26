@@ -1,12 +1,12 @@
 import type { DeviceKind } from '@fender/contracts';
 const actions = [
-  ['throttle','DRIVE','W / ↑','RT / ↑'],['brakeReverse','BRAKE / REVERSE','S / ↓','LT / ↓'],
-  ['steer','STEER','A D / ← →','◀ L ▶'],['handbrake','DRIFT','SHIFT','A'],
-  ['siren','SIREN','E','X'],['recover','HOLD TO RECOVER','R','Y'],['fire','FIRE','SPACE','RB'],
+  ['throttle','DRIVE','W / ↑','RT / ↑','DRAG ↑'],['brakeReverse','BRAKE / REVERSE','S / ↓','LT / ↓','DRAG ↓'],
+  ['steer','STEER','A D / ← →','◀ L ▶','DRAG ← →'],['handbrake','DRIFT','SHIFT','A','DRIFT'],
+  ['siren','SIREN','E','X','SIREN'],['recover','HOLD TO RECOVER','R','Y','RECOVER'],['fire','FIRE','SPACE','RB','FIRE'],
 ] as const;
 const keyName=(key:string)=>key.replace(/^Key/,'').replace(/^Digit/,'').replace(/Left$|Right$/,'').replace('ArrowUp','↑').replace('ArrowDown','↓').replace('ArrowLeft','←').replace('ArrowRight','→').toUpperCase();
 export function controlHints(device:DeviceKind,bindings:Record<string,string[]>,guns:boolean){
- return actions.filter(([action])=>action!=='fire'||guns).map(([action,label,key,pad])=>({action,label,glyph:device==='gamepad'?pad:action==='steer'?[...(bindings.left??['KeyA']),...(bindings.right??['KeyD'])].map(keyName).join(' '):(bindings[action]?.map(keyName).join(' / ')??key)}));
+ return actions.filter(([action])=>action!=='fire'||guns).map(([action,label,key,pad,touch])=>({action,label,glyph:device==='touch'?touch:device==='gamepad'?pad:action==='steer'?[...(bindings.left??['KeyA']),...(bindings.right??['KeyD'])].map(keyName).join(' '):(bindings[action]?.map(keyName).join(' / ')??key)}));
 }
 export function placeControlCard(anchor:{x:number;y:number},width:number,height:number,cardWidth:number,cardHeight:number,target:{x:number;y:number}|null){
  const clamp=(v:number,min:number,max:number)=>Math.max(min,Math.min(Math.max(min,max),v));

@@ -35,7 +35,13 @@ Production uses explicit campaign mode and retains existing lobby/countdown/play
 ## 2. Device input and commands
 
 ```ts
-type DeviceKind = "keyboard" | "gamepad";
+type DeviceKind = "keyboard" | "gamepad" | "touch";
+type ControlScheme = "auto" | DeviceKind;
+
+interface TouchControls {
+  steer: number; throttle: number; brakeReverse: number;
+  handbrake: boolean; fire: boolean; siren: boolean; recover: boolean;
+}
 
 interface DriverActions {
   steer: number;             // [-1, 1], vehicle-relative
@@ -68,6 +74,8 @@ interface InputSource {
 ```
 
 `sample()` is called once per local sim tick. It consumes one-shot edges once, even when a render frame runs multiple simulation steps. Menu actions use a separate UI event stream and must not accidentally become driving/fire actions.
+
+`ControlScheme` is a persisted local setting. `auto` begins with touch when `navigator.maxTouchPoints > 0`, otherwise keyboard, then follows actual device use. Explicit schemes admit only that device's driving input. Touch sends held semantic controls from UI to input; `siren` becomes a one-tick toggle and `recover` becomes a single request after a one-second hold. Raw pointer IDs and geometry remain in UI. Touch cancellation, lost capture and viewport resize reset held input and immediately neutralize the session. UI resets its pointer ownership whenever input resets, so old pointer moves cannot reapply held controls. These additions change no wire DTO, simulation rule or protocol revision.
 
 Focus loss/device disconnect generates a session control `neutralize` request immediately and clears held state locally. The server still enforces stale-input neutralization if that request never arrives. A client cannot use neutralize/recover to stop authoritative momentum instantly.
 
