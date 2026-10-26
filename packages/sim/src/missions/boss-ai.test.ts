@@ -15,14 +15,24 @@ function fixture(stage=1,map=arena()){
 }
 const ticks=(sim:Simulation,count:number)=>{for(let i=0;i<count;i++)sim.step(new Map());};
 beforeAll(initPhysics);afterEach(()=>sims.splice(0).forEach(sim=>sim.dispose()));
+it('leads moving officers by the detonation horizon and throws repeatedly without empty recovery cycles',()=>{
+ const {sim,targetId,officerId}=fixture(4),boss=sim.snapshot().vehicles.find(v=>v.entityId===targetId)!,officer=sim.snapshot().vehicles.find(v=>v.entityId===officerId)!;
+ officer.velocity={x:12,z:4,yawRate:0};const tactics=getBossTactics(4),brain=newBossAi(0),throws:{tick:number;target:{x:number;z:number}}[]=[];
+ for(let tick=1;tick<=600;tick++){const decision=stepBossAi(boss,neutralActions(),[officer],brain,tactics,tick,20,()=>false);if(decision.grenadeTarget)throws.push({tick,target:decision.grenadeTarget});}
+ expect(throws.length).toBeGreaterThan(0);
+ expect(throws[0]!.target.x).toBeCloseTo(officer.pose.x+12*tactics.grenadeFuseTicks/60);
+ expect(throws[0]!.target.z).toBeCloseTo(officer.pose.z+4*tactics.grenadeFuseTicks/60);
+ expect(throws.length).toBeGreaterThanOrEqual(4);
+ expect(throws[1]!.tick-throws[0]!.tick).toBeLessThanOrEqual(180);
+});
 it('the second campaign target fires a bounded forward burst and actually damages a connected officer',()=>{
  const{sim,targetId,officerId}=fixture();ticks(sim,180);const events=sim.drainEvents();expect(events.filter(e=>e.kind==='shot'&&e.payload.shooterId===targetId).length).toBeGreaterThan(0);
  const officer=sim.snapshot().vehicles.find(v=>v.entityId===officerId)!;expect(officer.health).toBeLessThan(100);expect(officer.health).toBe(86);expect(sim.snapshot().scores[0]!.score).toBe(0);expect(sim.snapshot().phase).toBe('playing');expect(sim.snapshot().campaign!.outcomes).toEqual([]);
 });
 it('the grenade ringleader visibly throws a fixed landing target, then detonates once with real damage',()=>{
- const{sim,targetId,officerId}=fixture(4);ticks(sim,100);const grenade=sim.snapshot().grenades?.[0];expect(grenade,'Hector must throw an authoritative visible grenade').toBeDefined();
- expect(grenade!.ownerEntityId).toBe(targetId);expect(grenade!.detonatesAtTick-grenade!.bornTick).toBeGreaterThanOrEqual(72);expect(grenade!.blastRadius).toBeLessThanOrEqual(7);expect(sim.snapshot().vehicles.find(v=>v.entityId===officerId)!.health).toBe(100);
- ticks(sim,100);expect(sim.snapshot().vehicles.find(v=>v.entityId===officerId)!.health).toBeLessThan(100);const events=sim.drainEvents();expect(events.filter(e=>e.kind==='grenade-exploded')).toHaveLength(1);expect(sim.snapshot().grenades).toEqual([]);
+ const{sim,targetId,officerId}=fixture(4),grenade=thrown(sim);
+ expect(grenade!.ownerEntityId).toBe(targetId);expect(grenade!.detonatesAtTick-grenade!.bornTick).toBe(getBossTactics(4).grenadeFuseTicks);expect(grenade!.blastRadius).toBeLessThanOrEqual(7);expect(sim.snapshot().vehicles.find(v=>v.entityId===officerId)!.health).toBe(100);
+ ticks(sim,grenade.detonatesAtTick-sim.checkpoint().tick);expect(sim.snapshot().vehicles.find(v=>v.entityId===officerId)!.health).toBeLessThan(100);const events=sim.drainEvents();expect(events.filter(e=>e.kind==='grenade-exploded')).toHaveLength(1);expect(sim.snapshot().grenades).toEqual([]);
 });
 it('produces four distinct real-controller ringleader trajectories under a closing pursuit, including brake checks and different serpentine rhythms',()=>{
  const{sim,targetId,officerId}=fixture();const snapshot=sim.snapshot(),source=snapshot.vehicles.find(v=>v.entityId===targetId)!,officer=structuredClone(snapshot.vehicles.find(v=>v.entityId===officerId)!);

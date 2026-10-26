@@ -1,6 +1,6 @@
 # Rookie patrol: learn the job, keep the keys
 
-Status: implemented locally in `arcade-v17`, protocol 5, map `sunset-borough-3`. Reviewed: 2026-10-26. Human difficulty, physical-controller and sustained performance acceptance remain open. [Execution status](EXECUTION_STATUS.md) records observed checks.
+Status: implemented locally in `arcade-v18`, protocol 5, map `sunset-borough-3`. Reviewed: 2026-10-26. Human difficulty, physical-controller and sustained performance acceptance remain open. [Execution status](EXECUTION_STATUS.md) records observed checks.
 
 *Dispatch supplies the lesson. Procurement supplies the noisy accessories one case later.*
 
@@ -8,13 +8,13 @@ Status: implemented locally in `arcade-v17`, protocol 5, map `sunset-borough-3`.
 | --- | --- | --- |
 | 1 · A Small Withdrawal | All officers and Nico are unarmed; driving, siren and recovery controls remain available | Arrest only |
 | 2 · Clamp Down | Suspect guns arrive first; officers use rear/flank approaches and arrests | Arrest or credited target wreck |
-| 3 · Duplicate Trouble | **UNLOCKED: GUNS!** Forward fire/recoil; suspect bombs introduce fixed marked blast circles | Arrest or credited target wreck |
+| 3 · Duplicate Trouble | **UNLOCKED: GUNS!** Forward fire/recoil; suspect bombs predict motion, then lock marked blast circles for one second | Arrest or credited target wreck |
 | 4 · Express Distress | Puddles become slippery; ease off and steer gently | Arrest or credited target wreck |
-| 5 · Stamp Duty | **UNLOCKED: BOMBS!** Throw ahead, then leave the blast circle | Arrest or credited target wreck |
+| 5 · Stamp Duty | **UNLOCKED: BOMBS!** Throw ahead; dodge fast enemy bombs and down the black chopper with ordinary guns along its amber ground marker | Arrest or credited target wreck |
 | 6 · False Alarm | Suspect oil briefly reduces grip; steer around it | Arrest or credited target wreck |
 | 7 · Cone of Silence | Amber hubcaps warn before suspect side blades; leave side clearance and use a front cutoff | Arrest or credited target wreck |
 | 8 · Premium Care | **UNLOCKED: OIL!** Drop behind after a cutoff | Arrest or credited target wreck |
-| 9 · The Paper Chase | **UNLOCKED: HUBCAP BLADES!** Warn, extend briefly and keep control | Arrest or credited target wreck |
+| 9 · The Paper Chase | **UNLOCKED: HUBCAP BLADES!** Warn, extend briefly and keep control; black chopper bombing passes return | Arrest or credited target wreck |
 | 10 | All police weapons remain available, with their controls and reminders | Arrest or credited target wreck |
 
 The shared `getDispatchFeatures(dispatchIndex)` catalog derives equipment, accepted outcomes, road activation and lesson copy from authoritative campaign progress. Unlocks belong to the room, including late joins and reconnects. Retry keeps the dispatch; campaign restart returns to the unarmed opener. No account, player tutorial save or extra lobby is added. The three-second countdown and five-minute dispatch timer remain.

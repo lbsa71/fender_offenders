@@ -1,6 +1,6 @@
 # Armed campaign targets and player callsigns
 
-Status: implemented locally; human difficulty and audiovisual approval remain open. Reviewed: 2026-10-26. Gameplay revision: `arcade-v17`, protocol 5. This extends the [ten-dispatch campaign](CAMPAIGN.md).
+Status: implemented locally; human difficulty and audiovisual approval remain open. Reviewed: 2026-10-26. Gameplay revision: `arcade-v18`, protocol 5. This extends the [ten-dispatch campaign](CAMPAIGN.md).
 
 *The suspects have read the equipment budget. Regrettably, they found the grenade column.*
 
@@ -9,7 +9,7 @@ Nico is unarmed for the first arrest lesson. Targets from dispatch 2 can fight b
 | Ringleader | Driving | Attack and counterplay |
 | --- | --- | --- |
 | Mabel / The Clamp, dispatch 2 | Brief hard brake check, then a short full-throttle breakaway | Short forward bursts; anticipate the check, cut in front and match speed during the driving cooldown |
-| Hector / Hot Stamp, dispatch 5 | Broad swerves against a closing officer nearby | Lobbed grenades; leave the marked landing area before the fuse expires |
+| Hector / Hot Stamp, dispatch 5 | Broad swerves against a closing officer nearby | Predictive quick bombs and black chopper passes; change speed/direction and shoot along its amber ground marker |
 | Iris / Siren Song, dispatch 8 | Sharper, faster swerves against a closing officer nearby | Four-volley drive-by bursts; stay off the nose and match speed during recovery |
 | Aldo / The Chairman, dispatch 10 | Interception | Five-volley bursts alternating with grenades; break the firing line and exploit recovery |
 
@@ -27,9 +27,15 @@ Cutting in front remains valid counterplay. Arrest progress continues from any d
 
 AI selects active, connected officers using authoritative positions and visibility. It observes range, line of sight, protection, weapon alignment, windup, burst cadence and recovery. AI bullets are real projectiles emitted from the forward gun tips, with authoritative damage and the existing world/car sweep tests. AI can wreck an officer but cannot earn player points or resolve its own dispatch. Only a player arrest or credited player destruction resolves the target.
 
-Grenades publish a fixed origin and landing point, launch/landing/detonation ticks, radius and damage. A throw cannot home onto a player after its landing warning appears. The introductory dispatch-3 fuse lasts 150 ticks (2.5 seconds); later authored fuses last 90 ticks (1.5 seconds); blast radii stay at or below 6 m and maximum center damage at or below 34 health. Damage falls off with distance, respects world obstruction and protected cars, and is applied once by the authority. Multiple readable, avoidable attacks create the ramp instead of an unavoidable single hit.
+Enemy grenades predict the officer position at detonation using release-time velocity, then publish a fixed origin and landing point, launch/landing/detonation ticks, radius and damage. Targets are clamped inside map bounds. A throw cannot home onto a player after its landing warning appears. The introductory dispatch-3 fuse lasts 60 ticks (1 second); later enemy fuses last 48 ticks (0.8 seconds), including 18 ticks of flight. Ground bomb cooldowns are 156/148/140/108/100 ticks in dispatches 3/4/5/9/10; mixed targets still alternate with gun bursts. Blast radii stay at or below 6 m and maximum center damage at or below 34 health. Damage falls off with distance, respects world obstruction and protected cars, and is applied once by the authority. Multiple readable, avoidable attacks create the ramp instead of an unavoidable single hit.
 
 Lobby, countdown, results, wrecked/respawning targets and absent eligible officers do not initiate attacks. Dispatch completion, timeout, retry and campaign reset clear outstanding hazards. Checkpoints retain AI runtime and active grenade state so replay reproduces attacks and outcomes. Late joiners and reconnects reconstruct a warning from the current snapshot, without needing its original throw event.
+
+## Black chopper helper
+
+Dispatches 5, 9 and 10 add one black helicopter with 60 health, a green health bar and an amber ground flight marker. It first approaches after four seconds, crosses a bombing path for 2.5 seconds, departs for two seconds, then waits five seconds before another approach. Approach takes two seconds. Each pass can drop three bombs, 54 ticks apart; each bomb has a 24-tick fall from 18 m, a 48-tick fuse, 5 m radius and 28 maximum damage. Drops lead an eligible connected officer's velocity and lock their landing warning at release. Protection, cover and distance falloff still apply. All enemy and police bombs share the existing eight-hazard cap.
+
+Aim ordinary forward guns along the amber ground marker; there is no extra aiming control. The authority sweeps bullets against its 2D footprint, respecting nearer cars/world obstruction, while the renderer raises the corresponding tracers and hit effects toward the aircraft. At zero health it falls, crashes once and never returns during that dispatch attempt. Already released bombs keep their fuses. Destroying the helper does not resolve the suspect, award an arrest or advance the campaign. Peers, late joiners and checkpoints retain the terminal state; retry/new dispatch creates a fresh helper. Completion, timeout, garage entry and disposal clear its presentation. Reduced motion freezes decorative rotor/spin movement; the terminal fall and readable warnings remain.
 
 ## Road gadgets
 

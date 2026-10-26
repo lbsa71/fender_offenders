@@ -1,12 +1,16 @@
 # Shared contracts
 
-Status: semantic contract reference for the integrated alpha (`arcade-v17` gameplay, protocol 5, map `sunset-borough-3`). Updated: 2026-10-26. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+Status: semantic contract reference for the integrated alpha (`arcade-v18` gameplay, protocol 5, map `sunset-borough-3`). Updated: 2026-10-26. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
 
 *The contracts are the traffic lights. Please resist interpreting red as an optional decoration.*
 
 This document defines cross-lane semantics and remaining acceptance expectations. Examples describe semantic TypeScript types, not the compact snapshot wire encoding or installed SDK API. Consumers use the package's public exports; additional validators and the complete proposed fixture catalog remain unfinished rather than implied by these examples.
 
 ## Campaign extension
+
+`arcade-v18` makes enemy bombs faster and velocity-led, and adds one shootable black helicopter helper in dispatches 5, 9 and 10. `WorldSnapshot.helicopter?` and `RenderFrame.helicopter?` contain its entity/dispatch IDs, phase, health, planar route endpoints/yaw and start/end ticks. An optional eleven-field compact tuple carries that state; absence remains valid. `helicopterPoseAt` evaluates the same clamped route on authority and presentation clocks. Trusted checkpoints also retain next-drop time and target identity. Downed state is terminal for that dispatch attempt, including reconnect/late join/checkpoint restore; retry or a new dispatch starts fresh. The helper does not count as the suspect objective.
+
+`GrenadeState.originHeight?` appends an optional height to the grenade tuple; ordinary ground throws omit it. `RenderProjectileState.tracerHeight?` / `tracerSlope?` are presentation-only values for upward anti-air tracers. Player bullets use the helper's marked 2D footprint with the usual swept-hit, protection and nearer obstruction rules. No client supplies a route, health, target or damage result. Protocol 5 and map `sunset-borough-3` remain; gameplay-version checks require paired `arcade-v18` client/server builds.
 
 `arcade-v17` adds `DriverActions.deploy?: 'bomb' | 'oil' | 'blades'`, the same optional touch deployment intent, and `DriverRuntimeState.nextDeployTick?` for the shared manual cooldown. Invalid deployment enum values are rejected. Room-derived feature flags unlock police guns/bombs/oil/blades in dispatches 3/5/8/9, after their suspect introductions in 2/3/6/7. No client supplies damage, landing coordinates, cooldown or outcomes. The authority derives placement, validates phase/protection/obstruction/cooldown and publishes existing grenade/gadget states for peers and late joins. Protocol 5 and map `sunset-borough-3` remain; matching gameplay builds are required.
 

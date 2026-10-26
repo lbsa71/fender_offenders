@@ -1,10 +1,12 @@
 # Implementation plan
 
-Status: acceptance plan for the integrated `arcade-v17` / protocol 5 alpha. Updated: 2026-10-26 for longer avenues and bounded suspect road gadgets, integrated with continuous local driving, buffered remote presentation, closing-pursuit tactics, staged tutorial and touch controls. Current states and dated evidence for all 49 tasks are in [the execution ledger](spec/EXECUTION_STATUS.md). Task IDs, dependencies and milestone gates remain stable; delivery choices below reflect the current implementation.
+Status: acceptance plan for the integrated `arcade-v18` / protocol 5 alpha. Updated: 2026-10-26 for longer avenues and bounded suspect road gadgets, integrated with continuous local driving, buffered remote presentation, closing-pursuit tactics, staged tutorial and touch controls. Current states and dated evidence for all 49 tasks are in [the execution ledger](spec/EXECUTION_STATUS.md). Task IDs, dependencies and milestone gates remain stable; delivery choices below reflect the current implementation.
 
 *The city is playable. The release paperwork still has several outstanding warrants.*
 
 ## Next acceptance work
+
+The `arcade-v18` follow-up adds faster, velocity-led enemy bombs and a shootable black helicopter in dispatches 5/9/10. G/S/F/N/R/Q ownership is sequential in the isolated graphics worktree: shared route/health wire, authoritative drops/hits and terminal dispatch state, normal-gun presentation, peer/late-join coverage and native resource/camera checks. Existing suspect, police equipment, audio and water behavior remain integrated. Human difficulty review and full performance acceptance stay open; this narrow gameplay follow-up does not resume or close the paused graphics goal.
 
 The [gameplay audio pass](spec/AUDIO.md) adds a small CC0/original bank, throttle/slip-responsive driving, varied impacts and prioritized stereo playback. R/A/F/Q ownership is sequential in this checkout, including the source inventory and local browser gate. All existing gameplay cue families use the 41-clip bank, with new oil/blade cues and six engine tunings. Headphone/laptop-speaker listening approval remains acceptance work; this does not close the release audio gate.
 
