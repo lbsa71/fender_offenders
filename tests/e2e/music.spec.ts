@@ -1,0 +1,46 @@
+import { expect, test } from './fixtures';
+
+test('real browser media decodes, crossfades, changes tempo, mutes and resumes', async ({ page }) => {
+  await page.goto(`/@fs/${process.cwd().replaceAll('\\', '/')}/packages/renderer/dev/music.html`);
+  const title = page.locator('audio[data-music-track="title"]');
+  const slow = page.locator('audio[data-music-track="slow"]');
+  const fast = page.locator('audio[data-music-track="fast"]');
+  const level = (kind: string) => page.evaluate(kind => (window as any).musicFixture.music.getStats().tracks.find((track: any) => track.kind === kind).volume, kind);
+  await expect.poll(() => title.evaluate((a: HTMLAudioElement) => a.paused)).toBe(true);
+  await page.getByRole('button', { name: 'Activate audio' }).click();
+  await expect.poll(() => title.evaluate((a: HTMLAudioElement) => !a.paused && a.readyState >= 2 && a.duration > 0)).toBe(true);
+  await expect.poll(() => level('title')).toBeGreaterThan(.35);
+  await page.evaluate(() => (window as any).musicFixture.set({ screen: 'dispatch', speed: 0 }));
+  await expect.poll(() => slow.evaluate((a: HTMLAudioElement) => !a.paused && a.playbackRate === 1)).toBe(true);
+  await expect.poll(() => level('slow')).toBeGreaterThan(.35);
+  await expect.poll(() => title.evaluate((a: HTMLAudioElement) => a.paused)).toBe(true);
+  await page.evaluate(() => (window as any).musicFixture.set({ speed: 28 }));
+  await expect.poll(() => fast.evaluate((a: HTMLAudioElement) => !a.paused && a.playbackRate > 1.1 && a.playbackRate <= 1.15 && a.preservesPitch)).toBe(true);
+  await expect.poll(() => level('fast')).toBeGreaterThan(.35);
+  await page.evaluate(() => (window as any).musicFixture.mute(true));
+  expect(await page.locator('audio').evaluateAll(nodes => nodes.every(a => (a as HTMLAudioElement).muted))).toBe(true);
+  expect(await level('fast')).toBe(0);
+  await page.evaluate(() => (window as any).musicFixture.mute(false));
+  await expect.poll(() => level('fast')).toBeGreaterThan(.35);
+  await page.evaluate(() => (window as any).musicFixture.set({ paused: true }));
+  await expect.poll(() => fast.evaluate((a: HTMLAudioElement) => a.paused && a.muted)).toBe(true);
+  const position = await fast.evaluate((a: HTMLAudioElement) => a.currentTime);
+  await page.evaluate(() => (window as any).musicFixture.set({ paused: false }));
+  await expect.poll(() => fast.evaluate((a: HTMLAudioElement) => !a.paused)).toBe(true);
+  await expect.poll(() => level('fast')).toBeGreaterThan(.3);
+  expect(await fast.evaluate((a: HTMLAudioElement) => a.currentTime)).toBeGreaterThan(position);
+});
+
+test('title and dispatch music follow the real app lifecycle', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('textbox', { name: 'YOUR CALLSIGN', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.music.unlocked)).toBe(true);
+  await expect.poll(() => page.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.music.screen)).toBe('title');
+  await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
+  await page.getByRole('button', { name: 'START DISPATCH' }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).__FENDER_DEBUG__?.snapshot?.phase)).toBe('playing');
+  await expect.poll(() => page.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.music.screen)).toBe('dispatch');
+  await page.getByRole('button', { name: 'Open pause menu' }).click();
+  await page.getByRole('button', { name: 'END PATROL' }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.music.screen)).toBe('title');
+});

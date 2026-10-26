@@ -10,7 +10,21 @@ This extends R04/R05 and A01/A04/Q07. One contributor owns R playback/scenarios,
 
 The 41-clip, 1,869,484-byte bank combines CC0 engine/foley recordings with original layers. [Provenance and storage policy](../packages/content/manifests/licenses/audio/README.md) distinguish sources, derivatives and project code. Vite emits the runtime URLs from `audio-bank.ts`; production serves the assets from the game itself. Source archives never enter the client build.
 
-## Current playback
+## Adaptive soundtrack and volume control
+
+The owner requested title-screen MP3s and slow/fast dispatch tracks, including some speed-dependent tempo increase. The player and controls are implemented; the actual MP3 hookup remains pending access to the supplied Mac folder `/Users/stefan/Documents/Source/lbsa71/fender_offenders/apps/client/public`. Those files are not present in this Windows checkout. This section does not claim soundtrack listening approval or a deployed music asset.
+
+Place the supplied MP3s in `apps/client/public` and retain their names. At dev-server startup and production build, Vite discovers MP3 filenames containing `title`/`titles`, `slow` or `fast`, case-insensitively. Title files play in natural filename order and cycle; dispatch files loop. Names and URLs are encoded safely. Unrelated recordings are not substituted, and an empty manifest remains silent without 404 retries. Restart the dev server after adding files. Record the supplied tracks' actual provenance/terms when the assets are available; the existing CC0 effects-bank credits do not describe those MP3s.
+
+- Title music starts after an intentional page interaction and stays at its authored tempo. Briefing/results are silent; leaving a patrol returns to title music.
+- Dispatch music follows the rendered local car, using its shared top speed. It switches to Fast at 60% of top speed and back to Slow at 45%, avoiding repeated switching near one threshold. Both the level crossfade and tempo response ease over roughly a quarter second. Playback rate rises continuously from 1.00 to at most 1.15; pitch preservation is requested. Music does not change the simulation or engine effects.
+- MP3s stream through media elements and individual Web Audio gain nodes, avoiding decoded full-track buffers in phone memory. Gain nodes provide application volume without relying on per-element volume support on iOS; see [WebKit's volume constraint](https://commits.webkit.org/251625@main). Master/music levels multiply, while master/effects continue to control the existing effects bank.
+- The 44-pixel toolbar knob toggles mute on click/tap/Space/Enter. Drag up/down, use the mouse wheel, arrow keys or Home/End to adjust master volume. The settings slider remains available. Volume and mute persist; muting retains the selected level, and unmuting restores it. The accessible button label reports the action and percentage.
+- Pausing, hidden tabs and connection interruptions stop music and retain its position. Late play promises cannot revive disposed/suspended media. Disposal removes listeners/media, disconnects sources/gains and closes the music context. Browser playback rejection can retry on the next intentional activation.
+
+`music.test.ts` exercises a deterministic media/graph adapter, including read-only native volume. `tests/e2e/music.spec.ts` decodes **existing local WAV test signals**, checks native playback, crossfades, rate, gain/mute and resume, and checks the actual app's title/dispatch lifecycle. It does not certify the missing supplied MP3s. `volume-knob.spec.ts` covers mouse, keyboard, persistence, captured touch dragging and small-screen bounds; captures regenerate as `work/volume-title-375x667.png` and `work/volume-driving-667x290.png`. Physical iPhone/iPad Safari and listening acceptance remain open.
+
+## Current effects playback
 
 - Intentional activation creates one AudioContext and loads/decodes the bank once. Five loops stay alive at zero gain when inactive: idle engine, loaded engine, tire friction, road texture and siren. Updates change gain/rate/filter values without restarting recordings. Original synthesis covers loading/failure; late downloads never replay old events or revive a disposed context.
 - Local input is reused from the existing tick without sampling twice or consuming edge actions. Throttle/reverse load changes engine blend and brightness; speed changes pitch. Fixture callers without input use bounded acceleration, reset at vehicle/life changes. This is an arcade engine model, not simulated RPM/gears.

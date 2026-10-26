@@ -14,6 +14,7 @@ import { MeshBuilder } from './primitives';
 import { districtMap, districtScene, ROAD_BUMPS } from '@fender/content';
 import { CAMPAIGN_DISPATCHES, getCampaignTarget, getBossTactics, getDispatchFeatures, getVehicleProfile, type CollisionMap, type DriverActions, type GameEvent, type RenderFrame, type SceneManifest } from '@fender/contracts';
 import { MotorAudio } from './audio';
+export { MusicPlayer, discoverMusicTracks, type MusicTracks, type MusicState } from './music';
 import { DrivingSoundTracker } from './driving-sound';
 import { buildCity } from './city';
 import { CarFactory, updateCarStatus, type CarVisual } from './cars';

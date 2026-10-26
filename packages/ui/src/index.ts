@@ -5,6 +5,7 @@ import { controlHints, placeControlCard } from './tutorial';
 import { vehicleStats } from './vehicle-stats';
 import type { ControlScheme, TouchControls } from '@fender/contracts';
 import { mountTouchControls } from './touch';
+import { mountVolumeKnob } from './volume';
 
 export type MenuAction = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back' | 'pause';
 export type Menu = 'home' | 'pause' | 'settings' | 'help' | null;
@@ -13,6 +14,7 @@ export interface UiSettings {
   masterVolume: number;
   musicVolume: number;
   effectsVolume: number;
+  muted: boolean;
   reducedShake: boolean;
   reducedFlash: boolean;
   vibration: boolean;
@@ -42,6 +44,7 @@ export interface UiCallbacks {
   onTouchCancel?: () => void;
   onPlay: (request: { nickname: string; roomId: string; vehicleBodyId?: VehicleBodyId }) => void | Promise<void>;
   onActivity?: () => void;
+  onAudioActivation?: () => void;
   onVehicleChange?: (vehicleBodyId: VehicleBodyId) => void;
   onResume?: () => void;
   onLeave?: () => void;
@@ -50,7 +53,7 @@ export interface UiCallbacks {
   onSettings?: (settings: UiSettings) => void;
   onMenuVisibility?: (visible: boolean) => void;
 }
-const defaults: UiSettings = { controlScheme: 'auto', masterVolume: .7, musicVolume: .3, effectsVolume: .8, reducedShake: false, reducedFlash: false, vibration: true, quality: 'medium', stickDeadzone: .16, triggerDeadzone: .08, sensitivity: 1, bindings: {} };
+const defaults: UiSettings = { controlScheme: 'auto', masterVolume: .7, musicVolume: .3, effectsVolume: .8, muted: false, reducedShake: false, reducedFlash: false, vibration: true, quality: 'medium', stickDeadzone: .16, triggerDeadzone: .08, sensitivity: 1, bindings: {} };
 const errorMessages: Record<string, string> = {
   'idle-timeout': 'Your unit was signed off after 15 minutes of inactivity. Enter the room again to continue if it is still available.',
   'invalid-vehicle': 'Choose a valid garage vehicle and try again.',
@@ -234,7 +237,12 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   persistCallsign();
   const reroll = doc.createElement('button'); reroll.type = 'button'; reroll.className = 'fo-reroll-callsign'; reroll.dataset.action = 'reroll-callsign'; reroll.textContent = 'REROLL CALLSIGN'; nickname.closest('.fo-field')!.after(reroll);
   const notify = (message: string) => { const node = one('.fo-notice'); node.textContent = message; node.hidden = !message; };
-  const persist = () => { shell.classList.toggle('fo-reduced-motion', settings.reducedShake); try { view?.localStorage.setItem('fender-settings-v1', JSON.stringify(settings)); } catch { /* Optional persistence. */ } callbacks.onSettings?.(structuredClone(settings)); };
+  const volumeKnob = mountVolumeKnob(doc, (masterVolume, muted) => {
+    settings = { ...settings, masterVolume, muted }; one<HTMLInputElement>('[data-setting="masterVolume"]').value = String(masterVolume); persist();
+  }, () => { callbacks.onAudioActivation?.(); callbacks.onActivity?.(); });
+  one('.fo-top-right').insertBefore(volumeKnob.element, one('[data-action="pause"]'));
+  volumeKnob.update(settings.masterVolume, settings.muted);
+  const persist = () => { volumeKnob.update(settings.masterVolume, settings.muted); shell.classList.toggle('fo-reduced-motion', settings.reducedShake); try { view?.localStorage.setItem('fender-settings-v1', JSON.stringify(settings)); } catch { /* Optional persistence. */ } callbacks.onSettings?.(structuredClone(settings)); };
   function focusFirst() { const focusable = visibleControls(); (focusable.find(node => node.matches('.fo-primary')) ?? focusable[0])?.focus({ preventScroll: true }); }
   const lobby = () => model.snapshot?.phase === 'lobby' && (model.mode === 'online' || Boolean(model.snapshot.campaign));
   const hasResult = (candidate = model) => candidate.snapshot?.phase === 'results' || !candidate.snapshot?.campaign && candidate.mode === 'practice' && candidate.snapshot?.pursuit?.state === 'complete';
@@ -443,7 +451,9 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     const key = input.dataset.setting as keyof UiSettings | undefined;
     if (!key) return;
     const value = input instanceof HTMLInputElement && input.type === 'checkbox' ? input.checked : input.type === 'range' ? Number(input.value) : input.value;
-    settings = { ...settings, [key]: value }; persist();
+    settings = { ...settings, [key]: value };
+    if (key === 'masterVolume') settings.muted = Number(value) === 0;
+    persist();
   };
   const click = (event: MouseEvent) => {
     const button = (event.target as HTMLElement).closest<HTMLElement>('[data-action],[data-binding]');
@@ -641,5 +651,5 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     for (const input of all<HTMLInputElement | HTMLSelectElement>('[data-setting]')) { const key = input.dataset.setting as keyof UiSettings; if (input instanceof HTMLInputElement && input.type === 'checkbox') input.checked = Boolean(settings[key]); else input.value = String(settings[key]); }
     persist(); updateControls();
   }, isMenuVisible: () => menu !== null || lobby(), isMenuOpen: () => menu !== null,
-    dispose: () => { disposed = true; controlObserver?.disconnect(); clearTimeout(toastTimer); clearTimeout(tutorialTimer); touchControls.dispose(); shell.removeEventListener('click', click); shell.removeEventListener('input', change); doc.removeEventListener('keydown', remapKey, true); doc.removeEventListener('visibilitychange', updateControls); shell.remove(); } };
+    dispose: () => { disposed = true; controlObserver?.disconnect(); clearTimeout(toastTimer); clearTimeout(tutorialTimer); touchControls.dispose(); volumeKnob.dispose(); shell.removeEventListener('click', click); shell.removeEventListener('input', change); doc.removeEventListener('keydown', remapKey, true); doc.removeEventListener('visibilitychange', updateControls); shell.remove(); } };
 }

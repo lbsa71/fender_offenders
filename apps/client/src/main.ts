@@ -1,10 +1,10 @@
-import { createGameRenderer } from '@fender/renderer';
+import { createGameRenderer, MusicPlayer, type MusicState } from '@fender/renderer';
 import { districtMap, districtProps } from '@fender/content';
 import { createSimulation, initPhysics, type Simulation } from '@fender/sim';
 import { createInputSource, type InputSettings } from '@fender/input';
 import { mountGameUi, type UiSettings } from '@fender/ui';
 import { createOnlineSession } from '@fender/net-client';
-import { CAMPAIGN_DISPATCHES, isVehicleBodyId, neutralActions, type GameEvent, type RenderFrame, type SessionRequest, type SessionStatus, type WorldSnapshot } from '@fender/contracts';
+import { CAMPAIGN_DISPATCHES, getVehicleProfile, isVehicleBodyId, neutralActions, type GameEvent, type RenderFrame, type SessionRequest, type SessionStatus, type WorldSnapshot } from '@fender/contracts';
 import { FIXED_STEP, planFrame } from './pacing';
 import './style.css';
 
@@ -18,6 +18,8 @@ async function boot() {
   const canvas = document.querySelector<HTMLCanvasElement>('#game')!;
   const root = document.querySelector<HTMLElement>('#ui')!;
   const renderer = createGameRenderer(canvas, districtMap);
+  const music = new MusicPlayer(__FENDER_MUSIC_TRACKS__, { root: document.body });
+  let musicState: MusicState = { screen: 'title' };
   await initPhysics();
   let local: Simulation | null = createSimulation(districtMap, { mode: 'practice', trafficCount: 8, props: districtProps });
   local.addPlayer({ playerId: 'preview', nickname: 'Preview', bodyAssetId: 'police' });
@@ -34,6 +36,7 @@ async function boot() {
   function present(events: GameEvent[]) { renderer.present(events); observedEvents.push(...events); if (observedEvents.length > 100) observedEvents.splice(0, observedEvents.length - 100); }
   function applySettings(settings: UiSettings) {
     renderer.setSettings(settings);
+    music.setSettings(settings);
     input?.setSettings({ controlScheme: settings.controlScheme, stickDeadzone: settings.stickDeadzone, triggerDeadzone: settings.triggerDeadzone, sensitivity: settings.sensitivity, bindings: settings.bindings as InputSettings['bindings'] });
   }
   async function leave() {
@@ -44,6 +47,7 @@ async function boot() {
     status = { state: 'idle' }; ui.update({ snapshot: null, status, roomId: null, error: null });
   }
   async function play(request: SessionRequest) {
+    music.unlock();
     await renderer.unlockAudio();
     await leave();
     sequence = 0; clientTick = 0; accumulator = 0; epoch = crypto.randomUUID();
@@ -68,8 +72,9 @@ async function boot() {
   const ui = mountGameUi(root, {
     onTouchInput: state => input?.setTouchState(state),
     onTouchCancel: () => input?.resetHeldState(),
+    onAudioActivation: () => music.unlock(),
     onPlay: play,
-    onResume: () => { void renderer.unlockAudio(); },
+    onResume: () => { music.unlock(); void renderer.unlockAudio(); },
     onLeave: () => { void leave(); },
     onStartRound: () => online?.request('start-round'),
     onRematch: () => online?.request('rematch'),
@@ -81,8 +86,8 @@ async function boot() {
   input = createInputSource({ onNeutralize: () => online?.neutralize(), onReset: () => ui.resetTouchControls(), onMenuAction: action => ui.navigate(action) });
   applySettings(ui.getSettings());
   const resize = () => renderer.resize(); window.addEventListener('resize', resize);
-  const visibility = () => { accumulator = inputAccumulator = 0; previousInputAt = previousTime = previousFrameAt = performance.now(); input?.resetHeldState(); online?.setPresence(ui.isMenuOpen(),document.hidden); };
-  const activity = (event: Event) => { if(event.isTrusted)online?.activity(); };
+  const visibility = () => { accumulator = inputAccumulator = 0; previousInputAt = previousTime = previousFrameAt = performance.now(); input?.resetHeldState(); online?.setPresence(ui.isMenuOpen(),document.hidden); music.update({ ...musicState, hidden: document.hidden }, 0); };
+  const activity = (event: Event) => { if(event.isTrusted) { online?.activity(); music.unlock(); } };
   for(const kind of ['keydown','pointerdown','input'])document.addEventListener(kind,activity,{passive:true});
   document.addEventListener('visibilitychange', visibility);
   // Graphics can render slowly while timers and the server remain healthy.
@@ -131,6 +136,13 @@ async function boot() {
     renderer.setGaragePreview(active && snapshot?.phase === 'lobby' ? ui.getVehicle() : null);
     if (renderFrame && (!active || ui.isMenuVisible())) renderFrame.pursuit = undefined;
     renderer.setAudioActive(active && !ui.isMenuVisible() && !paused && snapshot?.phase === 'playing');
+    const musicCar = renderFrame?.vehicles.find(car => car.entityId === renderFrame.localEntityId) ?? snapshot?.local?.vehicle;
+    const dispatchMusic = active && (snapshot?.phase === 'playing' || snapshot?.phase === 'countdown');
+    musicState = { screen: !active ? 'title' : dispatchMusic ? 'dispatch' : 'silent',
+      speed: musicCar ? Math.hypot(musicCar.velocity.x, musicCar.velocity.z) : 0,
+      topSpeed: musicCar ? getVehicleProfile(musicCar.bodyAssetId).topSpeed : 28,
+      paused: active && (paused || ui.isMenuVisible() || status.state !== 'playing'), hidden: document.hidden };
+    music.update(musicState, dt);
     if (renderFrame) renderer.render(renderFrame, dt, audioActions);
     ui.setTargetIndicator(active ? renderer.getTargetIndicator() : null);
     ui.setControlAnchor(active ? renderer.getControlAnchor() : null);
@@ -149,11 +161,11 @@ async function boot() {
       get events() { return structuredClone(observedEvents); },
       get identity() { return { playerId, roomId, active, mode }; },
       get garage() { return { vehicleBodyId: ui.getVehicle(), visible: active && snapshot?.phase === 'lobby' }; },
-      get stats() { return { renderer: renderer.getStats(), network: online?.getStats(), frameDurations: [...frameDurations] }; },
+      get stats() { return { renderer: renderer.getStats(), music: music.getStats(), network: online?.getStats(), frameDurations: [...frameDurations] }; },
       get input() { return input!.getStatus(); },
     }) });
   }
-  const dispose = () => { stopped = true; clearInterval(inputTimer); cancelAnimationFrame(animation); input?.dispose(); ui.dispose(); renderer.dispose(); local?.dispose(); void online?.dispose(); window.removeEventListener('resize', resize); document.removeEventListener('visibilitychange', visibility); for(const kind of ['keydown','pointerdown','input'])document.removeEventListener(kind,activity); };
+  const dispose = () => { stopped = true; clearInterval(inputTimer); cancelAnimationFrame(animation); input?.dispose(); ui.dispose(); music.dispose(); renderer.dispose(); local?.dispose(); void online?.dispose(); window.removeEventListener('resize', resize); document.removeEventListener('visibilitychange', visibility); for(const kind of ['keydown','pointerdown','input'])document.removeEventListener(kind,activity); };
   import.meta.hot?.dispose(dispose);
 }
 boot().catch(error => {

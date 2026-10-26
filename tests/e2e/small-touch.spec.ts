@@ -8,7 +8,7 @@ for (const viewport of [{ width: 375, height: 667 }, { width: 667, height: 375 }
     const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
     await page.goto('/');
     await page.getByRole('button', { name: 'HIT THE STREETS' }).tap();
-    await dispatchFixture(page, 1);
+    await dispatchFixture(page, 2);
     const start = page.getByRole('button', { name: 'START DISPATCH' });
     await expect(start).toBeInViewport();
     await page.screenshot({ path: `work/se-briefing-${viewport.width}x${viewport.height}.png` });
@@ -36,7 +36,7 @@ for (const viewport of [{ width: 375, height: 667 }, { width: 667, height: 375 }
     expect(layout.hudOverlaps, 'driving HUD panels must remain readable without covering one another').toEqual([]);
     await page.getByRole('button', { name: 'Open pause menu' }).tap();
     await expect(controls).toBeHidden();
-    await expect(page.getByRole('region', { name: 'Dispatch details' })).toContainText('DISPATCH 2 / 10');
+    await expect(page.getByRole('region', { name: 'Dispatch details' })).toContainText('DISPATCH 3 / 10');
     await page.getByRole('button', { name: 'SETTINGS & CONTROLS' }).tap();
     await expect(page.getByLabel('Control scheme', { exact: true })).toHaveValue('auto');
     await page.getByRole('button', { name: 'SAVE & BACK' }).tap();

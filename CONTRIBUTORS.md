@@ -26,4 +26,6 @@ The 2026-10-26 avenue expansion and suspect oil/bladed-hubcap follow-up also inc
 
 Human credits reflect authors in `git log --all`; AI credits include recorded co-authorship and the project owner's attribution. AI tools support the contributors' work; review and project decisions remain with people. Original project work is [GPL-3.0-or-later](LICENSE); acknowledgments do not change those terms or the separate licenses of dependencies.
 
+The adaptive streaming-music player, speed-dependent tempo, accessible mute/volume knob and media/touch regression harnesses also include OpenAI Codex assistance. Actual soundtrack-file credits remain pending access to the owner-supplied MP3s.
+
 To update the roll call, inspect `git shortlog -sne --all` and `git log --all --format='%aN%n%(trailers:key=Co-authored-by,valueonly)'`, then add contributors whose work is not captured by commit authorship. Keep names accurate, describe actual contributions, and use the tool names above for AI assistance. Nobody needs to submit a parking receipt to receive credit.

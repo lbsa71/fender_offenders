@@ -229,6 +229,13 @@
   .fo-campaign-briefing-open .fo-invite{top:12px;left:70px;right:auto;min-height:48px;max-width:80px}
 }
 .fo-pause-dispatch{display:none}
+.fo-volume-knob{position:relative;display:grid;place-items:center;width:44px;height:44px;min-width:44px;min-height:44px;border:2px solid #f4f0df80;border-radius:50%;background:radial-gradient(circle,#244442 0 57%,#10282a 59%);color:var(--cream);touch-action:none;user-select:none;-webkit-user-select:none}
+.fo-volume-knob:before{content:'';position:absolute;inset:3px;border-radius:50%;border:2px solid transparent;border-top-color:var(--yellow);transform:rotate(var(--volume-angle,48deg));pointer-events:none}
+.fo-volume-knob>span{font-size:17px;line-height:1;pointer-events:none}
+.fo-volume-knob.fo-audio-muted>span{opacity:.45}
+.fo-volume-knob.fo-audio-muted:after{content:'';position:absolute;width:23px;height:2px;background:var(--red);transform:rotate(-45deg);pointer-events:none}
+.fo-volume-knob:hover,.fo-volume-knob:active{transform:none!important}
+@media(max-width:740px){.fo-top-right{gap:8px}.fo-connection [data-text]{display:none}}
 /* Small windscreens: the road gets the space, dispatch paperwork stays in pause. */
 @media(max-width:740px),(max-height:420px){
   .fo-ui .fo-scoreboard,.fo-ui .fo-pursuit,.fo-ui .fo-campaign-live,.fo-ui:not(.fo-is-playing) .fo-hud{display:none}

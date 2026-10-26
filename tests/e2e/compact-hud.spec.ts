@@ -34,7 +34,7 @@ for (const scheme of ['touch', 'gamepad', 'keyboard']) {
       const marker = (await page.locator('.fo-target-indicator').boundingBox())!;
       expect.soft(marker.width).toBeLessThanOrEqual(100);
       expect.soft(marker.height).toBeLessThanOrEqual(80);
-      const area = await page.locator('.fo-instruments,.fo-round,.fo-target-indicator,[data-action="pause"]').evaluateAll(nodes => nodes.reduce((sum, node) => {
+      const area = await page.locator('.fo-instruments,.fo-round,.fo-target-indicator,[data-action="pause"],[data-audio-control]').evaluateAll(nodes => nodes.reduce((sum, node) => {
         const b = node.getBoundingClientRect(); return sum + b.width * b.height;
       }, 0));
       expect.soft(area / (viewport.width * viewport.height), 'essential HUD uses at most ten percent of the screen, excluding touch controls').toBeLessThanOrEqual(.1);
