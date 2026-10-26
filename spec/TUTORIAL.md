@@ -9,7 +9,7 @@ Status: implemented in `arcade-v15`, protocol 5, map `sunset-borough-2`. Reviewe
 | 1 · A Small Withdrawal | All officers and Nico are unarmed; driving, siren and recovery controls remain available | Arrest only |
 | 2 · Clamp Down | **UNLOCKED: GUNS!** Forward fire and recoil; short bursts preserve control | Arrest or credited target wreck |
 | 3 · Duplicate Trouble | Suspect bombs: leave the fixed landing circle before detonation; introductory fuse 150 ticks / 2.5 seconds | Arrest or credited target wreck |
-| 4 · Express Distress | Road puddles activate; ease off and steer gently | Arrest or credited target wreck |
+| 4 · Express Distress | Puddles become slippery; ease off and steer gently | Arrest or credited target wreck |
 | 5–10 | Existing tactics combine the learned mechanics; guns and puddles remain available | Arrest or credited target wreck |
 
 The shared `getDispatchFeatures(dispatchIndex)` catalog derives equipment, accepted outcomes, road activation and lesson copy from authoritative campaign progress. Unlocks belong to the room, including late joins and reconnects. Retry keeps the dispatch; campaign restart returns to the unarmed opener. No account, player tutorial save or extra lobby is added. The three-second countdown and five-minute dispatch timer remain.
@@ -30,7 +30,7 @@ The small entry screen asks for a callsign; vehicle selection happens once, in t
 
 The unarmed opener rejects fire at authority and prediction/replay; rejected fire produces no projectile, recoil, muzzle flash or gun audio. The suspect's first tactics profile has weapon `none`. A stale lethal projectile cannot resolve the opener as a wreck. Existing collision impacts remain physical feedback without ram health damage. From dispatch 2, arrest earns three points and credited target destruction earns one.
 
-The four road puddles share polygon vertices between rendering and `CollisionMap.wetSurfaces`. From dispatch 4, vehicles inside them use **75% of their normal lateral grip**, including officers, suspects and traffic. Dry handling returns on exit. Footprints occupy one lane, leave a dry route, and avoid spawn clearance, buildings, pedestrian routes and dirt shortcuts. Ponds and pools remain decorative. Every graphics preset retains visible wet footprints; low quality may freeze decorative ripples. The final dispatch-driving context is passed to `predictVehicle` so replay and authority use the same road state.
+The pond, pool and four road puddles are visible from dispatch 1 on every graphics preset. The first three dispatches keep dry handling. The four road puddles share polygon vertices between rendering and `CollisionMap.wetSurfaces`. From dispatch 4, vehicles inside them use **75% of their normal lateral grip**, including officers, suspects and traffic. Dry handling returns on exit. Footprints occupy one lane, leave a dry route, and avoid spawn clearance, buildings, pedestrian routes and dirt shortcuts. Ponds and pools remain decorative. Every graphics preset retains visible wet footprints; low quality may freeze decorative ripples. The final dispatch-driving context is passed to `predictVehicle` so replay and authority use the same road state.
 
 ## Verification
 

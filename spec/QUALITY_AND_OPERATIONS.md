@@ -24,7 +24,7 @@ The root scripts below exist in [package.json](../package.json). `test:network` 
 | `pnpm test:unit` | Isolated contracts/input/math/HUD/presentation logic, controlled dependencies |
 | `pnpm test:integration` | Real physics, renderer adapters, HTTP/rooms/client lifecycle, prediction, hosting and tooling |
 | `pnpm test:ui` | Five UI fixtures with mocked snapshots; real DOM/CSS without physics, WebGL or server sockets |
-| `pnpm test:e2e` | Local game browser smoke/integration scenarios followed by `pnpm test:ui` |
+| `pnpm test:e2e` | Local game browser scenarios, `pnpm test:ui`, then native `pnpm test:water` |
 | `pnpm hooks:install` | Install the local E2E pre-push gate, automatically installed by local `pnpm install` too |
 | `pnpm test:integration` with `tests/integration` | Real ordered TCP-delay/jitter/stall harness; full packet-loss/correction profiles remain open |
 | `pnpm test:load` | Eight SDK clients in one room, configurable duration and snapshot payload estimate; separate sim benchmarks measure step cost, and multi-room capacity remains open |
