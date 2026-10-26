@@ -8,7 +8,7 @@ Fender Offenders is a playable browser arcade driving and vehicle-combat alpha i
 
 This is a playable alpha, not a release candidate. [Execution status](spec/EXECUTION_STATUS.md) records all 49 implementation tasks, observed checks, and remaining acceptance gates. Fender Offenders remains a working name without trademark clearance.
 
-Documentation reviewed: **2026-10-25**, for the unified room model (`arcade-v10`, protocol 2), following the persistent-lamp correction. Civilian cars are unarmed, wrecks split into their original physical components, and dusk/night lamps stay illuminated at any camera distance. Every playable campaign now uses a server room; local previews retain bounded stepping and network input stays capped at four. The paperwork is catching up with the patrol car.
+Documentation reviewed: **2026-10-25**, for the tutorial room build (`arcade-v11`, protocol 3, map `sunset-borough-2`). Civilian cars are unarmed, wrecks split into their original physical components, and dusk/night lamps stay illuminated at any camera distance. Every playable campaign now uses a server room; local previews retain bounded stepping and online input uses an independent fixed-step timer with a four-tick stall cap. The paperwork is catching up with the patrol car.
 
 ## Run locally
 
@@ -25,6 +25,8 @@ Opening the bare URL assigns a random room URL without allocating a server simul
 
 Empty rooms pause for up to 15 minutes; returning resumes their campaign. At capacity the oldest eligible empty room can be reclaimed sooner. Reusable links survive disposal and server restarts by opening a fresh campaign under the same code. Legacy eight-character codes are supported alongside current IDs. Joining retries a room that disappears during reservation, without changing the link; genuine full-room or hosting-capacity errors still require a free slot.
 
+The [first four dispatches teach the job](spec/TUTORIAL.md): arrest Nico without guns, unlock guns for dispatch 2, learn suspect bombs in dispatch 3, then slippery puddles in dispatch 4. Floating keycaps/controller hints stay visible during the chase, and both cars appear in the briefing garage. The driving instructor has mercifully skipped the written exam.
+
 ## What is implemented
 
 - A project-authored procedural district, six vehicle body designs, roads and dirt shortcuts, traffic, lighting, shadows, signs, skid marks, combat effects, and synthesized vehicle/action audio.
@@ -36,7 +38,7 @@ Empty rooms pause for up to 15 minutes; returning resumes their campaign. At cap
 - Local movement prediction, remote interpolation with a playback clock that does not rewind on late snapshots, reconnect handling, input admission checks, and immediate control neutralization on focus/device loss or menu entry.
 - Server-measured ping in milliseconds for every player in online standings and results, plus a persistent Wi-Fi indicator for connecting, connected, reconnecting and lost connections. Unknown or stale ping reads “—”.
 - Reusable invite links: joining a valid room code after a restart opens a fresh room under the same code. Simultaneous visitors join the same room. Match progress and scores reset with the server.
-- Keyboard and standard-mapped controller input, device prompts, keyboard remapping, dead zones, sensitivity, persisted settings, reduced shake/flashes, and graphics/audio controls. No external fonts or runtime art downloads are requested.
+- Keyboard, standard-mapped controller and generic touch input, device prompts, keyboard remapping, dead zones, sensitivity, persisted control selection, reduced shake/flashes, and graphics/audio controls. No external fonts or runtime art downloads are requested.
 
 A lone officer opening a menu or hiding the tab pauses the server world. Backup joining resumes it with a notice. With multiple officers, menus neutralize only that driver's controls. Empty worlds freeze, including their dispatch clocks. Idle players receive a warning at 14 minutes and are disconnected at 15; heartbeats do not count as activity. See [room sessions](spec/ROOM_SESSIONS.md) for retention, reconnect and storage rules. Controller coverage currently uses synthetic standard-mapped devices; physical-controller handling and the full browser/OS matrix remain open. Music and vibration settings do not establish a shipped soundtrack or tested haptics.
 
@@ -52,7 +54,7 @@ Cornering adds cartoon body lean and squash, while visible road humps trigger co
 
 Confirmed crashes squash the coachwork in the impact direction and spring back, with severity-scaled slapstick audio. Both guns fire real projectiles from their barrel tips, 2.45 m forward and 0.63 m either side of the car center. Each deals 5 damage, retaining 10 damage per volley at the same 12-tick cadence. Paired flashes follow the moving guns, with one recoil and sound per volley. Fresh trails start at the muzzle; local rounds advance by at most 100 ms to match driving prediction, while remote rounds use buffered playback. These effects share bounded pools and audio limits; crashes do not add ram damage.
 
-Each barrel applies subtle aim assist to a visible opponent or the wanted suspect within **4°**, **2.5 m of its original firing line**, and **40 m**. Buildings and nearer cars block selection, including obstructions between the car center and a gun tip. The correction happens once when a shot is fired; projectiles retain their straight trajectory, and the car's heading is unchanged. One missed or blocked barrel deals only 5 damage. `arcade-v10` / protocol 2 clients and servers must match.
+Each barrel applies subtle aim assist to a visible opponent or the wanted suspect within **4°**, **2.5 m of its original firing line**, and **40 m**. Buildings and nearer cars block selection, including obstructions between the car center and a gun tip. The correction happens once when a shot is fired; projectiles retain their straight trajectory, and the car's heading is unchanged. One missed or blocked barrel deals only 5 damage. `arcade-v11` / protocol 3 clients and servers must match.
 
 One AI car is the **WANTED** target. Its world marker and labeled screen-edge arrow identify it as the camera and suspect move. To arrest it, stay within 8 m with less than 5 m/s relative speed and a clear line of sight for three seconds. Each connected, active driver builds their own progress, which drains when they lose those conditions. Arresting awards three points and a green tracker check. Destroying the target's car awards the existing one-point wreck credit, advances the story, and leaves an amber wreck mark. Both end the dispatch immediately; cumulative combat points do not override its winner. A timeout reveals no clue and retries the same target.
 
@@ -68,19 +70,23 @@ Twenty-four cosmetic pedestrians walk sidewalks, wait for safe crossing gaps and
 
 ## Controls
 
-| Action | Keyboard | Standard controller |
-| --- | --- | --- |
-| Accelerate | W / Up | Left stick forward, or right trigger |
-| Brake / reverse | S / Down | Left stick backward, or left trigger |
-| Steer | A/D or Left/Right | Left stick left/right |
-| Handbrake | Shift | A / south button |
-| Fire | Space | Right shoulder |
-| Siren | E | X / west button |
-| Recover a stuck car | Hold R for one second | Hold Y / north button for one second |
-| Pause / settings | Escape | Menu / Start |
-| Menu navigation | Arrows, Enter, Escape; Tab for fields | D-pad / stick, A confirm, B back |
+Choose **Control scheme** in **Settings & controls**: **Automatic**, **Touch**, **Controller** or **Keyboard**. The choice persists. Automatic starts with touch on devices reporting touch support, otherwise keyboard; using a controller or keyboard switches the active device. Tap the play area to return to touch. An explicit choice keeps the driving source and overlay fixed. Touch controls appear during driving and hide in menus, briefings, results and lost connections. No touchscreen detection relies on an iPad name tag.
 
-Pulling the stick backward brakes a forward-moving car before reversing, just like the left trigger. Stick and trigger input combine without adding extra acceleration. Callsign text entry uses the keyboard. Unknown controller mappings display a keyboard-fallback message rather than guessing button assignments.
+The labeled touch controls replace the floating keyboard/controller card. Fire and Drift + Fire appear when the campaign unlocks guns in dispatch 2; the first dispatch remains an unarmed arrest lesson.
+
+| Action | Keyboard | Standard controller | Touch |
+| --- | --- | --- | --- |
+| Accelerate | W / Up | Left stick forward, or right trigger | Drag drive pad up |
+| Brake / reverse | S / Down | Left stick backward, or left trigger | Drag drive pad down |
+| Steer | A/D or Left/Right | Left stick left/right | Drag drive pad left/right |
+| Handbrake | Shift | A / south button | Hold Drift |
+| Fire | Space | Right shoulder | Hold Fire; Drift + Fire holds both |
+| Siren | E | X / west button | Tap Siren |
+| Recover a stuck car | Hold R for one second | Hold Y / north button for one second | Hold Recover for one second |
+| Pause / settings | Escape | Menu / Start | Pause button |
+| Menu navigation | Arrows, Enter, Escape; Tab for fields | D-pad / stick, A confirm, B back | Tap buttons and fields |
+
+Pulling the stick backward brakes a forward-moving car before reversing, just like the left trigger. Stick and trigger input combine without adding extra acceleration. The touch pad uses the same vehicle-relative steering and brake/reverse rules. Pointer cancellation, lost capture, viewport resize, focus loss, menus and control changes clear held touches; a fresh touch is required. Callsign text entry uses the device's keyboard. Unknown controller mappings direct players to touch or keyboard in settings rather than guessing button assignments. Browser touch/controller checks use Chromium touch emulation and injected standard gamepads; physical iPad, Android and controller acceptance and sustained mobile performance remain open.
 
 ## Developer commands
 

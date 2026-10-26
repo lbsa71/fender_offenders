@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { createGameContext, expect, test } from './fixtures';
+import { createGameContext, dispatchFixture, expect, test } from './fixtures';
 import type { WorldSnapshot, GameEvent } from '@fender/contracts';
 
 test('home and practice load without external fonts or remote content', async ({ page, baseURL }) => {
@@ -38,10 +38,11 @@ type DebugWindow = Window & { __FENDER_DEBUG__?: { snapshot: WorldSnapshot | nul
 async function snapshot(page: Page) {
   return page.evaluate(() => { const debug = (window as DebugWindow).__FENDER_DEBUG__; return typeof debug?.snapshot === 'function' ? debug.snapshot() : debug?.snapshot ?? null; });
 }
-async function practice(page: Page) {
+async function practice(page: Page, armed=false) {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: "You're on duty." })).toBeVisible();
   await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
+  if(armed)await dispatchFixture(page,1);
   await page.getByRole('button', { name: 'START DISPATCH' }).click();
   await expect.poll(async () => (await snapshot(page))?.phase).toBe('playing');
   await expect(page.locator('[data-text="phase"]')).toHaveText('COMPETING PURSUIT');
@@ -54,7 +55,7 @@ test('keyboard practice drives, fires, releases controls on pause and saves sett
   // behavioral assertion passed; retain the 12 s per-expectation bounds.
   test.setTimeout(120000);
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
-  await practice(page);
+  await practice(page,true);
   const initial = (await snapshot(page))!.local!.vehicle.pose;
   await page.keyboard.down('w');
   await expect.poll(async () => { const pose = (await snapshot(page))?.local?.vehicle.pose; return pose ? Math.hypot(pose.x - initial.x, pose.z - initial.z) : 0; }).toBeGreaterThan(2);
@@ -139,10 +140,11 @@ test('a standard controller can start, drive, pause, navigate and safely disconn
   await tap(0);
   await expect(page.locator('.fo-hud')).toBeVisible();
   await expect(page.getByRole('button', { name: 'START DISPATCH' })).toBeVisible();
+  await dispatchFixture(page,1);
   await tap(0);
   await expect.poll(async () => (await snapshot(page))?.phase).toBe('playing');
-  await expect(page.locator('.fo-prompts')).toContainText('LEFT STICK DRIVE');
-  await expect(page.locator('.fo-prompts')).toContainText('RT/LT DRIVE/BRAKE');
+  await expect(page.locator('[data-tutorial-controls]').getByRole('img', { name: 'Left stick' })).toBeVisible();
+  await expect(page.locator('[data-tutorial-controls]').getByRole('img', { name: 'Right trigger' })).toBeVisible();
   await expect(page.locator('[data-text="phase"]')).toHaveText('COMPETING PURSUIT');
   await stickY(0); // Let the newly enabled controller observe a neutral frame before a fresh press.
   await stickY(-1);
@@ -155,6 +157,7 @@ test('a standard controller can start, drive, pause, navigate and safely disconn
   await tap(12); await tap(0);
   await expect(page.locator('.fo-menu')).toBeHidden();
   await stickY(-1); await button(5, true);
+  await expect.poll(async ()=>(await snapshot(page))?.local?.driver.shotOrdinal??0).toBeGreaterThan(0);
   await page.evaluate(() => {
     const pad = (window as Window & { testPad?: { connected: boolean } }).testPad!; pad.connected = false;
     const event = new Event('gamepaddisconnected'); Object.defineProperty(event, 'gamepad', { value: pad }); window.dispatchEvent(event);
@@ -166,7 +169,7 @@ test('a standard controller can start, drive, pause, navigate and safely disconn
 });
 
 test('blur drops held fire and requires a fresh keyboard press on return', async ({ page }) => {
-  await practice(page);
+  await practice(page,true);
   await page.keyboard.down('Space');
   await expect.poll(async () => (await snapshot(page))?.local?.driver.shotOrdinal ?? 0).toBeGreaterThan(0);
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
@@ -210,7 +213,7 @@ test('two browser clients create, join, start a live round and share confirmed s
     const sharedSuspect = (await snapshot(host))!.pursuit!.suspectId;
     expect((await snapshot(guest))!.pursuit!.suspectId).toBe(sharedSuspect);
     for (const viewer of [host, guest]) {
-      await expect(viewer.locator('.fo-pursuit')).toContainText('FIRST TO RESOLVE DISPATCH');
+      await expect(viewer.locator('.fo-pursuit')).toContainText('APPREHEND NICO');
       await expect.poll(() => viewer.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.renderer.environmentTheme)).toBe('noon');
       await expect(viewer.getByRole('img', { name: /^Wanted suspect,/ })).toBeVisible();
       await expect(viewer.locator('.fo-scoreboard').getByText('PING / ms', { exact: true })).toBeVisible();

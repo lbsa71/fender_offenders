@@ -26,13 +26,14 @@ async function boot() {
   let snapshot: WorldSnapshot | null = null, status: SessionStatus = { state: 'idle' };
   let active = false, mode: 'online' = 'online', playerId = '', roomId = '', sequence = 0, clientTick = 0, epoch = '';
   let previousTime = performance.now(), previousFrameAt = previousTime, accumulator = 0, hudAt = 0, stopped = false, animation = 0;
+  let previousInputAt = previousTime, inputAccumulator = 0;
   let observedEvents: GameEvent[] = [];
   const frameDurations: number[] = [];
   const canStartDispatch = () => Boolean(snapshot?.scores.some(score => score.playerId === playerId && score.connection === 'connected'));
   function present(events: GameEvent[]) { renderer.present(events); observedEvents.push(...events); if (observedEvents.length > 100) observedEvents.splice(0, observedEvents.length - 100); }
   function applySettings(settings: UiSettings) {
     renderer.setSettings(settings);
-    input?.setSettings({ stickDeadzone: settings.stickDeadzone, triggerDeadzone: settings.triggerDeadzone, sensitivity: settings.sensitivity, bindings: settings.bindings as InputSettings['bindings'] });
+    input?.setSettings({ controlScheme: settings.controlScheme, stickDeadzone: settings.stickDeadzone, triggerDeadzone: settings.triggerDeadzone, sensitivity: settings.sensitivity, bindings: settings.bindings as InputSettings['bindings'] });
   }
   async function leave() {
     active = false; input?.setEnabled(false); snapshot = null; roomId = ''; playerId = ''; observedEvents = [];
@@ -64,6 +65,8 @@ async function boot() {
     ui.showMenu(null); input?.setEnabled(!ui.isMenuVisible() && snapshot?.phase !== 'lobby');
   }
   const ui = mountGameUi(root, {
+    onTouchInput: state => input?.setTouchState(state),
+    onTouchCancel: () => input?.resetHeldState(),
     onPlay: play,
     onResume: () => { void renderer.unlockAudio(); },
     onLeave: () => { void leave(); },
@@ -74,13 +77,24 @@ async function boot() {
     onActivity: () => online?.activity(),
     onMenuVisibility: visible => { input?.setEnabled(active && !visible && snapshot?.phase !== 'lobby'); if(online)online.setPresence(ui.isMenuOpen(),document.hidden); },
   });
-  input = createInputSource({ onNeutralize: () => online?.neutralize(), onMenuAction: action => ui.navigate(action) });
+  input = createInputSource({ onNeutralize: () => online?.neutralize(), onReset: () => ui.resetTouchControls(), onMenuAction: action => ui.navigate(action) });
   applySettings(ui.getSettings());
   const resize = () => renderer.resize(); window.addEventListener('resize', resize);
-  const visibility = () => { accumulator = 0; previousTime = previousFrameAt = performance.now(); input?.resetHeldState(); online?.setPresence(ui.isMenuOpen(),document.hidden); };
+  const visibility = () => { accumulator = inputAccumulator = 0; previousInputAt = previousTime = previousFrameAt = performance.now(); input?.resetHeldState(); online?.setPresence(ui.isMenuOpen(),document.hidden); };
   const activity = (event: Event) => { if(event.isTrusted)online?.activity(); };
   for(const kind of ['keydown','pointerdown','input'])document.addEventListener(kind,activity,{passive:true});
   document.addEventListener('visibilitychange', visibility);
+  // Graphics can render slowly while timers and the server remain healthy.
+  // Keep network input and prediction on their own fixed-step clock.
+  const inputTimer = setInterval(() => {
+    const now = performance.now(), elapsed = (now - previousInputAt) / 1000; previousInputAt = now;
+    if (!online || !active || !snapshot || document.hidden) { inputAccumulator = 0; return; }
+    input!.setEnabled(!ui.isMenuVisible() && snapshot.phase !== 'lobby');
+    const plan = planFrame(inputAccumulator, elapsed, snapshot.paused ? 'paused' : 'online'); inputAccumulator = plan.accumulator;
+    for (let step = 0; step < plan.steps; step++) {
+      online.submit({ sessionEpoch: epoch, sequence: sequence++, clientTick: ++clientTick, actions: input!.sample() });
+    }
+  }, 1000 / 60);
   function frame(now: number) {
     if (stopped) return;
     const dt = Math.min(.1, Math.max(0, (now - previousTime) / 1000)); previousTime = now;
@@ -89,13 +103,11 @@ async function boot() {
     input!.pollMenus();
     if (document.hidden) { animation = requestAnimationFrame(frame); return; }
     const paused = active && snapshot?.paused === true;
-    const plan = planFrame(accumulator, (now - previousFrameAt) / 1000, paused ? 'paused' : online ? 'online' : 'local'); previousFrameAt = now; accumulator = plan.accumulator;
+    const plan = planFrame(accumulator, (now - previousFrameAt) / 1000, paused || online ? 'paused' : 'local'); previousFrameAt = now; accumulator = plan.accumulator;
     for (let step = 0; step < plan.steps; step++) {
       clientTick++;
       const actions = active ? input!.sample() : neutralActions();
-      if (online && active && snapshot) {
-        const command = { sessionEpoch: epoch, sequence: sequence++, clientTick, actions }; online.submit(command);
-      } else if (local) {
+      if (local) {
         const current = local.snapshot(active ? playerId : 'preview');
         const entity = current.local?.vehicle.entityId;
         local.step(entity ? new Map([[entity, { actions, sessionEpoch: epoch, sourceCommandSequence: sequence++ }]]) : new Map());
@@ -113,6 +125,7 @@ async function boot() {
     if (renderFrame && (!active || ui.isMenuVisible())) renderFrame.pursuit = undefined;
     if (renderFrame) renderer.render(renderFrame, dt);
     ui.setTargetIndicator(active ? renderer.getTargetIndicator() : null);
+    ui.setControlAnchor(active ? renderer.getControlAnchor() : null);
     if (now - hudAt > 80) {
       hudAt = now; const device = input!.getStatus();
       ui.update({ snapshot: active ? snapshot : null, status, mode, localPlayerId: playerId, roomId, device: device.activeDevice, recoverProgress: device.recoverProgress, unsupportedPad: device.unsupportedPad,
@@ -132,7 +145,7 @@ async function boot() {
       get input() { return input!.getStatus(); },
     }) });
   }
-  const dispose = () => { stopped = true; cancelAnimationFrame(animation); input?.dispose(); ui.dispose(); renderer.dispose(); local?.dispose(); void online?.dispose(); window.removeEventListener('resize', resize); document.removeEventListener('visibilitychange', visibility); for(const kind of ['keydown','pointerdown','input'])document.removeEventListener(kind,activity); };
+  const dispose = () => { stopped = true; clearInterval(inputTimer); cancelAnimationFrame(animation); input?.dispose(); ui.dispose(); renderer.dispose(); local?.dispose(); void online?.dispose(); window.removeEventListener('resize', resize); document.removeEventListener('visibilitychange', visibility); for(const kind of ['keydown','pointerdown','input'])document.removeEventListener(kind,activity); };
   import.meta.hot?.dispose(dispose);
 }
 boot().catch(error => {

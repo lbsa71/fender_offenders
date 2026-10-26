@@ -1,21 +1,21 @@
 # Ten-dispatch campaign
 
-Status: implemented; human difficulty/controller acceptance remains open. Reviewed: 2026-10-25. Gameplay revision: `arcade-v10` (protocol 2). Campaign content: `green-light-racket-v1`.
+Status: implemented; human difficulty/controller acceptance remains open. Reviewed: 2026-10-25. Gameplay revision: `arcade-v11` (protocol 3). Campaign content: `green-light-racket-v1`.
 
 *The Green Light Society promised faster traffic. Apparently they meant faster getaway cars.*
 
-Campaign targets now use [distinct armed tactics](BOSS_COMBAT.md), including grenade attacks and a ten-step difficulty ramp. Briefings explain their driving style, weapon and counterplay. This extends the progression lifecycle below.
+After the unarmed opening arrest lesson, campaign targets use [distinct armed tactics](BOSS_COMBAT.md), including grenade attacks and a ten-step difficulty ramp. Briefings explain their driving style, weapon and counterplay. This extends the progression lifecycle below.
 
-Dispatch lighting follows the authored noon/dusk/night [graphics schedule](GRAPHICS_POLISH.md#authored-dispatch-schedule). Practice and online select it from the existing shared campaign index during briefing, play and results. Atmosphere changes presentation only; target rules and progression stay unchanged. Water and subtle flares remain later graphics steps. Dispatch has finally learned to book the night shift.
+Dispatch lighting follows the authored noon/dusk/night [graphics schedule](GRAPHICS_POLISH.md#authored-dispatch-schedule). Practice and online select it from the existing shared campaign index during briefing, play and results. Atmosphere changes presentation only; target rules and progression stay unchanged. Shallow water and restrained light detail are implemented. Road puddles become slippery from dispatch 4; see [tutorial progression](TUTORIAL.md). Dispatch has finally learned to book the night shift.
 
 Each 1–8-player server room runs **The Green Light Racket**, ten dispatches linking four ringleaders and six crew members. Every dispatch has an original target, mugshot, assigned vehicle, briefing, and success reveal. The four ringleaders appear at dispatches 2, 5, 8 and 10. This implements the ten-step/four-boss requirement without padding the campaign with identical unnamed pursuits.
 
 ## Player flow
 
 1. Open a room URL (assigned randomly when absent), enter a callsign and choose Hit the streets. The saved motor-pool assignment remains intact.
-2. Read the dispatch briefing alongside the target's mugshot, car identification and ten-step tracker. Reassign the player's own car here; the rotating 3D preview still shows the player's vehicle.
+2. Read the dispatch briefing alongside the target's mugshot, car identification and ten-step tracker. Reassign the player's own car here; the rotating 3D previews show both YOUR UNIT and WANTED with their current weapon fittings.
 3. Start the dispatch. Any connected officer can start, including the room’s sole player. A three-second countdown locks the motor pool.
-4. Race to arrest the marked target or destroy its car. Player combat remains enabled. The first authoritative resolution wins this dispatch, independent of cumulative combat-point ranking.
+4. Race to arrest the marked target. Dispatch 1 requires an arrest and disables guns for everyone; dispatch 2 unlocks shooting and credited target destruction as an alternative. The first authoritative resolution wins this dispatch, independent of cumulative combat-point ranking.
 5. Read the outcome and newly revealed clue. An arrest earns three points and a green check; a wreck earns the existing one-point wreck credit and a separate amber result. Both advance the story. Results identify the resolving officer.
 6. Any connected officer opens the next briefing. All players can change their car again before the next dispatch starts. Scores, outcomes and casefile carry forward. A timeout instead retries the same dispatch and reveals no new clue.
 7. The tenth success finishes the campaign and reveals the ending. A new campaign resets the tracker and scores while retaining players, room link and vehicle assignments.
@@ -63,6 +63,6 @@ The original catalog and self-contained SVG portraits live in [campaign content]
 
 Run focused checks with `pnpm exec vitest run packages/contracts/src/campaign.test.ts packages/contracts/src/wire.test.ts packages/sim/src/core/campaign.test.ts tests/integration/campaign.test.ts`, the UI fixture with `node packages/ui/dev/campaign-smoke.mjs`, and the integrated browser suite with `pnpm test:e2e`. Fixture captures are labeled as fixtures; hosted captures establish only the live state actually shown.
 
-The armed build's implementation evidence is dated in [execution status](EXECUTION_STATUS.md). The 2026-10-24 pacing follow-up allows fifteen local fixed ticks per slow practice frame, with a separate four-input-tick online cap; menus and nonplaying campaign presentation retain their freeze rules. The badge update also avoids a per-frame position transition. Next acceptance is a complete human campaign run on keyboard and physical controllers, late-join/reconnect review and measured five-minute performance—not another round of story scaffolding. The casefile is ready; the clipboard still needs signatures.
+The armed build's implementation evidence is dated in [execution status](EXECUTION_STATUS.md). The 2026-10-24 pacing follow-up allows fifteen local fixed ticks per slow practice frame, with a separate four-input-tick online stall cap; online sampling now uses an independent timer rather than rendered frames; menus and nonplaying campaign presentation retain their freeze rules. The badge update also avoids a per-frame position transition. Next acceptance is a complete human campaign run on keyboard and physical controllers, late-join/reconnect review and measured five-minute performance—not another round of story scaffolding. The casefile is ready; the clipboard still needs signatures.
 
 The UI capture script contains original-machine output paths. Consult [UI fixture notes](../packages/ui/README.md) before enabling captures in another checkout; those old directories are historical artifacts, not required repository locations.

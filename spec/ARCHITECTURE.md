@@ -1,6 +1,6 @@
 # Architecture
 
-Status: architecture and acceptance targets for the implemented `arcade-v10` / protocol 2 alpha. Updated: 2026-10-25 for unified room sessions, following persistent street lighting. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
+Status: architecture and acceptance targets for the implemented `arcade-v11` / protocol 3 alpha. Updated: 2026-10-25 for unified room sessions, including staged tutorials and independent online input timing. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
 
 *One authority drives the rules. Everyone else gets a dashboard, not a spare steering wheel.*
 
@@ -10,7 +10,7 @@ The current code uses Babylon WebGL rendering, a custom Colyseus session/predict
 
 ```mermaid
 flowchart LR
-  Devices[Keyboard / gamepad] --> Input[Normalized input]
+  Devices[Keyboard / gamepad / touch] --> Input[Normalized input]
   Input --> Local[Local prediction]
   Local --> View[Render frame]
   View --> Babylon[Babylon renderer / audio]
@@ -28,6 +28,8 @@ flowchart LR
 
 The authoritative server has no renderer, DOM, or Babylon dependency. Every playable campaign runs in a server room. The browser runs a local menu-preview simulation and predicts its own car from room snapshots. Presentation consumes an immutable render frame rather than reaching into room schemas or physics objects.
 
+Production CLI startup warms one disposable campaign's initial physics and sparse snapshot encoding before listening. It creates no room, leaves room metrics untouched and disposes its temporary world. Real room clocks, campaign progress and scenery begin fresh. The exported server factory remains available to controlled integration harnesses; the production image exercises the CLI bootstrap and readiness path.
+
 ## 2. Package dependency rules
 
 | Package | Allowed runtime dependencies within workspace | Owns |
@@ -35,11 +37,11 @@ The authoritative server has no renderer, DOM, or Babylon dependency. Every play
 | contracts | None | DTOs, validation, protocol/config versions, adapter interfaces |
 | physics | None | Single initialization promise for the pinned Rapier WASM runtime; each adapter owns its own worlds |
 | sim | contracts, physics | Vehicle controller, collision world, combat, traffic, game rules |
-| input | contracts | Device sampling, mappings, dead zones, focus/disconnect behavior |
+| input | contracts | Device sampling/selection, held touch normalization, mappings, dead zones, focus/disconnect behavior |
 | renderer | contracts, content, physics | Babylon objects, materials, camera, audio, VFX, render interpolation and cosmetic debris physics |
 | net-client | contracts, sim | Transport adapter, clock estimate, prediction history, reconciliation |
 | net-server | contracts, sim | Room authority, input validation, state publication, reconnect |
-| ui | contracts | DOM menus/HUD/settings, semantic UI actions |
+| ui | contracts | DOM menus/HUD/settings, touch pointer ownership, semantic UI actions |
 | content | contracts | Validated runtime catalog, collision maps, asset/provenance records |
 | test-support (planned) | contracts; sim only for replay helpers | Proposed central fixture catalog; current fixtures live with packages and under `tests/` |
 | apps/client | Public APIs of client-facing packages | Composition, scheduling, lifecycle, error boundary |
@@ -71,7 +73,7 @@ Keep authoritative and rendered positions distinct. A correction changes simulat
 - Server schedules from a monotonic clock, accumulates elapsed time, and steps fixed ticks.
 - Server catch-up is capped at four fixed ticks per event-loop turn; larger backlogs trigger bounded clock/input recovery. Never replace the fixed delta with a larger one to catch up.
 - Load-sensitive admission and sustained-overload health reporting remain operational acceptance work. Current room admission uses the configured room cap; `/ready` must not be read as proof that a five-minute load budget passed.
-- Browser uses a fixed-step accumulator for predicted movement and independent rendering interpolation. Online, one frame runs at most four input ticks. Practice runs the authoritative simulation locally, so one frame may catch up a full quarter second (fifteen ticks) rather than let a slow or software-rendered machine play in slow motion; backlog beyond that is dropped (`apps/client/src/pacing.ts`).
+- Browser uses a fixed-step accumulator for predicted movement and independent rendering interpolation. Online input and prediction run on their own 60 Hz timer, independently from rendering; a delayed timer callback catches up at most four ticks and drops excess time. Practice runs the authoritative simulation locally, so one frame may catch up a full quarter second (fifteen ticks) rather than let a slow or software-rendered machine play in slow motion; backlog beyond that is dropped (`apps/client/src/pacing.ts`).
 - A hidden/suspended browser neutralizes input. On resume, request current state; discard stale prediction backlog instead of simulating every missed frame.
 
 ### Vehicle model
@@ -113,7 +115,7 @@ WebSocket is reliable/ordered. Packet-loss testing must model its stalls and ret
 - Client sends inputs, never desired position, damage, health, or score.
 - Server authenticates session membership, validates finite bounded fields, and enforces message size/rate limits.
 - Sequence numbers increase within a session epoch. Duplicate/old commands are ignored.
-- Each car consumes at most one command per simulation tick. Client sequence/tick values do not authorize additional elapsed simulation time.
+- Each car advances once per simulation tick. When delayed samples accumulate, consume older samples together using their latest held controls, retaining up to two queued samples for jitter. Apply siren edges by parity and recovery requests once; acknowledge every consumed sample. Client sequence/tick values never authorize additional elapsed simulation time.
 - Queue a small bounded input window; never fast-forward a player because its client submitted hundreds of commands.
 - Use a short hold of the last valid analog state to bridge normal jitter. After 100 ms without valid input, neutralize steering/throttle/fire; brake toward a safe stop. Safety/focus messages neutralize immediately.
 - If backlog exceeds the validated maximum, discard stale commands, advance the acknowledgment boundary for discarded commands, and rebase the client from authoritative state. Record this as a queue reset, not successful command execution.
@@ -124,8 +126,8 @@ WebSocket is reliable/ordered. Packet-loss testing must model its stalls and ret
 1. On each client simulation tick, generate an input command and apply it to the local prediction world.
 2. Save command and prediction history in a bounded ring buffer; batch commands for transport.
 3. On an authoritative update, locate the matching acknowledgment boundary and restore authoritative local-car state.
-4. Discard commands at or below that boundary and replay eligible unacknowledged commands in order.
-5. Decay small visual corrections over roughly 50–100 ms. Snap large/invalid corrections and respawns; clear relevant histories.
+4. Discard commands at or below that boundary and replay eligible unacknowledged commands in order. Immediate prediction and replay stop six ticks (100 ms) beyond the latest authoritative tick; fresh control packets continue while movement waits for confirmation.
+5. Decay small visual corrections over roughly 50–100 ms. Input-backlog recovery and clock-only resync patches reconcile without clearing fresh controls or teleporting the car. Full resync baselines, identity/life changes and pause transitions still reset histories; large/invalid corrections snap.
 6. If history is insufficient or protocol/map versions change, perform a full resync instead of guessing.
 
 Only one module owns prediction. If the chosen Colyseus release supplies suitable helpers, wrap those helpers inside `net-client`; otherwise implement the loop there. Rendering must not run an additional reconciler.
@@ -214,3 +216,5 @@ Keep room admission configuration, allowed origins, timeouts, and build identity
 - [Colyseus prediction/reconciliation](https://docs.colyseus.io/netcode/client-prediction).
 
 These references are background, not a dependency lock or a fresh compatibility audit. Use the pinned manifest, source and real-adapter tests for the current implementation. The architecture has enough moving parts without letting the documentation invent another reconciler.
+
+Dispatch capabilities derive from the shared catalog and authoritative campaign index. Simulation and prediction receive the same gun/wet-road context; the renderer consumes matching gun fittings and water footprints. Pursuit contenders publish their eligibility guidance alongside progress. See [tutorial rules and acceptance](TUTORIAL.md).

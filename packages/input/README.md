@@ -2,6 +2,8 @@
 
 Reviewed: 2026-10-24 for `arcade-v8`. *A released accelerator should stay released, even when the paperwork loses focus.*
 
+2026-10-25 touch extension: `InputSettings.controlScheme` persists `auto`, `touch`, `gamepad` or `keyboard`. Automatic starts with touch when `navigator.maxTouchPoints > 0`, otherwise keyboard; fresh keyboard/controller use switches devices, and touching the play area returns to touch. Explicit schemes admit only that device's driving input. `setTouchState(TouchControls)` accepts normalized held actions from UI; input owns siren edges and the one-second recovery hold. Device changes clear previous held state. `onReset` clears UI pointer ownership alongside session `onNeutralize`, including viewport resize on touch. Input continues to poll controller menus independently. No user-agent or platform name is used. Physical iPad/Android/controller acceptance remains open.
+
 `createInputSource(options)` implements the shared `InputSource` contract. It starts disabled. The app enables it after a session starts and disables it while menus are visible. Call `pollMenus()` once per animation frame, including while gameplay is paused, and call `sample()` once per simulation tick. Sampling also polls devices, so contract-only consumers still receive gamepad input.
 
 Pass `onNeutralize` to send immediate session neutralization on blur, hidden tab, controller loss, menu entry, or settings changes. Returning focus, reconnecting a controller, or closing menus does not replay held controls. Keyboard input needs a new press; a controller must return to neutral. The adapter removes all listeners on `dispose()`.

@@ -23,6 +23,7 @@ async function peer(roomId?: string, address = endpoint): Promise<Peer> {
   const sdk = new Client(address);
   const room = roomId ? await sdk.joinById(roomId, options) : await sdk.create('district', options);
   room.reconnection.minUptime = 0; room.reconnection.minDelay = 200; room.reconnection.maxDelay = 300; room.reconnection.maxEnqueuedMessages = 0;
+  if(!roomId){const sim=(matchMaker.getLocalRoomById(room.roomId) as unknown as {sim:Simulation}).sim;const fixture=sim.checkpoint();fixture.state.campaign!.dispatchIndex=1;sim.restore(fixture);}
   const p: Peer = { room, state: null, history: [], events: [], sequence: 0 };
   room.onMessage('snapshot', (wire: WireSnapshot) => { p.state = unpackSnapshot(wire, wire.m === p.state?.matchId ? p.state?.props : undefined); p.history.push(p.state); });
   room.onMessage('events', (events: GameEvent[]) => p.events.push(...events));
@@ -104,6 +105,26 @@ describe('real Colyseus authority over local WebSockets', () => {
     expect(a.state!.local!.lastConsumedSequence).toBe(0); expect(a.state!.local!.vehicle.sirenOn).toBe(true);
     expect(a.state!.local!.vehicle.health).toBe(100); expect(b.state!.local!.vehicle.health).toBe(100);
     expect(a.state!.local!.vehicle.pose).toEqual(a.history.find(s => s.local!.lastConsumedSequence === 0)!.local!.vehicle.pose);
+  });
+
+  it.each([1, 2])('catches up to current controls while applying %i buffered siren edges exactly once', async toggles => {
+    const a = await peer(), room = matchMaker.getLocalRoomById(a.room.roomId);
+    room.setSimulationInterval(() => {});
+    const fixture = room as unknown as { step(): void; drivers: Map<string, { queue: InputCommand[] }> };
+    const sim = localSimulation(a), playing = sim.checkpoint();
+    playing.state.phase = 'playing'; playing.state.phaseEnd = playing.tick + 900; sim.restore(playing);
+    const commands = Array.from({ length: 6 }, (_, index) => command(a, { steer: index === 3 ? -1 : 1, sirenToggle: index > 0 && index <= toggles }));
+    a.room.send('input', { commands: commands.slice(0, 3) });
+    a.room.send('input', { commands: commands.slice(3) });
+    await until(() => fixture.drivers.get(a.room.sessionId)!.queue.length === 6, 'delayed control samples arrive');
+    fixture.step();
+    const current = sim.snapshot(a.room.sessionId).local!;
+    // Keep two samples for jitter; older held controls must not accumulate latency.
+    expect(current.lastConsumedSequence).toBe(3);
+    expect(current.driver.resolvedSteering).toBeLessThan(0);
+    expect(current.vehicle.sirenOn).toBe(toggles === 1);
+    fixture.step(); fixture.step(); fixture.step();
+    expect(sim.snapshot(a.room.sessionId).local!.vehicle.sirenOn).toBe(toggles === 1);
   });
 
   it('bounds command backlog, acknowledges discarded commands and stops held fire after a stall', async () => {

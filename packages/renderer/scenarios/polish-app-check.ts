@@ -21,7 +21,7 @@ try {
   await host.goto('http://127.0.0.1:5193'); await host.getByRole('button', { name: 'HIT THE STREETS' }).click();
   await expect.poll(() => host.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.renderer.environmentDispatchId)).toBe('loose-change');
   await host.getByRole('button', { name: 'START DISPATCH', exact: false }).click();
-  await expect.poll(() => host.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.renderer.waterSurfaces)).toBe(6);
+  await expect.poll(() => host.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.renderer.waterSurfaces)).toBe(2);
   await expect.poll(() => host.evaluate(() => (window as any).__FENDER_DEBUG__?.snapshot.phase)).toBe('playing');
   const roomId = await host.evaluate(() => (window as any).__FENDER_DEBUG__.identity.roomId);
   await guest.goto(host.url()); await guest.getByRole('button', { name: 'HIT THE STREETS' }).click();
@@ -36,6 +36,7 @@ try {
     for (const page of [host, guest]) {
       await expect.poll(() => page.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.renderer.environmentDispatchId)).toBe(CAMPAIGN_DISPATCHES[index]!.id);
       await expect.poll(() => page.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.renderer.environmentTheme)).toBe(themes[index]);
+      await expect.poll(() => page.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.renderer.waterSurfaces)).toBe(index>=3?6:2);
     }
     if (index === 4) {
       const before = await guest.evaluate(() => (window as any).__FENDER_DEBUG__.snapshot.sessionEpoch);

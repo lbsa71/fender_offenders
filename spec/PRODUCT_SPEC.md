@@ -1,6 +1,6 @@
 # Product specification
 
-Status: product baseline for the implemented `arcade-v10` alpha and remaining release acceptance. Updated: 2026-10-24. [Execution status](EXECUTION_STATUS.md) records dated evidence; requirements below do not imply completed acceptance.
+Status: product baseline for the implemented `arcade-v11` alpha and remaining release acceptance. Updated: 2026-10-25. [Execution status](EXECUTION_STATUS.md) records dated evidence; requirements below do not imply completed acceptance.
 
 *Ten dispatches. Six cars. One district with a very relaxed attitude toward insurance premiums.*
 
@@ -29,7 +29,7 @@ Targets now [fight back with distinct driving and weapon tactics](BOSS_COMBAT.md
 - Chrome/Edge, Firefox, and Safari are release test targets subject to the explicit matrix in QUALITY_AND_OPERATIONS.md.
 - WebGL2 is the baseline. WebGPU is optional and must not be necessary to play.
 - First release assumes one local player per browser session. Online multiplayer is not local split screen.
-- Mobile/touch controls and native packages are deferred.
+- Generic touch controls are implemented for browsers on touch-capable devices, alongside controllers. Physical mobile hardware/browser acceptance and sustained performance remain open; native packages are deferred.
 
 ## 4. Scope by release slice
 
@@ -69,6 +69,8 @@ Server rooms advance fixed 60 Hz ticks, with at most four catch-up steps; client
 
 All devices produce the same action structure. Gameplay never reads raw DOM events or gamepad objects.
 
+Settings expose persisted Automatic, Touch, Controller and Keyboard schemes. Automatic begins with touch on touch-capable hardware and follows actual driving-device use; tapping the play area returns to touch. Explicit schemes restrict driving to the selected source and keep the overlay stable. Touch uses a vehicle-relative drive pad (up throttle, down brake/reverse, horizontal steering), held Fire and Drift buttons, a combined Drift + Fire button for two-thumb play, Siren and one-second Recover. All menus remain tappable. The overlay hides in menus, briefings, results and interrupted connections. Pointer cancellation, capture loss, viewport resize and input resets clear pointer ownership and neutralize held controls. Landscape is recommended; compact landscape and portrait layouts retain visible health and touch targets of at least 44 CSS pixels.
+
 | Action | Keyboard default | Standard gamepad default |
 | --- | --- | --- |
 | Accelerate | W / Up | Left stick forward or right trigger |
@@ -99,15 +101,15 @@ All devices produce the same action structure. Gameplay never reads raw DOM even
 - Three-second countdown, up to five minutes of pursuit, then results on arrest, credited target wreck or timeout. Next briefing advances after success, retries after timeout, and resets after the completed campaign.
 - Mid-round joins enter as a spawned participant if capacity permits. Late joins receive a full authoritative state and current round timer.
 - Departure never resets the campaign. Empty rooms freeze for up to 15 minutes, with earlier oldest-empty reclamation at capacity. Reconnect reservations remain protected; connected idle tabs warn at 14 minutes and disconnect at 15.
-- Drivers compete to resolve one shared armed AI target first while retaining player-versus-player shooting. The room shares the ten-step tracker and earned clues; scores carry between dispatches. Teams and cooperative missions are deferred.
+- Drivers compete to resolve one shared AI target first. The unarmed first dispatch teaches arrests; gun combat becomes available to everyone in dispatch 2. The room shares the ten-step tracker and earned clues; scores carry between dispatches. Teams and cooperative missions are deferred.
 
 ### Weapon and damage
 
 - Two forward-facing barrels fire one paired volley. Holding Fire repeats at a server-controlled cadence.
-- Only player and villain cars display those guns. Civilian spectator traffic remains visibly unarmed; targets retain their assigned body rather than being classified as civilians solely because they are AI.
+- Only equipped player and villain cars display those guns; dispatch 1 has no gun fittings or firing controls. Civilian spectator traffic remains visibly unarmed; targets retain their assigned body rather than being classified as civilians solely because they are AI.
 - Current baseline: profile-dependent health, two 5-damage rounds per volley, 5 volleys/second, projectile speed 70 m/s, lifetime 0.65 seconds. These values belong in a versioned gameplay configuration.
 - Infinite ammunition for the initial mode. Heat/reload systems require a later playtest decision.
-- Accepted gun volleys have noticeable driving recoil: sustained fire reduces speed, steering response and grip. The handling penalty builds while firing and recovers after release; there is no random steering reversal. Authority and prediction share this rule in the current `arcade-v10` worktree. See the [fresh recoil measurements](../packages/sim/BALANCE.md#gun-recoil-2026-10-25). Grenade throws retain their existing behavior.
+- Accepted gun volleys have noticeable driving recoil: sustained fire reduces speed, steering response and grip. The handling penalty builds while firing and recovers after release; there is no random steering reversal. Authority and prediction share this rule in the current `arcade-v11` worktree. See the [fresh recoil measurements](../packages/sim/BALANCE.md#gun-recoil-2026-10-25). Grenade throws retain their existing behavior.
 - The server creates authoritative projectiles, sweeps their paths against collision geometry, applies hits once, and emits events.
 - Buildings and solid obstacles block shots. Dirt, lane paint, and cosmetic debris do not.
 - Shots cannot damage their owner. Other drivers remain damageable during the pursuit.
@@ -133,7 +135,7 @@ All devices produce the same action structure. Gameplay never reads raw DOM even
 - Traffic follows a small authored lane graph. No general-purpose city pathfinding is required.
 - Start with 8 AI vehicles, with a performance cap of 16 for the first district. The server owns traffic in online rooms.
 - Traffic can collide but does not shoot. It must recover from jams without blocking a route indefinitely.
-- Practice and online campaign dispatches identify one armed AI suspect. An active connected officer must stay strictly within 8 m, below 5 m/s relative speed, with clear world line of sight for three seconds. Each officer owns progress, which decays when ineligible. Arrest or credited target destruction completes the campaign dispatch; the legacy noncampaign fixture retains arrest-only completion.
+- Campaign dispatches identify one AI suspect; the opener is unarmed and arrest-only. An active connected officer must stay strictly within 8 m, below 5 m/s relative speed, with clear world line of sight for three seconds. Each officer owns progress, which decays when ineligible. After dispatch 1, arrest or credited target destruction completes the campaign dispatch; the legacy noncampaign fixture retains arrest-only completion.
 - The suspect has a persistent world marker and labeled camera-relative screen-edge guidance. Markers clear for menus, disconnected sessions and completed dispatches. Existing replicated vehicle poses drive presentation; no cosmetic marker transforms are transmitted.
 - Server-owned loose props and toppled lamps/signs/trees use separate 3D physics without feeding impulses or damage back to cars. Twenty-four local cosmetic pedestrians avoid rendered vehicles and cannot be injured. See [world reactions](WORLD_REACTIONS.md); enterable buildings and a larger open world remain deferred.
 
@@ -164,4 +166,6 @@ All devices produce the same action structure. Gameplay never reads raw DOM even
 
 ## 12. Non-goals for this plan
 
-MMO infrastructure, realistic vehicle simulation, destructible buildings, humanoid combat, real vehicle branding, cross-session campaign saves, voice chat, public user-generated content, split screen, mobile controls, and a custom rendering engine are outside scope. Browser-local callsigns, garage and settings are implemented; campaign progress remains in memory. Changes to these assumptions require a product/architecture decision and updated task dependencies. The city council has declined to fund an MMO this quarter.
+MMO infrastructure, realistic vehicle simulation, destructible buildings, humanoid combat, real vehicle branding, cross-session campaign saves, voice chat, public user-generated content, split screen, native mobile packages, and a custom rendering engine are outside scope. Generic browser touch controls, browser-local callsigns, garage and settings are implemented; campaign progress remains in memory. Changes to these assumptions require a product/architecture decision and updated task dependencies. The city council has declined to fund an MMO this quarter.
+
+The [staged tutorial](TUTORIAL.md) specifies persistent device-aware control icons, authoritative arrest guidance, dual garage previews, the dispatch-2 gun unlock, dispatch-3 bomb warning and dispatch-4 slippery puddles. Tutorial state is shared by the room.

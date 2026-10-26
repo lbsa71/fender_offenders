@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures';
+import { dispatchFixture, expect, test } from './fixtures';
 import type { Page } from '@playwright/test';
 
 const fixtureUrl = `/@fs/${process.cwd().replaceAll('\\', '/')}/packages/ui/dev/index.html`;
@@ -113,6 +113,7 @@ test('temporary keyboard and controller cards clear the instruments and invite a
 
 test('live patrol can reopen controls help with driving input safely released', async ({ page }) => {
   await page.goto('/'); await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
+  await dispatchFixture(page, 1);
   await page.getByRole('button', { name: 'START DISPATCH' }).click();
   const snapshot = () => page.evaluate(() => (window as any).__FENDER_DEBUG__?.snapshot);
   await expect.poll(async () => (await snapshot())?.phase).toBe('playing');
@@ -130,4 +131,30 @@ test('live patrol can reopen controls help with driving input safely released', 
   await page.getByRole('button', { name: 'BACK ON PATROL' }).click();
   await expect.poll(async () => (await snapshot())?.paused).toBe(false);
   await expect(page.locator('.fo-prompts')).toBeHidden();
+});
+
+test('explicit touch selection suppresses the card and explicit controller selection uses button graphics', async ({ page }) => {
+  await fixture(page); await enter(page);
+  await page.evaluate(() => (window as any).fixture.ui.setSettings({ controlScheme: 'touch' }));
+  await expect(page.locator('.fo-prompts')).toBeHidden();
+  await page.evaluate(() => (window as any).fixture.ui.setSettings({ controlScheme: 'gamepad' }));
+  await update(page);
+  await expect(page.locator('.fo-prompts').getByRole('img', { name: 'Right trigger' })).toBeVisible();
+});
+
+test('help preserves the unarmed opener and updates the gun unlock and dispatch lesson', async ({ page }) => {
+  await fixture(page); await enter(page);
+  const stage = (index: number) => page.evaluate(index => {
+    const { ui, snapshot } = (window as any).fixture;
+    ui.update({ snapshot: { ...snapshot, campaign: { campaignId: 'green-light-racket-v1', dispatchIndex: index, status: 'active', outcomes: [] } } });
+  }, index);
+  await stage(0); await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'CONTROLS HELP', exact: true }).click();
+  const help = page.getByRole('region', { name: 'Driving controls' });
+  const fire = help.getByText('Fire', { exact: true }); await expect(fire).toHaveCount(2);
+  for (let i = 0; i < 2; i++) await expect(fire.nth(i)).toBeHidden();
+  await stage(1);
+  for (let i = 0; i < 2; i++) await expect(fire.nth(i)).toBeVisible();
+  await stage(3);
+  await expect(page.locator('.fo-help-view [data-control-lesson]')).toContainText('Puddles reduce grip');
 });

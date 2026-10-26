@@ -7,6 +7,7 @@ import { GAMEPLAY_REVISION, PROTOCOL_VERSION, isInputCommand, isInviteCode, isRe
 import { createPropPublisher } from './prop-publisher.js';
 import { roomRegistry, serverMetrics } from './room-registry.js';
 export { roomRegistry, serverMetrics, getRoomMetrics } from './room-registry.js';
+export { createPropPublisher } from './prop-publisher.js';
 
 interface DriverConnection { epoch: string; entityId: string; queue: InputCommand[]; last: InputCommand | null; ack: number; received: number; lastInputAt: number; connected: boolean; windowStart: number; packets: number; reset?: WorldSnapshot['resetReason']; client: Client; latencyProbe: { nonce: string; sentAt: number } | null; pingMs: number | null; latencyMeasuredAt: number | null; propPublisher:ReturnType<typeof createPropPublisher>; menuOpen: boolean; hidden: boolean; lastActivityAt: number; activityNoticeAt: number; idleWarned: boolean; }
 export class DrivingRoom extends Room {
@@ -163,7 +164,15 @@ export class DrivingRoom extends Room {
     const inputs = new Map<string, AppliedDriverInput>();
     for (const d of this.drivers.values()) {
       const interactive=d.connected&&!d.menuOpen&&!d.hidden;
-      const cmd = interactive ? d.queue.shift() : undefined;
+      // A held-input tick can run before its next network packet arrives. Do not
+      // let those timing gaps permanently add latency to every later command.
+      const consumed = interactive ? d.queue.splice(0, Math.max(1, d.queue.length - 2)) : [];
+      const latest = consumed.at(-1);
+      const cmd = latest && { ...latest, actions: {
+        ...latest.actions,
+        sirenToggle: consumed.reduce((toggle, entry) => toggle !== entry.actions.sirenToggle, false),
+        recover: consumed.some(entry => entry.actions.recover),
+      } };
       if (cmd) { d.last = cmd; d.ack = cmd.sequence; }
       const held = interactive && d.last && started - d.lastInputAt < 100;
       const actions = cmd ? cmd.actions : held ? { ...d.last!.actions, sirenToggle: false, recover: false } : { ...neutralActions(), handbrake: true };
