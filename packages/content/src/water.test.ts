@@ -10,6 +10,12 @@ const distanceToSegment = (x: number, z: number, ax: number, az: number, bx: num
 };
 
 describe('authored shallow water', () => {
+  it('uses the full authored rectangular swimming-pool footprint', () => {
+    const pool = content.DISTRICT_WATER.find(site => site.kind === 'pool')!;
+    const polygon = content.waterFootprint(pool), xs = polygon.filter((_, i) => i % 2 === 0), zs = polygon.filter((_, i) => i % 2 === 1);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(pool.width);
+    expect(Math.max(...zs) - Math.min(...zs)).toBeCloseTo(pool.depth);
+  });
   it('shares exact road-puddle polygons with driving physics while leaving ponds and pools decorative',()=>{
     const zones=content.districtMap.wetSurfaces??[];
     expect(zones).toHaveLength(4);

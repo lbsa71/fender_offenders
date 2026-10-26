@@ -30,7 +30,7 @@ The [first four dispatches teach the job](spec/TUTORIAL.md): arrest Nico without
 ## What is implemented
 
 - A project-authored procedural district, six vehicle body designs, roads and dirt shortcuts, traffic, lighting, shadows, signs, skid marks, combat effects, and synthesized vehicle/action audio.
-- Authored noon, dusk and night dispatch lighting with colored distance fog, directional sun/moon shadows and steady warm illumination from every upright street lamp at dusk/night on all presets. The [graphics polish plan](spec/GRAPHICS_POLISH.md) preserves the blocky toy-town style; water, reflections and subtle flares are next steps.
+- Authored noon, dusk and night dispatch lighting with colored distance fog, directional sun/moon shadows and steady warm illumination from every upright street lamp at dusk/night on all presets. The [graphics polish plan](spec/GRAPHICS_POLISH.md) preserves the blocky toy-town style; four road puddles, a park pond and a garden pool are visible from the opening dispatch, with slippery-road handling introduced in dispatch 4. Reflections use a cheap shared finish rather than extra render passes.
 - Shared fixed-step driving, deliberate brake-to-reverse behavior, drifting, collisions, stuck recovery, and a suspect-apprehension objective in every server room and isolated simulation fixtures.
 - **The Green Light Racket**: ten dispatches, four connected ringleaders and six crew members, original mugshots, assigned target cars, a shared campaign tracker and a story revealed through successful pursuits. Arrest or destroy the target to advance; only arrests earn green checks.
 - Armed campaign targets with distinct driving styles, burst fire, grenade lobs and progressively tougher tactics. Briefings explain the threat and counterplay; marked grenade landing areas give players time to dodge.
@@ -99,7 +99,8 @@ Pulling the stick backward brakes a forward-moving car before reversing, just li
 | `pnpm test:unit` | Run isolated logic with controlled dependencies; no sockets, real physics or renderer adapters |
 | `pnpm test:integration` | Run real physics/render adapters, HTTP/Colyseus rooms, prediction, hosting and tooling checks |
 | `pnpm test:ui` | Five fast UI fixtures with mocked game state; real DOM/CSS, no physics, renderer or sockets |
-| `pnpm test:e2e` | Local Playwright game smoke/integration scenarios, then `pnpm test:ui` |
+| `pnpm test:e2e` | Local game browser checks, mocked UI fixtures, and native water visibility |
+| `pnpm test:water` | Actual opening-dispatch water pixels from normal driving cameras on low/medium; owns a temporary renderer server |
 | `pnpm hooks:install` | Install the local Git pre-push hook; also runs automatically on local dependency installation |
 | `pnpm test:load` | Run eight real SDK clients against the local server; write a payload-estimate report |
 | `pnpm test:deploy` | Check production readiness/HTML and two real multiplayer WebSocket clients at `TEST_SERVER_URL` |

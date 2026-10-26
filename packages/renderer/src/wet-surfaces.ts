@@ -36,7 +36,8 @@ export class WetSurfaces {
       for (let i = 0; i < count; i++) {
         const x = -(footprint[i*2]! - site.x), z = footprint[i*2+1]! - site.z;
         data.positions.push(x, 0, z); data.normals.push(0, 1, 0); data.uvs.push(x / site.width + .5, z / site.depth + .5);
-        data.indices.push(0, i + 1, (i + 1) % count + 1);
+        // Positions already reflect X. Match the shipped right-handed scene's front faces.
+        data.indices.push(0, (i + 1) % count + 1, i + 1);
       }
       data.applyToMesh(mesh); mesh.position.set(-site.x, site.y, site.z); mesh.material = this.material;
       mesh.metadata = { waterKind: site.kind };
@@ -49,14 +50,13 @@ export class WetSurfaces {
           ring.positions.push(x, -.006, z, x * (1 + .44 / site.width), -.006, z * (1 + .44 / site.depth));
           ring.normals.push(0, 1, 0, 0, 1, 0);
           const a = i * 2, b = (i + 1) % count * 2;
-          ring.indices.push(a, a + 1, b, b, a + 1, b + 1);
+          ring.indices.push(a, b, a + 1, b, b + 1, a + 1);
         }
         ring.applyToMesh(border); border.position.copyFrom(mesh.position); border.material = this.borderMaterial;
         border.isPickable = false; border.receiveShadows = true; border.freezeWorldMatrix(); this.borders.push(border);
       }
     }
   }
-  setWetRoads(enabled: boolean): void { for(const mesh of this.meshes) if(mesh.metadata?.waterKind==='puddle') mesh.setEnabled(enabled); }
   update(dt: number, quality: 'low' | 'medium' | 'high', reducedMotion: boolean): void {
     if (this.disposed) return;
     this.ripples = quality !== 'low';

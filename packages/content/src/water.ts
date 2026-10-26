@@ -9,8 +9,9 @@ export const DISTRICT_WATER = [
 ] as const;
 
 export function waterFootprint(site: {kind:string; x:number; z:number; width:number; depth:number}): number[] {
-  const count=site.kind==='pool'?4:12, polygon:number[]=[];
-  for(let i=0;i<count;i++){const a=Math.PI*2*i/count+(site.kind==='pool'?Math.PI/4:0);polygon.push(site.x+Math.cos(a)*site.width/2,site.z+Math.sin(a)*site.depth/2);}
+  if(site.kind==='pool')return [site.x+site.width/2,site.z+site.depth/2,site.x-site.width/2,site.z+site.depth/2,site.x-site.width/2,site.z-site.depth/2,site.x+site.width/2,site.z-site.depth/2];
+  const count=12, polygon:number[]=[];
+  for(let i=0;i<count;i++){const a=Math.PI*2*i/count;polygon.push(site.x+Math.cos(a)*site.width/2,site.z+Math.sin(a)*site.depth/2);}
   return polygon;
 }
 export const ROAD_PUDDLES = DISTRICT_WATER.filter(site=>site.kind==='puddle').map(site=>({id:site.id,polygonXZ:waterFootprint(site)}));

@@ -18,7 +18,7 @@
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
-    "test:e2e": "playwright test && pnpm test:e2e:ui",
+    "test:e2e": "playwright test && pnpm test:e2e:ui && pnpm test:water",
     "test:e2e:ui": "pnpm test:ui",
     "test:load": "tsx tools/load.ts",
     "test:deploy": "tsx tools/deploy-smoke.ts",
@@ -26,7 +26,8 @@
     "build": "vite build && esbuild apps/server/src/index.ts --bundle --platform=node --format=esm --external:@colyseus/* --external:@dimforge/* --external:express --outfile=dist/server/index.js",
     "start": "tsx apps/server/src/index.ts",
     "preview": "vite preview --host 127.0.0.1",
-    "test:ui": "node packages/ui/dev/garage-smoke.mjs && node packages/ui/dev/pursuit-smoke.mjs && node packages/ui/dev/campaign-smoke.mjs && node packages/ui/dev/callsigns-smoke.mjs && node packages/ui/dev/briefing-smoke.mjs"
+    "test:ui": "node packages/ui/dev/garage-smoke.mjs && node packages/ui/dev/pursuit-smoke.mjs && node packages/ui/dev/campaign-smoke.mjs && node packages/ui/dev/callsigns-smoke.mjs && node packages/ui/dev/briefing-smoke.mjs",
+    "test:water": "tsx packages/renderer/scenarios/water-visibility-check.ts"
   },
   "dependencies": {
     "@fender/contracts": "workspace:*",
