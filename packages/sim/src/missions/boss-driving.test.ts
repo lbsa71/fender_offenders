@@ -80,3 +80,73 @@ it('brakes decisively through the real controller without accidentally reversing
     if (tick === 30) expect(suspect.velocity.z, 'speed after half a second of a brake check').toBeLessThan(2);
   }
 });
+
+it.each([1, 6])('dispatch %s follows a half-second brake check with one second of full throttle and a six-second cooldown', stage => {
+  const suspect = car('suspect', null, 0, 3), officer = car('officer', 'player', -14, 9), runtime = newBossAi(0);
+  const decide = (tick: number) => stepBossAi(suspect, base, [officer], runtime, getBossTactics(stage), tick, 28, () => false).actions;
+  expect(decide(1).handbrake).toBe(true);
+  expect(decide(30).handbrake).toBe(true);
+  for (const tick of [31, 60, 90]) {
+    const actions = decide(tick); expect(actions.throttle).toBe(1); expect(actions.handbrake).toBe(false); expect(actions.brakeReverse).toBe(0);
+  }
+  for (const tick of [91, 180, 300, 450]) { const actions = decide(tick); expect(actions.handbrake).toBe(false); expect(actions.brakeReverse).toBe(0); expect(actions.throttle).toBeLessThan(1); }
+  expect(decide(451).handbrake).toBe(true);
+});
+
+it.each(['ahead', 'matched', 'gone'] as const)('releases the brakes and commits to a short breakaway when the officer is %s', situation => {
+  const suspect = car('suspect', null, 0, 3), officer = car('officer', 'player', -14, 9), runtime = newBossAi(0);
+  const decide = (tick: number, officers = [officer]) => stepBossAi(suspect, base, officers, runtime, getBossTactics(1), tick, 28, () => false).actions;
+  expect(decide(1).handbrake).toBe(true);
+  if (situation === 'ahead') officer.pose.z = 6;
+  if (situation === 'matched') officer.velocity.z = 3;
+  const officers = situation === 'gone' ? [] : [officer];
+  for (const tick of [10, 40, 69]) { const actions = decide(tick, officers); expect(actions.throttle).toBe(1); expect(actions.handbrake).toBe(false); }
+  expect(decide(70, officers).throttle).toBeLessThan(1);
+});
+
+it('keeps the breakaway strong through weapon recovery while respecting lane speed and route braking', () => {
+  const suspect = car('suspect', null, 0, 3), officer = car('officer', 'player', -14, 9), runtime = newBossAi(0), tactics = getBossTactics(1);
+  const decide = (tick: number, actions = base, limit = 28) => stepBossAi(suspect, actions, [officer], runtime, tactics, tick, limit, () => false).actions;
+  decide(1); runtime.attackOrdinal = 1; runtime.attackKind = null; runtime.nextAttackTick = 999;
+  expect(decide(31).throttle).toBe(1);
+  suspect.velocity.z = tactics.cruiseSpeed; expect(decide(32).throttle).toBe(0);
+  suspect.velocity.z = 7; expect(decide(33, base, 7).throttle).toBe(0);
+  suspect.velocity.z = 3;
+  const turning = decide(34, { ...base, steer: -.6, brakeReverse: .5 });
+  expect(turning.steer).toBe(-.6); expect(turning.brakeReverse).toBe(.5); expect(turning.throttle).toBe(0);
+});
+
+it('preserves a breakaway and its cooldown when the authority checkpoints the brain', () => {
+  const suspect = car('suspect', null, 0, 3), officer = car('officer', 'player', -14, 9), runtime = newBossAi(0);
+  const decide = (tick: number, brain = runtime) => stepBossAi(suspect, base, [officer], brain, getBossTactics(1), tick, 28, () => false);
+  decide(1); decide(31); const checkpoint = structuredClone(runtime);
+  expect(decide(60).actions.throttle).toBe(1);
+  expect(decide(60, checkpoint)).toEqual(decide(60));
+  expect(decide(450, checkpoint).actions.handbrake).toBe(false);
+  expect(decide(451, checkpoint).actions.handbrake).toBe(true);
+});
+
+it.each(['wrecked', 'respawning', 'protected'] as const)('cancels a pending breakaway when the suspect becomes %s', situation => {
+  const suspect = car('suspect', null, 0, 3), officer = car('officer', 'player', -14, 9), runtime = newBossAi(0);
+  const decide = (tick: number) => stepBossAi(suspect, base, [officer], runtime, getBossTactics(1), tick, 28, () => false).actions;
+  decide(1); expect(decide(31).throttle).toBe(1);
+  if (situation === 'protected') suspect.protectedUntilTick = 999;
+  else suspect.status = situation;
+  expect(decide(32).throttle).toBeLessThan(1);
+  suspect.status = 'active'; suspect.protectedUntilTick = 0; officer.pose.z = 10;
+  expect(decide(33).throttle).toBeLessThan(1);
+});
+
+it('regains ordinary cruise speed through the real controller without a speed or acceleration bonus', () => {
+  const suspect = car('suspect', null, 0, 12), officer = car('officer', 'player', -14, 18), runtime = newBossAi(0), driver = newDriver();
+  let previousSpeed = 12;
+  for (let tick = 1; tick <= 90; tick++) {
+    officer.pose.z = suspect.pose.z - 14; officer.velocity.z = suspect.velocity.z + 6;
+    const decision = stepBossAi(suspect, base, [officer], runtime, getBossTactics(1), tick, 28, () => false);
+    driveVehicle(suspect, driver, decision.actions, arena, []);
+    if (tick >= 31) { expect(suspect.velocity.z).toBeLessThan(10.3); expect(suspect.velocity.z - previousSpeed).toBeLessThan(.44); }
+    if (tick === 30) expect(suspect.velocity.z).toBeLessThan(2);
+    previousSpeed = suspect.velocity.z;
+  }
+  expect(suspect.velocity.z, 'normal cruising speed by the end of the one-second breakaway').toBeGreaterThan(9);
+});

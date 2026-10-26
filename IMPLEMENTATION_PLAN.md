@@ -1,12 +1,12 @@
 # Implementation plan
 
-Status: acceptance plan for the local `arcade-v12` alpha. Updated: 2026-10-26 for closing-pursuit suspect driving, integrated with the staged tutorial, touch controls and solo input-clock corrections. Current states and dated evidence for all 49 tasks are in [the execution ledger](spec/EXECUTION_STATUS.md). Task IDs, dependencies and milestone gates remain stable; delivery choices below reflect the current implementation.
+Status: acceptance plan for the local `arcade-v13` alpha. Updated: 2026-10-26 for bounded post-brake-check breakaways, integrated with reactive suspect driving, the staged tutorial, touch controls and solo input-clock corrections. Current states and dated evidence for all 49 tasks are in [the execution ledger](spec/EXECUTION_STATUS.md). Task IDs, dependencies and milestone gates remain stable; delivery choices below reflect the current implementation.
 
 *The city is playable. The release paperwork still has several outstanding warrants.*
 
 ## Next acceptance work
 
-The local `arcade-v12` follow-up gates suspect swerves and harder brake checks on a nearby officer closing the gap. It preserves protocol 3 and existing wire shapes; [boss combat](spec/BOSS_COMBAT.md) defines the conditions. Grenade particle bursts and pedestrian threat filtering are in the same dedicated worktree. These local changes do not claim a hosted rollout or close the driving/performance acceptance gates below.
+The local `arcade-v13` follow-up adds a one-second full-throttle breakaway after each brief brake check, with a six-second cooldown and existing speed/arrest rules. It builds on `arcade-v12` closing-pursuit tactics, preserving protocol 3 and existing wire shapes; [boss combat](spec/BOSS_COMBAT.md) defines the conditions. The change remains in the dedicated worktree and does not claim a hosted rollout or close the driving/performance acceptance gates below.
 
 The [four-dispatch introduction](spec/TUTORIAL.md) is integrated: unarmed arrest-only opener, shared gun unlock, readable bomb lesson and exact shared wet-road footprints. U/R own ongoing readability and native preview review, S/G own authority and handling, and F/N/Q verify matching builds, late joins and local E2E. Online input sampling runs independently from render cadence, and spawn protection uses room ticks. The hosted solo follow-up coalesces delayed held controls, bounds prediction to six ticks and reconciles continuous clock/input recovery. Prop physics reuses pre-step transforms; CLI startup prepares a disposable campaign before readiness so initial compilation does not land in the first chase. The first fresh hosted chase passed at 54.81 authoritative Hz with no measurable backward jump, after two passing local CPU-limited startup runs; the dated evidence is in the execution ledger. Human driving/controller and sustained performance gates remain open.
 

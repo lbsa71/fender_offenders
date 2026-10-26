@@ -1,12 +1,14 @@
 # Shared contracts
 
-Status: semantic contract reference for the local alpha (`arcade-v12` gameplay, protocol 3, map `sunset-borough-2`). Updated: 2026-10-26. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+Status: semantic contract reference for the local alpha (`arcade-v13` gameplay, protocol 3, map `sunset-borough-2`). Updated: 2026-10-26. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
 
 *The contracts are the traffic lights. Please resist interpreting red as an optional decoration.*
 
 This document defines cross-lane semantics and remaining acceptance expectations. Examples describe semantic TypeScript types, not the compact snapshot wire encoding or installed SDK API. Consumers use the package's public exports; additional validators and the complete proposed fixture catalog remain unfinished rather than implied by these examples.
 
 ## Campaign extension
+
+`arcade-v13` adds a short full-throttle breakaway after the closing-pursuit brake check, with a six-second cooldown and unchanged speed/arrest rules. Brake-check, breakaway and cooldown deadlines live in the existing trusted boss checkpoint; no new wire fields are required. Matching-build checks reject `arcade-v12` and earlier clients. Protocol 3 and map `sunset-borough-2` remain unchanged. See [boss driving rules](BOSS_COMBAT.md#difficulty-and-authority).
 
 `arcade-v12` makes suspect evasive steering and stronger brake checks conditional on a nearby officer closing the gap, integrated with the `arcade-v11` tutorial/touch/solo baseline. The authority checkpoints the evasion target and maneuver start tick with the existing boss runtime. Gameplay version checks reject `arcade-v11` and earlier clients; the baseline's protocol 3 and all wire tuple shapes remain unchanged. See [boss driving rules](BOSS_COMBAT.md#difficulty-and-authority).
 

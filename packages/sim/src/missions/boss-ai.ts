@@ -4,19 +4,40 @@ export interface BossAiRuntime {
   targetId: string | null; attackKind: 'burst' | 'grenade' | null; windupUntilTick: number;
   nextAttackTick: number; burstRemaining: number; nextShotTick: number; nextGrenadeTick: number;
   styleStartedTick: number; attackOrdinal: number; evasionTargetId: string | null;
+  brakeCheckUntilTick: number | null; breakawayUntilTick: number; nextBrakeCheckTick: number;
 }
 export interface BossDecision { actions: DriverActions; fire: boolean; grenadeTarget: PlanarPose | null }
-export function newBossAi(tick: number): BossAiRuntime { return { targetId: null, attackKind: null, windupUntilTick: 0, nextAttackTick: 0, burstRemaining: 0, nextShotTick: 0, nextGrenadeTick: 0, styleStartedTick: tick, attackOrdinal: 0, evasionTargetId: null }; }
+export function newBossAi(tick: number): BossAiRuntime { return { targetId: null, attackKind: null, windupUntilTick: 0, nextAttackTick: 0, burstRemaining: 0, nextShotTick: 0, nextGrenadeTick: 0, styleStartedTick: tick, attackOrdinal: 0, evasionTargetId: null, brakeCheckUntilTick: null, breakawayUntilTick: 0, nextBrakeCheckTick: tick }; }
+
+function applyBrakeCheck(vehicle: VehicleState, base: DriverActions, actions: DriverActions, runtime: BossAiRuntime, tactics: BossTactics, tick: number, speedLimit: number, pursuer: boolean): void {
+  if (tactics.drivingStyle !== 'brake-check') return;
+  if (vehicle.status !== 'active' || vehicle.protectedUntilTick > tick) {
+    runtime.brakeCheckUntilTick = null; runtime.breakawayUntilTick = 0; return;
+  }
+  if (runtime.brakeCheckUntilTick !== null && (!pursuer || tick >= runtime.brakeCheckUntilTick)) {
+    runtime.brakeCheckUntilTick = null;
+    runtime.breakawayUntilTick = tick + 60;
+    runtime.nextBrakeCheckTick = runtime.breakawayUntilTick + 360;
+  }
+  if (runtime.brakeCheckUntilTick === null && tick >= runtime.breakawayUntilTick && pursuer && tick >= runtime.nextBrakeCheckTick) runtime.brakeCheckUntilTick = tick + 30;
+  if (runtime.brakeCheckUntilTick !== null) {
+    const forward = vehicle.velocity.x * Math.sin(vehicle.pose.yaw) + vehicle.velocity.z * Math.cos(vehicle.pose.yaw);
+    actions.throttle = 0; actions.brakeReverse = forward > .5 ? 1 : 0; actions.handbrake = true;
+  } else if (tick < runtime.breakawayUntilTick) {
+    // Full pedal, ordinary engine and speed ceiling. Route braking still wins,
+    // and an officer cutting in front retains the normal collision/arrest rules.
+    const speed = Math.hypot(vehicle.velocity.x, vehicle.velocity.z);
+    actions.handbrake = base.handbrake; actions.brakeReverse = base.brakeReverse;
+    actions.throttle = !base.handbrake && base.brakeReverse <= .05 && speed < Math.min(tactics.cruiseSpeed, speedLimit) ? 1 : 0;
+  }
+}
+
 export function stepBossAi(vehicle: VehicleState, base: DriverActions, officers: readonly VehicleState[], runtime: BossAiRuntime, tactics: BossTactics, tick: number, speedLimit: number, blocked: (start: PlanarPose, end: PlanarPose) => boolean): BossDecision {
   const result: BossDecision = { actions: { ...base, fire: false }, fire: false, grenadeTarget: null };
   const targets = vehicle.status !== 'active' || vehicle.protectedUntilTick > tick ? [] : officers.filter(officer => officer.playerId !== null && officer.status === 'active' && officer.protectedUntilTick <= tick
     && Math.hypot(officer.pose.x - vehicle.pose.x, officer.pose.z - vehicle.pose.z) <= tactics.engageRange && !blocked(vehicle.pose, officer.pose));
   targets.sort((a, b) => Math.hypot(a.pose.x - vehicle.pose.x, a.pose.z - vehicle.pose.z) - Math.hypot(b.pose.x - vehicle.pose.x, b.pose.z - vehicle.pose.z) || (a.entityId < b.entityId ? -1 : a.entityId > b.entityId ? 1 : 0));
   const target = targets[0];
-  if (!target) { runtime.targetId = null; runtime.attackKind = null; runtime.burstRemaining = 0; runtime.evasionTargetId = null; return result; }
-  if (runtime.targetId !== target.entityId) { runtime.targetId = target.entityId; runtime.attackKind = null; runtime.burstRemaining = 0; }
-  const dx = target.pose.x - vehicle.pose.x, dz = target.pose.z - vehicle.pose.z;
-  const angle = wrapAngle(Math.atan2(dx, dz) - vehicle.pose.yaw), speed = Math.hypot(vehicle.velocity.x, vehicle.velocity.z);
   // Weapon targets and driving threats are independent: a nearer officer ahead
   // must not conceal a second officer gaining on the suspect from behind.
   const pursuer = targets.find(officer => {
@@ -29,6 +50,13 @@ export function stepBossAi(vehicle: VehicleState, base: DriverActions, officers:
   });
   const evasionTargetId = pursuer?.entityId ?? null;
   if (runtime.evasionTargetId !== evasionTargetId) { runtime.evasionTargetId = evasionTargetId; runtime.styleStartedTick = tick; }
+  if (!target) {
+    runtime.targetId = null; runtime.attackKind = null; runtime.burstRemaining = 0;
+    applyBrakeCheck(vehicle, base, result.actions, runtime, tactics, tick, speedLimit, false); return result;
+  }
+  if (runtime.targetId !== target.entityId) { runtime.targetId = target.entityId; runtime.attackKind = null; runtime.burstRemaining = 0; }
+  const dx = target.pose.x - vehicle.pose.x, dz = target.pose.z - vehicle.pose.z;
+  const angle = wrapAngle(Math.atan2(dx, dz) - vehicle.pose.yaw), speed = Math.hypot(vehicle.velocity.x, vehicle.velocity.z);
   const cycle = tick - runtime.styleStartedTick;
   switch (tactics.drivingStyle) {
     case 'runner': {
@@ -39,10 +67,7 @@ export function stepBossAi(vehicle: VehicleState, base: DriverActions, officers:
       break;
     }
     case 'brake-check':
-      if (pursuer && cycle % tactics.weavePeriodTicks < 90) {
-        const forwardSpeed = vehicle.velocity.x * Math.sin(vehicle.pose.yaw) + vehicle.velocity.z * Math.cos(vehicle.pose.yaw);
-        result.actions.throttle = 0; result.actions.brakeReverse = forwardSpeed > .5 ? 1 : 0; result.actions.handbrake = true;
-      }
+      // Applied after weapon recovery so the brief escape gets full throttle.
       break;
     case 'weaver':
       if (pursuer) result.actions.steer = clamp(base.steer + Math.cos(cycle * Math.PI * 2 / tactics.weavePeriodTicks) * tactics.weaveAmplitude * 2, -1, 1);
@@ -55,6 +80,7 @@ export function stepBossAi(vehicle: VehicleState, base: DriverActions, officers:
   }
   if (speed >= Math.min(tactics.cruiseSpeed, speedLimit)) result.actions.throttle = 0;
   if (runtime.attackOrdinal && runtime.attackKind === null && tick < runtime.nextAttackTick) result.actions.throttle *= .45;
+  applyBrakeCheck(vehicle, base, result.actions, runtime, tactics, tick, speedLimit, !!pursuer);
   if (tactics.weapon === 'none') { runtime.attackKind = null; runtime.burstRemaining = 0; return result; }
   if (!runtime.attackKind && tick >= runtime.nextAttackTick) {
     runtime.attackKind = tactics.weapon === 'grenades' || tactics.weapon === 'mixed' && runtime.attackOrdinal % 2 === 1 && tick >= runtime.nextGrenadeTick ? 'grenade' : 'burst';

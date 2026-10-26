@@ -42,6 +42,15 @@ it('produces four distinct real-controller ringleader trajectories under a closi
  expect(changes(paths[2]!.steers)).toBeGreaterThan(changes(paths[1]!.steers));
  expect(Math.max(...paths[2]!.steers.map(Math.abs))).toBeGreaterThan(Math.max(...paths[1]!.steers.map(Math.abs)));
 });
+it('allows a matched-speed front cutoff to finish an arrest during the suspect breakaway',()=>{
+ const{sim,targetId,officerId}=fixture(1),c=sim.checkpoint(),boss=c.state.records.find(r=>r.vehicle.entityId===targetId)!,officer=c.state.records.find(r=>r.vehicle.entityId===officerId)!;
+ const speed=getBossTactics(1).cruiseSpeed;
+ boss.vehicle.velocity={x:0,z:speed,yawRate:0};officer.vehicle.pose={x:0,z:5,yaw:0};officer.vehicle.velocity={x:0,z:speed,yawRate:0};
+ boss.bossAi=newBossAi(c.tick);boss.bossAi.breakawayUntilTick=c.tick+60;boss.bossAi.nextBrakeCheckTick=c.tick+420;
+ c.state.contenderTicks=[['officer',179]];sim.restore(c);ticks(sim,1);
+ expect(sim.snapshot()).toMatchObject({phase:'results',pursuit:{state:'complete',winnerPlayerId:'officer'}});
+ expect(sim.snapshot().campaign!.outcomes).toMatchObject([{outcome:'arrested',playerId:'officer'}]);
+});
 it('uses deterministic target ties, visible windup, bounded bursts and a recovery gap',()=>{
  const{sim,targetId,officerId}=fixture();const source=sim.snapshot().vehicles.find(v=>v.entityId===targetId)!,officer=sim.snapshot().vehicles.find(v=>v.entityId===officerId)!,second={...structuredClone(officer),entityId:'aaa-officer',playerId:'second'};
  const runtime=newBossAi(0),tactics=getBossTactics(1),base=neutralActions(),fireTicks:number[]=[];

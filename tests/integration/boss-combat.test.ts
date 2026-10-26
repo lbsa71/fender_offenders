@@ -62,6 +62,23 @@ it('the authoritative second target fires real shots, damages an officer and sha
  expect(host.state.campaign!.outcomes).toHaveLength(1);expect(host.state.scores.every(score=>score.score===0)).toBe(true);
 });
 
+it('replicates the brake-to-breakaway transition when the officer passes ahead, including a restored authority checkpoint',async()=>{
+ const host=await peer(),guest=await peer(host.room.roomId),{sim,bossId}=encounter(host,1),start=sim.checkpoint();
+ const boss=start.state.records.find(r=>r.vehicle.entityId===bossId)!,officer=start.state.records.find(r=>r.vehicle.playerId===host.room.sessionId)!;
+ boss.vehicle.velocity={x:12,z:0,yawRate:0};delete boss.bossAi;
+ officer.vehicle.pose={x:-14,z:-76,yaw:Math.PI/2};officer.vehicle.velocity={x:18,z:0,yawRate:0};sim.restore(start);
+ await until(()=>host.states.some(s=>s.serverTick>start.tick&&Math.hypot(s.vehicles.find(v=>v.entityId===bossId)!.velocity.x,s.vehicles.find(v=>v.entityId===bossId)!.velocity.z)<2),'The authority must first publish the hard brake check');
+ const c=sim.checkpoint(),braking=c.state.records.find(r=>r.vehicle.entityId===bossId)!,passing=c.state.records.find(r=>r.vehicle.playerId===host.room.sessionId)!;
+ passing.vehicle.pose={x:braking.vehicle.pose.x+20,z:-76,yaw:Math.PI/2};passing.vehicle.velocity={x:0,z:0,yawRate:0};sim.restore(c);
+ await until(()=>host.states.some(s=>s.serverTick>=c.tick+45),'The authority must publish the short breakaway after the officer passes');
+ const sample=host.states.find(s=>s.serverTick>=c.tick+45)!,escape=sample.vehicles.find(v=>v.entityId===bossId)!;
+ expect(Math.hypot(escape.velocity.x,escape.velocity.z)).toBeGreaterThan(8);
+ expect(Math.hypot(escape.velocity.x,escape.velocity.z)).toBeLessThan(10.3);
+ await until(()=>guest.states.some(s=>s.serverTick===sample.serverTick),'Backup must receive the same breakaway tick');
+ expect(guest.states.find(s=>s.serverTick===sample.serverTick)!.vehicles.find(v=>v.entityId===bossId)).toEqual(escape);
+ expect(sample.campaign!.outcomes).toHaveLength(1);expect(sample.pursuit!.state).not.toBe('complete');
+});
+
 it('Hector broadcasts a fixed grenade warning to peers and a late joiner, then explodes once with shared authority',async()=>{
  const host=await peer(),guest=await peer(host.room.roomId),{bossId}=encounter(host,4);
  await until(()=>Boolean(host.state.grenades?.length)&&Boolean(guest.state.grenades?.length),'Grenadier must publish a live landing/fuse warning');
