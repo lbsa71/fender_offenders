@@ -1,12 +1,12 @@
 # Art direction and asset pipeline
 
-Status: original procedural art/audio is implemented; human visual approval and distribution audit remain open. Updated: 2026-10-25 for `arcade-v8`.
+Status: original procedural art and the sampled gameplay audio pass are implemented; human visual/listening approval and distribution audit remain open. Updated: 2026-10-26.
 
-*Everything in the motor pool was made here. The dents are also locally sourced.*
+*The geometry is locally built. Recorded dents now arrive with provenance paperwork.*
 
 ## Current shipping baseline
 
-The city, six player bodies, civilian traffic, rigid street props, cosmetic pedestrians, weapon/wreck/grenade effects and audio are generated from TypeScript source. Campaign dossiers and ten inline SVG mugshots live in `packages/contracts`. No downloaded models, textures, recordings or web fonts are required. See [the original asset record](../packages/content/manifests/licenses/ORIGINAL_ASSETS.md) for source ownership and licensing limits.
+The city, six player bodies, civilian traffic, rigid street props, cosmetic pedestrians and visual effects are generated from TypeScript source. Campaign dossiers and ten inline SVG mugshots live in `packages/contracts`. Audio combines a small local bank of CC0 recordings/original arrangements with synthesized fallback. No external audio service, downloaded models, textures or web fonts are required at runtime. See [the original asset record](../packages/content/manifests/licenses/ORIGINAL_ASSETS.md) and [audio provenance](../packages/content/manifests/licenses/audio/README.md).
 
 This is the selected art family. GLB/Blender conversion, external texture packs and binary-source storage below are future options. Asset budgets and approved in-engine references still need measured acceptance; procedural generation does not make rendering free.
 
@@ -32,7 +32,7 @@ Cars receive the most attention: proportions, wheel placement, beveled edges, pa
 
 ## 2. Historical external shortlist
 
-These references were considered during planning and are not used by the current runtime. No license, price or archive availability is reverified by this review. Before adopting anything, inspect the exact current archive and its supplied terms.
+These visual references were considered during planning and are not used by the current runtime. No visual-pack license, price or archive availability is reverified by this review. The separately adopted audio archives are documented in [audio provenance](../packages/content/manifests/licenses/audio/README.md).
 
 | Source | Possible future use | Review required before adoption |
 | --- | --- | --- |
@@ -73,7 +73,7 @@ asset-source/                 # separate source-art storage policy, not client i
 tools/assets/
 ```
 
-If binary sources are introduced, foundation chooses Git LFS or an external artifact store before import. Current source-generated assets remain reproducible from the Git revision. Never ship unused source files or high-resolution textures through the client build.
+For patrol audio, foundation selects the hash-pinned publisher archive URLs as the external source store, with an ignored local cache and small derived WAV files in Git. The [audio policy](../packages/content/manifests/licenses/audio/README.md) records rebuild requirements and the durable release-mirror follow-up. Future larger binary sources require their own Git LFS/external storage choice. Never ship source archives or unused high-resolution files through the client build.
 
 ## 4. Model conventions
 
@@ -134,7 +134,7 @@ Texture downloads and GPU residency differ. Report both. Start with KTX2/Basis-c
 
 Apply the same provenance workflow to audio. Use licensed/original engine loops, tire skids, sirens, weapons, impacts, wrecks, and UI sounds. Layer pitch/volume by speed and grip, cap simultaneous sounds, and avoid restarting loops on every snapshot.
 
-The current baseline synthesizes these sounds, including cartoon crashes and grenade throw/fuse/blast cues, in Web Audio. Music and vibration settings do not establish an authored soundtrack or tested haptics.
+The [patrol audio slice](AUDIO.md) ships recorded engine/foley layers, original friction/siren/blast layers, three impact intensities, variations and priority-limited stereo playback. Original synthesis remains for fallback and grenade/suspension accents. Music and vibration settings do not establish an authored soundtrack or tested haptics.
 
 Audio begins only after user interaction and respects mute/reduced-effects settings. Deduplicate confirmed and predicted sounds. Replays and reconciliation must not produce repeated gunshots. VFX/audio lane ownership belongs to rendering; gameplay publishes semantic events.
 

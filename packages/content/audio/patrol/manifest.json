@@ -1,0 +1,467 @@
+{
+  "revision": "patrol-audio-2",
+  "date": "2026-10-26",
+  "sampleRate": 24000,
+  "channels": 1,
+  "bits": 16,
+  "sourceLicense": "CC0-1.0",
+  "originalCodeAndArrangements": "GPL-3.0-or-later",
+  "sourceArchives": {
+    "muted": {
+      "url": "https://mutedio.s3.us-east-2.amazonaws.com/sounds/sample-packs/performance-cars-free-sample-pack-mutedio.zip",
+      "page": "https://muted.io/performance-cars/",
+      "creator": "muted.io",
+      "sha256": "bde1241416274464c170d59dde84327d53868210a7af7d73e63fc35576593d10",
+      "file": "performance-cars.zip"
+    },
+    "kenney": {
+      "url": "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip",
+      "page": "https://kenney.nl/assets/impact-sounds",
+      "creator": "Kenney",
+      "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8",
+      "file": "kenney-impact.zip"
+    }
+  },
+  "assets": [
+    {
+      "file": "idle.wav",
+      "sha256": "ccec478431e2688783a298396c645a5e5506afcd1255a369b01479b3070940fc",
+      "bytes": 119084,
+      "duration": 2.48,
+      "loop": true,
+      "sources": [
+        "muted:performance-cars-free-sample-pack-mutedio/002-performance-cars-mutedio.wav [0.3,2.9s]"
+      ]
+    },
+    {
+      "file": "drive.wav",
+      "sha256": "30fd996156d6cd8a799577097ea141de89b45f77ba8b55b622feaf5f2995554b",
+      "bytes": 119084,
+      "duration": 2.48,
+      "loop": true,
+      "sources": [
+        "muted:performance-cars-free-sample-pack-mutedio/006-performance-cars-mutedio.wav [4.0,6.6s]"
+      ]
+    },
+    {
+      "file": "tires.wav",
+      "sha256": "57d90e354930076107dced255fc004d10f62c0bb1eb0b469d768648e289b26b5",
+      "bytes": 128684,
+      "duration": 2.68,
+      "loop": true,
+      "sources": [
+        "original: seeded friction noise and rubbing resonances"
+      ]
+    },
+    {
+      "file": "road.wav",
+      "sha256": "6d3db0579a08f7d0a6a94e3ea8ce1bd916a46c44066972823633028d1a5b40d0",
+      "bytes": 128684,
+      "duration": 2.68,
+      "loop": true,
+      "sources": [
+        "kenney:Audio/footstep_snow_000.ogg",
+        "original: seeded rolling noise"
+      ]
+    },
+    {
+      "file": "siren.wav",
+      "sha256": "ebe5c95a9b8b1305782b1508e1d36097d616aff65db352df04d3b30490938dda",
+      "bytes": 192044,
+      "duration": 4.0,
+      "loop": true,
+      "sources": [
+        "original: harmonic two-voice wail"
+      ]
+    },
+    {
+      "file": "light-0.wav",
+      "sha256": "045234669912af25fb888dc8d71365123a9f69b2f103636a31d12adbcad5fe08",
+      "bytes": 18284,
+      "duration": 0.38,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_light_000.ogg",
+        "kenney:Audio/impactPunch_heavy_000.ogg"
+      ]
+    },
+    {
+      "file": "medium-0.wav",
+      "sha256": "e175133ec0cebd88b8d91a4ef6c06e4e2a463247037aaa6c7c9da162bc2312de",
+      "bytes": 36044,
+      "duration": 0.75,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_medium_000.ogg",
+        "kenney:Audio/impactPunch_heavy_000.ogg",
+        "kenney:Audio/impactMetal_light_000.ogg"
+      ]
+    },
+    {
+      "file": "heavy-0.wav",
+      "sha256": "80a834d6a377415ab1675c3c56a78902137af444a59867c990ee99be93346df5",
+      "bytes": 60044,
+      "duration": 1.25,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_heavy_000.ogg",
+        "kenney:Audio/impactGlass_heavy_000.ogg",
+        "kenney:Audio/impactMetal_light_000.ogg",
+        "original: low body and broadband impact"
+      ]
+    },
+    {
+      "file": "shot-0.wav",
+      "sha256": "b64dbec0ad1c108c2619ccffe433307e71ca9ec7ba76787b928d142f0d4da016",
+      "bytes": 11564,
+      "duration": 0.24,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_light_000.ogg",
+        "kenney:Audio/impactPunch_heavy_000.ogg",
+        "original: short blast"
+      ]
+    },
+    {
+      "file": "hit-0.wav",
+      "sha256": "12947c5971b4bbfcd4c41f04948ec97a08550960d4a2ad6ec32a5fc340d3fb45",
+      "bytes": 19244,
+      "duration": 0.4,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_medium_000.ogg",
+        "kenney:Audio/impactGlass_heavy_000.ogg"
+      ]
+    },
+    {
+      "file": "light-1.wav",
+      "sha256": "797f24dbc8cc99a3be24e8c2e1e342d6fdf521f59a6acd7ced22db38b6267ecc",
+      "bytes": 18284,
+      "duration": 0.38,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_light_001.ogg",
+        "kenney:Audio/impactPunch_heavy_001.ogg"
+      ]
+    },
+    {
+      "file": "medium-1.wav",
+      "sha256": "95e21fd609e34a825734bea9fa3875000c999540c3c4ed15f9247e61a6fd49cc",
+      "bytes": 36044,
+      "duration": 0.75,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_medium_001.ogg",
+        "kenney:Audio/impactPunch_heavy_001.ogg",
+        "kenney:Audio/impactMetal_light_001.ogg"
+      ]
+    },
+    {
+      "file": "heavy-1.wav",
+      "sha256": "94517a7517262b5db811fe189fdc40638d092bae88d6e2e1e139c76066510091",
+      "bytes": 60044,
+      "duration": 1.25,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_heavy_001.ogg",
+        "kenney:Audio/impactGlass_heavy_001.ogg",
+        "kenney:Audio/impactMetal_light_001.ogg",
+        "original: low body and broadband impact"
+      ]
+    },
+    {
+      "file": "shot-1.wav",
+      "sha256": "64cef35907936fb8b321a9764e514105012d8fcc1977e56920b72c7234faadb2",
+      "bytes": 11564,
+      "duration": 0.24,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_light_001.ogg",
+        "kenney:Audio/impactPunch_heavy_001.ogg",
+        "original: short blast"
+      ]
+    },
+    {
+      "file": "hit-1.wav",
+      "sha256": "151b06e135365529423c861a1ce72dcd1b92c7e14394998fbd55febc23950965",
+      "bytes": 19244,
+      "duration": 0.4,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_medium_001.ogg",
+        "kenney:Audio/impactGlass_heavy_001.ogg"
+      ]
+    },
+    {
+      "file": "light-2.wav",
+      "sha256": "ddf07beca55f9810b27e34ec116fdf0593ee786787b373bee977aaa0a88e98c9",
+      "bytes": 18284,
+      "duration": 0.38,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_light_002.ogg",
+        "kenney:Audio/impactPunch_heavy_002.ogg"
+      ]
+    },
+    {
+      "file": "medium-2.wav",
+      "sha256": "3a3328b08836c159c1eedc8ff6b942cf40221fea4c673a57320275b5c3e070d6",
+      "bytes": 36044,
+      "duration": 0.75,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_medium_002.ogg",
+        "kenney:Audio/impactPunch_heavy_002.ogg",
+        "kenney:Audio/impactMetal_light_002.ogg"
+      ]
+    },
+    {
+      "file": "heavy-2.wav",
+      "sha256": "621344446276ebaac360fcea03cfd96dd2fba7d98c973b8fd752469ddc2cfc7d",
+      "bytes": 60044,
+      "duration": 1.25,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_heavy_002.ogg",
+        "kenney:Audio/impactGlass_heavy_002.ogg",
+        "kenney:Audio/impactMetal_light_002.ogg",
+        "original: low body and broadband impact"
+      ]
+    },
+    {
+      "file": "shot-2.wav",
+      "sha256": "cf9f3feddd9fd260ddc87462e14393e9519a253a0cddfd53962ec6865106167e",
+      "bytes": 11564,
+      "duration": 0.24,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_light_002.ogg",
+        "kenney:Audio/impactPunch_heavy_002.ogg",
+        "original: short blast"
+      ]
+    },
+    {
+      "file": "hit-2.wav",
+      "sha256": "5164af7102977bb5b2610e2b06a5569447acd1624f0f2153fa215683ddd48f6e",
+      "bytes": 19244,
+      "duration": 0.4,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_medium_002.ogg",
+        "kenney:Audio/impactGlass_heavy_002.ogg"
+      ]
+    },
+    {
+      "file": "wreck-0.wav",
+      "sha256": "414003c9625dd574155dcccda7bd33e06e37e4c5ae4da97fedc4baf2bca06623",
+      "bytes": 96044,
+      "duration": 2.0,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_heavy_000.ogg",
+        "kenney:Audio/impactGlass_heavy_000.ogg",
+        "kenney:Audio/impactMetal_medium_000.ogg",
+        "kenney:Audio/impactMetal_light_000.ogg",
+        "kenney:Audio/impactMetal_light_001.ogg",
+        "original: bass blast and debris arrangement"
+      ]
+    },
+    {
+      "file": "wreck-1.wav",
+      "sha256": "d685ce8dd42bc09c887ee53870d9f9a5a22c990baa9a6fa8cd30952cfe8f6f32",
+      "bytes": 96044,
+      "duration": 2.0,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_heavy_001.ogg",
+        "kenney:Audio/impactGlass_heavy_001.ogg",
+        "kenney:Audio/impactMetal_medium_001.ogg",
+        "kenney:Audio/impactMetal_light_001.ogg",
+        "kenney:Audio/impactMetal_light_002.ogg",
+        "original: bass blast and debris arrangement"
+      ]
+    },
+    {
+      "file": "lob-0.wav",
+      "sha256": "f0c385366aac7e9785cab002e8d48d2958a7cd92569f169263a15f20dc2cef17",
+      "bytes": 28844,
+      "duration": 0.6,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_light_002.ogg",
+        "original: air displacement"
+      ]
+    },
+    {
+      "file": "land-0.wav",
+      "sha256": "005da0440120e46076771df65d159842e8e46d2aa65a084464ab1c8da24bd055",
+      "bytes": 22124,
+      "duration": 0.46,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactPunch_heavy_002.ogg",
+        "kenney:Audio/impactMetal_light_002.ogg"
+      ]
+    },
+    {
+      "file": "fuse-0.wav",
+      "sha256": "3602f97c5a97eda5e1ec819053545613795fa3591ceb00fb77bc9a758fc197b9",
+      "bytes": 9164,
+      "duration": 0.19,
+      "loop": false,
+      "sources": [
+        "original: burning fuse with irregular sparks"
+      ]
+    },
+    {
+      "file": "blast-0.wav",
+      "sha256": "035d8b8b0001f5b0f3169550e07b9e6fd596bd26b8a552c8a6c107e011c3b28c",
+      "bytes": 79244,
+      "duration": 1.65,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_heavy_002.ogg",
+        "kenney:Audio/impactGlass_heavy_002.ogg",
+        "kenney:Audio/impactMetal_light_002.ogg",
+        "kenney:Audio/impactPunch_heavy_002.ogg",
+        "original: pressure wave and debris arrangement"
+      ]
+    },
+    {
+      "file": "boing-0.wav",
+      "sha256": "7d2779f4c1e673a85dc6bb9dd2c67b36a3a291d6b26f1f8d42590c56082d7222",
+      "bytes": 20684,
+      "duration": 0.43,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactPunch_heavy_002.ogg",
+        "original: damped suspension spring modes"
+      ]
+    },
+    {
+      "file": "squeak-0.wav",
+      "sha256": "9a50eb89812131042279d148e3f8cb433570241ff487808fba81626bb720fe96",
+      "bytes": 11564,
+      "duration": 0.24,
+      "loop": false,
+      "sources": [
+        "original: rubber friction with moving resonances"
+      ]
+    },
+    {
+      "file": "oil-0.wav",
+      "sha256": "4e29983a347e88e4a7ea309e82217f62ae1f71ce180dfbbea0a8cb3311ea284c",
+      "bytes": 28844,
+      "duration": 0.6,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_light_003.ogg",
+        "original: liquid discharge and bubbles"
+      ]
+    },
+    {
+      "file": "blades-0.wav",
+      "sha256": "c4869fc5a12ff11f6834d3ba0c75875ce02ac2bfc024b7c1b7e8c501fbb803b6",
+      "bytes": 29804,
+      "duration": 0.62,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_light_003.ogg",
+        "kenney:Audio/impactMetal_medium_003.ogg",
+        "kenney:Audio/impactMetal_light_002.ogg",
+        "original: blade extension scrape"
+      ]
+    },
+    {
+      "file": "lob-1.wav",
+      "sha256": "e5ab15bab336320b0a81f49327021e5920ccb1d8f86acec1ceb8e1d3ebc1637e",
+      "bytes": 28844,
+      "duration": 0.6,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_light_003.ogg",
+        "original: air displacement"
+      ]
+    },
+    {
+      "file": "land-1.wav",
+      "sha256": "5bb6d6cb55186b5bcbd36ac5905824c992a9072d0abbd65292060037a3284e8a",
+      "bytes": 22124,
+      "duration": 0.46,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactPunch_heavy_003.ogg",
+        "kenney:Audio/impactMetal_light_003.ogg"
+      ]
+    },
+    {
+      "file": "fuse-1.wav",
+      "sha256": "8749b37d647e7e39bc1604c0ada2007fed20070a50793a798162cc0de4c5a5ae",
+      "bytes": 9164,
+      "duration": 0.19,
+      "loop": false,
+      "sources": [
+        "original: burning fuse with irregular sparks"
+      ]
+    },
+    {
+      "file": "blast-1.wav",
+      "sha256": "cccd43734ded46035b58f5ae27ccc5d846b9f7ae3a7dcd24d21e23e505a329ec",
+      "bytes": 79244,
+      "duration": 1.65,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_heavy_003.ogg",
+        "kenney:Audio/impactGlass_heavy_003.ogg",
+        "kenney:Audio/impactMetal_light_003.ogg",
+        "kenney:Audio/impactPunch_heavy_003.ogg",
+        "original: pressure wave and debris arrangement"
+      ]
+    },
+    {
+      "file": "boing-1.wav",
+      "sha256": "07ec0c9879fa385b3242afe1e92221e117b780348ad012c973f0317bfd42c2d7",
+      "bytes": 20684,
+      "duration": 0.43,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactPunch_heavy_003.ogg",
+        "original: damped suspension spring modes"
+      ]
+    },
+    {
+      "file": "squeak-1.wav",
+      "sha256": "e7a9fdda95a8d08c3b6d10527044c25c8387f2834700c3e35e8f7c36f0d6db17",
+      "bytes": 11564,
+      "duration": 0.24,
+      "loop": false,
+      "sources": [
+        "original: rubber friction with moving resonances"
+      ]
+    },
+    {
+      "file": "oil-1.wav",
+      "sha256": "cba10ce889ae90357fc23f96131fa9cba4ce5aed69fa0790dc868df529245a95",
+      "bytes": 28844,
+      "duration": 0.6,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_light_004.ogg",
+        "original: liquid discharge and bubbles"
+      ]
+    },
+    {
+      "file": "blades-1.wav",
+      "sha256": "06e9f9aff1c430b4cefa6852895fd6b4b7d53353714c9c80adc39ace92278ecd",
+      "bytes": 29804,
+      "duration": 0.62,
+      "loop": false,
+      "sources": [
+        "kenney:Audio/impactMetal_light_004.ogg",
+        "kenney:Audio/impactMetal_medium_004.ogg",
+        "kenney:Audio/impactMetal_light_003.ogg",
+        "original: blade extension scrape"
+      ]
+    }
+  ]
+}

@@ -301,7 +301,8 @@ interface RenderFrame {
 interface GameRenderer {
   loadScene(scene: SceneManifest): Promise<void>;
   setDispatch(dispatchId: string | null): void;
-  render(frame: RenderFrame, frameDeltaSeconds: number): void;
+  render(frame: RenderFrame, frameDeltaSeconds: number, driverInput?: Pick<DriverActions, 'throttle' | 'brakeReverse'>): void;
+  setAudioActive(active: boolean): void;
   present(events: GameEvent[]): void;
   resize(width: number, height: number, pixelRatio: number): void;
   dispose(): void;
@@ -311,6 +312,10 @@ interface GameRenderer {
 `step()` keys inputs by vehicle entity ID. Input admission belongs to the server/session adapter, which attaches trusted command identity before simulation. Armed campaign AI is already implemented inside simulation-owned target runtime: its projectile owner is the target entity, with no player score identity. AI/server-generated actions cannot masquerade as an admitted player command. Replay retains the original player identities and checkpointed AI runtime.
 
 Types referenced but not expanded here are concrete exports: `SessionRequest`, `JoinResult`, `SessionStatus` and `SceneManifest` in contracts; `Simulation`/`SimulationCheckpoint` in sim; the renderer facade in renderer. Complete validator/fixture coverage remains F01/F02 work. Import actual public types rather than copying these excerpts into a second local interface.
+
+The optional renderer input supplies only the already sampled local throttle/reverse values for [engine sound](AUDIO.md). It is not stored in `RenderFrame` or transmitted. Callers without it retain a bounded render-velocity acceleration estimate. `setAudioActive` silences gameplay sound during menus/pauses; document visibility gates it independently. Neither function changes input or simulation authority.
+
+Body identity selects local engine tuning. Oil/blade audio derives from existing gadget IDs/timing and rendered positions: play once within six presentation ticks of oil birth or blade activation, suppress late reconstruction and distant cues, and clear the bounded history on match/garage reset. No sound messages or gameplay fields are added to the wire contract.
 
 - `SessionRequest`: required room ID and bounded nickname, optional validated `vehicleBodyId` and protocol/content versions. Reconnect credentials stay inside the SDK adapter, not this public request shape. Omission of a vehicle retains server random assignment for legacy/tool callers; clients cannot supply profile tuning values.
 - `JoinResult`: player ID, room ID, current session epoch, accepted content versions, first state, local entity ID if spawned.

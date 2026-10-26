@@ -13,6 +13,10 @@ Updated: 2026-10-26. Thank you to everyone helping Fender Offenders reach the ne
 
 ## AI assistance
 
+Audio sources added on 2026-10-26: muted.io (Performance Cars engine recordings) and Kenney (Impact Sounds metal/glass/body/rolling layers), under CC0-1.0. [Audio provenance](packages/content/manifests/licenses/audio/README.md) records evidence, transformations and hashes.
+
+The gameplay audio pass includes OpenAI Codex assistance for recording selection/editing, original layers, six vehicle tunings, adaptive playback, grenade/suspension/gadget sound design, sample priority/lifecycle handling, native browser checks and the reproducible listening comparison.
+
 | Tool | Credit |
 | --- | --- |
 | Claude Code | AI-assisted implementation and testing, including work recorded in co-authored handling and performance commits. |

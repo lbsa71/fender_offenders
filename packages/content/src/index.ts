@@ -76,12 +76,12 @@ export const districtMap: CollisionMap = {
 export { VEHICLE_BODIES } from '@fender/contracts';
 export { DISTRICT_WATER, ROAD_PUDDLES, waterFootprint } from './water';
 export const ASSET_PROVENANCE = {
-  revision: 'original-procedural-1',
+  revision: 'procedural-and-patrol-audio-2',
   creator: 'Fender Offenders project',
-  source: 'packages/renderer/src and packages/content/src',
+  source: 'packages/renderer/src, packages/content/src and packages/content/audio/patrol/manifest.json',
   status: 'shipping',
-  license: 'Project-authored source under the repository license; no third-party artwork, audio recordings, fonts, textures or models.',
-  note: 'All geometry, materials, generated sign textures and Web Audio synthesis are original procedural project code. Babylon.js is a separately licensed code dependency. No CC0 claims are made.',
+  license: 'Project-authored source and audio arrangements: GPL-3.0-or-later. Imported engine and foley recordings: CC0-1.0; see manifests/licenses/audio.',
+  note: 'Geometry, materials, sign textures and synthesis are original project code. The patrol bank includes provenance-tracked recordings by muted.io and Kenney. Babylon.js is a separately licensed code dependency.',
 } as const;
 
 export const cityLayout = { buildings, trees, roadCenters, map: districtMap };

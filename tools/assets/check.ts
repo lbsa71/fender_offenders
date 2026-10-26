@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { districtMap, buildings, ASSET_PROVENANCE } from '../../packages/content/src/index';
 
 const failures:string[]=[];
@@ -37,5 +38,18 @@ for(const source of ['packages/content/src/index.ts','packages/renderer/src/city
   const data=await readFile(source);console.log(`${source}: ${data.byteLength} source bytes, SHA256 ${createHash('sha256').update(data).digest('hex')}`);
 }
 if(ASSET_PROVENANCE.creator!=='Fender Offenders project')failures.push('asset provenance missing');
+const audioFlag=process.argv.indexOf('--audio-root');
+const audioRoot=resolve(audioFlag<0?'packages/content/audio/patrol':process.argv[audioFlag+1]);
+const audioManifest=JSON.parse(await readFile(resolve(audioRoot,'manifest.json'),'utf8'));
+let audioBytes=0;
+if(audioManifest.sourceLicense!=='CC0-1.0'||audioManifest.assets.length!==38)failures.push('Audio provenance/catalog missing');
+for(const asset of audioManifest.assets){
+  if(!/^[a-z]+(?:-\d)?\.wav$/.test(asset.file)){failures.push(`Invalid audio filename: ${asset.file}`);continue;}
+  const bytes=await readFile(resolve(audioRoot,asset.file));audioBytes+=bytes.byteLength;
+  if(createHash('sha256').update(bytes).digest('hex')!==asset.sha256)failures.push(`Audio hash mismatch: ${asset.file}`);
+  if(bytes.byteLength!==asset.bytes||bytes.toString('ascii',0,4)!=='RIFF'||bytes.readUInt16LE(20)!==1||bytes.readUInt16LE(22)!==1||bytes.readUInt32LE(24)!==24000||bytes.readUInt16LE(34)!==16)failures.push(`Invalid audio format/size: ${asset.file}`);
+  if(!asset.sources?.length)failures.push(`Audio source missing: ${asset.file}`);
+}
+if(audioBytes>2_000_000)failures.push('Patrol audio exceeds 2 MB budget');
 if(failures.length)throw new Error(failures.join('\n'));
-console.log(`Asset/content audit passed: ${buildings.length} original buildings, ${districtMap.spawns.length} clear spawns, ${nodes.size} lane nodes. No third-party media downloads.`);
+console.log(`Asset/content audit passed: ${buildings.length} original buildings, ${districtMap.spawns.length} clear spawns, ${nodes.size} lane nodes; ${audioManifest.assets.length} provenance-tracked audio clips, ${audioBytes} bytes.`);

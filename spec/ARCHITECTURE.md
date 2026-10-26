@@ -153,7 +153,7 @@ Use visible projectiles and swept collision at server tick rate. Test a relative
 
 At firing, the authority considers active unprotected opponents or the explicitly identified suspect in either mode within a 4° cone, 2.5 m lateral distance from the original ray and 40 m total range. Each barrel spawns at its physical tip and independently selects a correction, sorted by angle, distance and stable entity ID. Rapier segment queries reject world occlusion; shared car-box segments reject nearer vehicles, including protected cars and civilians. A center-to-muzzle sweep prevents point-blank obstruction bypass. Each round deals 5 damage; the paired volley retains 10 total damage at 12-tick cadence. Cars are not steered and projectiles do not home or lead targets.
 
-Static projectile hits emit `projectile-impact` at the swept contact point for wall sparks. Existing shot/hit/wreck events drive the bounded presentation effects and original Web Audio synthesis; presentation never changes health or projectile collision.
+Static projectile hits emit `projectile-impact` at the swept contact point for wall sparks. Existing shot/hit/wreck events drive bounded presentation effects and the [sampled patrol audio bank](AUDIO.md), with original synthesis as fallback; presentation never changes health or projectile collision. Local sampled input supplies throttle load to the renderer without changing shared frames or network contracts.
 
 Do not rewind the whole world to a client-supplied timestamp in the initial build. Forward projectiles still require latency playtests; being server authoritative does not automatically make aiming feel fair. Consider a separate lag-compensation design only if those playtests justify it.
 

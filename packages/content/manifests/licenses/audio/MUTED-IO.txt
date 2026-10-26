@@ -1,0 +1,21 @@
+Performance Cars — muted.io
+Source: https://muted.io/performance-cars/
+Verified/downloaded: 2026-10-26
+
+The publisher's pack-info section identifies the collection's license as CC0,
+linking to https://creativecommons.org/publicdomain/zero/1.0/.
+It describes 68 field recordings, 96 kHz, 24-bit, stereo, added 2020-11-14.
+The downloaded ZIP has no separate license file; this record preserves the
+publisher-page evidence. The full CC0 legal text is stored in CC0-1.0.txt.
+
+Official archive:
+https://mutedio.s3.us-east-2.amazonaws.com/sounds/sample-packs/performance-cars-free-sample-pack-mutedio.zip
+SHA256: bde1241416274464c170d59dde84327d53868210a7af7d73e63fc35576593d10
+
+Selected recordings:
+performance-cars-free-sample-pack-mutedio/002-performance-cars-mutedio.wav
+performance-cars-free-sample-pack-mutedio/006-performance-cars-mutedio.wav
+
+Changes: trimmed, converted to mono 24 kHz PCM16, filtered, normalized and
+crossfaded for looping. Exact intervals and output hashes are in the patrol
+manifest. The recipe is tools/assets/build-audio.py.

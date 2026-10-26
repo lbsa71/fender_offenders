@@ -27,6 +27,7 @@ async function boot() {
   let active = false, mode: 'online' = 'online', playerId = '', roomId = '', sequence = 0, clientTick = 0, epoch = '';
   let previousTime = performance.now(), previousFrameAt = previousTime, accumulator = 0, hudAt = 0, stopped = false, animation = 0;
   let previousInputAt = previousTime, inputAccumulator = 0;
+  let audioActions = neutralActions();
   let observedEvents: GameEvent[] = [];
   const frameDurations: number[] = [];
   const canStartDispatch = () => Boolean(snapshot?.scores.some(score => score.playerId === playerId && score.connection === 'connected'));
@@ -93,7 +94,8 @@ async function boot() {
     const plan = planFrame(inputAccumulator, elapsed, snapshot.paused ? 'paused' : 'online'); inputAccumulator = plan.accumulator;
     for (let step = 0; step < plan.steps; step++) {
       const tickTime = now - (plan.accumulator + (plan.steps - 1 - step) * FIXED_STEP) * 1000;
-      online.submit({ sessionEpoch: epoch, sequence: sequence++, clientTick: ++clientTick, actions: input!.sample() }, tickTime);
+      const actions = input!.sample(); audioActions = actions;
+      online.submit({ sessionEpoch: epoch, sequence: sequence++, clientTick: ++clientTick, actions }, tickTime);
     }
   }, 1000 / 60);
   function frame(now: number) {
@@ -108,6 +110,7 @@ async function boot() {
     for (let step = 0; step < plan.steps; step++) {
       clientTick++;
       const actions = active ? input!.sample() : neutralActions();
+      audioActions = actions;
       if (local) {
         const current = local.snapshot(active ? playerId : 'preview');
         const entity = current.local?.vehicle.entityId;
@@ -127,7 +130,8 @@ async function boot() {
     renderer.setDispatch(active && snapshot?.campaign ? CAMPAIGN_DISPATCHES[snapshot.campaign.dispatchIndex]?.id ?? null : null);
     renderer.setGaragePreview(active && snapshot?.phase === 'lobby' ? ui.getVehicle() : null);
     if (renderFrame && (!active || ui.isMenuVisible())) renderFrame.pursuit = undefined;
-    if (renderFrame) renderer.render(renderFrame, dt);
+    renderer.setAudioActive(active && !ui.isMenuVisible() && !paused && snapshot?.phase === 'playing');
+    if (renderFrame) renderer.render(renderFrame, dt, audioActions);
     ui.setTargetIndicator(active ? renderer.getTargetIndicator() : null);
     ui.setControlAnchor(active ? renderer.getControlAnchor() : null);
     if (now - hudAt > 80) {
