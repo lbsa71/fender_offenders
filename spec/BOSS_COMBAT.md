@@ -4,7 +4,7 @@ Status: implemented locally; human difficulty and audiovisual approval remain op
 
 *The suspects have read the equipment budget. Regrettably, they found the grenade column.*
 
-Nico is unarmed for the first arrest lesson. Targets from dispatch 2 can fight back. Ordinary civilian traffic remains unarmed. The four ringleaders have different driving and attack signatures; crew encounters introduce the same ideas more gently. The briefing names the tactic, shows its difficulty out of ten, and explains the opening a player can exploit.
+Nico is unarmed for the first arrest lesson. Targets from dispatch 2 can fight back. Ordinary civilian traffic remains unarmed. The four ringleaders have different driving and attack signatures; crew encounters introduce the same ideas more gently. The briefing retains a short current equipment tip. Numerical difficulty and full tactics dossiers are omitted from the main screens; complete controls and equipment guidance remain in Controls Help.
 
 | Ringleader | Driving | Attack and counterplay |
 | --- | --- | --- |

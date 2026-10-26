@@ -29,7 +29,7 @@ try {
   const indicatorText = () => page.locator('.fo-target-indicator').evaluateAll(nodes => nodes[0]?.textContent ?? '');
   await update();
   check((await page.locator('.fo-pursuit').innerText()).includes('APPREHEND THE SUSPECT'), 'multiplayer objective explicitly names apprehension');
-  check((await page.locator('.fo-pursuit').innerText()).includes('YOUR ARREST'), 'progress is clearly labeled as the local player arrest');
+  check(await page.locator('.fo-arrest-label').count()===0, 'arrest feedback uses its bar without a duplicate percentage');
   check((await page.locator('.fo-pursuit').innerText()).includes('3 seconds'), 'objective explains stay close and match speed for three seconds');
   check(await page.locator('.fo-pursuit progress').getAttribute('aria-label') === 'Your arrest progress', 'own progress is accessible');
   check(await page.locator('.fo-pursuit progress').evaluate(node => node.value) === .2, 'rival global progress must not masquerade as local progress');
@@ -114,7 +114,7 @@ try {
 
   await update({ phase: 'results', pursuit: { state: 'complete', winnerPlayerId: 'you' } });
   check((await page.locator('.fo-results').innerText()).includes('APPREHENDED BY OFFICER ROOKIE / YOU'), 'authoritative pursuit winner beats the combat scoreboard leader');
-  check((await page.locator('[data-results] li').first().textContent()).includes('Parking Menace'), 'combat leaderboard points remain intact');
+  check(await page.locator('[data-results],.fo-scoreboard').count()===0, 'results show the authoritative winner without a competing points table');
   await update({ phase: 'results', pursuit: { state: 'complete', winnerPlayerId: 'rival' } });
   check((await page.locator('.fo-results').innerText()).includes('APPREHENDED BY PARKING MENACE'), 'results follow the authoritative rival winner');
   await update({ phase: 'results', pursuit: { state: 'chasing', winnerPlayerId: null } });

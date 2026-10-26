@@ -1,10 +1,10 @@
 # Ten-dispatch campaign
 
-Status: implemented; human difficulty/controller acceptance remains open. Reviewed: 2026-10-25. Gameplay revision: `arcade-v11` (protocol 3). Campaign content: `green-light-racket-v1`.
+Status: implemented; human difficulty/controller acceptance remains open. Reviewed: 2026-10-26. Gameplay revision: `arcade-v17` (protocol 5). Campaign content: `green-light-racket-v1`.
 
 *The Green Light Society promised faster traffic. Apparently they meant faster getaway cars.*
 
-After the unarmed opening arrest lesson, campaign targets use [distinct armed tactics](BOSS_COMBAT.md), including grenade attacks and a ten-step difficulty ramp. Briefings explain their driving style, weapon and counterplay. This extends the progression lifecycle below.
+After the unarmed opening arrest lesson, campaign targets use [distinct armed tactics](BOSS_COMBAT.md), including grenade attacks and a ten-step difficulty ramp. Briefings give a short equipment tip; full current controls and equipment guidance remain available on demand. This extends the progression lifecycle below.
 
 Dispatch lighting follows the authored noon/dusk/night [graphics schedule](GRAPHICS_POLISH.md#authored-dispatch-schedule). Practice and online select it from the existing shared campaign index during briefing, play and results. Atmosphere changes presentation only; target rules and progression stay unchanged. Shallow water and restrained light detail are implemented. Road puddles become slippery from dispatch 4; see [tutorial progression](TUTORIAL.md). Dispatch has finally learned to book the night shift.
 
@@ -13,14 +13,14 @@ Each 1–8-player server room runs **The Green Light Racket**, ten dispatches li
 ## Player flow
 
 1. Open a room URL (assigned randomly when absent), enter a callsign and choose Hit the streets. The saved motor-pool assignment remains intact.
-2. Read the dispatch briefing alongside the target's mugshot, car identification and ten-step tracker. Reassign the player's own car here; the rotating 3D previews show both YOUR UNIT and WANTED with their current weapon fittings.
+2. See the target’s mugshot, the current story paragraph and car identification. Reassign the player's own car here; the rotating 3D previews show both YOUR UNIT and WANTED with their current weapon fittings.
 3. Start the dispatch. Any connected officer can start, including the room’s sole player. A three-second countdown locks the motor pool.
-4. Race to arrest the marked target. Dispatch 1 requires an arrest and disables guns for everyone; dispatch 2 unlocks shooting and credited target destruction as an alternative. The first authoritative resolution wins this dispatch, independent of cumulative combat-point ranking.
-5. Read the outcome and newly revealed clue. An arrest earns three points and a green check; a wreck earns the existing one-point wreck credit and a separate amber result. Both advance the story. Results identify the resolving officer.
+4. Race to arrest the marked target. Dispatch 1 requires an arrest and disables guns for everyone; police guns unlock in dispatch 3 after suspect guns appear in dispatch 2. Credited target destruction is allowed after the opener. The first authoritative resolution wins this dispatch, independent of cumulative combat-point ranking.
+5. Read the outcome and newly revealed clue. An arrest earns three internal points; a wreck earns the existing one-point credit. The concise result distinguishes arrest/wreck and shows only the current earned reveal. Both advance the story. Results identify the resolving officer.
 6. Any connected officer opens the next briefing. All players can change their car again before the next dispatch starts. Scores, outcomes and casefile carry forward. A timeout instead retries the same dispatch and reveals no new clue.
-7. The tenth success finishes the campaign and reveals the ending. A new campaign resets the tracker and scores while retaining players, room link and vehicle assignments.
+7. The tenth success finishes the campaign and reveals the ending. A new campaign resets outcomes and scores while retaining players, room link and vehicle assignments.
 
-The tracker is shared by the room: a green check means that dispatch ended in an arrest by the named officer. It does not imply that every player earned that arrest. Late joiners and reconnecting players see the same tracker and revealed casefile. Campaign progress belongs to the room. Empty rooms pause for up to 15 minutes, with earlier reclamation at capacity. Returning resumes that campaign; expiry or a server restart recreates the invite with a fresh campaign. See [room sessions](ROOM_SESSIONS.md).
+Outcomes remain shared by the room and retain the resolving officer’s callsign after departure. Late joiners and reconnecting players receive the same complete authority state, but the interface shows the current assignment/result rather than a tracker, score table or accumulated casefile. Campaign progress belongs to the room. Empty rooms pause for up to 15 minutes, with earlier reclamation at capacity. Returning resumes that campaign; expiry or a server restart recreates the invite with a fresh campaign. See [room sessions](ROOM_SESSIONS.md).
 
 ## Authority and lifecycle
 
@@ -32,7 +32,7 @@ The marked suspect retains one entity ID across dispatches. Each new stage reset
 
 Arrest eligibility remains active/connected officer, distance below 8 m, relative speed below 5 m/s and unobstructed static-world line of sight for 180 ticks. Ineligible progress decays by two ticks. Simultaneous arrest finishes use stable player-ID ordering. Projectiles resolve before arrest progress on each tick; a lethal shot on the would-be arrest tick records a wreck once. The target uses its assigned vehicle's armor, while retaining AI lane driving and the existing chase speed limits.
 
-Only completed outcomes unlock story text. The UI can show future tracker slots and target names, but not their success revelations. A timeout has no outcome entry. Checkpoints preserve the campaign and independent arrest timers for deterministic replay. Compact snapshots carry the casefile baseline to existing peers, late joins and reconnects.
+Only completed outcomes unlock story text. The UI shows only the current assignment and, after success, its earned reveal; future success revelations remain sealed. A timeout has no outcome entry. Checkpoints preserve the campaign and independent arrest timers for deterministic replay. Compact snapshots carry the casefile baseline to existing peers, late joins and reconnects.
 
 ## Authored arc (engineering spoilers)
 
@@ -58,11 +58,11 @@ The original catalog and self-contained SVG portraits live in [campaign content]
 | Shared foundation | Campaign DTOs/exports, wire adapter, revision | Ordered mixed outcomes survive roundtrip; legacy snapshots remain readable |
 | Simulation | Stage lifecycle, target stats, credit and reset | Observed RED before implementation; ten alternating arrest/wreck completions, timeout, permissions, replay |
 | Authored content/art | Ten dossiers, four ringleaders, story and SVG mugshots | Valid references, six vehicle bodies, distinct portraits; native small-size inspection |
-| Interface | Briefing/garage, tracker, results, revealed casefile and menu input | Fixture RED/GREEN, no future reveals, no wreck checks, responsive layout and controller navigation |
+| Interface | Concise briefing/garage, current earned reveal, outcome credit and menu input | Fixture RED/GREEN, no future reveals, no wreck checks, responsive layout and controller navigation |
 | Integration/operations | App/server composition, real clients, browser flows, CI and deployment | Both peers/late join share progress; real shooting, car changes, actual solo start and live hosted briefing |
 
 Run focused checks with `pnpm exec vitest run packages/contracts/src/campaign.test.ts packages/contracts/src/wire.test.ts packages/sim/src/core/campaign.test.ts tests/integration/campaign.test.ts`, the UI fixture with `node packages/ui/dev/campaign-smoke.mjs`, and the integrated browser suite with `pnpm test:e2e`. Fixture captures are labeled as fixtures; hosted captures establish only the live state actually shown.
 
 The armed build's implementation evidence is dated in [execution status](EXECUTION_STATUS.md). The 2026-10-24 pacing follow-up allows fifteen local fixed ticks per slow practice frame, with a separate four-input-tick online stall cap; online sampling now uses an independent timer rather than rendered frames; menus and nonplaying campaign presentation retain their freeze rules. The badge update also avoids a per-frame position transition. Next acceptance is a complete human campaign run on keyboard and physical controllers, late-join/reconnect review and measured five-minute performance—not another round of story scaffolding. The casefile is ready; the clipboard still needs signatures.
 
-The UI capture script contains original-machine output paths. Consult [UI fixture notes](../packages/ui/README.md) before enabling captures in another checkout; those old directories are historical artifacts, not required repository locations.
+Campaign fixture captures use `work/quick-patrol`. Consult [UI fixture notes](../packages/ui/README.md) for other capture tools; older absolute output paths remain historical evidence.

@@ -19,47 +19,16 @@ try {
   await page.locator('.fo-hud').waitFor({ state: 'visible' });
   assert.equal(await page.evaluate(() => window.lastPlay.roomId), 'FixtureRoom1');
   assert.equal(await page.evaluate(() => 'mode' in window.lastPlay), false, 'entry has one room model');
-  assert.equal(await page.locator('.fo-scoreboard').getByText('PING / ms', { exact: true }).isVisible(), true, 'one-player rooms retain the shared network status');
-  const setPingPhase = (phase, localPing = 42) => page.evaluate(({ phase, localPing }) => window.fixture.ui.update({ mode: 'online', snapshot: {
-    ...window.fixture.snapshot, phase, scores: [
-      { playerId: 'you', nickname: 'Officer Rookie', score: 3, wrecks: 1, connection: 'connected', pingMs: localPing },
-      { playerId: 'rival', nickname: 'Parking Menace', score: 2, wrecks: 2, connection: 'connected', pingMs: 137 },
-      { playerId: 'unknown', nickname: 'Lost Unit', score: 0, wrecks: 0, connection: 'reconnecting', pingMs: null },
-    ],
-  } }), { phase, localPing });
-  for (const viewport of [{ width: 1440, height: 900 }, { width: 960, height: 640 }]) {
-    await page.setViewportSize(viewport);
-    for (const phase of ['playing', 'results']) {
-      await setPingPhase(phase);
-      const scope = page.locator(phase === 'results' ? '.fo-results' : '.fo-scoreboard');
-      assert.equal(await scope.getByText('PING / ms', { exact: true }).count(), 1, 'latency column has a visible unit header');
-      assert.equal(await scope.getByLabel('Officer Rookie ping: 42 milliseconds', { exact: true }).textContent(), '42 ms');
-      assert.equal(await scope.getByLabel('Parking Menace ping: 137 milliseconds', { exact: true }).textContent(), '137 ms');
-      assert.equal(await scope.getByLabel('Lost Unit ping: unavailable', { exact: true }).textContent(), '—');
-      const pingBounds = await scope.locator('.fo-ping').evaluateAll(nodes => nodes.map(node => {
-        const box = node.getBoundingClientRect();
-        return { left: box.left, right: box.right, clipped: node.scrollWidth > node.clientWidth };
-      }));
-      assert.ok(pingBounds.length === 3 && pingBounds.every(box => box.left >= 0 && box.right <= viewport.width && !box.clipped), `ping values fit ${phase} at ${viewport.width}×${viewport.height}`);
-      if (process.env.CAPTURE_UI && phase === 'playing') {
-        mkdirSync('work', { recursive: true });
-        await page.screenshot({ path: `work/ui-ping-${viewport.width}.png` });
-      }
-      if (phase === 'results') {
-        await setPingPhase('results', 43);
-        assert.equal(await scope.getByLabel('Officer Rookie ping: 43 milliseconds', { exact: true }).textContent(), '43 ms', 'results keep following new latency measurements');
-      }
-    }
-  }
+  assert.equal(await page.locator('.fo-scoreboard,[data-results],.fo-score-head').count(),0,'statistics tables stay out of the action');
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.evaluate(() => window.fixture.ui.update({ snapshot: window.fixture.snapshot, mode: 'practice' }));
   for (const [state, label, text, broken] of [
-    ['connecting', 'Connecting', 'Connecting…', false],
-    ['reconnecting', 'Reconnecting', 'Reconnecting…', true],
+    ['connecting', 'Connecting', 'Connecting', false],
+    ['reconnecting', 'Reconnecting', 'Reconnecting', true],
     ['disconnected', 'Connection lost', 'Connection lost', true],
-    ['playing', 'Connected', 'CONNECTED', false],
+    ['playing', 'Connected', '', false],
     ['error', 'Connection lost', 'Connection lost', true],
-    ['playing', 'Connected', 'CONNECTED', false],
+    ['playing', 'Connected', '', false],
   ]) {
     await page.evaluate(state => window.fixture.ui.update({ mode: 'online', status: { state }, error: null }), state);
     assert.equal(await page.locator('.fo-top').isVisible(), true, 'network state stays visible in the persistent header');
@@ -72,7 +41,7 @@ try {
     }
   }
   await page.evaluate(() => { window.fixture.ui.update({ mode: 'practice', status: { state: 'playing' }, error: null }); window.fixture.ui.showMenu(null); });
-  assert.ok((await page.locator('.fo-connection').innerText()).includes('LOCAL DISPATCH'));
+  assert.equal(await page.locator('.fo-connectivity-icon').getAttribute('aria-label'),'Local practice');
   assert.equal(await page.getByRole('img', { name: 'Connection lost', exact: true }).count(), 0, 'local practice is not presented as a network fault');
   await page.evaluate(() => window.fixture.ui.update({ mode: 'online', status: { state: 'error', reason: 'server-capacity' }, error: null }));
   assert.equal(await page.getByText('Dispatch is at capacity. Join an existing room or try creating one again shortly.', { exact: true }).count(), 1, 'server capacity has a clear message separate from room-full');
@@ -118,5 +87,5 @@ try {
   await page.evaluate(()=>window.fixture.ui.update({status:{state:'disconnected',reason:'idle-timeout'}}));
   assert.equal(await page.evaluate(()=>document.activeElement?.getAttribute('data-action')),'leave','idle refresh does not steal keyboard focus');
   assert.deepEqual(errors, []);
-  console.log('UI browser smoke passed: online pings/results at 1440×900 and 960×640, practice hides latency, persistent Wi-Fi state/recovery, keyboard practice, pause safety, settings/remap, invite join, safe results/rematch, 740×580 layout.');
+  console.log('UI browser smoke passed: stat-free play/results, accessible connection status, persistent Wi-Fi state/recovery, keyboard practice, pause safety, settings/remap, invite join, safe results/rematch, 740×580 layout.');
 } finally { await browser.close(); await server.close(); }
