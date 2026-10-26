@@ -5,7 +5,17 @@ import { GAMEPLAY_REVISION, PROTOCOL_VERSION, getDispatchFeatures, DEFAULT_DRIVI
 const clone = <T>(v: T): T => structuredClone(v);
 const wrap = (n: number) => Math.atan2(Math.sin(n), Math.cos(n));
 const frozenCampaign = (state: WorldSnapshot) => state.paused === true || Boolean(state.campaign) && state.phase !== 'playing';
-const MAX_PREDICTION_TICKS = 6;
+const SNAPSHOT_GRACE_MS = 300;
+const REMOTE_BUFFER_TICKS = 12;
+const REMOTE_EXTRAPOLATION_TICKS = 18;
+const REMOTE_STALE_MS = 1000;
+function correctionFraction(x: number, z: number, speed: number, dt: number) {
+  const length = Math.hypot(x, z);
+  // Repay the rate mismatch of a 20Hz authority versus 60Hz local prediction,
+  // while keeping catch-up slower than the car so it cannot reverse motion.
+  const catchupSpeed = speed > .05 ? speed * .8 : 4;
+  return length ? Math.min(1 - Math.exp(-dt * 5), catchupSpeed * dt / length) : 0;
+}
 export function interpolateVehicle(a: VehicleState, b: VehicleState, t: number): VehicleState {
   if (a.discontinuityId !== b.discontinuityId || a.status !== b.status) return clone(b);
   const v = clone(b); v.pose.x = a.pose.x + (b.pose.x - a.pose.x) * t; v.pose.z = a.pose.z + (b.pose.z - a.pose.z) * t; v.pose.yaw = a.pose.yaw + wrap(b.pose.yaw - a.pose.yaw) * t; return v;
@@ -18,14 +28,28 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
   let pending: { command: InputCommand; estimatedTick: number }[] = [], outgoing: InputCommand[] = [];
   let history: { state: WorldSnapshot; arrived: number }[] = [];
   let state: SessionStatus = { state: 'idle' }, disposed = false, playerId = '', roomId = '';
-  let rtt = 0, correctionX = 0, correctionZ = 0, lastRenderAt = performance.now(), lastSnapshotAt = performance.now();
+  let rtt = 0, correctionX = 0, correctionZ = 0, correctionYaw = 0, lastRenderAt = performance.now(), lastSnapshotAt = performance.now();
+  let predictionAt = performance.now();
+  let lastLocalFrame: VehicleState['pose'] | null = null;
+  let lateUntimedInput = false;
   let playbackTick: number | null = null;
+  const remoteCorrections = new Map<string, { x: number; z: number; yaw: number }>();
   let corrections = 0, maxCorrection = 0, receivedBytes = 0, sentBytes = 0;
   let activityAt = -Infinity;
   let noticeId = 0;
   let presence = { menuOpen: false, hidden: false };
   const snapshotListeners = new Set<(s: WorldSnapshot) => void>(), eventListeners = new Set<(events: GameEvent[]) => void>(), statusListeners = new Set<(s: SessionStatus) => void>();
   const status = (s: SessionStatus) => { state = s; statusListeners.forEach(fn => fn(s)); };
+  function localPose(now: number) {
+    if (!predicted) return null;
+    const pose = { ...predicted.vehicle.pose };
+    if (snapshot && !frozenCampaign(snapshot) && predicted.vehicle.status === 'active') {
+      const dt = Math.max(0, Math.min(.05, (now - predictionAt) / 1000, (lastSnapshotAt + SNAPSHOT_GRACE_MS - predictionAt) / 1000));
+      pose.x += predicted.vehicle.velocity.x * dt; pose.z += predicted.vehicle.velocity.z * dt;
+      pose.yaw += predicted.vehicle.velocity.yawRate * dt;
+    }
+    return pose;
+  }
   function remoteAt(tick: number): VehicleState[] {
     if (!history.length) return [];
     const before = [...history].reverse().find(h => h.state.serverTick <= tick) ?? history[0]!;
@@ -36,8 +60,9 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       const prev = before.state.vehicles.find(p => p.entityId === v.entityId);
       const result = prev ? interpolateVehicle(prev, v, t) : clone(v);
       if (tick > after.state.serverTick && result.status === 'active' && !frozenCampaign(after.state)) {
-        const dt = Math.min(6, tick - after.state.serverTick) / 60;
+        const dt = Math.min(REMOTE_EXTRAPOLATION_TICKS, tick - after.state.serverTick) / 60;
         result.pose.x += result.velocity.x * dt; result.pose.z += result.velocity.z * dt;
+        result.pose.yaw += result.velocity.yawRate * dt;
       }
       return result;
     });
@@ -71,25 +96,45 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
     // retires old samples; ordinary replay and smoothing retain fresh controls.
     const continuousRecovery = next.resetReason === 'input-backlog' || next.resetReason === 'resync' && wire.propsPatch;
     const reset = (!continuousRecovery && next.resetReason) || next.paused !== snapshot?.paused || next.matchId !== snapshot?.matchId || next.sessionEpoch !== snapshot?.sessionEpoch || next.local?.vehicle.discontinuityId !== snapshot?.local?.vehicle.discontinuityId || frozen && next.phase !== snapshot?.phase;
-    const oldPose = predicted?.vehicle.pose;
+    const restoreRemoteTimeline = !reset && !frozen && snapshot && performance.now() - lastSnapshotAt > REMOTE_STALE_MS && next.serverTick - snapshot.serverTick > REMOTE_EXTRAPOLATION_TICKS;
+    const oldPose = localPose(performance.now());
+    const oldRemotes = !reset && !frozen && !restoreRemoteTimeline && playbackTick !== null ? new Map(remoteAt(playbackTick).map(car => [car.entityId, car])) : null;
     snapshot = next; lastSnapshotAt = performance.now();projectilePresentation.receive(next,Boolean(reset));
-    if (reset) { pending = []; outgoing = []; history = []; correctionX = correctionZ = 0; playbackTick = null; }
-    if (frozen) correctionX = correctionZ = 0;
+    if (reset) { pending = []; outgoing = []; history = []; correctionX = correctionZ = correctionYaw = 0; playbackTick = null; lastLocalFrame = null; lateUntimedInput = false; }
+    if (reset || frozen || restoreRemoteTimeline) remoteCorrections.clear();
+    if (frozen) correctionX = correctionZ = correctionYaw = 0;
     history.push({ state: next, arrived: lastSnapshotAt }); if (history.length > 40) history.shift();
+    // After a prolonged blackout the held trajectory is obsolete. Rejoin the
+    // current buffer instead of replaying seconds of missed traffic in slow motion.
+    if (restoreRemoteTimeline) playbackTick = next.serverTick + rtt * .03 - REMOTE_BUFFER_TICKS;
+    if (oldRemotes && playbackTick !== null) {
+      const current = remoteAt(playbackTick), live = new Set(current.map(car => car.entityId));
+      for (const car of current) {
+        const before = oldRemotes.get(car.entityId);
+        if (!before || car.entityId === next.local?.vehicle.entityId || before.discontinuityId !== car.discontinuityId || before.status !== car.status) { remoteCorrections.delete(car.entityId); continue; }
+        const offset = remoteCorrections.get(car.entityId) ?? { x: 0, z: 0, yaw: 0 };
+        offset.x += before.pose.x - car.pose.x; offset.z += before.pose.z - car.pose.z;
+        offset.yaw = wrap(offset.yaw + wrap(before.pose.yaw - car.pose.yaw));
+        remoteCorrections.set(car.entityId, offset);
+      }
+      for (const id of remoteCorrections.keys()) if (!live.has(id)) remoteCorrections.delete(id);
+    }
     if (next.local) {
       pending = pending.filter(p => p.command.sequence > next.local!.lastConsumedSequence);
       predicted = clone(next.local);
       if (pending.length > 180) { pending = []; room?.send('resync'); }
       if (!frozen) for (const entry of pending) {
-        if ((predicted.driver.simulatedTick ?? next.serverTick) >= next.serverTick + MAX_PREDICTION_TICKS) break;
         const actions = next.phase === 'playing' ? entry.command.actions : { ...entry.command.actions, fire: false };
         const result = predictVehicle(map, predicted.vehicle, predicted.driver, actions, remoteAt(entry.estimatedTick).filter(v => v.entityId !== predicted!.vehicle.entityId), undefined, Math.max(next.serverTick, predicted.driver.simulatedTick ?? 0) + 1, next.campaign ? getDispatchFeatures(next.campaign.dispatchIndex) : DEFAULT_DRIVING_CONTEXT);
         predicted.vehicle = result.vehicle; predicted.driver = result.driver;
       }
+      if (reset || frozen) predictionAt = performance.now();
       if (oldPose && !reset && !frozen) {
-        const dx = oldPose.x - predicted.vehicle.pose.x, dz = oldPose.z - predicted.vehicle.pose.z;
+        const reconciledPose = localPose(performance.now())!;
+        const dx = oldPose.x - reconciledPose.x, dz = oldPose.z - reconciledPose.z;
         const distance = Math.hypot(dx, dz); corrections++; maxCorrection = Math.max(maxCorrection, distance);
-        if (distance < 3) { correctionX += dx; correctionZ += dz; } else correctionX = correctionZ = 0;
+        if (Number.isFinite(distance)) { correctionX += dx; correctionZ += dz; correctionYaw = wrap(correctionYaw + wrap(oldPose.yaw - reconciledPose.yaw)); }
+        else correctionX = correctionZ = correctionYaw = 0;
       }
     }
     status({ ...state, state: next.phase === 'lobby' ? 'lobby' : 'playing' });
@@ -160,15 +205,21 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
         throw error;
       }
     },
-    submit(command) {
+    submit(command, localTickTimeMs) {
       if (!snapshot || snapshot.paused || !predicted || disposed || state.state === 'reconnecting' || state.state === 'disconnected') return;
       const estimatedTick = snapshot.serverTick + (performance.now() - lastSnapshotAt + rtt / 2) * .06;
       pending.push({ command, estimatedTick }); outgoing.push(command);
       if (outgoing.length > 12 || pending.length > 180) { outgoing = []; pending = []; room?.send('resync'); return; }
-      if (!frozenCampaign(snapshot) && (snapshot.phase === 'playing' || snapshot.phase === 'lobby') && (predicted.driver.simulatedTick ?? snapshot.serverTick) < snapshot.serverTick + MAX_PREDICTION_TICKS) {
+      if (!frozenCampaign(snapshot) && performance.now() - lastSnapshotAt < SNAPSHOT_GRACE_MS && (snapshot.phase === 'playing' || snapshot.phase === 'lobby')) {
+        const now = performance.now(), previousTickTime = predictionAt;
         const actions = snapshot.phase === 'playing' ? command.actions : { ...command.actions, fire: false };
         const result = predictVehicle(map, predicted.vehicle, predicted.driver, actions, remoteAt(estimatedTick).filter(v => v.entityId !== predicted!.vehicle.entityId), undefined, Math.max(snapshot.serverTick, predicted.driver.simulatedTick ?? 0) + 1, snapshot.campaign ? getDispatchFeatures(snapshot.campaign.dispatchIndex) : DEFAULT_DRIVING_CONTEXT);
         predicted.vehicle = result.vehicle; predicted.driver = result.driver;
+        const timed = localTickTimeMs !== undefined && Number.isFinite(localTickTimeMs);
+        predictionAt = timed ? Math.max(now - SNAPSHOT_GRACE_MS, Math.min(now, localTickTimeMs!)) : now;
+        // A late untimed caller may advance only one tick. Preserve its last
+        // displayed travel after render correction has been applied, not before.
+        if (!timed && lastLocalFrame && predictionAt - previousTickTime > 1000 / 60 + 2) lateUntimedInput = true;
       }
     },
     neutralize() { outgoing = []; pending = []; room?.send('neutralize'); },
@@ -182,6 +233,8 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
     async dispose() {
       if (disposed) return;
       disposed = true; clearInterval(flushTimer); clearInterval(pingTimer); outgoing = []; pending = [];projectilePresentation.dispose();
+      remoteCorrections.clear();
+      lastLocalFrame = null; lateUntimedInput = false;
       if (room) {
         room.reconnection.enabled = false;
         if (room.connection.isOpen) {
@@ -198,15 +251,41 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
     },
     sampleFrame(now = performance.now()) {
       if (!snapshot) return null;
-      const dt = Math.min(.1, (now - lastRenderAt) / 1000); lastRenderAt = now;
-      correctionX *= Math.exp(-dt * 20); correctionZ *= Math.exp(-dt * 20);
+      const elapsed = Math.max(0, (now - lastRenderAt) / 1000), dt = Math.min(.1, elapsed); lastRenderAt = now;
+      const speed = predicted ? Math.hypot(predicted.vehicle.velocity.x, predicted.vehicle.velocity.z) : 0;
+      // Ease ordinary authority errors without reversing a moving car merely
+      // to repay visual lead. Teleports/life/pause already clear these offsets.
+      const fraction = correctionFraction(correctionX, correctionZ, speed, dt);
+      correctionX *= 1 - fraction; correctionZ *= 1 - fraction; correctionYaw *= Math.exp(-dt * 5);
       const estimatedTick = snapshot.paused ? snapshot.serverTick : snapshot.serverTick + (now - lastSnapshotAt + rtt / 2) * .06;
-      // A late arrival may lower the clock estimate; pause playback rather than rewind it.
-      playbackTick = snapshot.paused ? snapshot.serverTick : Math.max(playbackTick ?? -Infinity, estimatedTick - 6);
-      const hazardTick = frozenCampaign(snapshot) ? snapshot.serverTick : Math.max(estimatedTick, playbackTick + 6);
+      const desiredTick = estimatedTick - REMOTE_BUFFER_TICKS;
+      // Correct clock phase by gently changing playback speed. Holding until a
+      // late estimate catches up turns ordinary jitter into visible stop/start.
+      if (snapshot.paused) playbackTick = snapshot.serverTick;
+      else if (playbackTick === null) playbackTick = desiredTick;
+      else {
+        const error = desiredTick - (playbackTick + elapsed * 60);
+        const rate = Math.max(.75, Math.min(1.1, 1 + error / 60));
+        playbackTick = Math.min(snapshot.serverTick + REMOTE_EXTRAPOLATION_TICKS, playbackTick + elapsed * 60 * rate);
+      }
+      const hazardTick = frozenCampaign(snapshot) ? snapshot.serverTick : Math.max(estimatedTick, playbackTick + REMOTE_BUFFER_TICKS);
       const vehicles = remoteAt(playbackTick);
+      for (const vehicle of vehicles) {
+        const offset = remoteCorrections.get(vehicle.entityId);
+        if (!offset) continue;
+        const fraction = correctionFraction(offset.x, offset.z, Math.hypot(vehicle.velocity.x, vehicle.velocity.z), dt);
+        offset.x *= 1 - fraction; offset.z *= 1 - fraction; offset.yaw *= Math.exp(-dt * 5);
+        vehicle.pose.x += offset.x; vehicle.pose.z += offset.z; vehicle.pose.yaw += offset.yaw;
+      }
       if (predicted) {
-        const vehicle = clone(predicted.vehicle); vehicle.pose.x += correctionX; vehicle.pose.z += correctionZ;
+        const vehicle = clone(predicted.vehicle); vehicle.pose = localPose(now)!;
+        vehicle.pose.x += correctionX; vehicle.pose.z += correctionZ; vehicle.pose.yaw += correctionYaw;
+        if (lateUntimedInput && lastLocalFrame) {
+          const dx = lastLocalFrame.x - vehicle.pose.x, dz = lastLocalFrame.z - vehicle.pose.z;
+          if (dx * vehicle.velocity.x + dz * vehicle.velocity.z > 0) { correctionX += dx; correctionZ += dz; vehicle.pose.x += dx; vehicle.pose.z += dz; }
+        }
+        lateUntimedInput = false;
+        lastLocalFrame = { ...vehicle.pose };
         const index = vehicles.findIndex(v => v.entityId === vehicle.entityId); if (index >= 0) vehicles[index] = vehicle; else vehicles.push(vehicle);
       }
       return { sampleTimeSeconds: now / 1000, vehicles, projectiles: projectilePresentation.sample(predicted?.vehicle.entityId??null,estimatedTick,playbackTick), props: propsAt(playbackTick), localEntityId: predicted?.vehicle.entityId ?? null, cameraTarget: vehicles.find(v => v.playerId === playerId)?.pose ?? null,

@@ -157,7 +157,8 @@ export interface SessionStatus {
 }
 export interface GameSession {
   connect(request: SessionRequest): Promise<JoinResult>;
-  submit(command: InputCommand): void; neutralize(): void;
+  /** localTickTimeMs is a browser-only logical input time; it is never sent. */
+  submit(command: InputCommand, localTickTimeMs?: number): void; neutralize(): void;
   request(action: 'start-round' | 'rematch' | 'leave'): void;
   selectVehicle(bodyId: import('./vehicle-profiles').VehicleBodyId): void;
   setPresence(menuOpen: boolean, hidden: boolean): void;
