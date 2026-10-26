@@ -2,6 +2,7 @@ import type { CollisionMap, DispatchDrivingContext, DriverActions, DriverRuntime
 import { FIXED_DELTA, normalizeGameplay, type SimulationConfig } from '../core/config.js';
 import { box, clamp, nearPolygon, overlap, pointInPolygon, wrapAngle, HALF_LENGTH, HALF_WIDTH, type Point } from '../physics/geometry.js';
 import { tuningForVehicle } from './profiles.js';
+import { ROAD_GADGET_RULES } from '@fender/contracts';
 
 export const neutralActions = (): DriverActions => ({ steer: 0, throttle: 0, brakeReverse: 0, handbrake: false, fire: false, sirenToggle: false, recover: false });
 export const newDriver = (): DriverRuntimeState => ({ resolvedSteering: 0, reverseHoldTicks: 0, nextFireTick: 0, shotOrdinal: 0, nextRecoveryTick: 0, lastDamageTick: null, recoilStrength: 0, simulatedTick: 0 });
@@ -27,7 +28,8 @@ export function driveVehicle(vehicle: VehicleState, driver: DriverRuntimeState, 
   const fx = Math.sin(vehicle.pose.yaw), fz = Math.cos(vehicle.pose.yaw), rx = fz, rz = -fx;
   let forward = vehicle.velocity.x * fx + vehicle.velocity.z * fz;
   let side = vehicle.velocity.x * rx + vehicle.velocity.z * rz;
-  const surface = surfaceAt(map, vehicle.pose), gripScale = (surface === 'dirt' ? 0.62 : surface === 'grass' ? 0.42 : 1) * (context?.wetRoads && map.wetSurfaces?.some(zone => { const points: Point[] = []; for (let i=0;i<zone.polygonXZ.length;i+=2) points.push({x:zone.polygonXZ[i]!,z:zone.polygonXZ[i+1]!}); return pointInPolygon(vehicle.pose, points); }) ? .75 : 1);
+  const oiled = vehicle.protectedUntilTick <= (driver.simulatedTick ?? 0) && context?.oilSlicks?.some(slick => slick.ownerEntityId !== vehicle.entityId && Math.hypot(vehicle.pose.x - slick.pose.x, vehicle.pose.z - slick.pose.z) < slick.radius);
+  const surface = surfaceAt(map, vehicle.pose), gripScale = (surface === 'dirt' ? 0.62 : surface === 'grass' ? 0.42 : 1) * (oiled ? ROAD_GADGET_RULES.oilGrip : context?.wetRoads && map.wetSurfaces?.some(zone => { const points: Point[] = []; for (let i=0;i<zone.polygonXZ.length;i+=2) points.push({x:zone.polygonXZ[i]!,z:zone.polygonXZ[i+1]!}); return pointInPolygon(vehicle.pose, points); }) ? .75 : 1);
   if (actions.brakeReverse > 0.05) {
     if (forward > 0.5) { forward = Math.max(0, forward - tune.braking * actions.brakeReverse * dt); driver.reverseHoldTicks = 0; }
     else { driver.reverseHoldTicks++; if (driver.reverseHoldTicks >= tune.reverseHoldTicks) forward -= tune.reverseAcceleration * actions.brakeReverse * dt; }

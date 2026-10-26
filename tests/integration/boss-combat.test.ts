@@ -37,6 +37,21 @@ beforeAll(async()=>{server=await createGameServer(2722);});
 afterEach(async()=>{ await disposeTestRooms();await Promise.all(rooms.splice(0).map(room=>room.connection.isOpen?room.leave(true):Promise.resolve()));});
 afterAll(async()=>{await server?.gracefullyShutdown(false);});
 
+it.each([[5,'oil'],[6,'blades']] as const)('shares dispatch %s gadget %s timing with two peers and a late joiner',async(stage,kind)=>{
+ const host=await peer(),guest=await peer(host.room.roomId),{sim,bossId}=encounter(host,stage),c=sim.checkpoint();
+ const boss=c.state.records.find(r=>r.vehicle.entityId===bossId)!,officer=c.state.records.find(r=>r.vehicle.playerId===host.room.sessionId)!;
+ boss.vehicle.velocity={x:3,z:0,yawRate:0};delete boss.bossAi;
+ officer.vehicle.pose={x:kind==='oil'?-14:-3,z:kind==='oil'?-76:-72.5,yaw:Math.PI/2};officer.vehicle.velocity={x:9,z:0,yawRate:0};
+ sim.restore(c);host.room.send('resync');guest.room.send('resync');
+ await until(()=>host.states.some(s=>s.serverTick>c.tick&&s.gadgets?.some(g=>g.kind===kind)),'The authority must publish the readable gadget warning');
+ const sample=host.states.find(s=>s.serverTick>c.tick&&s.gadgets?.some(g=>g.kind===kind))!,gadget=sample.gadgets![0]!;
+ expect(gadget.ownerEntityId).toBe(bossId);expect(gadget.activeAtTick-gadget.bornTick).toBe(kind==='oil'?45:60);
+ await until(()=>guest.states.some(s=>s.serverTick===sample.serverTick),'Backup must see the same gadget tick');
+ expect(guest.states.find(s=>s.serverTick===sample.serverTick)!.gadgets).toEqual(sample.gadgets);
+ const late=await peer(host.room.roomId);expect(late.state.gadgets).toEqual(expect.arrayContaining([expect.objectContaining({entityId:gadget.entityId,kind,ownerEntityId:bossId,bornTick:gadget.bornTick,activeAtTick:gadget.activeAtTick,expiresTick:gadget.expiresTick})]));
+ expect(late.state.campaign!.dispatchIndex).toBe(stage);
+});
+
 it.each([[1,'distant'],[1,'closing'],[4,'distant'],[4,'closing']] as const)('replicates dispatch %s driving under a %s pursuit through both real clients',async(stage,approach)=>{
  const host=await peer(),guest=await peer(host.room.roomId),{sim,bossId}=encounter(host,stage),c=sim.checkpoint();
  const boss=c.state.records.find(r=>r.vehicle.entityId===bossId)!,officer=c.state.records.find(r=>r.vehicle.playerId===host.room.sessionId)!;
@@ -91,4 +106,13 @@ it('Hector broadcasts a fixed grenade warning to peers and a late joiner, then e
  await until(()=>host.state.grenades!.every(g=>g.entityId!==grenade.entityId),'Resolved grenade is removed from authority');
  expect(host.state.local!.vehicle.health).toBeLessThan(100);expect(host.state.campaign!.dispatchIndex).toBe(4);expect(host.state.campaign!.outcomes).toHaveLength(4);
  expect(host.state.scores.every(score=>score.score===0)).toBe(true);
+});
+
+it.each([[4,'bomb'],[7,'oil'],[8,'blades']] as const)('replicates officer %s %s through input admission to peers and a late joiner',async(stage,kind)=>{
+ const host=await peer(),guest=await peer(host.room.roomId);encounter(host,stage);host.room.send('input',{kind:'input',commands:[{sessionEpoch:host.state.sessionEpoch,sequence:0,clientTick:0,actions:{steer:0,throttle:0,brakeReverse:0,handbrake:false,fire:false,sirenToggle:false,recover:false,deploy:kind}},{sessionEpoch:host.state.sessionEpoch,sequence:1,clientTick:1,actions:{steer:0,throttle:0,brakeReverse:0,handbrake:false,fire:false,sirenToggle:false,recover:false}},{sessionEpoch:host.state.sessionEpoch,sequence:2,clientTick:2,actions:{steer:0,throttle:0,brakeReverse:0,handbrake:false,fire:false,sirenToggle:false,recover:false}},{sessionEpoch:host.state.sessionEpoch,sequence:3,clientTick:3,actions:{steer:0,throttle:0,brakeReverse:0,handbrake:false,fire:false,sirenToggle:false,recover:false}}]});
+ const list=(state:WorldSnapshot)=>kind==='bomb'?state.grenades:state.gadgets;
+ await until(()=>host.states.some(s=>list(s)?.some(g=>g.ownerEntityId===s.local!.vehicle.entityId)),'Officer deployment must pass real room admission');
+ const sample=host.states.find(s=>list(s)?.some(g=>g.ownerEntityId===s.local!.vehicle.entityId))!,weapon=list(sample)!.find(g=>g.ownerEntityId===sample.local!.vehicle.entityId)!;
+ await until(()=>guest.states.some(s=>s.serverTick===sample.serverTick),'Backup receives the same deployment tick');expect(list(guest.states.find(s=>s.serverTick===sample.serverTick)!)).toEqual(list(sample));
+ const late=await peer(host.room.roomId);expect(list(late.state)).toContainEqual(weapon);expect(late.state.campaign!.dispatchIndex).toBe(stage);expect(sample.local!.driver.nextDeployTick).toBe(weapon.bornTick+720);
 });

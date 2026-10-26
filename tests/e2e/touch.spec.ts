@@ -8,7 +8,7 @@ const snapshot = (page: Page) => page.evaluate(() => (window as Window & { __FEN
 async function start(page: Page, armed = false) {
   await page.goto('/');
   await page.getByRole('button', { name: 'HIT THE STREETS' }).tap();
-  if (armed) await dispatchFixture(page, 1);
+  if (armed) await dispatchFixture(page, 2);
   await page.getByRole('button', { name: 'START DISPATCH' }).tap();
   await expect.poll(async () => (await snapshot(page))?.phase).toBe('playing');
 }
@@ -22,7 +22,7 @@ test('touch controls preserve the first-dispatch gun lock without a duplicate co
     fire: await page.getByRole('button', { name: 'FIRE', exact: true }).isVisible(),
     combo: await page.getByRole('button', { name: 'Drift and fire together' }).isVisible(),
   })).toEqual({ duplicateCard: false, fire: false, combo: false });
-  await dispatchFixture(page, 1);
+  await dispatchFixture(page, 2);
   await page.getByRole('button', { name: 'START DISPATCH' }).tap();
   await expect(page.getByRole('button', { name: 'FIRE', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Drift and fire together' })).toBeVisible();

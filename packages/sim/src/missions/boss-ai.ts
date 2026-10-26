@@ -5,6 +5,7 @@ export interface BossAiRuntime {
   nextAttackTick: number; burstRemaining: number; nextShotTick: number; nextGrenadeTick: number;
   styleStartedTick: number; attackOrdinal: number; evasionTargetId: string | null;
   brakeCheckUntilTick: number | null; breakawayUntilTick: number; nextBrakeCheckTick: number;
+  nextGadgetTick?: number;
 }
 export interface BossDecision { actions: DriverActions; fire: boolean; grenadeTarget: PlanarPose | null }
 export function newBossAi(tick: number): BossAiRuntime { return { targetId: null, attackKind: null, windupUntilTick: 0, nextAttackTick: 0, burstRemaining: 0, nextShotTick: 0, nextGrenadeTick: 0, styleStartedTick: tick, attackOrdinal: 0, evasionTargetId: null, brakeCheckUntilTick: null, breakawayUntilTick: 0, nextBrakeCheckTick: tick }; }

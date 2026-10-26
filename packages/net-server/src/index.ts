@@ -3,13 +3,35 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { districtMap, districtProps, VEHICLE_BODIES } from '@fender/content';
 import { createSimulation, initPhysics, type Simulation } from '@fender/sim';
-import { GAMEPLAY_REVISION, PROTOCOL_VERSION, isInputCommand, isInviteCode, isRecord, isVehicleBodyId, neutralActions, packSnapshot, sanitizeNickname, type AppliedDriverInput, type InputCommand, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
+import { GAMEPLAY_REVISION, PROTOCOL_VERSION, getVehicleProfile, isInputCommand, isInviteCode, isRecord, isVehicleBodyId, neutralActions, packSnapshot, sanitizeNickname, type AppliedDriverInput, type InputCommand, type LocalVehicleMotion, type VehicleBodyId, type VehicleState, type WorldSnapshot } from '@fender/contracts';
 import { createPropPublisher } from './prop-publisher.js';
+import { ContactLedger } from './contact-ledger.js';
 import { roomRegistry, serverMetrics } from './room-registry.js';
 export { roomRegistry, serverMetrics, getRoomMetrics } from './room-registry.js';
 export { createPropPublisher } from './prop-publisher.js';
 
-interface DriverConnection { epoch: string; entityId: string; queue: InputCommand[]; last: InputCommand | null; ack: number; received: number; lastInputAt: number; connected: boolean; windowStart: number; packets: number; reset?: WorldSnapshot['resetReason']; client: Client; latencyProbe: { nonce: string; sentAt: number } | null; pingMs: number | null; latencyMeasuredAt: number | null; propPublisher:ReturnType<typeof createPropPublisher>; menuOpen: boolean; hidden: boolean; lastActivityAt: number; activityNoticeAt: number; idleWarned: boolean; }
+interface DriverConnection { epoch: string; entityId: string; queue: InputCommand[]; last: InputCommand | null; ack: number; received: number; lastInputAt: number; connected: boolean; windowStart: number; packets: number; reset?: WorldSnapshot['resetReason']; client: Client; latencyProbe: { nonce: string; sentAt: number } | null; pingMs: number | null; latencyMeasuredAt: number | null; propPublisher:ReturnType<typeof createPropPublisher>; menuOpen: boolean; hidden: boolean; lastActivityAt: number; activityNoticeAt: number; idleWarned: boolean; localDriving: boolean; motion: LocalVehicleMotion | null; pendingMotion: LocalVehicleMotion | null; motionAt: number; motionBudget: { distance: number; at: number } | null; contacts: ContactLedger; }
+function validLocalMotion(value: unknown, command: InputCommand, vehicle: VehicleState, driver: DriverConnection, previousSequence: number, now: number): value is LocalVehicleMotion {
+  if (!isRecord(value) || value.sequence !== command.sequence || value.discontinuityId !== vehicle.discontinuityId || !isRecord(value.pose) || !isRecord(value.velocity) || vehicle.status !== 'active') return false;
+  const { pose, velocity } = value;
+  if (![pose.x, pose.z, pose.yaw, velocity.x, velocity.z, velocity.yawRate].every(n => typeof n === 'number' && Number.isFinite(n))) return false;
+  const x = pose.x as number, z = pose.z as number, maxSpeed = getVehicleProfile(vehicle.bodyAssetId).topSpeed * 28 / 24;
+  if (Math.abs(pose.yaw as number) > Math.PI + .001 || Math.hypot(velocity.x as number, velocity.z as number) > maxSpeed * 1.25 + 2 || Math.abs(velocity.yawRate as number) > 12 || x < districtMap.bounds.minX || x > districtMap.bounds.maxX || z < districtMap.bounds.minZ || z > districtMap.bounds.maxZ) return false;
+  // Compare consecutive reports even when a network burst arrives before the
+  // next world tick. Client sequence duration permits that burst, never a teleport.
+  const previous = driver.motion?.discontinuityId === vehicle.discontinuityId ? driver.motion : null;
+  const seconds = Math.min(.3, Math.max((now - driver.motionAt) / 1000, (command.sequence - (previous?.sequence ?? previousSequence)) / 60));
+  const origin = previous?.pose ?? vehicle.pose;
+  const distance = Math.hypot(x - origin.x, z - origin.z);
+  if (distance > maxSpeed * Math.max(1 / 60, seconds) + .25) return false;
+  // A bounded allowance absorbs ordered packet bursts. Only elapsed server
+  // time replenishes it; extra command IDs or packets cannot buy more travel.
+  const capacity = maxSpeed + .25, budget = driver.motionBudget;
+  const available = budget ? Math.min(capacity, budget.distance + Math.max(0, now - budget.at) / 1000 * maxSpeed) : capacity;
+  if (distance > available) return false;
+  driver.motionBudget = { distance: available - distance, at: now };
+  return true;
+}
 export class DrivingRoom extends Room {
   maxClients = 8;
   private sim!: Simulation;
@@ -58,13 +80,33 @@ export class DrivingRoom extends Room {
         const now = performance.now();
         if (now - driver.windowStart > 1000) { driver.windowStart = now; driver.packets = 0; }
         if (++driver.packets > 65) { serverMetrics.rejectedInputs++; return; }
+        const previousSequence = driver.received;
+        let latest: InputCommand | null = null;
         for (const command of message.commands) {
           if (!isInputCommand(command) || command.sessionEpoch !== driver.epoch || command.sequence <= driver.received || command.sequence > driver.received + 600) { serverMetrics.rejectedInputs++; continue; }
           driver.received = command.sequence; driver.lastInputAt = now;
+          latest = command;
           if (!driver.menuOpen && !driver.hidden && !this.paused) {
             driver.queue.push(command);
             if(Object.values(command.actions).some(value=>typeof value==='number'?Math.abs(value)>.001:value===true))this.recordActivity(driver);
           } else driver.ack=command.sequence;
+        }
+        if (message.motion !== undefined && latest && !driver.menuOpen && !driver.hidden && !this.paused) {
+          const vehicle = this.sim.authority(client.sessionId)?.vehicle;
+          if(vehicle)driver.contacts.sync(vehicle.discontinuityId);
+          const motion=driver.contacts.adjust(message.motion);
+          if (vehicle && motion && validLocalMotion(motion, latest, vehicle, driver, previousSequence, now)) {
+            driver.motion = driver.pendingMotion = { sequence: motion.sequence, discontinuityId: motion.discontinuityId, pose: { ...motion.pose }, velocity: { ...motion.velocity }, contactRevision:motion.contactRevision };
+            driver.localDriving = true; driver.motionAt = now;
+          } else {
+            serverMetrics.rejectedInputs++;
+            if (vehicle && isRecord(message.motion) && message.motion.discontinuityId === vehicle.discontinuityId && this.sim.correctLocalMotion(client.sessionId)) {
+              this.neutralize(client.sessionId);
+              // Wait for a corrected local baseline. Old-life packets cannot
+              // steer the server or trigger repeated correction generations.
+              driver.localDriving = true; driver.reset = 'resync'; this.publish(client, true);
+            }
+          }
         }
         if (driver.queue.length > 12) {
           const removed = driver.queue.splice(0, driver.queue.length - 2);
@@ -129,7 +171,7 @@ export class DrivingRoom extends Room {
     this.autoDispose=false;this.emptySince=null;
     const epoch = randomUUID();
     const car = this.sim.addPlayer({ playerId: client.sessionId, nickname: auth.nickname, sessionEpoch: epoch, bodyAssetId: auth.vehicleBodyId ?? VEHICLE_BODIES[randomInt(VEHICLE_BODIES.length)] });
-    this.drivers.set(client.sessionId, { epoch, entityId: car.entityId, queue: [], last: null, ack: -1, received: -1, lastInputAt: 0, connected: true, windowStart: performance.now(), packets: 0, reset: 'join', client, latencyProbe: null, pingMs: null, latencyMeasuredAt: null, propPublisher:createPropPublisher(),menuOpen:false,hidden:false,lastActivityAt:this.wallNow(),activityNoticeAt:-Infinity,idleWarned:false });
+    this.drivers.set(client.sessionId, { epoch, entityId: car.entityId, queue: [], last: null, ack: -1, received: -1, lastInputAt: 0, connected: true, windowStart: performance.now(), packets: 0, reset: 'join', client, latencyProbe: null, pingMs: null, latencyMeasuredAt: null, propPublisher:createPropPublisher(),menuOpen:false,hidden:false,lastActivityAt:this.wallNow(),activityNoticeAt:-Infinity,idleWarned:false,localDriving:false,motion:null,pendingMotion:null,motionAt:performance.now(),motionBudget:null,contacts:new ContactLedger(car.discontinuityId) });
     this.updatePause();
     this.publish(client);
   }
@@ -158,6 +200,7 @@ export class DrivingRoom extends Room {
   private neutralize(id: string) {
     const d = this.drivers.get(id); if (!d) return;
     d.ack = Math.max(d.ack, d.received); d.queue = []; d.last = null; d.lastInputAt = 0;
+    d.localDriving = false; d.motion = d.pendingMotion = null; d.motionAt = performance.now();
   }
   private step() {
     const started = performance.now();
@@ -166,19 +209,30 @@ export class DrivingRoom extends Room {
       const interactive=d.connected&&!d.menuOpen&&!d.hidden;
       // A held-input tick can run before its next network packet arrives. Do not
       // let those timing gaps permanently add latency to every later command.
-      const consumed = interactive ? d.queue.splice(0, Math.max(1, d.queue.length - 2)) : [];
+      const consumed = interactive ? d.queue.splice(0, d.localDriving ? d.queue.length : Math.max(1, d.queue.length - 2)) : [];
       const latest = consumed.at(-1);
       const cmd = latest && { ...latest, actions: {
         ...latest.actions,
         sirenToggle: consumed.reduce((toggle, entry) => toggle !== entry.actions.sirenToggle, false),
         recover: consumed.some(entry => entry.actions.recover),
+        deploy: consumed.find(entry => entry.actions.deploy)?.actions.deploy,
       } };
       if (cmd) { d.last = cmd; d.ack = cmd.sequence; }
       const held = interactive && d.last && started - d.lastInputAt < 100;
-      const actions = cmd ? cmd.actions : held ? { ...d.last!.actions, sirenToggle: false, recover: false } : { ...neutralActions(), handbrake: true };
-      inputs.set(d.entityId, { actions, sessionEpoch: d.epoch, sourceCommandSequence: d.last?.sequence ?? null });
+      const localDriving = interactive && d.localDriving && started - d.motionAt < 100 && d.motion?.discontinuityId === this.sim.authority(d.client.sessionId)?.vehicle.discontinuityId;
+      const actions = d.localDriving && !localDriving ? { ...neutralActions(), handbrake: true } : cmd ? cmd.actions : held ? { ...d.last!.actions, sirenToggle: false, recover: false, deploy: undefined } : { ...neutralActions(), handbrake: true };
+      inputs.set(d.entityId, { actions, sessionEpoch: d.epoch, sourceCommandSequence: d.last?.sequence ?? null, ...(localDriving ? { localDriving: true, ...(d.pendingMotion ? { motion: d.pendingMotion } : {}) } : {}) });
+      d.pendingMotion = null;
     }
-    this.sim.step(inputs); this.tick++;
+    const contacts=this.sim.step(inputs); this.tick++;
+    for(const delta of contacts){
+      const driver=[...this.drivers.values()].find(d=>d.entityId===delta.entityId);
+      if(!driver)continue;
+      driver.contacts.record(delta);
+      // Reports already in flight carry an older contact acknowledgment. Keep
+      // their validation anchor in the corrected frame so they cannot undo it.
+      if(driver.motion)driver.motion=driver.contacts.adjust(driver.motion);
+    }
     const events = this.sim.drainEvents(); if (events.length) this.broadcast('events', events);
     if (this.tick % 3 === 0) for (const client of this.clients) this.publish(client);
     const cost = performance.now() - started; serverMetrics.steps++; serverMetrics.maxStepMs = Math.max(serverMetrics.maxStepMs, cost); if (cost > 8) serverMetrics.slowSteps++;
@@ -193,7 +247,11 @@ export class DrivingRoom extends Room {
       const fresh = connection?.connected && connection.latencyMeasuredAt !== null && now - connection.latencyMeasuredAt <= 3000;
       return { ...score, pingMs: fresh ? connection.pingMs : null };
     });
-    snapshot.sessionEpoch = d.epoch; if (snapshot.local) snapshot.local.lastConsumedSequence = d.ack;
+    snapshot.sessionEpoch = d.epoch;
+    if (snapshot.local) {
+      snapshot.local.lastConsumedSequence = d.ack;
+      d.contacts.sync(snapshot.local.vehicle.discontinuityId);snapshot.local.contact=d.contacts.state;
+    }
     snapshot.resetReason = d.reset; d.reset = undefined;
     const wire = d.propPublisher.filter(packSnapshot(snapshot),replacePropBaseline); serverMetrics.bytesPublished += JSON.stringify(wire).length;
     client.send('snapshot', wire);
@@ -208,6 +266,8 @@ export class DrivingRoom extends Room {
     const d = this.drivers.get(client.sessionId); if (!d) return;
     // Preserve stable identity but replace the input epoch so old queued packets cannot resume.
     d.epoch = randomUUID(); d.connected = true; d.received = -1; d.ack = -1; d.last = null; d.queue = []; d.reset = 'reconnect';
+    d.localDriving = false; d.motion = d.pendingMotion = null; d.motionAt = performance.now();
+    d.contacts=new ContactLedger(this.sim.authority(client.sessionId)!.vehicle.discontinuityId);
     d.client = client; d.latencyProbe = null; d.pingMs = null; d.latencyMeasuredAt = null;
     d.menuOpen=false;d.hidden=false;this.recordActivity(d);this.emptySince=null;this.updatePause();
     this.sim.setConnection(client.sessionId, 'connected'); this.publish(client,true);

@@ -24,7 +24,7 @@ The root scripts below exist in [package.json](../package.json). `test:network` 
 | `pnpm test:unit` | Isolated contracts/input/math/HUD/presentation logic, controlled dependencies |
 | `pnpm test:integration` | Real physics, renderer adapters, HTTP/rooms/client lifecycle, prediction, hosting and tooling |
 | `pnpm test:ui` | Five UI fixtures with mocked snapshots; real DOM/CSS without physics, WebGL or server sockets |
-| `pnpm test:e2e` | Local game browser smoke/integration scenarios followed by `pnpm test:ui` |
+| `pnpm test:e2e` | Local game browser scenarios, `pnpm test:ui`, then native `pnpm test:water` |
 | `pnpm hooks:install` | Install the local E2E pre-push gate, automatically installed by local `pnpm install` too |
 | `pnpm test:integration` with `tests/integration` | Real ordered TCP-delay/jitter/stall harness; full packet-loss/correction profiles remain open |
 | `pnpm test:load` | Eight SDK clients in one room, configurable duration and snapshot payload estimate; separate sim benchmarks measure step cost, and multi-room capacity remains open |
@@ -49,7 +49,7 @@ Vitest and Playwright are installed and versioned in the root manifest/lockfile.
 | Campaign | Ten dispatches/four ringleaders, independent arrest progress, credited target wreck, arrest/wreck marks, cumulative score, timeout retry, earned-only clues, connected-member progression, late join/reconnect and finale reset |
 | Armed targets | Ten authored tactics, protected/connected-officer selection, bounded burst cadence, fixed grenade landing/fuse/radius, cover/falloff, exactly-once damage, hazard cleanup and checkpoint replay |
 | Garage/callsigns | Six shared profiles, briefing-only reassignment, saved random/custom identity, malformed/unavailable storage and authoritative selection locks |
-| Network | Duplicate/old sequence, input queue overflow, missing snapshots, burst delay, exhausted history, reconnect/epoch change |
+| Network | Direct local steering/release parity through stale snapshots and ordered jitter; motion bounds/life rejection; sustained contact through delayed acknowledgments without resets or repeated separation; completed arrests; contact history expiry; duplicate sequence, overflow, pause/reconnect and epoch change |
 | Assets | Missing file, wrong map hash, wrong orientation, blocked spawn, unresolved lane edge, absent license, placeholder leakage |
 | Presentation | Event dedup, no replay audio, correction offset decay, discontinuity snap, occlusion fade, reduced effects |
 | Reactive world | One-way car/prop interaction, sparse same-match baselines, quiet sleeping objects, wreck lifecycle and safe local pedestrian avoidance |

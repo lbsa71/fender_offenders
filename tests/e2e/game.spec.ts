@@ -32,7 +32,7 @@ async function practice(page: Page, armed=false) {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: "You're on duty." })).toBeVisible();
   await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
-  if(armed)await dispatchFixture(page,1);
+  if(armed)await dispatchFixture(page,2);
   await page.getByRole('button', { name: 'START DISPATCH' }).click();
   await expect.poll(async () => (await snapshot(page))?.phase).toBe('playing');
   await expect(page.locator('[data-text="phase"]')).toHaveText('COMPETING PURSUIT');
@@ -130,7 +130,7 @@ test('a standard controller can start, drive, pause, navigate and safely disconn
   await tap(0);
   await expect(page.locator('.fo-hud')).toBeVisible();
   await expect(page.getByRole('button', { name: 'START DISPATCH' })).toBeVisible();
-  await dispatchFixture(page,1);
+  await dispatchFixture(page,2);
   await tap(0);
   await expect.poll(async () => (await snapshot(page))?.phase).toBe('playing');
   await expect(page.locator('[data-tutorial-controls]')).toBeHidden();

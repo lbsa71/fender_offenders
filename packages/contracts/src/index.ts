@@ -1,11 +1,14 @@
 export { getDispatchFeatures, DEFAULT_DRIVING_CONTEXT } from './dispatch-features';
 export type { DispatchFeatures, DispatchDrivingContext } from './dispatch-features';
-export const PROTOCOL_VERSION = 3;
+export { ROAD_GADGET_RULES, withRoadGadgets } from './road-gadgets';
+export type { RoadGadgetState } from './road-gadgets';
+import type { RoadGadgetState } from './road-gadgets';
+export const PROTOCOL_VERSION = 5;
 export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v13';
+export const GAMEPLAY_REVISION = 'arcade-v17';
 export type { CampaignState, CampaignOutcome, DispatchOutcome, CampaignTarget, CampaignDispatch } from './campaign-types';
 export { CAMPAIGN_ID, CAMPAIGN_TITLE, CAMPAIGN_TARGETS, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, getCampaignTarget } from './campaign';
 export { getCampaignMugshot } from './campaign-mugshots';
@@ -17,19 +20,22 @@ export { VEHICLE_BODIES, VEHICLE_PROFILES, getVehicleProfile, isVehicleBodyId } 
 export type { VehicleBodyId, VehicleProfile } from './vehicle-profiles';
 export type DeviceKind = 'keyboard' | 'gamepad' | 'touch';
 export type ControlScheme = 'auto' | DeviceKind;
+export type DeployWeapon = 'bomb' | 'oil' | 'blades';
 /** Held touch controls; the input adapter owns siren edges and recovery timing. */
 export interface TouchControls {
   steer: number; throttle: number; brakeReverse: number;
-  handbrake: boolean; fire: boolean; siren: boolean; recover: boolean;
+  handbrake: boolean; fire: boolean; siren: boolean; recover: boolean; deploy?: DeployWeapon;
 }
 export interface DriverActions {
   steer: number; throttle: number; brakeReverse: number;
-  handbrake: boolean; fire: boolean; sirenToggle: boolean; recover: boolean;
+  handbrake: boolean; fire: boolean; sirenToggle: boolean; recover: boolean; deploy?: DeployWeapon;
 }
 export const neutralActions = (): DriverActions => ({ steer: 0, throttle: 0, brakeReverse: 0, handbrake: false, fire: false, sirenToggle: false, recover: false });
 export interface InputCommand { sessionEpoch: string; sequence: number; clientTick: number; actions: DriverActions }
-export interface InputBatch { kind: 'input'; commands: InputCommand[] }
-export interface AppliedDriverInput { actions: DriverActions; sessionEpoch: string; sourceCommandSequence: number | null }
+/** Driver-produced movement; the room validates it and owns identity, health and outcomes. */
+export interface LocalVehicleMotion { sequence: number; discontinuityId: number; pose: PlanarPose; velocity: PlanarVelocity; contactRevision?: number }
+export interface InputBatch { kind: 'input'; commands: InputCommand[]; motion?: LocalVehicleMotion }
+export interface AppliedDriverInput { actions: DriverActions; sessionEpoch: string; sourceCommandSequence: number | null; localDriving?: boolean; motion?: LocalVehicleMotion }
 export interface InputSource { sample(): DriverActions; activeDevice(): DeviceKind; resetHeldState(): void; dispose(): void }
 export interface PlanarPose { x: number; z: number; yaw: number }
 export interface PlanarVelocity { x: number; z: number; yawRate: number }
@@ -48,9 +54,13 @@ export interface DriverRuntimeState {
   resolvedSteering: number; reverseHoldTicks: number; nextFireTick: number;
   shotOrdinal: number; nextRecoveryTick: number; lastDamageTick: number | null;
   /** Accepted-volley handling load and prediction clock. Omitted legacy values default to zero. */
-  recoilStrength?: number; simulatedTick?: number;
+  recoilStrength?: number; simulatedTick?: number; nextDeployTick?: number;
 }
-export interface LocalAuthorityState { vehicle: VehicleState; driver: DriverRuntimeState; lastConsumedSequence: number }
+/** Cumulative server contact adjustments within one vehicle life. */
+export interface ContactAdjustment { revision: number; pose: PlanarPose; velocity: PlanarVelocity }
+export const zeroContactAdjustment = (): ContactAdjustment => ({revision:0,pose:{x:0,z:0,yaw:0},velocity:{x:0,z:0,yawRate:0}});
+export interface VehicleContactDelta { entityId: string; pose: PlanarPose; velocity: PlanarVelocity }
+export interface LocalAuthorityState { vehicle: VehicleState; driver: DriverRuntimeState; lastConsumedSequence: number; contact?: ContactAdjustment }
 export interface ProjectileState {
   entityId: string; ownerEntityId: string; pose: PlanarPose; velocity: PlanarVelocity;
   bornTick: number; expiresTick: number; sourceCommandSequence: number; sourceShotOrdinal: number;
@@ -87,6 +97,7 @@ export interface WorldSnapshot {
   vehicles: VehicleState[]; projectiles: ProjectileState[]; scores: PlayerScore[];
   props?: PropState[];
   grenades?: GrenadeState[];
+  gadgets?: RoadGadgetState[];
   local: LocalAuthorityState | null;
   resetReason?: 'join' | 'reconnect' | 'input-backlog' | 'resync';
   pursuit?: PursuitState;
@@ -134,6 +145,7 @@ export interface RenderFrame {
   vehicles: VehicleState[]; projectiles: RenderProjectileState[]; cameraTarget: PlanarPose | null;
   props?: PropState[];
   grenades?: GrenadeState[];
+  gadgets?: RoadGadgetState[];
   /** Presentation clock in authority ticks, buffered online and exact in practice. */
   serverTick?: number;
   pursuit?: PursuitState;
@@ -172,7 +184,7 @@ export const isRecord = (value: unknown): value is Record<string, unknown> => ty
 export function isDriverActions(value: unknown): value is DriverActions {
   if (!isRecord(value)) return false;
   const bounded = (key: string, lo: number, hi: number) => typeof value[key] === 'number' && Number.isFinite(value[key]) && value[key] >= lo && value[key] <= hi;
-  return bounded('steer', -1, 1) && bounded('throttle', 0, 1) && bounded('brakeReverse', 0, 1) && ['handbrake', 'fire', 'sirenToggle', 'recover'].every(k => typeof value[k] === 'boolean');
+  return bounded('steer', -1, 1) && bounded('throttle', 0, 1) && bounded('brakeReverse', 0, 1) && ['handbrake', 'fire', 'sirenToggle', 'recover'].every(k => typeof value[k] === 'boolean') && (value.deploy === undefined || ['bomb','oil','blades'].includes(value.deploy as string));
 }
 export function isInputCommand(value: unknown): value is InputCommand {
   return isRecord(value) && typeof value.sessionEpoch === 'string' && value.sessionEpoch.length <= 100 && Number.isSafeInteger(value.sequence) && (value.sequence as number) >= 0 && Number.isSafeInteger(value.clientTick) && (value.clientTick as number) >= 0 && isDriverActions(value.actions);

@@ -12,12 +12,12 @@ function setup(stage=0,authored=map) {
  sim.restore(c);return sim;
 }
 beforeAll(initPhysics);afterEach(()=>sims.splice(0).forEach(sim=>sim.dispose()));
-it('rejects forged opening-dispatch fire without shots, health loss or recoil, but unlocks firing in dispatch two',()=>{
+it('rejects forged opening-dispatch fire without shots, health loss or recoil, but unlocks firing in dispatch three',()=>{
  const first=setup(), car=first.snapshot('a').local!.vehicle;
  for(let i=0;i<30;i++)first.step(new Map([[car.entityId,{actions:{...neutralActions(),fire:true},sessionEpoch:'test',sourceCommandSequence:i}]]));
  expect(first.drainEvents().filter(e=>e.kind==='shot')).toEqual([]);expect(first.snapshot('a').local!.driver.shotOrdinal).toBe(0);
  expect(first.snapshot().projectiles).toEqual([]);expect(first.snapshot().vehicles.every(v=>v.health===v.maxHealth)).toBe(true);
- const second=setup(1), id=second.snapshot('a').local!.vehicle.entityId;second.step(new Map([[id,{actions:{...neutralActions(),fire:true},sessionEpoch:'test',sourceCommandSequence:0}]]));
+ const second=setup(2), id=second.snapshot('a').local!.vehicle.entityId;second.step(new Map([[id,{actions:{...neutralActions(),fire:true},sessionEpoch:'test',sourceCommandSequence:0}]]));
  expect(second.drainEvents().some(e=>e.kind==='shot')).toBe(true);
 });
 it('reports the same eligibility reason that awards local arrest progress, including wire and checkpoint recovery',()=>{

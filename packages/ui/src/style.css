@@ -262,3 +262,7 @@
   .fo-pause-dispatch .fo-score-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .fo-pause-dispatch strong{text-align:right}
 }
+
+.fo-touch-deploy{display:flex;gap:6px}.fo-touch-deploy button{flex:1;min-width:0;border-radius:10px;font-size:9px!important;padding:7px 3px}.fo-touch-deploy:has(button:not([hidden])){min-height:44px}
+
+.fo-touch-deploy:empty{display:none}

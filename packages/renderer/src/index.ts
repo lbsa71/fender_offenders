@@ -12,8 +12,9 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Scene } from '@babylonjs/core/scene';
 import { MeshBuilder } from './primitives';
 import { districtMap, districtScene, ROAD_BUMPS } from '@fender/content';
-import { CAMPAIGN_DISPATCHES, getCampaignTarget, getBossTactics, getDispatchFeatures, getVehicleProfile, type CollisionMap, type GameEvent, type RenderFrame, type SceneManifest } from '@fender/contracts';
+import { CAMPAIGN_DISPATCHES, getCampaignTarget, getBossTactics, getDispatchFeatures, getVehicleProfile, type CollisionMap, type DriverActions, type GameEvent, type RenderFrame, type SceneManifest } from '@fender/contracts';
 import { MotorAudio } from './audio';
+import { DrivingSoundTracker } from './driving-sound';
 import { buildCity } from './city';
 import { CarFactory, updateCarStatus, type CarVisual } from './cars';
 import {crossedRoadBump,newCartoonMotion,stepCartoonMotion} from './deformation';
@@ -26,8 +27,10 @@ import {WreckEffects} from './wreck-effects';
 import {targetIndicatorFromClip} from './target-projection';
 import {TargetObjective} from './target-objective';
 import {GrenadeEffects} from './grenade-effects';
+import {RoadGadgetEffects} from './road-gadgets';
 import {DispatchEnvironment} from './environment';
 import {WetSurfaces} from './wet-surfaces';
+import {WaterSplashes} from './water-splashes';
 import {LightDetail} from './light-detail';
 import {ContactShading} from './contact-shading';
 import {isSpawnProtected} from './protection-clock';
@@ -65,11 +68,18 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
   shadows.getShadowMap()!.refreshRate=1;
   const environment=new DispatchEnvironment(scene,sun,hemi);
   const water=new WetSurfaces(scene);
+  const splashes=new WaterSplashes(scene);
   const lightDetail=new LightDetail(scene,map);
   const contacts=new ContactShading(scene);
   const factory=new CarFactory(scene),cars=new Map<string,CarVisual>(),audio=new MotorAudio(),combat=new CombatEffects(scene),wrecks=new WreckEffects(scene,factory,map);
+  const drivingSound = new DrivingSoundTracker();
+  let audioActive = true;
+  const syncAudioActivity = () => { audio.suspended = !audioActive || document.hidden; };
+  document.addEventListener('visibilitychange', syncAudioActivity);
   const prefersReducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
   const props=new PropVisuals(scene),pedestrians=new PedestrianCrowd(scene),objective=new TargetObjective(scene),grenades=new GrenadeEffects(scene);
+  const roadGadgets=new RoadGadgetEffects(scene);
+  const heardGadgets=new Set<string>();
   let dispatchIndex:number|null=null;
   const gunsFor=(player:boolean)=>dispatchIndex===null || (player?getDispatchFeatures(dispatchIndex).gunsEnabled:!['none','grenades'].includes(getBossTactics(dispatchIndex).weapon));
   let garage:GaragePreview|null=null,garageBody:string|null=null;
@@ -94,7 +104,9 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
   }
   function clearWreck(entityId:string):void{wrecks.remove(entityId);audio.stopWreck(entityId);}
   function resetCombatPresentation():void{
-    combat.reset();wrecks.reset();grenades.reset();audio.stopWreck();audio.stopGrenades();grenadeTick=0;shake=0;seenVolleys.clear();volleyQueue.length=0;pendingMuzzles.length=0;mountedMuzzles.clear();
+    roadGadgets.reset();
+    heardGadgets.clear();
+    combat.reset();wrecks.reset();grenades.reset();splashes.reset();audio.stopWreck();audio.stopGrenades();grenadeTick=0;shake=0;seenVolleys.clear();volleyQueue.length=0;pendingMuzzles.length=0;mountedMuzzles.clear();
     for(const p of particles){p.life=0;p.mesh.isVisible=false;}
     for(const mark of marks){mark.life=0;mark.mesh.isVisible=false;}
     for(const car of cars.values()){car.feedback=newVehicleFeedback();car.lastCrashAt=-10;car.lastCrashTick=-1;car.wreckLife=null;car.explodedLife=null;car.wreckLifeFloor=-1;}
@@ -138,11 +150,11 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     pendingMuzzles.length=0;
     while(mountedMuzzles.size>12){const key=mountedMuzzles.keys().next().value!;combat.moveMuzzles(key,[]);mountedMuzzles.delete(key);}
   }
-  function render(frame:RenderFrame,dt:number):void{
+  function render(frame:RenderFrame,dt:number,driverInput?:Pick<DriverActions,'throttle'|'brakeReverse'>):void{
     if(disposed)return;const cpuStart=performance.now();lastFrame=frame;dt=Math.min(Math.max(dt,0),.1);time+=dt;
     const reducedMotion=settings.reducedShake||prefersReducedMotion.matches;
     if(garageBody&&garage){
-      audio.update(0,false,time,false);garage.update(dt,reducedMotion);
+      audio.update(0,false,time,false);drivingSound.reset();garage.update(dt,reducedMotion);
       const drawStart=engine._drawCalls.current;engine.beginFrame();garage.scene.render();engine.endFrame();frameCpuMs=performance.now()-cpuStart;frameDrawCalls=engine._drawCalls.current-drawStart;return;
     }
     const active=new Set<string>();let cameraJump=false;
@@ -183,18 +195,30 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
         for(const side of [-1,1]){const mark=marks[markIndex++%marks.length]!;mark.mesh.position.set(-(v.pose.x+Math.cos(v.pose.yaw)*side*.78-Math.sin(v.pose.yaw)*1.3),.047,v.pose.z-Math.sin(v.pose.yaw)*side*.78-Math.cos(v.pose.yaw)*1.3);mark.mesh.rotation.y=-v.pose.yaw;mark.mesh.isVisible=true;mark.life=8;}
       }
       car.previousX=v.pose.x;car.previousZ=v.pose.z;car.previousYaw=v.pose.yaw;car.discontinuity=v.discontinuityId;
-      if(isLocal)audio.update(speed,v.sirenOn,time,v.status==='active');
+      if(isLocal)audio.update(speed,v.sirenOn,time,v.status==='active',drivingSound.sample(v,map,dt,driverInput));
     }
-    if(!frame.localEntityId)audio.update(0,false,time,false);
+    if(!frame.vehicles.some(v=>v.entityId===frame.localEntityId)){audio.update(0,false,time,false);drivingSound.reset();}
     if(time-lastSmoke>.12)lastSmoke=time;if(time-lastSkid>.055)lastSkid=time;
     for(const [id,car]of cars)if(!active.has(id)){removeCar(car);cars.delete(id);}
     renderMuzzles();combat.renderProjectiles(frame.projectiles,dt);combat.update(dt,settings.reducedFlash);wrecks.update(dt,{reducedMotion,reducedFlash:settings.reducedFlash});
     if(frame.serverTick!==undefined&&Number.isFinite(frame.serverTick))grenadeTick=frame.serverTick;
-    else if(!frame.grenades?.length)grenadeTick=0;
-    else{grenadeTick+=dt*60;for(const g of frame.grenades)grenadeTick=Math.max(grenadeTick,g.bornTick);}
+    else if(!frame.grenades?.length&&!frame.gadgets?.length)grenadeTick=0;
+    else{grenadeTick+=dt*60;for(const g of [...frame.grenades??[],...frame.gadgets??[]])grenadeTick=Math.max(grenadeTick,g.bornTick);}
     grenades.render(frame.grenades??[],grenadeTick,{reducedMotion,reducedFlash:settings.reducedFlash});grenades.update(dt,{reducedMotion,reducedFlash:settings.reducedFlash});
-    grenades.drainCues(cue=>{const volume=combatVolume(cue.position);if(volume>0)audio.grenade(cue.kind,volume,cue.grenadeId);});
+    grenades.drainCues(cue=>{const volume=combatVolume(cue.position);if(volume>0)audio.grenade(cue.kind,volume,cue.grenadeId,combatPan(cue.position));});
     props.render(frame.props??[],environment.lampGlow);pedestrians.update(frame.vehicles,dt,reducedMotion,frame.pursuit?.suspectId);
+    roadGadgets.render(frame.gadgets??[],frame.vehicles,grenadeTick,reducedMotion);
+    for(const gadget of frame.gadgets??[]){
+      const cueTick=gadget.kind==='oil'?gadget.bornTick:gadget.activeAtTick;
+      if(grenadeTick<cueTick||heardGadgets.has(gadget.entityId))continue;
+      heardGadgets.add(gadget.entityId);if(heardGadgets.size>256)heardGadgets.delete(heardGadgets.values().next().value!);
+      // Snapshot reconstruction must not replay an old deployment on joining or reconnecting.
+      if(grenadeTick-cueTick>6||grenadeTick>=gadget.expiresTick)continue;
+      const owner=frame.vehicles.find(v=>v.entityId===gadget.ownerEntityId);
+      if(gadget.kind==='blades'&&(!owner||owner.status!=='active'))continue;
+      const position=gadget.kind==='blades'?owner!.pose:gadget.pose,volume=combatVolume(position);
+      if(volume>0)audio.effect(gadget.kind,volume,undefined,combatPan(position));
+    }
     for(const p of particles)if(p.life>0){p.life-=dt;p.mesh.isVisible=p.life>0;p.mesh.position.x+=p.vx*dt;p.mesh.position.y+=p.vy*dt;p.mesh.position.z+=p.vz*dt;p.vy-=p.mesh.material===smoke?-.3*dt:9*dt;const f=Math.max(0,p.life/p.duration);p.mesh.scaling.setAll(p.size*(p.mesh.material===smoke?2-f:f));p.mesh.visibility=f;}
     for(const mark of marks)if(mark.life>0){mark.life-=dt;mark.mesh.isVisible=mark.life>0;mark.mesh.visibility=Math.min(1,mark.life);}
     const local=frame.vehicles.find((v)=>v.entityId===frame.localEntityId);
@@ -206,6 +230,10 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     if(shake>0){if(!reducedMotion){eye.x+=(Math.random()-.5)*shake;eye.z+=(Math.random()-.5)*shake;}shake=Math.max(0,shake-dt*3);}
     camera.position.copyFrom(eye);camera.setTarget(new Vector3(target.x,0,target.z+4));
     objective.update(frame,time,reducedMotion);
+    for(const cue of splashes.update(frame.vehicles,dt,settings.quality,reducedMotion))if(cue.sound){
+      const wheel=cue.wheels[0]!,volume=combatVolume(wheel,cue.entityId===frame.localEntityId);
+      if(volume>0)audio.splash(cue.strength,volume,cue.entityId===frame.localEntityId?0:combatPan(wheel));
+    }
     environment.update(frame.props??[]);water.update(dt,settings.quality,reducedMotion);
     lightDetail.update(frame,cars,environment.lighting.sources,environment.lampGlow,settings.quality,settings.reducedFlash);
     contacts.update(frame.vehicles);
@@ -215,6 +243,11 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     if(ownShot)return 1;
     const local=lastFrame?.vehicles.find(v=>v.entityId===lastFrame?.localEntityId);if(!local)return 0;
     const distance=Math.hypot(position.x-local.pose.x,position.z-local.pose.z);return Math.max(0,1-distance/45)**1.4;
+  }
+  function combatPan(position:{x:number;z:number}):number{
+    const local=lastFrame?.vehicles.find(v=>v.entityId===lastFrame?.localEntityId);if(!local)return 0;
+    const view=camera.getViewMatrix().m;
+    return Math.max(-.85,Math.min(.85,(-(position.x-local.pose.x)*view[0]!+(position.z-local.pose.z)*view[8]!)/18));
   }
   function present(events:GameEvent[]):void{
     if(disposed)return;
@@ -238,17 +271,17 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
         combat.impact(contact,strength,settings.reducedFlash);emit(-contact.x,1,contact.z,Math.round(5+strength*9),'spark');
         const local=lastFrame?.vehicles.find(v=>v.entityId===lastFrame?.localEntityId),isLocal=p.vehicleId===lastFrame?.localEntityId;
         const distance=local?Math.hypot(p.position.x-local.pose.x,p.position.z-local.pose.z):Infinity,volumeScale=isLocal?1:Math.max(0,1-distance/35)*.65;
-        if(volumeScale>0)audio.crash(strength,volumeScale);if(isLocal)shake=Math.max(shake,strength*.42);
+        if(volumeScale>0)audio.crash(strength,volumeScale,isLocal?0:combatPan(p.position));if(isLocal)shake=Math.max(shake,strength*.42);
       }else if(event.kind==='shot'){
         const payload=event.payload,p=payload.origin,volleyKey=`${event.matchId}:${payload.volleyId??`${payload.sessionEpoch}:${payload.shooterId}:${payload.sourceCommandSequence}:${payload.sourceShotOrdinal}`}`;
         if(seenVolleys.has(volleyKey))continue;seenVolleys.add(volleyKey);volleyQueue.push(volleyKey);if(volleyQueue.length>256)seenVolleys.delete(volleyQueue.shift()!);
         const car=cars.get(payload.shooterId);if(car)car.feedback=kickRecoil(car.feedback);
         if(pendingMuzzles.length>=12)pendingMuzzles.shift();pendingMuzzles.push({key:volleyKey,payload,life:car?.discontinuity??null,points:[],expires:0});
-        const volume=combatVolume(p,payload.shooterId===lastFrame?.localEntityId);if(volume>0)audio.effect('shot',volume);
+        const ownShot=payload.shooterId===lastFrame?.localEntityId,volume=combatVolume(p,ownShot);if(volume>0)audio.effect('shot',volume,undefined,ownShot?0:combatPan(p));
       }else if(event.kind==='hit'){
-        const p=event.payload.position;combat.impact(p,.7,settings.reducedFlash);emit(-p.x,1,p.z,14,'spark');emit(-p.x,1,p.z,2,'smoke');const volume=combatVolume(p);if(volume>0)audio.effect('hit',volume);if(event.payload.targetId===lastFrame?.localEntityId)shake=Math.max(shake,.3);
+        const p=event.payload.position;combat.impact(p,.7,settings.reducedFlash);emit(-p.x,1,p.z,14,'spark');emit(-p.x,1,p.z,2,'smoke');const volume=combatVolume(p);if(volume>0)audio.effect('hit',volume,undefined,combatPan(p));if(event.payload.targetId===lastFrame?.localEntityId)shake=Math.max(shake,.3);
       }else if(event.kind==='projectile-impact'){
-        const p=event.payload.position;combat.impact(p,.55,settings.reducedFlash);emit(-p.x,1,p.z,10,'spark');emit(-p.x,1,p.z,2,'smoke');const volume=combatVolume(p);if(volume>0)audio.effect('hit',volume);
+        const p=event.payload.position;combat.impact(p,.55,settings.reducedFlash);emit(-p.x,1,p.z,10,'spark');emit(-p.x,1,p.z,2,'smoke');const volume=combatVolume(p);if(volume>0)audio.effect('hit',volume,undefined,combatPan(p));
       }else if(event.kind==='wreck'){
         const p=event.payload,car=cars.get(p.vehicleId),vehicle=lastFrame?.vehicles.find(v=>v.entityId===p.vehicleId);
         if(!car||!vehicle||vehicle.status==='respawning')continue;
@@ -260,7 +293,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
         const options={reducedMotion:settings.reducedShake||prefersReducedMotion.matches,reducedFlash:settings.reducedFlash};
         if(!wrecks.spawn({vehicleId:p.vehicleId,pose,bodyAssetId,armed:cars.get(p.vehicleId)?.armed,discontinuityId:life},options))continue;
         car.explodedLife=car.wreckLife=life;car.motion=newCartoonMotion();car.feedback=newVehicleFeedback();updateCarStatus(car,false,time,settings.reducedFlash,'wrecked');
-        const volume=combatVolume(pose);if(volume>0)audio.effect('wreck',volume,p.vehicleId);shake=Math.max(shake,.85*volume);
+        const volume=combatVolume(pose);if(volume>0)audio.effect('wreck',volume,p.vehicleId,combatPan(pose));shake=Math.max(shake,.85*volume);
       }else if(event.kind==='respawn'){
         const car=cars.get(event.payload.vehicleId);if(car){clearWreck(event.payload.vehicleId);car.wreckLife=null;car.wreckLifeFloor=Math.max(car.wreckLifeFloor,event.payload.discontinuityId);car.feedback=newVehicleFeedback();car.motion=newCartoonMotion();car.lastCrashAt=-10;car.lastCrashTick=-1;}
       }
@@ -272,12 +305,12 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     if(!disposed)environment.loadBaseline(manifest.environment);
   }
   function resize(width?:number,height?:number,pixelRatio?:number):void{if(disposed)return;if(width&&height){engine.setSize(Math.max(1,width*(pixelRatio??1)),Math.max(1,height*(pixelRatio??1)));}else engine.resize();}
-  function dispose():void{if(disposed)return;disposed=true;audio.dispose();for(const c of cars.values())removeCar(c);cars.clear();factory.dispose();seen.clear();garage?.dispose();combat.dispose();wrecks.dispose();props.dispose();pedestrians.dispose();objective.dispose();grenades.dispose();contacts.dispose();lightDetail.dispose();water.dispose();environment.dispose();scene.dispose();engine.dispose();}
+  function dispose():void{if(disposed)return;disposed=true;document.removeEventListener('visibilitychange',syncAudioActivity);roadGadgets.dispose();audio.dispose();for(const c of cars.values())removeCar(c);cars.clear();factory.dispose();seen.clear();garage?.dispose();combat.dispose();wrecks.dispose();props.dispose();pedestrians.dispose();objective.dispose();grenades.dispose();contacts.dispose();lightDetail.dispose();splashes.dispose();water.dispose();environment.dispose();scene.dispose();engine.dispose();}
   void loadScene(districtScene);
-  return {render,present,resize,dispose,loadScene,setSettings,setGaragePreview,setDispatch:(id:string|null)=>{environment.setDispatch(id);dispatchIndex=id===null?null:CAMPAIGN_DISPATCHES.findIndex(d=>d.id===id);if(dispatchIndex===-1)dispatchIndex=null;water.setWetRoads(dispatchIndex!==null&&getDispatchFeatures(dispatchIndex).wetRoads);},getTargetIndicator:()=>objective.getIndicator(),getControlAnchor:()=>{
+  return {render,present,resize,dispose,loadScene,setSettings,setGaragePreview,setAudioActive:(active:boolean)=>{audioActive=active;syncAudioActivity();},setDispatch:(id:string|null)=>{environment.setDispatch(id);dispatchIndex=id===null?null:CAMPAIGN_DISPATCHES.findIndex(d=>d.id===id);if(dispatchIndex===-1)dispatchIndex=null;},getTargetIndicator:()=>objective.getIndicator(),getControlAnchor:()=>{
     const local=lastFrame?.vehicles.find(v=>v.entityId===lastFrame?.localEntityId);if(!local||garageBody)return null;
     const m=scene.getTransformMatrix().m,x=-local.pose.x,z=local.pose.z,y=1;
     return targetIndicatorFromClip({x:x*m[0]!+y*m[4]!+z*m[8]!+m[12]!,y:x*m[1]!+y*m[5]!+z*m[9]!+m[13]!,w:x*m[3]!+y*m[7]!+z*m[11]!+m[15]!},canvas.clientWidth,canvas.clientHeight,0);
-  },unlockAudio:()=>audio.unlock(),getStats:()=>({fps:engine.getFps(),frameCpuMs,drawCalls:frameDrawCalls,activeMeshes:(garageBody&&garage?garage.scene:scene).getActiveMeshes().length,totalMeshes:scene.meshes.length+(garage?.scene.meshes.length??0),particles:particles.filter((p)=>p.life>0).length,garageBody,garageAngle:garage?.getStats().angle??0,garageReady:garage?.scene.isReady()??false,garageSuspectBody:garage?.getStats().suspectBody??null,garageArmed:garage?.getStats().armed??false,...environment.getStats(),...water.getStats(),...lightDetail.getStats(),...contacts.getStats(),...combat.getStats(),...wrecks.getStats(),...grenades.getStats(),...props.getStats(),pedestrians:pedestrians.getStats().total,pedestriansRunning:pedestrians.getStats().running,pedestriansVisible:pedestrians.getStats().visible,pedestriansWaiting:pedestrians.getStats().waiting,pedestriansHiddenSafety:pedestrians.getStats().hiddenSafety})};
+  },unlockAudio:()=>audio.unlock(),getStats:()=>({fps:engine.getFps(),frameCpuMs,drawCalls:frameDrawCalls,activeMeshes:(garageBody&&garage?garage.scene:scene).getActiveMeshes().length,totalMeshes:scene.meshes.length+(garage?.scene.meshes.length??0),particles:particles.filter((p)=>p.life>0).length,garageBody,garageAngle:garage?.getStats().angle??0,garageReady:garage?.scene.isReady()??false,garageSuspectBody:garage?.getStats().suspectBody??null,garageArmed:garage?.getStats().armed??false,...environment.getStats(),...water.getStats(),...splashes.getStats(),...lightDetail.getStats(),...contacts.getStats(),...combat.getStats(),...wrecks.getStats(),...grenades.getStats(),...roadGadgets.getStats(),...props.getStats(),pedestrians:pedestrians.getStats().total,pedestriansRunning:pedestrians.getStats().running,pedestriansVisible:pedestrians.getStats().visible,pedestriansWaiting:pedestrians.getStats().waiting,pedestriansHiddenSafety:pedestrians.getStats().hiddenSafety})};
 }
 export type FenderRenderer=ReturnType<typeof createGameRenderer>;

@@ -4,7 +4,7 @@ import {EngineStore} from '@babylonjs/core/Engines/engineStore';
 import type {RenderFrame,VehicleState} from '@fender/contracts';
 import {districtProps} from '@fender/content';
 const cues:string[]=[];const audioLog:Array<{kind:string;strength?:number;volumeScale?:number}>=[];
-const audioProto=MotorAudio.prototype as any;for(const method of ['crash','effect']){const original=audioProto[method];audioProto[method]=function(kind:string|number,volumeScale=1,...rest:unknown[]){audioLog.push(method==='crash'?{kind:'crash',strength:kind as number,volumeScale}:{kind:kind as string,volumeScale});original?.call(this,kind,volumeScale,...rest);};}
+const audioProto=MotorAudio.prototype as any;for(const method of ['crash','effect','splash']){const original=audioProto[method];audioProto[method]=function(kind:string|number,volumeScale=1,...rest:unknown[]){audioLog.push(method==='effect'?{kind:kind as string,volumeScale}:{kind:method,strength:kind as number,volumeScale});original?.call(this,kind,volumeScale,...rest);};}
 const proto=MotorAudio.prototype as unknown as {cartoon?:(kind:string)=>void};const original=proto.cartoon;
 proto.cartoon=function(kind:string){cues.push(kind);original?.call(this,kind);};
 const canvas=document.querySelector('canvas')!;

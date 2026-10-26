@@ -2,11 +2,12 @@ import type { DeviceKind } from '@fender/contracts';
 const actions = [
   ['throttle','DRIVE','W / ↑','RT / ↑','DRAG ↑'],['brakeReverse','BRAKE / REVERSE','S / ↓','LT / ↓','DRAG ↓'],
   ['steer','STEER','A D / ← →','◀ L ▶','DRAG ← →'],['handbrake','DRIFT','SHIFT','A','DRIFT'],
+  ['bomb','THROW BOMB','B','LB','BOMB'],['oil','DROP OIL','Q','LS','OIL'],['blades','EXTEND BLADES','C','RS','BLADES'],
   ['siren','SIREN','E','X','SIREN'],['recover','HOLD TO RECOVER','R','Y','RECOVER'],['fire','FIRE','SPACE','RB','FIRE'],
 ] as const;
 const keyName=(key:string)=>key.replace(/^Key/,'').replace(/^Digit/,'').replace(/Left$|Right$/,'').replace('ArrowUp','↑').replace('ArrowDown','↓').replace('ArrowLeft','←').replace('ArrowRight','→').toUpperCase();
-export function controlHints(device:DeviceKind,bindings:Record<string,string[]>,guns:boolean){
- return actions.filter(([action])=>action!=='fire'||guns).map(([action,label,key,pad,touch])=>({action,label,glyph:device==='touch'?touch:device==='gamepad'?pad:action==='steer'?[...(bindings.left??['KeyA']),...(bindings.right??['KeyD'])].map(keyName).join(' '):(bindings[action]?.map(keyName).join(' / ')??key)}));
+export function controlHints(device:DeviceKind,bindings:Record<string,string[]>,guns:boolean,weapons:{bombsEnabled?:boolean;oilEnabled?:boolean;bladesEnabled?:boolean}={}){
+ return actions.filter(([action])=>(action!=='fire'||guns)&&(action!=='bomb'||weapons.bombsEnabled)&&(action!=='oil'||weapons.oilEnabled)&&(action!=='blades'||weapons.bladesEnabled)).map(([action,label,key,pad,touch])=>({action,label,glyph:device==='touch'?touch:device==='gamepad'?pad:action==='steer'?[...(bindings.left??['KeyA']),...(bindings.right??['KeyD'])].map(keyName).join(' '):(bindings[action]?.map(keyName).join(' / ')??key)}));
 }
 export function placeControlCard(anchor:{x:number;y:number},width:number,height:number,cardWidth:number,cardHeight:number,target:{x:number;y:number}|null){
  const clamp=(v:number,min:number,max:number)=>Math.max(min,Math.min(Math.max(min,max),v));

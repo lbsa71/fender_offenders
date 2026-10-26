@@ -1,8 +1,8 @@
 import { CAMPAIGN_DISPATCHES, CAMPAIGN_ID, getBossTactics, getCampaignTarget, getDispatchFeatures, DEFAULT_DRIVING_CONTEXT, PROTOCOL_VERSION, isDriverActions, isVehicleBodyId, sanitizeNickname, validateMap } from '@fender/contracts';
-import type { AppliedDriverInput, ArrestGuidance, DispatchDrivingContext, BossTactics, CollisionMap, DriverActions, DriverRuntimeState, GameEvent, GameplayConfig, GrenadeState, LocalAuthorityState, PlanarPose, PlayerScore, ProjectileState, PropDefinition, VehicleState, WorldSnapshot } from '@fender/contracts';
+import type { AppliedDriverInput, VehicleContactDelta, ArrestGuidance, DispatchDrivingContext, BossTactics, CollisionMap, DriverActions, DriverRuntimeState, GameEvent, GameplayConfig, GrenadeState, LocalAuthorityState, PlanarPose, PlayerScore, ProjectileState, PropDefinition, VehicleState, WorldSnapshot } from '@fender/contracts';
 import { DEFAULT_GAMEPLAY_CONFIG, FIXED_DELTA, normalizeGameplay, type SimulationConfig } from './config.js';
 import { box, colliderPolygon, isPoseClear, overlap, segmentPolygon, type Point } from '../physics/geometry.js';
-import { driveVehicle, neutralActions, newDriver, resolveStatic, resolveVehicleContacts, type ContactImpact } from '../vehicles/controller.js';
+import { driveVehicle, neutralActions, newDriver, resolveStatic, resolveVehicleContacts, surfaceAt, type ContactImpact } from '../vehicles/controller.js';
 import { trafficInput, type TrafficRuntime } from '../traffic/traffic.js';
 import { createStaticQueries, type StaticQueries } from '../physics/rapier.js';
 import { maxHealthForVehicle } from '../vehicles/profiles.js';
@@ -11,6 +11,8 @@ import { getVolleyOrigins } from '../combat/volleys.js';
 import { applyVolleyRecoil } from '../combat/recoil.js';
 import { createPropPhysics, type PropPhysicsCheckpoint } from '../physics/props.js';
 import { newBossAi, stepBossAi, type BossAiRuntime } from '../missions/boss-ai.js';
+import { ROAD_GADGET_RULES, withRoadGadgets } from '@fender/contracts';
+import { gadgetOpportunity, inBladeReach, type RoadGadgetRuntime } from '../missions/road-gadgets.js';
 
 interface VehicleRecord {
   vehicle: VehicleState; driver: DriverRuntimeState; epoch: string; sequence: number;
@@ -27,16 +29,17 @@ export interface SimulationOptions {
 export interface PlayerOptions { playerId: string; nickname: string; sessionEpoch?: string; bodyAssetId?: string }
 export interface SimulationCheckpoint {
   version: 1; mapRevision: string; gameplayRevision: string; tick: number; matchId: string;
-  state: { records: VehicleRecord[]; projectiles: ProjectileState[]; grenades?: GrenadeState[]; scores: PlayerScore[]; phase: WorldSnapshot['phase']; phaseEnd: number | null; counter: number; eventCounter: number; rng: number; creator: string | null; pursuit: WorldSnapshot['pursuit']; arrestTicks: number; contenderTicks?: [string, number][]; campaign?: WorldSnapshot['campaign']; physicsProps?: PropPhysicsCheckpoint };
+  state: { records: VehicleRecord[]; projectiles: ProjectileState[]; grenades?: GrenadeState[]; gadgets?: RoadGadgetRuntime[]; scores: PlayerScore[]; phase: WorldSnapshot['phase']; phaseEnd: number | null; counter: number; eventCounter: number; rng: number; creator: string | null; pursuit: WorldSnapshot['pursuit']; arrestTicks: number; contenderTicks?: [string, number][]; campaign?: WorldSnapshot['campaign']; physicsProps?: PropPhysicsCheckpoint };
 }
 export interface Simulation {
   addPlayer(options: PlayerOptions): VehicleState;
   removePlayer(playerId: string): void;
   setConnection(playerId: string, connection: PlayerScore['connection']): void;
   setPlayerVehicle(playerId: string, bodyId: string): boolean;
+  correctLocalMotion(playerId: string): boolean;
   startRound(requesterId?: string): boolean;
   rematch(requesterId?: string): boolean;
-  step(inputs: ReadonlyMap<string, AppliedDriverInput>): void;
+  step(inputs: ReadonlyMap<string, AppliedDriverInput>): readonly VehicleContactDelta[];
   snapshot(forPlayerId?: string): WorldSnapshot;
   authority(playerId: string): LocalAuthorityState | null;
   restoreAuthority(local: LocalAuthorityState, tick: number, proxies?: VehicleState[]): void;
@@ -64,6 +67,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
   const matchId = options.matchId ?? 'local-match';
   let records = new Map<string, VehicleRecord>(), scores = new Map<string, PlayerScore>(), projectiles = new Map<string, ProjectileState>();
   let grenades = new Map<string, GrenadeState>();
+  let roadGadgets = new Map<string, RoadGadgetRuntime>();
   // Every launch sweep is consumed after all cars have acted in this same synchronous fixed step.
   const launchStarts = new Map<string, PlanarPose>();
   let tick = 0, counter = 0, eventCounter = 0, rng = options.seed ?? 12345, disposed = false;
@@ -150,7 +154,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
     pursuit.state = 'complete'; pursuit.winnerPlayerId = winner; pursuit.elapsedTicks = elapsedTicks;
     pursuit.arrestingPlayerId = outcome === 'arrested' ? winner : null;
     if (outcome === 'arrested') { pursuit.progress = 1; scores.get(winner)!.score += 3; }
-    phase = 'results'; phaseEnd = null; projectiles.clear(); launchStarts.clear(); grenades.clear();
+    phase = 'results'; phaseEnd = null; projectiles.clear(); launchStarts.clear(); grenades.clear(); roadGadgets.clear();
     emit({ kind: 'pursuit-complete', payload: { elapsedTicks, bonus: outcome === 'arrested' ? 3 : 1, playerId: winner, suspectId: pursuit.suspectId, ...(campaign ? { outcome } : {}) } });
     emit({ kind: 'round-ended', payload: { scores: clone([...scores.values()]), winnerPlayerId: winner, reason: outcome === 'arrested' ? 'apprehended' : 'wrecked' } });
   };
@@ -231,7 +235,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
     const origin = { x: r.vehicle.pose.x + Math.sin(r.vehicle.pose.yaw), z: r.vehicle.pose.z + Math.cos(r.vehicle.pose.yaw), yaw: r.vehicle.pose.yaw };
     if (queries.segmentHit(r.vehicle.pose, origin) !== null || queries.segmentHit(origin, target) !== null) return;
     const grenade: GrenadeState = { entityId: `${matchId}:grenade:${++counter}`, ownerEntityId: r.vehicle.entityId, origin, target: clone(target), bornTick: tick, landsAtTick: tick + tactics.grenadeFlightTicks, detonatesAtTick: tick + tactics.grenadeFuseTicks, blastRadius: tactics.grenadeRadius, damage: tactics.grenadeDamage };
-    grenades.set(grenade.entityId, grenade); emit({ kind: 'grenade-thrown', payload: { grenade: clone(grenade) } });
+    grenades.set(grenade.entityId, grenade); emit({ kind: 'grenade-thrown', payload: { grenade: clone(grenade) } }); return true;
   };
   const stepGrenades = () => {
     for (const grenade of grenades.values()) {
@@ -242,13 +246,49 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
       if (!owner || owner.vehicle.status !== 'active' || owner.vehicle.protectedUntilTick > tick) continue;
       for (const r of records.values()) {
         const v = r.vehicle;
-        if (v.entityId === grenade.ownerEntityId || v.playerId === null || scores.get(v.playerId)?.connection !== 'connected' || v.status !== 'active' || v.protectedUntilTick > tick) continue;
+        const hostile = owner.vehicle.playerId === null ? v.playerId !== null && scores.get(v.playerId)?.connection === 'connected' : v.entityId === pursuit?.suspectId;
+        if (v.entityId === grenade.ownerEntityId || !hostile || v.status !== 'active' || v.protectedUntilTick > tick) continue;
         const distance = Math.hypot(v.pose.x - grenade.target.x, v.pose.z - grenade.target.z);
         if (distance >= grenade.blastRadius || queries.segmentHit(grenade.target, v.pose) !== null) continue;
         const damage = Math.round(grenade.damage * (1 - distance / grenade.blastRadius)); if (damage <= 0) continue;
-        v.health = Math.max(0, v.health - damage); r.driver.lastDamageTick = tick; r.lastAttacker = null; r.attackerTick = tick;
+        v.health = Math.max(0, v.health - damage); r.driver.lastDamageTick = tick; r.lastAttacker = owner.vehicle.playerId; r.attackerTick = tick;
         emit({ kind: 'hit', payload: { projectileId: grenade.entityId, targetId: v.entityId, damage, position: clone(v.pose) } });
         if (!v.health) wreck(r);
+      }
+    }
+  };
+  const deployRoadGadget = (owner: VehicleRecord, officers: readonly VehicleState[], tactics: BossTactics, manualKind?: 'oil' | 'blades') => {
+    const kind = manualKind ?? tactics.gadget, brain = owner.bossAi;
+    if (!kind || owner.vehicle.protectedUntilTick > tick || roadGadgets.size >= ROAD_GADGET_RULES.maxActive) return;
+    if (!manualKind && (!brain || tick < (brain.nextGadgetTick ?? 0) || !gadgetOpportunity(kind, owner.vehicle, officers, tick, (a,b) => queries.segmentHit(a,b) !== null))) return;
+    const pose = clone(owner.vehicle.pose);
+    if (kind === 'oil') { pose.x -= Math.sin(pose.yaw) * 4; pose.z -= Math.cos(pose.yaw) * 4; }
+    if (kind === 'oil') {
+      if (surfaceAt(map, pose) !== 'asphalt') return;
+      for (let i = 0; i < 16; i++) {
+        const angle = i * Math.PI / 8;
+        if (surfaceAt(map, { x: pose.x + Math.cos(angle) * ROAD_GADGET_RULES.oilRadius, z: pose.z + Math.sin(angle) * ROAD_GADGET_RULES.oilRadius }) !== 'asphalt') return;
+      }
+    }
+    if (queries.segmentHit(owner.vehicle.pose, pose) !== null || pose.x < map.bounds.minX + 3 || pose.x > map.bounds.maxX - 3 || pose.z < map.bounds.minZ + 3 || pose.z > map.bounds.maxZ - 3) return;
+    const activeAtTick = tick + (kind === 'oil' ? ROAD_GADGET_RULES.oilWarningTicks : ROAD_GADGET_RULES.bladeWarningTicks);
+    const gadget = { entityId: `${matchId}:gadget:${++counter}`, ownerEntityId: owner.vehicle.entityId, kind, pose, bornTick: tick, activeAtTick, expiresTick: activeAtTick + (kind === 'oil' ? ROAD_GADGET_RULES.oilActiveTicks : ROAD_GADGET_RULES.bladeActiveTicks) };
+    roadGadgets.set(gadget.entityId, { gadget, hitVehicleIds: [] }); if (!manualKind && brain) brain.nextGadgetTick = tick + ROAD_GADGET_RULES.cooldownTicks; return true;
+  };
+  const stepRoadGadgets = () => {
+    for (const [id, runtime] of roadGadgets) {
+      const g = runtime.gadget, owner = records.get(g.ownerEntityId)?.vehicle;
+      if (phase !== 'playing' || tick >= g.expiresTick || !owner || owner.status !== 'active' || owner.protectedUntilTick > tick) { roadGadgets.delete(id); continue; }
+      if (g.kind !== 'blades') continue;
+      g.pose = clone(owner.pose);
+      if (tick < g.activeAtTick) continue;
+      for (const r of records.values()) {
+        const target = r.vehicle;
+        const hostile = owner.playerId === null ? target.playerId !== null && scores.get(target.playerId)?.connection === 'connected' : target.entityId === pursuit?.suspectId;
+        if (!hostile || target.status !== 'active' || target.protectedUntilTick > tick || runtime.hitVehicleIds.includes(target.entityId) || !inBladeReach(owner, target) || queries.segmentHit(owner.pose, target.pose) !== null) continue;
+        runtime.hitVehicleIds.push(target.entityId); target.health = Math.max(0, target.health - ROAD_GADGET_RULES.bladeDamage); r.driver.lastDamageTick = tick; r.lastAttacker = owner.playerId; r.attackerTick = tick;
+        emit({ kind: 'hit', payload: { projectileId: id, targetId: target.entityId, damage: ROAD_GADGET_RULES.bladeDamage, position: clone(target.pose) } });
+        if (!target.health) wreck(r);
       }
     }
   };
@@ -320,6 +360,11 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
       if (!campaign && phase === 'countdown' && scores.size < 2) { phase = 'lobby'; phaseEnd = null; }
     },
     setConnection(playerId, connection) { check(); const score = scores.get(playerId); if (score) score.connection = connection; },
+    correctLocalMotion(playerId) {
+      check(); const record = recordForPlayer(playerId);
+      if (!record || record.vehicle.status !== 'active') return false;
+      record.vehicle.discontinuityId++; return true;
+    },
     setPlayerVehicle(playerId, bodyId) {
       check();
       if (!isVehicleBodyId(bodyId) || (mode === 'multiplayer' || campaign) && phase !== 'lobby') return false;
@@ -338,7 +383,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
       phase = 'countdown'; phaseEnd = tick + config.rules.countdownTicks;
       propPhysics?.reset();
       if (!campaign) for (const score of scores.values()) { score.score = 0; score.wrecks = 0; }
-      projectiles.clear(); grenades.clear(); for (const r of records.values()) if (r.vehicle.playerId) respawn(r);
+      projectiles.clear(); grenades.clear(); roadGadgets.clear(); for (const r of records.values()) if (r.vehicle.playerId) respawn(r);
       resetPursuit();
       return true;
     },
@@ -350,18 +395,19 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
           for (const score of scores.values()) { score.score = 0; score.wrecks = 0; }
         } else if (campaign.outcomes.some(outcome => outcome.dispatchIndex === campaign!.dispatchIndex)) campaign.dispatchIndex++;
       }
-      phase = 'lobby'; phaseEnd = null; projectiles.clear(); grenades.clear(); propPhysics?.reset(); resetPursuit(); return true;
+      phase = 'lobby'; phaseEnd = null; projectiles.clear(); grenades.clear(); roadGadgets.clear(); propPhysics?.reset(); resetPursuit(); return true;
     },
     step(inputs) {
       check(); tick++;
       if (phaseEnd !== null && tick >= phaseEnd) {
         if (phase === 'countdown') { phase = 'playing'; phaseEnd = tick + config.rules.roundTicks; for (const r of records.values()) r.vehicle.protectedUntilTick = tick + config.rules.protectionTicks; }
-        else if (phase === 'playing') { phase = 'results'; phaseEnd = null; projectiles.clear(); grenades.clear(); emit({ kind: 'round-ended', payload: { scores: clone([...scores.values()]), winnerPlayerId: null, reason: 'timeout' } }); }
+        else if (phase === 'playing') { phase = 'results'; phaseEnd = null; projectiles.clear(); grenades.clear(); roadGadgets.clear(); emit({ kind: 'round-ended', payload: { scores: clone([...scores.values()]), winnerPlayerId: null, reason: 'timeout' } }); }
       }
-      if (campaign && phase !== 'playing') return;
-      const context = campaign ? getDispatchFeatures(campaign.dispatchIndex) : DEFAULT_DRIVING_CONTEXT;
+      if (campaign && phase !== 'playing') return [];
+      const context = withRoadGadgets(campaign ? getDispatchFeatures(campaign.dispatchIndex) : DEFAULT_DRIVING_CONTEXT, [...roadGadgets.values()].map(runtime => runtime.gadget), tick);
       const previous = new Map([...records.values()].map(r => [r.vehicle.entityId, clone(r.vehicle.pose)]));
       const impacts = new Map<string, ContactImpact>();
+      const localDriving = new Map<string, { pose: PlanarPose; velocity: VehicleState['velocity']; discontinuityId: number }>();
       const observeImpact = (impact: ContactImpact) => { if (impact.speed > (impacts.get(impact.vehicleId)?.speed ?? 0)) impacts.set(impact.vehicleId, impact); };
       for (const r of records.values()) {
         if (r.vehicle.status !== 'active') { if (r.vehicle.respawnAtTick !== null && tick >= r.vehicle.respawnAtTick) { respawn(r); previous.set(r.vehicle.entityId, clone(r.vehicle.pose)); } continue; }
@@ -379,6 +425,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
             const officers = allVehicles().filter(v => v.playerId !== null && scores.get(v.playerId)?.connection === 'connected');
             const decision = stepBossAi(r.vehicle, actions, officers, r.bossAi, aiTactics, tick, map.laneEdges[r.traffic.edgeIndex]?.speedLimit ?? aiTactics.cruiseSpeed, (start, end) => queries.segmentHit(start, end) !== null);
             actions = decision.actions; actions.fire = decision.fire; grenadeTarget = decision.grenadeTarget;
+            deployRoadGadget(r, officers, aiTactics);
           }
         } else {
           const input = inputs.get(r.vehicle.entityId);
@@ -388,21 +435,68 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
             const sequence = input.sourceCommandSequence;
             if (sequence !== null && sequence >= r.sequence) {
               r.sequence = sequence;
-              if (sequence <= r.lastEdgeSequence) { actions.sirenToggle = false; actions.recover = false; }
+              if (sequence <= r.lastEdgeSequence) { actions.sirenToggle = false; actions.recover = false; delete actions.deploy; }
               else r.lastEdgeSequence = sequence;
-            } else { actions.sirenToggle = false; actions.recover = false; }
+            } else { actions.sirenToggle = false; actions.recover = false; delete actions.deploy; }
           }
         }
         if (phase === 'results' || phase === 'countdown') actions = { ...neutralActions(), handbrake: true };
         if (actions.sirenToggle) r.vehicle.sirenOn = !r.vehicle.sirenOn;
         if (actions.recover) recovery(r);
         r.driver.simulatedTick = tick;
-        driveVehicle(r.vehicle, r.driver, actions, map, solids, config, observeImpact, context);
-        if (!context.gunsEnabled) actions.fire = false;
-        if (actions.fire && phase === 'playing' && (r.vehicle.playerId || aiTactics)) fire(r, aiTactics);
+        const localInput = r.vehicle.playerId ? inputs.get(r.vehicle.entityId) : undefined;
+        const direct = localInput?.localDriving && (phase === 'playing' || phase === 'lobby');
+        if (direct) {
+          const motion = localInput.motion;
+          if (motion && motion.discontinuityId === r.vehicle.discontinuityId) {
+            const priorVelocity = clone(r.vehicle.velocity);
+            r.vehicle.pose = clone(motion.pose); r.vehicle.velocity = clone(motion.velocity);
+            // Local physics can deliver the already separated, stopped car.
+            // Confirm actual map contact within the solver's millimetre gap,
+            // using the room's incoming velocity; never trust a client crash.
+            const speed = Math.hypot(priorVelocity.x, priorVelocity.z);
+            if (speed >= 3) {
+              const probe = clone(r.vehicle); probe.velocity = priorVelocity;
+              probe.pose.x += priorVelocity.x / speed * .005; probe.pose.z += priorVelocity.z / speed * .005;
+              resolveStatic(probe, map, solids, observeImpact);
+            }
+          }
+          localDriving.set(r.vehicle.entityId, { pose: clone(r.vehicle.pose), velocity: clone(r.vehicle.velocity), discontinuityId: r.vehicle.discontinuityId });
+          r.driver.recoilStrength = Math.max(0, (r.driver.recoilStrength ?? 0) - config.weapon.recoilRecovery * FIXED_DELTA);
+          resolveStatic(r.vehicle, map, solids, observeImpact);
+        } else driveVehicle(r.vehicle, r.driver, actions, map, solids, config, observeImpact, context);
+        if (r.vehicle.playerId && !context.gunsEnabled) actions.fire = false;
+        if (actions.fire && phase === 'playing' && (r.vehicle.playerId || aiTactics)) {
+          const velocity = direct ? clone(r.vehicle.velocity) : null;
+          fire(r, aiTactics);
+          // Driver motion already includes its locally simulated recoil. Keep
+          // server volley cadence/damage without applying the same kick twice.
+          if (velocity) r.vehicle.velocity = velocity;
+        }
         if (grenadeTarget && aiTactics && phase === 'playing') throwGrenade(r, grenadeTarget, aiTactics);
+        if (actions.deploy && r.vehicle.playerId && campaign && phase === 'playing' && r.vehicle.protectedUntilTick <= tick && tick >= (r.driver.nextDeployTick ?? 0) && scores.get(r.vehicle.playerId)?.connection === 'connected') {
+          const kind = actions.deploy, allowed = kind === 'bomb' ? context.bombsEnabled : kind === 'oil' ? context.oilEnabled : context.bladesEnabled;
+          if (allowed) {
+            const tactics = getBossTactics(campaign.dispatchIndex);
+            let deployed: boolean | undefined;
+            if (kind === 'bomb') {
+              const range = 16, target = { x:r.vehicle.pose.x+Math.sin(r.vehicle.pose.yaw)*range,z:r.vehicle.pose.z+Math.cos(r.vehicle.pose.yaw)*range,yaw:r.vehicle.pose.yaw };
+              if(target.x>=map.bounds.minX+3 && target.x<=map.bounds.maxX-3 && target.z>=map.bounds.minZ+3 && target.z<=map.bounds.maxZ-3)deployed = throwGrenade(r,target,{...tactics,grenadeFlightTicks:24,grenadeFuseTicks:90,grenadeRadius:4.5,grenadeDamage:24});
+            } else deployed = deployRoadGadget(r,[],tactics,kind);
+            if (deployed) r.driver.nextDeployTick = tick + ROAD_GADGET_RULES.cooldownTicks;
+          }
+        }
+
       }
       resolveVehicleContacts(allVehicles(), map, solids, observeImpact);
+      const contactDeltas: VehicleContactDelta[] = [];
+      for (const [id, before] of localDriving) {
+        const vehicle = records.get(id)!.vehicle;
+        if (vehicle.discontinuityId !== before.discontinuityId) continue;
+        const pose = {x:vehicle.pose.x-before.pose.x,z:vehicle.pose.z-before.pose.z,yaw:vehicle.pose.yaw-before.pose.yaw};
+        const velocity = {x:vehicle.velocity.x-before.velocity.x,z:vehicle.velocity.z-before.velocity.z,yawRate:vehicle.velocity.yawRate-before.velocity.yawRate};
+        if (Math.hypot(pose.x,pose.z,velocity.x,velocity.z)> .00001) contactDeltas.push({entityId:id,pose,velocity});
+      }
       propPhysics?.step(allVehicles());
       if (phase === 'playing') for (const impact of impacts.values()) {
         const r = records.get(impact.vehicleId);
@@ -410,10 +504,11 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
         r.nextCrashTick = tick + 30;
         emit({ kind: 'crash', payload: { vehicleId: r.vehicle.entityId, position: clone(r.vehicle.pose), normal: impact.normal, speed: Math.min(60, impact.speed), discontinuityId: r.vehicle.discontinuityId } });
       }
-      if (phase === 'playing') { stepProjectiles(previous); if (phase === 'playing') stepGrenades(); updatePursuit(); }
+      if (phase === 'playing') { stepProjectiles(previous); if (phase === 'playing') stepGrenades(); stepRoadGadgets(); updatePursuit(); }
+      return contactDeltas;
     },
     snapshot(forPlayerId) {
-      check(); return clone({ protocolVersion: PROTOCOL_VERSION, mapRevision: map.revision, gameplayRevision: config.revision, sessionEpoch: forPlayerId ? recordForPlayer(forPlayerId)?.epoch ?? '' : '', serverTick: tick, matchId, phase, phaseEndsAtTick: phaseEnd, vehicles: allVehicles(), projectiles: [...projectiles.values()], grenades: [...grenades.values()], scores: [...scores.values()], props: propPhysics?.snapshot() ?? [], local: forPlayerId ? authority(forPlayerId) : null, ...(pursuit ? { pursuit } : {}), ...(campaign ? { campaign } : {}) });
+      check(); return clone({ protocolVersion: PROTOCOL_VERSION, mapRevision: map.revision, gameplayRevision: config.revision, sessionEpoch: forPlayerId ? recordForPlayer(forPlayerId)?.epoch ?? '' : '', serverTick: tick, matchId, phase, phaseEndsAtTick: phaseEnd, vehicles: allVehicles(), projectiles: [...projectiles.values()], grenades: [...grenades.values()], gadgets: [...roadGadgets.values()].map(runtime => runtime.gadget), scores: [...scores.values()], props: propPhysics?.snapshot() ?? [], local: forPlayerId ? authority(forPlayerId) : null, ...(pursuit ? { pursuit } : {}), ...(campaign ? { campaign } : {}) });
     },
     authority,
     restoreAuthority(local, serverTick, proxies = []) {
@@ -422,11 +517,11 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
       r.vehicle = clone(local.vehicle); r.driver = clone(local.driver); r.sequence = local.lastConsumedSequence; r.lastEdgeSequence = local.lastConsumedSequence;
       records = new Map([[r.vehicle.entityId, r]]);
       for (const v of proxies) if (v.entityId !== r.vehicle.entityId) records.set(v.entityId, { vehicle: clone(v), driver: newDriver(), epoch: 'proxy', sequence: -1, lastEdgeSequence: -1, lastAttacker: null, attackerTick: -Infinity });
-      projectiles.clear(); grenades.clear(); events = [];
+      projectiles.clear(); grenades.clear(); roadGadgets.clear(); events = [];
     },
     drainEvents() { check(); const output = events; events = []; return output; },
     checkpoint() {
-      check(); return clone({ version: 1, mapRevision: map.revision, gameplayRevision: config.revision, tick, matchId, state: { records: [...records.values()], projectiles: [...projectiles.values()], grenades: [...grenades.values()], scores: [...scores.values()], phase, phaseEnd, counter, eventCounter, rng, creator, pursuit, arrestTicks, contenderTicks: [...contenderTicks], ...(campaign ? { campaign } : {}), ...(propPhysics ? {physicsProps:propPhysics.checkpoint()} : {}) } });
+      check(); return clone({ version: 1, mapRevision: map.revision, gameplayRevision: config.revision, tick, matchId, state: { records: [...records.values()], projectiles: [...projectiles.values()], grenades: [...grenades.values()], gadgets: [...roadGadgets.values()], scores: [...scores.values()], phase, phaseEnd, counter, eventCounter, rng, creator, pursuit, arrestTicks, contenderTicks: [...contenderTicks], ...(campaign ? { campaign } : {}), ...(propPhysics ? {physicsProps:propPhysics.checkpoint()} : {}) } });
     },
     restore(checkpoint) {
       check(); if (checkpoint.version !== 1 || checkpoint.mapRevision !== map.revision || checkpoint.gameplayRevision !== config.revision || checkpoint.matchId !== matchId) throw new Error('Incompatible simulation checkpoint');
@@ -436,9 +531,10 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
       contenderTicks = new Map(c.state.contenderTicks ?? []);
       campaign = c.state.campaign;
       grenades = new Map((c.state.grenades ?? []).map(grenade => [grenade.entityId, grenade]));
+      roadGadgets = new Map((c.state.gadgets ?? []).map(runtime => [runtime.gadget.entityId, runtime]));
       if (propPhysics) { if(c.state.physicsProps) propPhysics.restore(c.state.physicsProps); else propPhysics.reset(); }
     },
-    dispose() { if (disposed) return; disposed = true; records.clear(); projectiles.clear(); grenades.clear(); scores.clear(); events = []; queries.dispose(); propPhysics?.dispose(); },
+    dispose() { if (disposed) return; disposed = true; records.clear(); projectiles.clear(); grenades.clear(); roadGadgets.clear(); scores.clear(); events = []; queries.dispose(); propPhysics?.dispose(); },
   };
 }
 

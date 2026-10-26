@@ -130,14 +130,15 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   function updateControls() {
     updateTutorial();
     const device = controlDevice(), campaign = model.snapshot?.campaign;
-    const guns = campaign ? getDispatchFeatures(campaign.dispatchIndex).gunsEnabled : true;
+    const weapons=campaign?getDispatchFeatures(campaign.dispatchIndex):null;
+    const guns = weapons?.gunsEnabled ?? true;
     const reminder = currentReminder();
     const key = JSON.stringify([device, settings.bindings, guns, reminder]);
     if (key !== controlsViewKey) {
       controlsViewKey = key;
       help.querySelector('[data-keyboard-controls]')!.replaceChildren(keyboardControls(doc, settings.bindings));
       help.querySelector('[data-gamepad-controls]')!.replaceChildren(gamepadControls(doc));
-      help.querySelectorAll<HTMLElement>('[data-control="fire"]').forEach(row => { row.hidden = !guns; });
+      for(const [action,enabled] of [['fire',guns],['bomb',weapons?.bombsEnabled],['oil',weapons?.oilEnabled],['blades',weapons?.bladesEnabled]])help.querySelectorAll<HTMLElement>(`[data-control="${action}"]`).forEach(row=>{row.hidden=!enabled;});
       helpLesson.textContent = reminder; helpLesson.hidden = !reminder;
     }
     const visible = device !== 'touch' && !disposed && !doc.hidden && menu === null && model.snapshot?.phase === 'playing' && !model.snapshot.paused && !model.error
@@ -172,15 +173,17 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   function setControlAnchor(anchor:{x:number;y:number}|null){controlAnchor=anchor;positionControls();}
   function currentReminder() {
     const index = model.snapshot?.campaign?.dispatchIndex;
-    return index === undefined ? '' : ['Arresting is automatic. Stay close and match speed.', 'Fire forward in short bursts.', 'Bombs: leave the marked circle.', 'Puddles reduce grip. Steer gently.'][index] ?? '';
+    if(index!==undefined&&index>=4)return getDispatchFeatures(index).lesson;
+    return index === undefined ? '' : ['Arresting is automatic. Stay close and match speed.', 'Suspect guns: approach from behind or a flank. Police guns arrive next dispatch.', 'Fire forward in short bursts. Bombs: leave the marked circle.', 'Puddles reduce grip. Steer gently.'][index] ?? '';
   }
   function updateTutorial(){
     const campaign=model.snapshot?.campaign,features=campaign?getDispatchFeatures(campaign.dispatchIndex):null,guns=features?.gunsEnabled??Boolean(model.snapshot);
-    touchControls.setGunsEnabled(guns);
-    const reminder=currentReminder(),device=controlDevice(),hints=controlHints(device,settings.bindings,guns),key=JSON.stringify({device,hints,reminder});
+    touchControls.setGunsEnabled(guns);touchControls.setWeaponsEnabled(features??{});
+    const reminder=currentReminder(),device=controlDevice(),hints=controlHints(device,settings.bindings,guns,features??{}),key=JSON.stringify({device,hints,reminder});
     if(key!==controlKey){controlKey=key;controls.replaceChildren(controlGraphics(doc,hints,device));if(reminder){const tip=doc.createElement('p');tip.dataset.controlLesson='';tip.textContent=reminder;controls.append(tip);}const tip=doc.createElement('small');tip.className='fo-tutorial-dismiss';tip.textContent=(device==='gamepad'?'MENU':'ESC')+' → CONTROLS HELP · HIDES AFTER 8 SECONDS';controls.append(tip);}
-    const fire=one('[data-binding="fire"]');if(fire.parentElement)fire.parentElement.hidden=!guns;
-    write('ammo',guns?'AUTO / UNLIMITED AMMO':'TRAINING / UNARMED');positionControls();
+    for(const [action,enabled] of [['fire',guns],['bomb',features?.bombsEnabled],['oil',features?.oilEnabled],['blades',features?.bladesEnabled]]){const button=one(`[data-binding="${action}"]`);if(button.parentElement)button.parentElement.hidden=!enabled;}
+    const cooldown=Math.max(0,Math.ceil(((model.snapshot?.local?.driver.nextDeployTick??0)-(model.snapshot?.serverTick??0))/60));
+    write('ammo',(guns?'AUTO / UNLIMITED AMMO':'TRAINING / UNARMED')+(features?.bombsEnabled?` · GEAR ${cooldown?cooldown+'s':'READY'}`:''));positionControls();
   }
   const resultOutcome = doc.createElement('p'); resultOutcome.className = 'fo-result-outcome'; resultOutcome.hidden = true; one('.fo-results h2').after(resultOutcome);
   one('.fo-home .fo-muted').textContent = 'Ten connected dispatches. Arrest suspects or stop their getaway cars.';
@@ -425,7 +428,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     finally { pending = false; if (!disposed) { all<HTMLButtonElement>('.fo-home button').forEach(button => { button.disabled = false; }); updateGarage(); updateCampaign(); if (model.snapshot?.campaign && lobby() && menu === null) focusFirst(); } }
   }
   const bindingDefaults = keyboardBindings;
-  const bindingLabels: Record<string, string> = { throttle: 'Accelerate', brakeReverse: 'Brake / reverse', left: 'Steer left', right: 'Steer right', handbrake: 'Handbrake', fire: 'Fire', siren: 'Siren', recover: 'Hold to recover' };
+  const bindingLabels: Record<string, string> = { throttle: 'Accelerate', brakeReverse: 'Brake / reverse', left: 'Steer left', right: 'Steer right', handbrake: 'Handbrake', fire: 'Fire', bomb: 'Throw bomb', oil: 'Drop oil', blades: 'Extend blades', siren: 'Siren', recover: 'Hold to recover' };
   for (const [action, fallback] of Object.entries(bindingDefaults)) {
     const row = doc.createElement('label'); row.textContent = bindingLabels[action] ?? action;
     const button = doc.createElement('button'); button.type = 'button'; button.dataset.binding = action; button.textContent = (settings.bindings[action] ?? fallback).join(' / ').replaceAll('Key', ''); row.append(button); one('[data-bindings]').append(row);

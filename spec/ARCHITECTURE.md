@@ -1,6 +1,6 @@
 # Architecture
 
-Status: architecture and acceptance targets for the implemented `arcade-v12` / protocol 3 alpha. Updated: 2026-10-26 for immediate local driving and buffered remote presentation. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
+Status: architecture and acceptance targets for the integrated `arcade-v17` / protocol 5 alpha. Updated: 2026-10-26 for continuous local driving, longer avenues and bounded road gadgets. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
 
 *One authority drives the rules. Everyone else gets a dashboard, not a spare steering wheel.*
 
@@ -15,18 +15,20 @@ flowchart LR
   Local --> View[Render frame]
   View --> Babylon[Babylon renderer / audio]
   View --> HUD[HUD]
-  Input --> Net[Colyseus client adapter]
+  Local -->|Completed movement + inputs| Net[Colyseus client adapter]
   Net <-->|WebSocket| Room[Authoritative room]
   Room --> Sim[Shared simulation]
   Sim --> Room
-  Net --> Reconcile[Reconciliation / remote interpolation]
-  Reconcile --> Local
-  Reconcile --> View
+  Net -->|Explicit server intervention| Local
+  Net --> Remote[Remote interpolation]
+  Remote --> View
   Map[Validated map and gameplay config] --> Sim
   Map --> Local
 ```
 
-The authoritative server has no renderer, DOM, or Babylon dependency. Every playable campaign runs in a server room. The browser runs a local menu-preview simulation and predicts its own car from room snapshots. Presentation consumes an immutable render frame rather than reaching into room schemas or physics objects.
+The authoritative server has no renderer, DOM, or Babylon dependency. Every playable campaign runs in a server room. The browser runs a local menu-preview simulation and runs its own continuous car controller from a server baseline. Presentation consumes an immutable render frame rather than reaching into room schemas or physics objects.
+
+Road-gadget snapshots carry fixed oil footprints and timed owner-relative blades. The same shared controller derives armed oil grip for the local driver and server-simulated cars; ordinary snapshots still do not replace the driver's pose or velocity. Blade damage, cooldowns, lifecycle and hit deduplication remain server-owned. Presentation reconstructs warnings from current snapshots through an eight-slot pool; no new player input action is introduced.
 
 Production CLI startup warms one disposable campaign's initial physics and sparse snapshot encoding before listening. It creates no room, leaves room metrics untouched and disposes its temporary world. Real room clocks, campaign progress and scenery begin fresh. The exported server factory remains available to controlled integration harnesses; the production image exercises the CLI bootstrap and readiness path.
 
@@ -39,7 +41,7 @@ Production CLI startup warms one disposable campaign's initial physics and spars
 | sim | contracts, physics | Vehicle controller, collision world, combat, traffic, game rules |
 | input | contracts | Device sampling/selection, held touch normalization, mappings, dead zones, focus/disconnect behavior |
 | renderer | contracts, content, physics | Babylon objects, materials, camera, audio, VFX, render interpolation and cosmetic debris physics |
-| net-client | contracts, sim | Transport adapter, clock estimate, prediction history, reconciliation |
+| net-client | contracts, sim | Transport adapter, continuous local driving, movement reports, explicit correction and remote sampling |
 | net-server | contracts, sim | Room authority, input validation, state publication, reconnect |
 | ui | contracts | DOM menus/HUD/settings, touch pointer ownership, semantic UI actions |
 | content | contracts | Validated runtime catalog, collision maps, asset/provenance records |
@@ -56,7 +58,8 @@ Third-party dependencies remain behind their owning adapter. Colyseus schema dec
 | Concern | Authority | Client behavior |
 | --- | --- | --- |
 | Local input | Local device | Normalize, timestamp, sequence, queue |
-| Vehicle movement and contact outcomes | Server in every playable room; local sim in previews/fixtures | Predict own motion; correct from snapshots |
+| Own vehicle movement | Local controller, bounded by room validation | Apply input once and report completed movement; accept explicit interventions |
+| Shared contact outcomes | Server | Predict contact locally; apply acknowledged contact deltas without resetting driving |
 | Opponents and traffic | Server | Interpolate; use collision proxies for local prediction |
 | Health, hits, projectiles, score, timers | Server | Show provisional cosmetics, apply confirmed state |
 | Camera, paint, smoke, skid marks, audio | Client | React to render frames and events |
@@ -88,17 +91,17 @@ The UI rolls a garage vehicle on the first visit and saves its ID in browser sto
 
 Cartoon motion belongs entirely to presentation. The renderer keeps authoritative planar pose on the root, suspension bounce/pitch on a child and coachwork lean/squash on another child, leaving wheels and HUD markers outside body scaling. Shared decorative road-bump locations drive segment-crossing cues; damped lean and bounded compression/rebound never alter collision, prediction or health. Local squeaks/boings have cooldowns and respect effects volume/mute. Reduced motion or reduced shake suppresses deformation, its cues and garage rotation.
 
-Collision solvers optionally report inward normal speed without changing their separation or impulse response. The simulation collects the strongest contact per car per tick and emits a confirmed `crash` for closing speed at least 3 m/s, capped at 60 m/s, with a 30-tick per-car cooldown retained in checkpoints. Crash events carry the car discontinuity so a delayed impact cannot deform a respawn. No velocity-drop heuristic, crash damage or client-claimed contact is involved.
+Collision solvers optionally report inward normal speed without changing their separation or impulse response. The simulation collects the strongest contact per car per tick and emits a confirmed `crash` for closing speed at least 3 m/s, capped at 60 m/s, with a 30-tick per-car cooldown retained in checkpoints. Crash events carry the car discontinuity so a delayed impact cannot deform a respawn. For locally resolved movement, the room confirms static geometry within a 5 mm contact tolerance using its previously observed incoming velocity, so an already stopped report can still produce the crash event. This probe changes no accepted movement. No velocity-drop heuristic, crash damage or client-claimed contact is involved.
 
 Avoid assuming a rigid-body snapshot alone captures the whole game: include gameplay timers, controller state, IDs, RNG state, projectiles, and collision ordering where relevant. Use a seeded RNG for authoritative randomness. Pin Rapier versions and build options across client/server, but still reconcile; surrounding floating-point code and differing predicted participants can diverge.
 
 ### Predicting contacts
 
-The client predicts its own car against static geometry and time-aligned kinematic proxies of nearby remote cars. The server applies shared bounded two-car separation/impulses. The predictor's kinematic response can disagree with that two-body outcome; measured collision-correction acceptance remains open.
+The client predicts its own car against static geometry and kinematic proxies at the same buffered positions and visual recovery offsets used to display nearby remote cars. A second, extrapolated collider must not hit the officer before the visible car arrives. The server applies shared bounded two-car separation/impulses. The predictor's kinematic response can disagree with that two-body outcome; wider collision fairness and human acceptance remain open.
 
-The M0/M2 experiment must quantify the disagreement, restoring the local body's pose/velocities and controller state at the acknowledged point, then replaying remaining commands. Proxies must be restored/interpolated to the matching replay time, not copied from the newest render frame. Do not use a partial body restore that preserves incompatible stale solver/contact state: either rebuild the small prediction world or use a validated full snapshot/restore strategy.
+The server resolves shared contacts after placing approved local movement. `Simulation.step()` returns bounded contact displacements and velocity changes for locally driven cars. The room accumulates these within one vehicle life and retains 256 revision baselines. Each movement report acknowledges the last applied contact revision; the room translates older reports into the corrected frame before validating them. Ordinary contact never increments the vehicle discontinuity.
 
-The bounded planar fallback is already selected; it does not waive the playability gate. Improve replay/proxy time alignment and collect correction traces before tuning smoothing. Full-world rollback of all traffic and effects is outside scope.
+The client applies only the difference from its last contact total to its current pose/velocity, once, preserving steering runtime, logical tick time and queued input. It does not restore the older absolute server pose. Contact totals retain full precision in snapshots. A true life change, rejected movement, full resync, pause or reconnect still establishes a complete baseline; unavailable revision history requests a fresh baseline rather than guessing. The room contact ledger is connection metadata, separate from simulation checkpoints, and reconnect starts it against the current full world. Full contact fairness and physical-controller acceptance remain open.
 
 ## 5. Networking
 
@@ -112,10 +115,10 @@ WebSocket is reliable/ordered. Packet-loss testing must model its stalls and ret
 
 ### Input validation and processing
 
-- Client sends inputs, never desired position, damage, health, or score.
+- Client sends inputs and completed local pose/velocity for its own car. The room validates sequence, life, finite bounds, speed and displacement; it never accepts client damage, health, body or score.
 - Server authenticates session membership, validates finite bounded fields, and enforces message size/rate limits.
 - Sequence numbers increase within a session epoch. Duplicate/old commands are ignored.
-- Each car advances once per simulation tick. When delayed samples accumulate, consume older samples together using their latest held controls, retaining up to two queued samples for jitter. Apply siren edges by parity and recovery requests once; acknowledge every consumed sample. Client sequence/tick values never authorize additional elapsed simulation time.
+- Accepted local movement replaces the room car kinematics without integrating its steering again. Drain its accepted commands, preserving siren parity and recovery edges. Legacy SDK fixtures without movement keep server fixed-step driving with held-state coalescing and up to two queued samples. No path grants extra world ticks.
 - Queue a small bounded input window; never fast-forward a player because its client submitted hundreds of commands.
 - Use a short hold of the last valid analog state to bridge normal jitter. After 100 ms without valid input, neutralize steering/throttle/fire; brake toward a safe stop. Safety/focus messages neutralize immediately.
 - If backlog exceeds the validated maximum, discard stale commands, advance the acknowledgment boundary for discarded commands, and rebase the client from authoritative state. Record this as a queue reset, not successful command execution.
@@ -123,12 +126,12 @@ WebSocket is reliable/ordered. Packet-loss testing must model its stalls and ret
 
 ### Prediction and reconciliation
 
-1. On each client simulation tick, generate an input command and apply it to the local prediction world.
-2. Save command and prediction history in a bounded ring buffer; batch commands for transport.
-3. On an authoritative update, locate the matching acknowledgment boundary and restore authoritative local-car state.
-4. Discard acknowledged commands and replay the bounded pending history in order. Healthy local driving has no acknowledgment or server-tick gate: each input changes the local car immediately. After 300 ms without a snapshot, stop fresh movement prediction until updates return; transport and the 180-command bound remain active.
-5. Render the local car through the fractional interval after its most recent logical input tick, capped at 50 ms and the 300 ms snapshot-silence deadline. Each input batch retains its fixed tick times rather than bunching them at callback time. Keep that phase across ordinary packets so agreeing authority cannot accumulate a false visual offset. Ease position and shortest-arc yaw corrections with a 200 ms time constant. Position catch-up is capped at 80% of the moving car's speed: enough to repay sustained 60 Hz versus 20 Hz rate mismatch while preserving forward movement. Stationary corrections may converge at up to 4 m/s. Full resync baselines, identity/life changes and pause transitions reset histories. Routine finite corrections remain continuous regardless of distance; invalid corrections clear the offset.
-6. If history is insufficient or protocol/map versions change, perform a full resync instead of guessing.
+1. On each client tick, apply the shared controller exactly once to the continuously retained local state.
+2. Batch commands with the completed movement corresponding to the final command. Keep pending commands only for bounded delivery/acknowledgment accounting.
+3. The room validates movement and mediates shared contacts, damage, fire and progression. It does not integrate fresh local steering a second time.
+4. Ordinary snapshots retire acknowledged commands and merge health/protection/siren metadata. They never restore/replay local drivetrain state or add local yaw offsets. New contact totals apply only their unapplied displacement/impulse to the current car.
+5. Render up to 50 ms beyond the most recent logical input tick. Fresh input remains local during snapshot delays; real disconnection and authoritative pause still block it.
+6. Explicit full resync, pause, status/life, match or epoch transitions replace local state and clear obsolete history. Genuine server interventions remain visible corrections; external cars alone use network smoothing.
 
 The app samples online frames with the session's current monotonic clock, shared with input and snapshot handling. An animation callback's timestamp can precede an input tick already delivered by a timer; using that older time can alternate short and long rendered travel even during steady driving.
 
@@ -136,7 +139,7 @@ Only one module owns prediction. If the chosen Colyseus release supplies suitabl
 
 ### Remote interpolation
 
-Render other cars about 200 ms behind estimated server time. Interpolate buffered snapshots by server tick and permit up to 300 ms of position/yaw extrapolation before holding. Correct ordinary clock phase by changing playback speed between 0.75× and 1.1×, rather than freezing or rewinding on a late packet. Blend recovered trajectories using separate visual offsets; prediction collision proxies use unsmoothed samples. Remote health and scores remain confirmed state.
+Render other cars about 200 ms behind estimated server time. Interpolate buffered snapshots by server tick and permit up to 300 ms of position/yaw extrapolation before holding. Correct ordinary clock phase by changing playback speed between 0.75× and 1.1×, rather than freezing or rewinding on a late packet. Blend recovered trajectories using separate visual offsets; local collision prediction samples that same visible trajectory. Remote health and scores remain confirmed state.
 
 Teleports, respawns, pause and session boundaries discard obsolete interpolation offsets. If a blackout exceeds one second and authority has advanced beyond the extrapolation window, restore the current buffered remote timeline and discard its stale visual trajectory; do not spend tens of seconds replaying missing traffic. This remote recovery does not reset the local car. Buffer duration is fixed; sustained overload and contact-correction acceptance remain open.
 
@@ -150,7 +153,7 @@ Use visible projectiles and swept collision at server tick rate. Test a relative
 
 At firing, the authority considers active unprotected opponents or the explicitly identified suspect in either mode within a 4° cone, 2.5 m lateral distance from the original ray and 40 m total range. Each barrel spawns at its physical tip and independently selects a correction, sorted by angle, distance and stable entity ID. Rapier segment queries reject world occlusion; shared car-box segments reject nearer vehicles, including protected cars and civilians. A center-to-muzzle sweep prevents point-blank obstruction bypass. Each round deals 5 damage; the paired volley retains 10 total damage at 12-tick cadence. Cars are not steered and projectiles do not home or lead targets.
 
-Static projectile hits emit `projectile-impact` at the swept contact point for wall sparks. Existing shot/hit/wreck events drive the bounded presentation effects and original Web Audio synthesis; presentation never changes health or projectile collision.
+Static projectile hits emit `projectile-impact` at the swept contact point for wall sparks. Existing shot/hit/wreck events drive bounded presentation effects and the [sampled patrol audio bank](AUDIO.md), with original synthesis as fallback; presentation never changes health or projectile collision. Local sampled input supplies throttle load to the renderer without changing shared frames or network contracts.
 
 Do not rewind the whole world to a client-supplied timestamp in the initial build. Forward projectiles still require latency playtests; being server authoritative does not automatically make aiming feel fair. Consider a separate lag-compensation design only if those playtests justify it.
 
@@ -220,3 +223,5 @@ Keep room admission configuration, allowed origins, timeouts, and build identity
 These references are background, not a dependency lock or a fresh compatibility audit. Use the pinned manifest, source and real-adapter tests for the current implementation. The architecture has enough moving parts without letting the documentation invent another reconciler.
 
 Dispatch capabilities derive from the shared catalog and authoritative campaign index. Simulation and prediction receive the same gun/wet-road context; the renderer consumes matching gun fittings and water footprints. Pursuit contenders publish their eligibility guidance alongside progress. See [tutorial rules and acceptance](TUTORIAL.md).
+
+Police deployment uses the normalized optional bomb/oil/blades intent. The room derives unlocks and landing/footprint geometry, owns the shared cooldown and normal credited damage, and publishes the existing grenade/gadget states. Devices provide bindings or labeled touch buttons; help reflects all retained unlocks. The local drivetrain and protocol 5 contact ledger retain their continuous ownership.

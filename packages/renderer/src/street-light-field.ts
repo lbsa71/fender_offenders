@@ -80,7 +80,7 @@ export class StreetLightField {
 }
 
 class StreetLightMaterial extends MaterialPluginBase {
-  constructor(material: Material, private field: StreetLightField, private pbr: boolean) { super(material, 'StreetLightField', 210, {}, true, true); }
+  constructor(material: Material, private field: StreetLightField, private pbr: boolean) { super(material, 'StreetLightField', 210, { FENDER_STREET_LIGHT: true }, true, true); }
   override getSamplers(samplers: string[]): void { samplers.push('streetFieldSampler'); }
   override getUniforms() { return { externalUniforms: ['streetFieldBounds', 'streetFieldStrength'] }; }
   override bindForSubMesh(_buffer: UniformBuffer, _scene: Scene, _engine: AbstractEngine, subMesh: SubMesh): void {

@@ -1,0 +1,31 @@
+import { afterEach, beforeEach, expect, it } from 'vitest';
+import { NullEngine } from '@babylonjs/core/Engines/nullEngine';
+import { Scene } from '@babylonjs/core/scene';
+import type { RoadGadgetState, VehicleState } from '@fender/contracts';
+import { RoadGadgetEffects } from './road-gadgets';
+let engine: NullEngine, scene: Scene, effects: RoadGadgetEffects;
+const owner: VehicleState = { entityId: 'boss', playerId: null, bodyAssetId: 'suspect', pose: { x: 8, z: -20, yaw: Math.PI / 2 }, velocity: { x: 0, z: 0, yawRate: 0 }, health: 100, status: 'active', protectedUntilTick: 0, respawnAtTick: null, sirenOn: false, discontinuityId: 0 };
+const gadget = (kind: RoadGadgetState['kind'], id: string = kind): RoadGadgetState => ({ entityId: id, ownerEntityId: 'boss', kind, pose: { x: 5, z: -20, yaw: 0 }, bornTick: 100, activeAtTick: 160, expiresTick: 250 });
+beforeEach(() => { engine = new NullEngine(); scene = new Scene(engine); effects = new RoadGadgetEffects(scene); });
+afterEach(() => { effects.dispose(); scene.dispose(); engine.dispose(); });
+it('shows a fixed oil footprint and hubcap warning before exposing moving side blades', () => {
+  const oil = gadget('oil'), blades = gadget('blades'), source = structuredClone([oil, blades]);
+  effects.render([oil, blades], [owner], 120);
+  expect(effects.getStats()).toMatchObject({ oilSlicks: 1, wheelBladeWarnings: 1, wheelBlades: 0 });
+  const patch = scene.getMeshByName('gadget-0-oil')!; expect(patch.position.asArray()).toEqual([-5, .035, -20]);
+  effects.render([oil, blades], [{ ...owner, pose: { x: 12, z: -15, yaw: 0 } }], 180);
+  expect(effects.getStats()).toMatchObject({ oilSlicks: 1, wheelBladeWarnings: 0, wheelBlades: 1 });
+  expect(patch.position.asArray()).toEqual([-5, .035, -20]);
+  expect(scene.getTransformNodeByName('gadget-1-hubcaps')!.position.asArray()).toEqual([-12, 0, -15]);
+  expect([oil, blades]).toEqual(source);
+});
+it('keeps resources bounded through saturation, expiry, stale frames, garage reset and disposal', () => {
+  const baseline = { meshes: scene.meshes.length, materials: scene.materials.length };
+  effects.render(Array.from({ length: 40 }, (_, i) => gadget('oil', `oil-${i}`)), [owner], 180);
+  expect(effects.getStats().oilSlicks).toBe(8); expect(scene.meshes).toHaveLength(baseline.meshes); expect(scene.materials).toHaveLength(baseline.materials);
+  effects.render([gadget('oil')], [owner], 250); effects.render([gadget('oil')], [owner], 120); expect(effects.getStats().oilSlicks).toBe(0);
+  effects.reset(); effects.render([gadget('blades')], [owner], 180, true); expect(effects.getStats().wheelBlades).toBe(1);
+  effects.render([gadget('blades')], [{ ...owner, status: 'wrecked' }], 181); expect(effects.getStats().wheelBlades).toBe(0);
+  effects.reset(); expect(scene.meshes.every(mesh => !mesh.isEnabled() || !mesh.isVisible)).toBe(true);
+  effects.dispose(); expect(scene.meshes).toHaveLength(0); expect(scene.materials).toHaveLength(0);
+});

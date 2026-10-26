@@ -10,6 +10,19 @@ const car=(id:string,z:number,vz:number):VehicleState=>({entityId:id,playerId:id
 type Impact={vehicleId:string;normal:{x:number;z:number};speed:number};
 beforeAll(initPhysics);
 describe('real collision impact observations',()=>{
+ it.each([{z:-3.151,crashes:1},{z:-10,crashes:0}])('confirms geometry contact for already resolved local movement at $z without treating ordinary braking as a crash',({z,crashes})=>{
+  const fixture=map();fixture.colliders.push({id:'wall',shape:'box',pose:{x:0,z:0,yaw:0},halfExtents:{x:20,y:3,z:1},layer:'world-solid',surface:'asphalt'});
+  const sim=createSimulation(fixture,{trafficCount:0}),a=sim.addPlayer({playerId:'a',nickname:'a',sessionEpoch:'a'});
+  try{
+   const c=sim.checkpoint(),v=c.state.records.find(r=>r.vehicle.entityId===a.entityId)!.vehicle;
+   v.pose.z=z-.2;v.velocity={x:0,z:18,yawRate:0};sim.restore(c);sim.drainEvents();
+   const motion={sequence:0,discontinuityId:v.discontinuityId,pose:{x:0,z,yaw:0},velocity:{x:0,z:0,yawRate:0}};
+   sim.step(new Map([[a.entityId,{actions:neutralActions(),sessionEpoch:'a',sourceCommandSequence:0,localDriving:true,motion}]]));
+   const hits=sim.drainEvents().filter(e=>e.kind==='crash');expect(hits).toHaveLength(crashes);
+   if(crashes)expect(hits[0]).toMatchObject({payload:{vehicleId:a.entityId,normal:{x:0,z:-1},speed:18}});
+   expect(sim.authority('a')!.vehicle.pose).toEqual(motion.pose);expect(sim.authority('a')!.vehicle.health).toBe(100);
+  }finally{sim.dispose();}
+ });
  it('reports the closing wall normal/speed while retaining the same collision response',()=>{
   const a=car('a',-3,16),baseline=structuredClone(a),solid=box({x:0,z:0,yaw:0},20,1),hits:Impact[]=[];
   resolveStatic(baseline,map(),[solid]);resolveStatic(a,map(),[solid],impact=>hits.push(impact));

@@ -3,7 +3,7 @@ import type { DeviceKind } from '@fender/contracts';
 /** Original DOM/CSS control graphics; key labels always use textContent. */
 export const keyboardBindings: Record<string, string[]> = {
   throttle: ['KeyW', 'ArrowUp'], brakeReverse: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
-  handbrake: ['ShiftLeft', 'ShiftRight'], fire: ['Space'], siren: ['KeyE'], recover: ['KeyR'],
+  handbrake: ['ShiftLeft', 'ShiftRight'], fire: ['Space'], siren: ['KeyE'], recover: ['KeyR'], bomb: ['KeyB'], oil: ['KeyQ'], blades: ['KeyC'],
 };
 const keyNames: Record<string, string> = { ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', ShiftLeft: 'SHIFT', ShiftRight: 'SHIFT', Space: 'SPACE', Escape: 'ESC' };
 function keycap(doc: Document, code: string) {
@@ -33,7 +33,7 @@ export function keyboardControls(doc: Document, bindings: Record<string, string[
   } else {
     for (const [action, label] of [['throttle', 'Accelerate'], ['brakeReverse', 'Brake / reverse'], ['left', 'Steer left'], ['right', 'Steer right']]) group.append(row(doc, keys(action!), label!));
   }
-  for (const [action, label] of [['handbrake', 'Drift'], ['fire', 'Fire'], ['siren', 'Siren'], ['recover', 'Hold to recover']]) {
+  for (const [action, label] of [['handbrake', 'Drift'], ['fire', 'Fire'], ['bomb','Throw bomb'], ['oil','Drop oil'], ['blades','Extend blades'], ['siren', 'Siren'], ['recover', 'Hold to recover']]) {
     if (compact && (action === 'siren' || action === 'recover')) continue;
     group.append(row(doc, keys(action!), compact ? label!.toUpperCase() : label!, action));
   }
@@ -56,6 +56,7 @@ export function gamepadControls(doc: Document, compact = false) {
   }
   group.append(row(doc, [pad('a', 'A', 'A button')], compact ? 'DRIFT' : 'Drift'));
   group.append(row(doc, [pad('bumper', 'RB', 'Right bumper')], compact ? 'FIRE' : 'Fire', 'fire'));
+  for(const [action,label,kind,text,name] of [['bomb','Throw bomb','bumper','LB','Left bumper'],['oil','Drop oil','stick','LS','Left stick button'],['blades','Extend blades','stick','RS','Right stick button']])group.append(row(doc,[pad(kind!,text!,name!)],label!,action));
   if (!compact) {
     group.append(row(doc, [pad('x', 'X', 'X button')], 'Siren'));
     group.append(row(doc, [pad('y', 'Y', 'Y button')], 'Hold to recover'));
@@ -69,7 +70,7 @@ export function controlGraphics(doc: Document, hints: readonly { action: string;
   const result = doc.createDocumentFragment();
   const buttons: Record<string, [string, string, string]> = {
     throttle: ['trigger', 'RT', 'Right trigger'], brakeReverse: ['trigger', 'LT', 'Left trigger'], steer: ['stick', 'L', 'Left stick'],
-    handbrake: ['a', 'A', 'A button'], siren: ['x', 'X', 'X button'], recover: ['y', 'Y', 'Y button'], fire: ['bumper', 'RB', 'Right bumper'],
+    handbrake: ['a', 'A', 'A button'], siren: ['x', 'X', 'X button'], recover: ['y', 'Y', 'Y button'], fire: ['bumper', 'RB', 'Right bumper'], bomb:['bumper','LB','Left bumper'], oil:['stick','LS','Left stick button'], blades:['stick','RS','Right stick button'],
   };
   for (const hint of hints) {
     const button = buttons[hint.action];
