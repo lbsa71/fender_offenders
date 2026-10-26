@@ -1,11 +1,11 @@
 export { getDispatchFeatures, DEFAULT_DRIVING_CONTEXT } from './dispatch-features';
 export type { DispatchFeatures, DispatchDrivingContext } from './dispatch-features';
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v13';
+export const GAMEPLAY_REVISION = 'arcade-v14';
 export type { CampaignState, CampaignOutcome, DispatchOutcome, CampaignTarget, CampaignDispatch } from './campaign-types';
 export { CAMPAIGN_ID, CAMPAIGN_TITLE, CAMPAIGN_TARGETS, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, getCampaignTarget } from './campaign';
 export { getCampaignMugshot } from './campaign-mugshots';
@@ -28,8 +28,10 @@ export interface DriverActions {
 }
 export const neutralActions = (): DriverActions => ({ steer: 0, throttle: 0, brakeReverse: 0, handbrake: false, fire: false, sirenToggle: false, recover: false });
 export interface InputCommand { sessionEpoch: string; sequence: number; clientTick: number; actions: DriverActions }
-export interface InputBatch { kind: 'input'; commands: InputCommand[] }
-export interface AppliedDriverInput { actions: DriverActions; sessionEpoch: string; sourceCommandSequence: number | null }
+/** Driver-produced movement; the room validates it and owns identity, health and outcomes. */
+export interface LocalVehicleMotion { sequence: number; discontinuityId: number; pose: PlanarPose; velocity: PlanarVelocity }
+export interface InputBatch { kind: 'input'; commands: InputCommand[]; motion?: LocalVehicleMotion }
+export interface AppliedDriverInput { actions: DriverActions; sessionEpoch: string; sourceCommandSequence: number | null; localDriving?: boolean; motion?: LocalVehicleMotion }
 export interface InputSource { sample(): DriverActions; activeDevice(): DeviceKind; resetHeldState(): void; dispose(): void }
 export interface PlanarPose { x: number; z: number; yaw: number }
 export interface PlanarVelocity { x: number; z: number; yawRate: number }

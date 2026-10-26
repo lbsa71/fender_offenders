@@ -20,6 +20,9 @@ const fixtures=createServer((req,res)=>{
    const suspect=c.state.records.find(r=>r.vehicle.entityId===c.state.pursuit?.suspectId)!;
    suspect.traffic=undefined;suspect.vehicle.pose={x:0,z:-30,yaw:0};suspect.vehicle.velocity={x:0,z:0,yawRate:0};suspect.vehicle.protectedUntilTick=0;
    officer.vehicle.pose={x:5,z:-30,yaw:0};officer.vehicle.velocity={x:0,z:0,yawRate:0};officer.vehicle.protectedUntilTick=0;
+   // Forced fixture placement is an explicit server intervention. A routine
+   // snapshot must not replace the continuously driven local car.
+   officer.vehicle.discontinuityId++;suspect.vehicle.discontinuityId++;
    sim.restore(c);
  }
  res.writeHead(204).end();

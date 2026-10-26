@@ -1,6 +1,6 @@
 # Rookie patrol: learn the job, keep the keys
 
-Status: implemented in `arcade-v12`, protocol 3, map `sunset-borough-2`. Reviewed: 2026-10-26. Human difficulty, physical-controller and sustained performance acceptance remain open. [Execution status](EXECUTION_STATUS.md) records observed checks.
+Status: implemented in `arcade-v14`, protocol 4, map `sunset-borough-2`. Reviewed: 2026-10-26. Human difficulty, physical-controller and sustained performance acceptance remain open. [Execution status](EXECUTION_STATUS.md) records observed checks.
 
 *Dispatch supplies the lesson. Procurement supplies the noisy accessories one case later.*
 

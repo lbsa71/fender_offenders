@@ -96,7 +96,7 @@ Settings expose persisted Automatic, Touch, Controller and Keyboard schemes. Aut
 
 ### Room and round lifecycle
 
-- Private, invite-link rooms; 1–8 players, with one server-authoritative campaign model. Briefings replace player-count waiting.
+- Private, invite-link rooms; 1–8 players, with one server-mediated campaign model. Each driver has immediate continuous local control, validated by the room; external cars are smoothed. Briefings replace player-count waiting.
 - Any connected member can start from a briefing. The server admits the first valid transition and ignores duplicates.
 - Three-second countdown, up to five minutes of pursuit, then results on arrest, credited target wreck or timeout. Next briefing advances after success, retries after timeout, and resets after the completed campaign.
 - Mid-round joins enter as a spawned participant if capacity permits. Late joins receive a full authoritative state and current round timer.

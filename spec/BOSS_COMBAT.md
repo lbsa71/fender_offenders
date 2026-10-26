@@ -1,6 +1,6 @@
 # Armed campaign targets and player callsigns
 
-Status: implemented locally; human difficulty and audiovisual approval remain open. Reviewed: 2026-10-26. Gameplay revision: `arcade-v13`, protocol 3. This extends the [ten-dispatch campaign](CAMPAIGN.md).
+Status: implemented locally; human difficulty and audiovisual approval remain open. Reviewed: 2026-10-26. Gameplay revision: `arcade-v14`, protocol 4. This extends the [ten-dispatch campaign](CAMPAIGN.md).
 
 *The suspects have read the equipment budget. Regrettably, they found the grenade column.*
 

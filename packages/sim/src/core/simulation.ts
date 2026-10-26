@@ -34,6 +34,7 @@ export interface Simulation {
   removePlayer(playerId: string): void;
   setConnection(playerId: string, connection: PlayerScore['connection']): void;
   setPlayerVehicle(playerId: string, bodyId: string): boolean;
+  correctLocalMotion(playerId: string): boolean;
   startRound(requesterId?: string): boolean;
   rematch(requesterId?: string): boolean;
   step(inputs: ReadonlyMap<string, AppliedDriverInput>): void;
@@ -320,6 +321,11 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
       if (!campaign && phase === 'countdown' && scores.size < 2) { phase = 'lobby'; phaseEnd = null; }
     },
     setConnection(playerId, connection) { check(); const score = scores.get(playerId); if (score) score.connection = connection; },
+    correctLocalMotion(playerId) {
+      check(); const record = recordForPlayer(playerId);
+      if (!record || record.vehicle.status !== 'active') return false;
+      record.vehicle.discontinuityId++; return true;
+    },
     setPlayerVehicle(playerId, bodyId) {
       check();
       if (!isVehicleBodyId(bodyId) || (mode === 'multiplayer' || campaign) && phase !== 'lobby') return false;
@@ -362,6 +368,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
       const context = campaign ? getDispatchFeatures(campaign.dispatchIndex) : DEFAULT_DRIVING_CONTEXT;
       const previous = new Map([...records.values()].map(r => [r.vehicle.entityId, clone(r.vehicle.pose)]));
       const impacts = new Map<string, ContactImpact>();
+      const localDriving = new Map<string, { pose: PlanarPose; velocity: VehicleState['velocity']; discontinuityId: number }>();
       const observeImpact = (impact: ContactImpact) => { if (impact.speed > (impacts.get(impact.vehicleId)?.speed ?? 0)) impacts.set(impact.vehicleId, impact); };
       for (const r of records.values()) {
         if (r.vehicle.status !== 'active') { if (r.vehicle.respawnAtTick !== null && tick >= r.vehicle.respawnAtTick) { respawn(r); previous.set(r.vehicle.entityId, clone(r.vehicle.pose)); } continue; }
@@ -397,12 +404,30 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
         if (actions.sirenToggle) r.vehicle.sirenOn = !r.vehicle.sirenOn;
         if (actions.recover) recovery(r);
         r.driver.simulatedTick = tick;
-        driveVehicle(r.vehicle, r.driver, actions, map, solids, config, observeImpact, context);
+        const localInput = r.vehicle.playerId ? inputs.get(r.vehicle.entityId) : undefined;
+        const direct = localInput?.localDriving && (phase === 'playing' || phase === 'lobby');
+        if (direct) {
+          const motion = localInput.motion;
+          if (motion && motion.discontinuityId === r.vehicle.discontinuityId) { r.vehicle.pose = clone(motion.pose); r.vehicle.velocity = clone(motion.velocity); }
+          localDriving.set(r.vehicle.entityId, { pose: clone(r.vehicle.pose), velocity: clone(r.vehicle.velocity), discontinuityId: r.vehicle.discontinuityId });
+          r.driver.recoilStrength = Math.max(0, (r.driver.recoilStrength ?? 0) - config.weapon.recoilRecovery * FIXED_DELTA);
+          resolveStatic(r.vehicle, map, solids, observeImpact);
+        } else driveVehicle(r.vehicle, r.driver, actions, map, solids, config, observeImpact, context);
         if (!context.gunsEnabled) actions.fire = false;
-        if (actions.fire && phase === 'playing' && (r.vehicle.playerId || aiTactics)) fire(r, aiTactics);
+        if (actions.fire && phase === 'playing' && (r.vehicle.playerId || aiTactics)) {
+          const velocity = direct ? clone(r.vehicle.velocity) : null;
+          fire(r, aiTactics);
+          // Driver motion already includes its locally simulated recoil. Keep
+          // server volley cadence/damage without applying the same kick twice.
+          if (velocity) r.vehicle.velocity = velocity;
+        }
         if (grenadeTarget && aiTactics && phase === 'playing') throwGrenade(r, grenadeTarget, aiTactics);
       }
       resolveVehicleContacts(allVehicles(), map, solids, observeImpact);
+      for (const [id, before] of localDriving) {
+        const vehicle = records.get(id)!.vehicle;
+        if (vehicle.discontinuityId === before.discontinuityId && (Math.hypot(vehicle.pose.x - before.pose.x, vehicle.pose.z - before.pose.z) > .00001 || Math.hypot(vehicle.velocity.x - before.velocity.x, vehicle.velocity.z - before.velocity.z) > .00001)) vehicle.discontinuityId++;
+      }
       propPhysics?.step(allVehicles());
       if (phase === 'playing') for (const impact of impacts.values()) {
         const r = records.get(impact.vehicleId);

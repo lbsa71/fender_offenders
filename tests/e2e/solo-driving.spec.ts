@@ -1,5 +1,53 @@
 import { expect, test } from './fixtures';
 import { createTcpProxy } from '../integration/tcp-proxy';
+import { predictVehicle } from '@fender/sim';
+import { districtMap } from '@fender/content';
+import { getDispatchFeatures, type InputCommand, type LocalAuthorityState } from '@fender/contracts';
+
+test('steering press and release follow direct local physics through ordered network jitter', async ({page})=>{
+  test.setTimeout(60000);
+  const serverPort=Number(process.env.FENDER_E2E_SERVER_PORT??2867),proxyPort=serverPort+4;
+  const proxy=await createTcpProxy(proxyPort,serverPort,{oneWayLatencyMs:80,jitterMs:50});
+  // Read the actual commands and frames once, without changing their results.
+  await page.route('**/packages/net-client/src/index.ts*',async route=>{
+    const response=await route.fetch(),source=await response.text();expect(source).toContain('return api;');
+    await route.fulfill({response,body:source.replace('return api;',`{
+      window.__FO_DRIVER__=api; window.__FO_STEERING__=null;
+      const submit=api.submit,sample=api.sampleFrame;
+      api.submit=function(...args){const trace=window.__FO_STEERING__;if(trace)trace.commands.push({at:performance.now(),logical:args[1],command:structuredClone(args[0])});return submit.apply(this,args);};
+      api.sampleFrame=function(...args){const frame=sample.apply(this,args),trace=window.__FO_STEERING__,state=api.getSnapshot();
+        if(trace&&frame&&state?.local){const car=frame.vehicles.find(car=>car.entityId===frame.localEntityId);trace.frames.push({at:performance.now(),sampleAt:frame.sampleTimeSeconds*1000,pose:{...car.pose},velocity:{...car.velocity},life:car.discontinuityId,pending:api.getStats().pendingInputs});}return frame;};
+    } return api;`)});
+  });
+  await page.addInitScript(({serverPort,proxyPort})=>{
+    localStorage.setItem('fender-garage-v1',JSON.stringify({vehicleBodyId:'patrol'}));
+    localStorage.setItem('fender-settings-v1',JSON.stringify({quality:'low',controlScheme:'keyboard'}));
+    const NativeWebSocket=window.WebSocket;
+    window.WebSocket=class extends NativeWebSocket{constructor(url:string|URL,protocols?:string|string[]){const target=new URL(String(url));if(target.hostname==='127.0.0.1'&&target.port===String(serverPort))target.port=String(proxyPort);super(target,protocols);}};
+  },{serverPort,proxyPort});
+  try{
+    await page.goto('/');await page.getByRole('button',{name:'HIT THE STREETS'}).click();await page.getByRole('button',{name:'START DISPATCH'}).click();
+    await page.waitForFunction(()=>(window as any).__FENDER_DEBUG__?.snapshot?.phase==='playing'&&(window as any).__FENDER_DEBUG__.input.focused);
+    await page.waitForTimeout(250);
+    await page.evaluate(()=>{const driver=(window as any).__FO_DRIVER__;(window as any).__FO_STEERING__={initial:structuredClone(driver.getSnapshot().local),commands:[],frames:[]};});
+    await page.keyboard.down('w');await page.waitForTimeout(500);
+    for(const key of ['d','a','d','a']){await page.keyboard.down(key);await page.waitForTimeout(120);await page.keyboard.up(key);await page.waitForTimeout(600);}
+    await page.keyboard.up('w');await page.waitForTimeout(200);
+    const trace:{initial:LocalAuthorityState;commands:{at:number;logical:number;command:InputCommand}[];frames:{at:number;sampleAt:number;pose:{yaw:number};velocity:{yawRate:number};life:number;pending:number}[]}=await page.evaluate(()=>(window as any).__FO_STEERING__);
+    let expected=structuredClone(trace.initial),cursor=0,lastLogical=0;
+    const errors=trace.frames.map(frame=>{
+      while(cursor<trace.commands.length&&trace.commands[cursor]!.at<=frame.at){const item=trace.commands[cursor++]!;expected={...expected,...predictVehicle(districtMap,expected.vehicle,expected.driver,item.command.actions,[],undefined,(expected.driver.simulatedTick??0)+1,getDispatchFeatures(0))};lastLogical=item.logical;}
+      const dt=Math.max(0,Math.min(.05,(frame.sampleAt-lastLogical)/1000));
+      return {yaw:Math.abs(Math.atan2(Math.sin(frame.pose.yaw-expected.vehicle.pose.yaw-expected.vehicle.velocity.yawRate*dt),Math.cos(frame.pose.yaw-expected.vehicle.pose.yaw-expected.vehicle.velocity.yawRate*dt))),rate:Math.abs(frame.velocity.yawRate-expected.vehicle.velocity.yawRate)};
+    });
+    await test.info().attach('Direct local steering versus actual networked frames',{body:JSON.stringify({trace,errors}),contentType:'application/json'});
+    expect(trace.frames.length).toBeGreaterThan(60);
+    expect(Math.max(...trace.frames.map(frame=>frame.pending))).toBeGreaterThan(6);
+    expect(new Set(trace.frames.map(frame=>frame.life)).size,'This steering trace must avoid actual collision/reset interventions').toBe(1);
+    expect(Math.max(...errors.map(error=>error.rate)),'Network traffic must not restore old steering into the local controller').toBeLessThan(.000001);
+    expect(Math.max(...errors.map(error=>error.yaw)),'Network traffic must not add a delayed visual turn after release').toBeLessThan(.001);
+  }finally{await page.keyboard.up('w');await proxy.dispose();}
+});
 
 test('keeps solo driving commands and prediction steady when rendering drops to five frames per second', async ({ page }) => {
   test.setTimeout(60000);

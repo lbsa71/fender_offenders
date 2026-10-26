@@ -1,18 +1,16 @@
 import { Client, ErrorCode, MatchMakeError, ServerError, type Room, type SeatReservation } from '@colyseus/sdk';
 import { predictVehicle } from '@fender/sim';
 import { ProjectilePresentation } from './projectile-presentation';
-import { GAMEPLAY_REVISION, PROTOCOL_VERSION, getDispatchFeatures, DEFAULT_DRIVING_CONTEXT, isInviteCode, isRecord, unpackSnapshot, type CollisionMap, type GameEvent, type GameSession, type InputCommand, type JoinResult, type LocalAuthorityState, type PropState, type RenderFrame, type SessionRequest, type SessionStatus, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
+import { GAMEPLAY_REVISION, PROTOCOL_VERSION, getDispatchFeatures, DEFAULT_DRIVING_CONTEXT, isInviteCode, isRecord, unpackSnapshot, type CollisionMap, type GameEvent, type GameSession, type InputCommand, type JoinResult, type LocalAuthorityState, type LocalVehicleMotion, type PropState, type RenderFrame, type SessionRequest, type SessionStatus, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
 const clone = <T>(v: T): T => structuredClone(v);
 const wrap = (n: number) => Math.atan2(Math.sin(n), Math.cos(n));
 const frozenCampaign = (state: WorldSnapshot) => state.paused === true || Boolean(state.campaign) && state.phase !== 'playing';
-const SNAPSHOT_GRACE_MS = 300;
 const REMOTE_BUFFER_TICKS = 12;
 const REMOTE_EXTRAPOLATION_TICKS = 18;
 const REMOTE_STALE_MS = 1000;
 function correctionFraction(x: number, z: number, speed: number, dt: number) {
   const length = Math.hypot(x, z);
-  // Repay the rate mismatch of a 20Hz authority versus 60Hz local prediction,
-  // while keeping catch-up slower than the car so it cannot reverse motion.
+  // Ease presentation offsets without reversing a moving car.
   const catchupSpeed = speed > .05 ? speed * .8 : 4;
   return length ? Math.min(1 - Math.exp(-dt * 5), catchupSpeed * dt / length) : 0;
 }
@@ -25,10 +23,10 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
   const projectilePresentation = new ProjectilePresentation(map);
   let room: Room | null = null, snapshot: WorldSnapshot | null = null, predicted: LocalAuthorityState | null = null;
   let latestFullResync: WorldSnapshot | null = null;
-  let pending: { command: InputCommand; estimatedTick: number }[] = [], outgoing: InputCommand[] = [];
+  let pending: { command: InputCommand; motion?: LocalVehicleMotion }[] = [], outgoing: InputCommand[] = [];
   let history: { state: WorldSnapshot; arrived: number }[] = [];
   let state: SessionStatus = { state: 'idle' }, disposed = false, playerId = '', roomId = '';
-  let rtt = 0, correctionX = 0, correctionZ = 0, correctionYaw = 0, lastRenderAt = performance.now(), lastSnapshotAt = performance.now();
+  let rtt = 0, correctionX = 0, correctionZ = 0, lastRenderAt = performance.now(), lastSnapshotAt = performance.now();
   let predictionAt = performance.now();
   let lastLocalFrame: VehicleState['pose'] | null = null;
   let lateUntimedInput = false;
@@ -44,7 +42,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
     if (!predicted) return null;
     const pose = { ...predicted.vehicle.pose };
     if (snapshot && !frozenCampaign(snapshot) && predicted.vehicle.status === 'active') {
-      const dt = Math.max(0, Math.min(.05, (now - predictionAt) / 1000, (lastSnapshotAt + SNAPSHOT_GRACE_MS - predictionAt) / 1000));
+      const dt = Math.max(0, Math.min(.05, (now - predictionAt) / 1000));
       pose.x += predicted.vehicle.velocity.x * dt; pose.z += predicted.vehicle.velocity.z * dt;
       pose.yaw += predicted.vehicle.velocity.yawRate * dt;
     }
@@ -93,16 +91,16 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
     if (next.resetReason === 'resync' && !wire.propsPatch) latestFullResync = next;
     const frozen = frozenCampaign(next);
     // Queue/clock recovery does not teleport the vehicle. Its acknowledgment
-    // retires old samples; ordinary replay and smoothing retain fresh controls.
+    // retires old samples without changing the continuously driven local car.
     const continuousRecovery = next.resetReason === 'input-backlog' || next.resetReason === 'resync' && wire.propsPatch;
-    const reset = (!continuousRecovery && next.resetReason) || next.paused !== snapshot?.paused || next.matchId !== snapshot?.matchId || next.sessionEpoch !== snapshot?.sessionEpoch || next.local?.vehicle.discontinuityId !== snapshot?.local?.vehicle.discontinuityId || frozen && next.phase !== snapshot?.phase;
+    const reset = (!continuousRecovery && next.resetReason) || next.paused !== snapshot?.paused || next.matchId !== snapshot?.matchId || next.sessionEpoch !== snapshot?.sessionEpoch || next.local?.vehicle.discontinuityId !== snapshot?.local?.vehicle.discontinuityId || next.local?.vehicle.status !== snapshot?.local?.vehicle.status || frozen && next.phase !== snapshot?.phase;
     const restoreRemoteTimeline = !reset && !frozen && snapshot && performance.now() - lastSnapshotAt > REMOTE_STALE_MS && next.serverTick - snapshot.serverTick > REMOTE_EXTRAPOLATION_TICKS;
     const oldPose = localPose(performance.now());
     const oldRemotes = !reset && !frozen && !restoreRemoteTimeline && playbackTick !== null ? new Map(remoteAt(playbackTick).map(car => [car.entityId, car])) : null;
     snapshot = next; lastSnapshotAt = performance.now();projectilePresentation.receive(next,Boolean(reset));
-    if (reset) { pending = []; outgoing = []; history = []; correctionX = correctionZ = correctionYaw = 0; playbackTick = null; lastLocalFrame = null; lateUntimedInput = false; }
+    if (reset) { pending = []; outgoing = []; history = []; correctionX = correctionZ = 0; playbackTick = null; lastLocalFrame = null; lateUntimedInput = false; }
     if (reset || frozen || restoreRemoteTimeline) remoteCorrections.clear();
-    if (frozen) correctionX = correctionZ = correctionYaw = 0;
+    if (frozen) correctionX = correctionZ = 0;
     history.push({ state: next, arrived: lastSnapshotAt }); if (history.length > 40) history.shift();
     // After a prolonged blackout the held trajectory is obsolete. Rejoin the
     // current buffer instead of replaying seconds of missed traffic in slow motion.
@@ -121,20 +119,15 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
     }
     if (next.local) {
       pending = pending.filter(p => p.command.sequence > next.local!.lastConsumedSequence);
-      predicted = clone(next.local);
       if (pending.length > 180) { pending = []; room?.send('resync'); }
-      if (!frozen) for (const entry of pending) {
-        const actions = next.phase === 'playing' ? entry.command.actions : { ...entry.command.actions, fire: false };
-        const result = predictVehicle(map, predicted.vehicle, predicted.driver, actions, remoteAt(entry.estimatedTick).filter(v => v.entityId !== predicted!.vehicle.entityId), undefined, Math.max(next.serverTick, predicted.driver.simulatedTick ?? 0) + 1, next.campaign ? getDispatchFeatures(next.campaign.dispatchIndex) : DEFAULT_DRIVING_CONTEXT);
-        predicted.vehicle = result.vehicle; predicted.driver = result.driver;
-      }
-      if (reset || frozen) predictionAt = performance.now();
-      if (oldPose && !reset && !frozen) {
-        const reconciledPose = localPose(performance.now())!;
-        const dx = oldPose.x - reconciledPose.x, dz = oldPose.z - reconciledPose.z;
-        const distance = Math.hypot(dx, dz); corrections++; maxCorrection = Math.max(maxCorrection, distance);
-        if (Number.isFinite(distance)) { correctionX += dx; correctionZ += dz; correctionYaw = wrap(correctionYaw + wrap(oldPose.yaw - reconciledPose.yaw)); }
-        else correctionX = correctionZ = correctionYaw = 0;
+      if (!predicted || reset || frozen) {
+        if(oldPose&&predicted&&reset){corrections++;maxCorrection=Math.max(maxCorrection,Math.hypot(oldPose.x-next.local.vehicle.pose.x,oldPose.z-next.local.vehicle.pose.z));}
+        predicted = clone(next.local); predictionAt = performance.now();
+      } else {
+        // Local movement is advanced once, by local input. Ordinary room
+        // updates own shared state, not this car's steering or velocity.
+        const { health, maxHealth, protectedUntilTick, respawnAtTick, sirenOn } = next.local.vehicle;
+        Object.assign(predicted.vehicle,{health,maxHealth,protectedUntilTick,respawnAtTick,sirenOn});
       }
     }
     status({ ...state, state: next.phase === 'lobby' ? 'lobby' : 'playing' });
@@ -142,7 +135,11 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
   }
   function flush() {
     if (!room || disposed || state.state === 'reconnecting') { outgoing = []; return; }
-    if (outgoing.length) { const commands = outgoing.splice(0, 4); sentBytes += JSON.stringify(commands).length; room.send('input', { commands }); }
+    if (outgoing.length) {
+      const commands = outgoing.splice(0, 4), motion = pending.find(entry=>entry.command.sequence===commands.at(-1)!.sequence)?.motion;
+      const packet = { commands, ...(motion ? {motion} : {}) };
+      sentBytes += JSON.stringify(packet).length; room.send('input', packet);
+    }
   }
   const flushTimer = setInterval(flush, 1000 / 30);
   const pingTimer = setInterval(() => { if (room && !disposed && state.state !== 'reconnecting') room.send('ping', performance.now()); }, 1000);
@@ -208,15 +205,16 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
     submit(command, localTickTimeMs) {
       if (!snapshot || snapshot.paused || !predicted || disposed || state.state === 'reconnecting' || state.state === 'disconnected') return;
       const estimatedTick = snapshot.serverTick + (performance.now() - lastSnapshotAt + rtt / 2) * .06;
-      pending.push({ command, estimatedTick }); outgoing.push(command);
+      const entry:typeof pending[number]={command};pending.push(entry); outgoing.push(command);
       if (outgoing.length > 12 || pending.length > 180) { outgoing = []; pending = []; room?.send('resync'); return; }
-      if (!frozenCampaign(snapshot) && performance.now() - lastSnapshotAt < SNAPSHOT_GRACE_MS && (snapshot.phase === 'playing' || snapshot.phase === 'lobby')) {
+      if (!frozenCampaign(snapshot) && (snapshot.phase === 'playing' || snapshot.phase === 'lobby')) {
         const now = performance.now(), previousTickTime = predictionAt;
         const actions = snapshot.phase === 'playing' ? command.actions : { ...command.actions, fire: false };
         const result = predictVehicle(map, predicted.vehicle, predicted.driver, actions, remoteAt(estimatedTick).filter(v => v.entityId !== predicted!.vehicle.entityId), undefined, Math.max(snapshot.serverTick, predicted.driver.simulatedTick ?? 0) + 1, snapshot.campaign ? getDispatchFeatures(snapshot.campaign.dispatchIndex) : DEFAULT_DRIVING_CONTEXT);
         predicted.vehicle = result.vehicle; predicted.driver = result.driver;
         const timed = localTickTimeMs !== undefined && Number.isFinite(localTickTimeMs);
-        predictionAt = timed ? Math.max(now - SNAPSHOT_GRACE_MS, Math.min(now, localTickTimeMs!)) : now;
+        predictionAt = timed ? Math.max(now - 1000, Math.min(now, localTickTimeMs!)) : now;
+        if(predicted.vehicle.status==='active')entry.motion={sequence:command.sequence,discontinuityId:predicted.vehicle.discontinuityId,pose:{...predicted.vehicle.pose},velocity:{...predicted.vehicle.velocity}};
         // A late untimed caller may advance only one tick. Preserve its last
         // displayed travel after render correction has been applied, not before.
         if (!timed && lastLocalFrame && predictionAt - previousTickTime > 1000 / 60 + 2) lateUntimedInput = true;
@@ -253,10 +251,10 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       if (!snapshot) return null;
       const elapsed = Math.max(0, (now - lastRenderAt) / 1000), dt = Math.min(.1, elapsed); lastRenderAt = now;
       const speed = predicted ? Math.hypot(predicted.vehicle.velocity.x, predicted.vehicle.velocity.z) : 0;
-      // Ease ordinary authority errors without reversing a moving car merely
-      // to repay visual lead. Teleports/life/pause already clear these offsets.
+      // This offset only preserves already displayed travel for legacy untimed
+      // callers. Network packets never add a local position or steering offset.
       const fraction = correctionFraction(correctionX, correctionZ, speed, dt);
-      correctionX *= 1 - fraction; correctionZ *= 1 - fraction; correctionYaw *= Math.exp(-dt * 5);
+      correctionX *= 1 - fraction; correctionZ *= 1 - fraction;
       const estimatedTick = snapshot.paused ? snapshot.serverTick : snapshot.serverTick + (now - lastSnapshotAt + rtt / 2) * .06;
       const desiredTick = estimatedTick - REMOTE_BUFFER_TICKS;
       // Correct clock phase by gently changing playback speed. Holding until a
@@ -279,7 +277,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       }
       if (predicted) {
         const vehicle = clone(predicted.vehicle); vehicle.pose = localPose(now)!;
-        vehicle.pose.x += correctionX; vehicle.pose.z += correctionZ; vehicle.pose.yaw += correctionYaw;
+        vehicle.pose.x += correctionX; vehicle.pose.z += correctionZ;
         if (lateUntimedInput && lastLocalFrame) {
           const dx = lastLocalFrame.x - vehicle.pose.x, dz = lastLocalFrame.z - vehicle.pose.z;
           if (dx * vehicle.velocity.x + dz * vehicle.velocity.z > 0) { correctionX += dx; correctionZ += dz; vehicle.pose.x += dx; vehicle.pose.z += dz; }
