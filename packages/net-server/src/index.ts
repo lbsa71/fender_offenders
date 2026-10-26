@@ -3,7 +3,7 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { districtMap, districtProps, VEHICLE_BODIES } from '@fender/content';
 import { createSimulation, initPhysics, type Simulation } from '@fender/sim';
-import { GAMEPLAY_REVISION, PROTOCOL_VERSION, getVehicleProfile, isInputCommand, isInviteCode, isRecord, isVehicleBodyId, neutralActions, packSnapshot, sanitizeNickname, type AppliedDriverInput, type InputCommand, type LocalVehicleMotion, type VehicleBodyId, type VehicleState, type WorldSnapshot } from '@fender/contracts';
+import { GAMEPLAY_REVISION, PROTOCOL_VERSION, STORYLINES, getVehicleProfile, isInputCommand, isInviteCode, isRecord, isVehicleBodyId, neutralActions, packSnapshot, sanitizeNickname, type AppliedDriverInput, type InputCommand, type LocalVehicleMotion, type VehicleBodyId, type VehicleState, type WorldSnapshot } from '@fender/contracts';
 import { createPropPublisher } from './prop-publisher.js';
 import { ContactLedger } from './contact-ledger.js';
 import { roomRegistry, serverMetrics } from './room-registry.js';
@@ -62,6 +62,8 @@ export class DrivingRoom extends Room {
   private releaseAdmission() {
     roomRegistry.release(this);
   }
+  protected chooseCampaignId(excluding?:string):string{const choices=STORYLINES.filter(story=>story.id!==excluding);return choices[randomInt(choices.length)]!.id;}
+  protected initialCampaignId():string{return this.chooseCampaignId();}
   async onCreate(options?: unknown) {
     if (isRecord(options) && 'inviteCode' in options) {
       if (!isInviteCode(options.inviteCode)) throw new ServerError(400, 'Invalid invite code');
@@ -72,7 +74,7 @@ export class DrivingRoom extends Room {
       await initPhysics();
       if (this.disposed) throw new ServerError(503, 'Dispatch creation expired');
       this.setPrivate(true);
-      this.sim = createSimulation(districtMap, { mode: 'multiplayer', matchId: this.roomId, trafficCount: 8, pursuit: true, campaign: true, props: districtProps });
+      this.sim = createSimulation(districtMap, { mode: 'multiplayer', matchId: this.roomId, trafficCount: 8, pursuit: true, campaign: true, campaignId:this.initialCampaignId(), props: districtProps });
       this.maxMessagesPerSecond = 100;
       this.onMessage('input', (client, message: unknown) => {
         const driver = this.drivers.get(client.sessionId);
@@ -122,7 +124,7 @@ export class DrivingRoom extends Room {
       this.onMessage('activity', client => { const driver=this.drivers.get(client.sessionId);if(driver?.connected&&this.wallNow()-driver.activityNoticeAt>=1000){driver.activityNoticeAt=this.wallNow();this.recordActivity(driver);} });
       this.onMessage('resync', client => { this.neutralize(client.sessionId); const d = this.drivers.get(client.sessionId); if (d) d.reset = 'resync'; this.publish(client,true); });
       this.onMessage('start-round', client => {if(this.sim.startRound(client.sessionId))this.touch(client.sessionId);});
-      this.onMessage('rematch', client => {if(this.sim.rematch(client.sessionId))this.touch(client.sessionId);});
+      this.onMessage('rematch', client => {const campaign=this.sim.snapshot().campaign,next=campaign?.status==='complete'?this.chooseCampaignId(campaign.campaignId):undefined;if(this.sim.rematch(client.sessionId,next))this.touch(client.sessionId);});
       this.onMessage('select-vehicle', (client, message: unknown) => {
         if (!isRecord(message) || !isVehicleBodyId(message.vehicleBodyId)) return;
         if (!this.sim.setPlayerVehicle(client.sessionId, message.vehicleBodyId)) return;

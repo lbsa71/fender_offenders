@@ -3,15 +3,11 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import type { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { Scene } from '@babylonjs/core/scene';
-import type { PropState, SceneManifest } from '@fender/contracts';
+import {findCampaignDispatch,type PropState,type SceneManifest} from '@fender/contracts';
 import { StreetLightField } from './street-light-field';
 
 type Theme = 'noon' | 'dusk' | 'night';
-const dispatchThemes = new Map<string, Theme>([
-  ['loose-change', 'noon'], ['clamp-down', 'noon'], ['duplicate-trouble', 'dusk'], ['express-distress', 'dusk'], ['stamp-duty', 'night'],
-  ['false-alarm', 'noon'], ['cone-of-silence', 'dusk'], ['premium-care', 'night'], ['paper-trail', 'dusk'], ['green-light', 'night'],
-]);
-export function themeForDispatch(id: string | null): Theme { return dispatchThemes.get(id ?? '') ?? 'noon'; }
+export function themeForDispatch(id:string|null):Theme{return findCampaignDispatch(id)?.dispatch.theme??'noon';}
 
 const profiles = {
   noon: { sky: '#b8d1ce', fog: '#b8d1ce', start: 110, end: 235, direction: [-.55, -1, .35], key: '#ffe8c5', keyPower: 1.2, fill: '#d4e4df', ground: '#8c9c82', fillPower: .7, exposure: 1, lamp: 0 },

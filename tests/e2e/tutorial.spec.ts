@@ -41,7 +41,7 @@ test('an arrest teaches suspect guns before police guns unlock and later briefin
  const backupContext=await createGameContext(browser);try{const backup=await backupContext.newPage();await backup.goto(page.url());await backup.getByRole('button',{name:'HIT THE STREETS'}).click();await expect(backup.locator('[data-tutorial-controls] [data-control-lesson]')).toContainText('Puddles reduce grip');await expect(backup.locator('[data-tutorial-controls] [data-control="fire"]')).toBeVisible();expect(await backup.evaluate(()=>(window as any).__FENDER_DEBUG__?.snapshot.campaign.dispatchIndex)).toBe(3);}finally{await backupContext.close();}
 });
 
-test('shares a chase preview and both stats on a narrow briefing without covering its start action',async({page},testInfo)=>{
+test('shares a chase preview and both cars on a narrow briefing without covering its start action',async({page},testInfo)=>{
  await page.setViewportSize({width:390,height:844});await page.goto('/');await page.getByRole('button',{name:'HIT THE STREETS'}).click();
  await expect(page.getByText('YOUR UNIT',{exact:true})).toBeVisible();await expect(page.getByText('SUSPECT CAR',{exact:true})).toBeVisible();
  const start=page.getByRole('button',{name:'START DISPATCH'});await expect(start).toBeInViewport();

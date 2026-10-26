@@ -10,6 +10,10 @@ let engine:NullEngine,scene:Scene,effects:GrenadeEffects;
 beforeEach(()=>{engine=new NullEngine();scene=new Scene(engine);effects=new GrenadeEffects(scene);});
 afterEach(()=>{effects.dispose();scene.dispose();engine.dispose();});
 describe('authority-driven cartoon grenades',()=>{
+ it('starts an air-dropped bomb at the actual helper altitude and lands on its fixed warning',()=>{
+  const g={...grenade(),originHeight:18};expect(grenadeVisualPose(g,g.bornTick)!.y).toBeCloseTo(18);
+  expect(grenadeVisualPose(g,g.bornTick+20)!.y).toBeGreaterThan(5);expect(grenadeVisualPose(g,g.landsAtTick)!.y).toBeCloseTo(.45);
+ });
  it('bursts into soft textured particles that spread, cool and fade into rising smoke',()=>{
   effects.explode('g',grenade().target,6,220);
   const systems=scene.particleSystems.filter(s=>s.name.startsWith('grenade-blast-0-')) as ParticleSystem[];

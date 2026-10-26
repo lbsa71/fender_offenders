@@ -1,4 +1,5 @@
-import type {CampaignDispatch,CampaignTarget} from './campaign-types';
+import type {CampaignDispatch,CampaignTarget,CampaignStoryline,CampaignState} from './campaign-types';
+import {EXTRA_STORYLINES} from './extra-storylines';
 export const CAMPAIGN_ID='green-light-racket-v1';
 export const CAMPAIGN_TITLE='The Green Light Racket';
 const target=(value:CampaignTarget):CampaignTarget=>Object.freeze(value);
@@ -16,7 +17,9 @@ export const CAMPAIGN_TARGETS:readonly CampaignTarget[]=Object.freeze([
  target({id:'aldo-ledger',name:'Aldo Ledger',alias:'The Chairman',role:'Green Light Society ringleader',bossId:'aldo-ledger',isBoss:true,vehicleBodyId:'patrol',description:'A cream Patrol car posing as the city transport commissioner. Aldo promises a green light for everyone, provided everyone pays him first.'}),
 ]);
 export const CAMPAIGN_BOSSES:readonly CampaignTarget[]=Object.freeze(CAMPAIGN_TARGETS.filter(value=>value.isBoss));
-const dispatch=(value:CampaignDispatch):CampaignDispatch=>Object.freeze(value);
+const themes:readonly NonNullable<CampaignDispatch['theme']>[]=['noon','noon','dusk','dusk','night','noon','dusk','night','dusk','night'];
+let dispatchOrdinal=0;
+const dispatch=(value:CampaignDispatch):CampaignDispatch=>Object.freeze({...value,theme:themes[dispatchOrdinal++]!});
 export const CAMPAIGN_DISPATCHES:readonly CampaignDispatch[]=Object.freeze([
  dispatch({id:'loose-change',title:'01 · A Small Withdrawal',targetId:'nico-nickel',briefing:'Parking meters are empty, but their coin bags keep taking scenic drives. Catch Nico Nickel before his Roadster turns another block into a cash machine. Arrest him or wreck the getaway car.',reveal:'The coin bags contain towing vouchers instead of city deposit slips. Every voucher names The Clamp: Mabel Clench, whose impound yard apparently has a loyalty scheme for stolen cars.'}),
  dispatch({id:'clamp-down',title:'02 · Clamp Down',targetId:'mabel-clench',briefing:'Mabel Clench has declared the whole district a tow-away zone, including the tow-away signs. Stop her Army 4×4 and shut down the impound racket. This is our first ringleader.',reveal:'Mabel keeps a receipt for every illegal tow. Each bears a fresh permit stamp and the courier name Carbon Copy. Someone is selling official-looking permission for a very unofficial business.'}),
@@ -29,6 +32,18 @@ export const CAMPAIGN_DISPATCHES:readonly CampaignDispatch[]=Object.freeze([
  dispatch({id:'paper-trail',title:'09 · The Paper Chase',targetId:'juno-slip',briefing:'Juno Slip has the original Green Light accounts and a Roadster ready to shred the paper trail. Catch the accountant before the final handoff. Every crooked lane leads to these books.',reveal:'The accounts name The Chairman: transport commissioner Aldo Ledger. His PriorityPass scheme pays Mabel for towing, Hector for fake permits, and Iris for fake emergencies. His refund key is in the lead car.'}),
  dispatch({id:'green-light',title:'10 · Everybody Gets Green',targetId:'aldo-ledger',briefing:'Aldo Ledger is fleeing in a cream Patrol car with the PriorityPass refund key. Stop The Chairman, expose the Green Light Society, and give the city its streets back. Last dispatch. Make it count.',reveal:'The Clamp, Hot Stamp, Siren Song, and The Chairman are exposed together. The ledger goes public, every PriorityPass gets a refund, and the streets reopen. Dispatch celebrates with free parking. For eleven minutes. Then normal city rules resume.'}),
 ]);
-const byId=new Map(CAMPAIGN_TARGETS.map(value=>[value.id,value]));
+export const STORYLINES:readonly CampaignStoryline[]=Object.freeze([Object.freeze({id:CAMPAIGN_ID,title:CAMPAIGN_TITLE,targets:CAMPAIGN_TARGETS,dispatches:CAMPAIGN_DISPATCHES}),...EXTRA_STORYLINES]);
+export const ALL_CAMPAIGN_TARGETS:readonly CampaignTarget[]=Object.freeze(STORYLINES.flatMap(story=>story.targets));
+export const ALL_CAMPAIGN_DISPATCHES:readonly CampaignDispatch[]=Object.freeze(STORYLINES.flatMap(story=>story.dispatches));
+const storiesById=new Map(STORYLINES.map(story=>[story.id,story]));
+export function isStorylineId(id:unknown):id is string{return typeof id==='string'&&storiesById.has(id);}
+export function getStoryline(id:string):CampaignStoryline{return storiesById.get(id)??STORYLINES[0]!;}
+export function getCampaignDispatch(state:Pick<CampaignState,'campaignId'|'dispatchIndex'>):CampaignDispatch{
+ const story=getStoryline(state.campaignId),index=Number.isFinite(state.dispatchIndex)?Math.max(0,Math.min(9,Math.floor(state.dispatchIndex))):0;
+ return story.dispatches[index]!;
+}
+const dispatchLookup=new Map(STORYLINES.flatMap(story=>story.dispatches.map((dispatch,index)=>[dispatch.id,Object.freeze({storylineId:story.id,index,dispatch})] as const)));
+export function findCampaignDispatch(id:string|null){return dispatchLookup.get(id??'')??null;}
+const byId=new Map(ALL_CAMPAIGN_TARGETS.map(value=>[value.id,value]));
 /** Unknown IDs resolve to the opening target, never an untrusted property lookup. */
 export function getCampaignTarget(id:string):CampaignTarget{return byId.get(id)??CAMPAIGN_TARGETS[0]!;}

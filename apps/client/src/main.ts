@@ -4,7 +4,7 @@ import { createSimulation, initPhysics, type Simulation } from '@fender/sim';
 import { createInputSource, type InputSettings } from '@fender/input';
 import { mountGameUi, type UiSettings } from '@fender/ui';
 import { createOnlineSession } from '@fender/net-client';
-import { CAMPAIGN_DISPATCHES, getVehicleProfile, isVehicleBodyId, neutralActions, type GameEvent, type RenderFrame, type SessionRequest, type SessionStatus, type WorldSnapshot } from '@fender/contracts';
+import { getCampaignDispatch, getVehicleProfile, isVehicleBodyId, neutralActions, type GameEvent, type RenderFrame, type SessionRequest, type SessionStatus, type WorldSnapshot } from '@fender/contracts';
 import { FIXED_STEP, planFrame } from './pacing';
 import './style.css';
 
@@ -132,7 +132,7 @@ async function boot() {
         pursuit: active && state.phase === 'playing' && state.pursuit?.state !== 'complete' ? state.pursuit : undefined };
       renderFrame.gadgets = active && state.phase === 'playing' ? state.gadgets ?? [] : [];
     }
-    renderer.setDispatch(active && snapshot?.campaign ? CAMPAIGN_DISPATCHES[snapshot.campaign.dispatchIndex]?.id ?? null : null);
+    renderer.setDispatch(active && snapshot?.campaign ? getCampaignDispatch(snapshot.campaign).id : null);
     renderer.setGaragePreview(active && snapshot?.phase === 'lobby' ? ui.getVehicle() : null);
     if (renderFrame && (!active || ui.isMenuVisible())) renderFrame.pursuit = undefined;
     renderer.setAudioActive(active && !ui.isMenuVisible() && !paused && snapshot?.phase === 'playing');

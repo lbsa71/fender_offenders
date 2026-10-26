@@ -39,7 +39,9 @@ test('assigns a room URL before entry, retains it on reload, and allocates only 
   const after=await (await request.get(health)).json();expect(after.rooms).toBe(before.rooms);
   await page.getByRole('button',{name:'HIT THE STREETS'}).click();
   await expect.poll(async()=>(await state(page))?.phase).toBe('lobby');
-  await expect(page.locator('.fo-campaign-number')).toContainText('NEW CAMPAIGN');
+  expect((await state(page))?.campaign).toMatchObject({dispatchIndex:0,status:'active',outcomes:[]});
+  await expect(page.locator('[data-campaign-title]')).toHaveText('A Small Withdrawal');
+  await expect(page.locator('[data-campaign-name]')).toHaveText('Nico Nickel');
   await page.getByRole('button',{name:'START DISPATCH',exact:false}).click();
   await expect.poll(async()=>(await state(page))?.phase).toBe('playing');
 });

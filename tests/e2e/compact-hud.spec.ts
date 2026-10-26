@@ -52,11 +52,13 @@ for (const scheme of ['touch', 'gamepad', 'keyboard']) {
       await expect(page.getByRole('heading', { name: 'Controls help.' })).toBeVisible();
       await page.getByRole('button', { name: 'BACK', exact: true }).click();
       await page.getByRole('button', { name: 'BACK ON PATROL' }).click();
+      await expect(page.locator('.fo-pause-dispatch li')).toHaveCount(0);
     }
     await page.setViewportSize({ width: 1440, height: 900 });
-    await expect(page.locator('.fo-scoreboard')).toBeVisible();
-    await expect(page.locator('.fo-speed')).toBeVisible();
-    await expect(page.locator('.fo-campaign-live')).toBeVisible();
+    await expect(page.locator('.fo-scoreboard,.fo-speed,.fo-campaign-live')).toHaveCount(0);
+    await expect(page.locator('.fo-wordmark')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'INVITE URL', exact: true })).toBeVisible();
+    await expect(page.locator('.fo-pursuit')).toBeVisible();
     await expect(page.locator('.fo-target-label')).toBeVisible();
   });
 }

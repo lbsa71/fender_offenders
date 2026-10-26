@@ -1,7 +1,9 @@
 import { expect, test } from './fixtures';
 
 test('supplied MP3s stream, decode and follow speed, volume and pause controls', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto(`/@fs/${process.cwd().replaceAll('\\', '/')}/packages/renderer/dev/music.html?tracks=public`);
+  expect(errors).toEqual([]);
   const title = page.locator('audio[data-music-track="title"]');
   const slow = page.locator('audio[data-music-track="slow"]');
   const fast = page.locator('audio[data-music-track="fast"]');
@@ -32,7 +34,8 @@ test('supplied MP3s stream, decode and follow speed, volume and pause controls',
   await expect.poll(() => fast.evaluate((a: HTMLAudioElement) => a.paused)).toBe(true);
   const position = await fast.evaluate((a: HTMLAudioElement) => a.currentTime);
   await page.evaluate(() => (window as any).musicFixture.set({ paused: false }));
-  await expect.poll(() => fast.evaluate((a: HTMLAudioElement) => !a.paused && a.currentTime > position)).toBe(true);
+  await expect.poll(() => fast.evaluate((a: HTMLAudioElement, position) => !a.paused && a.currentTime > position, position)).toBe(true);
+  expect(errors).toEqual([]);
 });
 
 test('real browser media decodes, crossfades, changes tempo, mutes and resumes', async ({ page }) => {
@@ -68,6 +71,9 @@ test('real browser media decodes, crossfades, changes tempo, mutes and resumes',
 
 test('title and dispatch music follow the real app lifecycle', async ({ page }) => {
   await page.goto('/');
+  await expect(page.locator('audio[data-music-track="title"]')).toHaveAttribute('src', '/titles.mp3');
+  await expect(page.locator('audio[data-music-track="slow"]')).toHaveAttribute('src', '/slow.mp3');
+  await expect(page.locator('audio[data-music-track="fast"]')).toHaveAttribute('src', '/fast.mp3');
   await page.getByRole('textbox', { name: 'YOUR CALLSIGN', exact: true }).click();
   await expect.poll(() => page.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.music.unlocked)).toBe(true);
   await expect.poll(() => page.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.music.screen)).toBe('title');

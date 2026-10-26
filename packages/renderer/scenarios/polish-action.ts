@@ -18,7 +18,7 @@ const traffic: VehicleState[] = Array.from({ length: 8 }, (_, i) => ({ ...player
 const frame: RenderFrame = { sampleTimeSeconds: 0, serverTick: 0, vehicles: [...players, ...traffic], projectiles: [], grenades: [], props: districtProps.map(p => ({ ...p, scale: p.scale ?? 1, rotation: { x: 0, y: Math.sin((p.yaw ?? 0) / 2), z: 0, w: Math.cos((p.yaw ?? 0) / 2) }, mode: 'fixed', sleeping: true, discontinuityId: 0 })), localEntityId: players[0]!.entityId, cameraTarget: players[0]!.pose };
 let previous = performance.now(), start = previous, measuring = false, duration = 300, volley = -1, grenadeOrdinal = -1, wreckWave = -1, eventId = 0, generation = 0;
 let samples: Array<{ interval: number; cpu: number; gpu: number | null; draws: number; theme: string }> = [];
-let maxima = { wreckBodies: 0, projectiles: 0, grenadeWarnings: 0, grenadeBlasts: 0, headlights: 0, glints: 0, splashDrops: 0 };
+let maxima = { wreckBodies: 0, projectiles: 0, grenadeWarnings: 0, grenadeBlasts: 0, headlights: 0, glints: 0, splashDrops: 0, helicopters: 0 };
 function present(kind: GameEvent['kind'], payload: unknown, tick: number) { renderer.present([{ kind, payload, eventId: `action-${++eventId}`, matchId: `polish-action-${generation}`, serverTick: tick } as GameEvent]); }
 function step(now: number) {
   const interval = now - previous, dt = Math.max(0, Math.min(.1, interval / 1000)); previous = now;
@@ -29,6 +29,7 @@ function step(now: number) {
   for (let i = 0; i < traffic.length; i++) traffic[i]!.pose.z = -100 + (time * 9 + i * 24) % 200;
   frame.cameraTarget = { x: 4, z: center, yaw: 0 }; frame.sampleTimeSeconds = time; frame.serverTick = tick;
   const wave = Math.floor(time / 12), age = time % 12;
+  frame.helicopter = {entityId:`trace-chopper-${wave}`,dispatchIndex:4,phase:'attack',health:60,from:{x:4,z:center-8},to:{x:4,z:center-8},yaw:Math.PI/2,startedAtTick:tick,endsAtTick:tick+150};
   if (wave !== wreckWave) {
     wreckWave = wave;
     for (const v of players) { v.status = 'active'; v.health = 100; v.discontinuityId++; }
@@ -62,6 +63,7 @@ function step(now: number) {
     maxima.grenadeWarnings = Math.max(maxima.grenadeWarnings, stats.grenadeWarnings); maxima.grenadeBlasts = Math.max(maxima.grenadeBlasts, stats.grenadeBlasts);
     maxima.headlights = Math.max(maxima.headlights, stats.headlightLights); maxima.glints = Math.max(maxima.glints, stats.sourceGlints);
     maxima.splashDrops = Math.max(maxima.splashDrops, stats.waterSplashDrops);
+    maxima.helicopters = Math.max(maxima.helicopters, Number(stats.helicopterVisible));
   }
   document.querySelector('#status')!.textContent = `8 officers / 8 traffic · ${stats.environmentTheme} · ${stats.wreckBodies} physical components · ${quality}`;
   requestAnimationFrame(step);

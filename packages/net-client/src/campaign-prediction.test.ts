@@ -16,6 +16,14 @@ const deliver=(snapshot:WorldSnapshot)=>transport.handlers.get('snapshot')!(pack
 const submit=(session:ReturnType<typeof createOnlineSession>,sequence=0)=>session.submit({sessionEpoch:'epoch',sequence,clientTick:sequence,actions:{...neutralActions(),throttle:1}});
 const localPose=(session:ReturnType<typeof createOnlineSession>)=>session.sampleFrame()!.vehicles.find(v=>v.entityId==='local')!.pose;
 afterEach(()=>{vi.useRealTimers();transport.handlers.clear();});
+it('reconstructs a helicopter and its terminal shoot-down from snapshots without replaying a live helper in results',async()=>{
+ vi.useFakeTimers({toFake:['setInterval','clearInterval','performance']});const initial=state();initial.helicopter={entityId:'air',dispatchIndex:4,phase:'attack',health:60,from:{x:0,z:20},to:{x:20,z:20},yaw:1.5,startedAtTick:100,endsAtTick:250};
+ transport.initial=packSnapshot(initial);const session=createOnlineSession('ws://campaign-prediction',map);
+ try{await session.connect({roomId:crypto.randomUUID(),nickname:'Air backup'});expect(session.sampleFrame()!.helicopter).toEqual(initial.helicopter);
+  const down=state('playing',true,110);down.helicopter={...initial.helicopter,phase:'downed',health:0};deliver(down);expect(session.sampleFrame()!.helicopter).toMatchObject({phase:'downed',health:0});
+  deliver(state('results',true,120));expect(session.sampleFrame()!.helicopter).toBeUndefined();
+ }finally{await session.dispose();}
+});
 
 it.each(['lobby','countdown','results'] as const)('keeps campaign %s authority fixed before input acknowledgement and during pending-command replay',async phase=>{
  vi.useFakeTimers({toFake:['setInterval','clearInterval','performance']});transport.initial=packSnapshot(state(phase));const session=createOnlineSession('ws://campaign-prediction',map);
