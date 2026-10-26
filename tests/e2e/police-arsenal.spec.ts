@@ -16,7 +16,7 @@ test('keeps current weapon controls and reminders available in every unlocked di
  for(const kind of ['bomb','oil','blades'])await expect(page.locator(`[data-touch="${kind}"]`)).toBeInViewport();
  await page.screenshot({path:info.outputPath('all-weapons-touch-narrow.png')});
 });
-for(const [stage,kind,key] of [[4,'bomb','f'],[7,'oil','q'],[8,'blades','c']] as const)test(`dispatch ${stage+1} deploys police ${kind} through real input and authority`,async({page},info)=>{
+for(const [stage,kind,key] of [[4,'bomb','b'],[7,'oil','q'],[8,'blades','c']] as const)test(`dispatch ${stage+1} deploys police ${kind} through real input and authority`,async({page},info)=>{
  await page.goto('/');await page.getByRole('button',{name:'HIT THE STREETS'}).click();await dispatchFixture(page,stage);await page.getByRole('button',{name:'START DISPATCH'}).click();
  await page.waitForFunction(()=>{const d=(window as any).__FENDER_DEBUG__;return d?.snapshot?.phase==='playing'&&d.snapshot.serverTick>=d.snapshot.local.vehicle.protectedUntilTick&&d.input.focused;});
  await page.keyboard.down(key);

@@ -26,3 +26,7 @@ it('shows every unlocked deploy control on all devices, retaining remapped keys 
  for(const device of ['keyboard','gamepad','touch'] as const){const hints=controlHints(device,{bomb:['KeyJ'],oil:['KeyK'],blades:['KeyL']},true,weapons);expect(hints.filter(h=>['bomb','oil','blades'].includes(h.action)).map(h=>h.action)).toEqual(['bomb','oil','blades']);if(device==='keyboard')expect(hints.find(h=>h.action==='bomb')!.glyph).toBe('J');}
  expect(controlHints('keyboard',{},false,{bombsEnabled:false,oilEnabled:false,bladesEnabled:false}).some(h=>h.action==='bomb')).toBe(false);
 });
+
+it('keeps the default bomb key distinct from the common remapped F gun key',()=>{
+ const hints=controlHints('keyboard',{fire:['KeyF']},true,{bombsEnabled:true});expect(hints.find(h=>h.action==='fire')!.glyph).toBe('F');expect(hints.find(h=>h.action==='bomb')!.glyph).toBe('B');
+});

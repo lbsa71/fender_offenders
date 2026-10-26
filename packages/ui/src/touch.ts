@@ -11,6 +11,9 @@ export function mountTouchControls(parent: HTMLElement, onInput: (state: TouchCo
   parent.append(root);
   const drive = root.querySelector<HTMLButtonElement>('.fo-touch-drive')!;
   const knob = root.querySelector<HTMLElement>('.fo-touch-knob')!;
+  const deployRow=root.querySelector<HTMLElement>('.fo-touch-deploy')!;
+  const deployButtons=new Map([...deployRow.querySelectorAll<HTMLButtonElement>('button')].map(button=>[button.dataset.touch!,button]));
+  for(const button of deployButtons.values())button.remove();
   const pointers = new Map<number, HTMLElement>();
   let state = neutral();
   const reset = () => {
@@ -55,7 +58,7 @@ export function mountTouchControls(parent: HTMLElement, onInput: (state: TouchCo
   root.addEventListener('pointerdown', down); root.addEventListener('pointermove', move); root.addEventListener('pointerup', up);
   root.addEventListener('pointercancel', cancel); root.addEventListener('lostpointercapture', cancel); root.addEventListener('contextmenu', context);
   return { reset, setWeaponsEnabled(weapons:{bombsEnabled?:boolean;oilEnabled?:boolean;bladesEnabled?:boolean}) {
-      for(const [kind,enabled] of [['bomb',weapons.bombsEnabled],['oil',weapons.oilEnabled],['blades',weapons.bladesEnabled]] as const){root.querySelector<HTMLElement>(`[data-touch="${kind}"]`)!.hidden=!enabled;if(!enabled&&state.deploy===kind){reset();onCancel();}}
+      for(const [kind,enabled] of [['bomb',weapons.bombsEnabled],['oil',weapons.oilEnabled],['blades',weapons.bladesEnabled]] as const){const button=deployButtons.get(kind)!;if(enabled){if(button.parentElement!==deployRow)deployRow.append(button);button.hidden=false;}else button.remove();if(!enabled&&state.deploy===kind){reset();onCancel();}}
     }, setGunsEnabled(enabled: boolean) {
       root.querySelectorAll<HTMLElement>('[data-touch="fire"],[data-touch="combo"]').forEach(button => { button.hidden = !enabled; });
       if (!enabled && state.fire) { reset(); onCancel(); }

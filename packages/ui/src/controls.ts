@@ -3,7 +3,7 @@ import type { DeviceKind } from '@fender/contracts';
 /** Original DOM/CSS control graphics; key labels always use textContent. */
 export const keyboardBindings: Record<string, string[]> = {
   throttle: ['KeyW', 'ArrowUp'], brakeReverse: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
-  handbrake: ['ShiftLeft', 'ShiftRight'], fire: ['Space'], siren: ['KeyE'], recover: ['KeyR'], bomb: ['KeyF'], oil: ['KeyQ'], blades: ['KeyC'],
+  handbrake: ['ShiftLeft', 'ShiftRight'], fire: ['Space'], siren: ['KeyE'], recover: ['KeyR'], bomb: ['KeyB'], oil: ['KeyQ'], blades: ['KeyC'],
 };
 const keyNames: Record<string, string> = { ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', ShiftLeft: 'SHIFT', ShiftRight: 'SHIFT', Space: 'SPACE', Escape: 'ESC' };
 function keycap(doc: Document, code: string) {

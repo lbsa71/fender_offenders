@@ -2,7 +2,7 @@ import type { DeviceKind } from '@fender/contracts';
 const actions = [
   ['throttle','DRIVE','W / ↑','RT / ↑','DRAG ↑'],['brakeReverse','BRAKE / REVERSE','S / ↓','LT / ↓','DRAG ↓'],
   ['steer','STEER','A D / ← →','◀ L ▶','DRAG ← →'],['handbrake','DRIFT','SHIFT','A','DRIFT'],
-  ['bomb','THROW BOMB','F','LB','BOMB'],['oil','DROP OIL','Q','LS','OIL'],['blades','EXTEND BLADES','C','RS','BLADES'],
+  ['bomb','THROW BOMB','B','LB','BOMB'],['oil','DROP OIL','Q','LS','OIL'],['blades','EXTEND BLADES','C','RS','BLADES'],
   ['siren','SIREN','E','X','SIREN'],['recover','HOLD TO RECOVER','R','Y','RECOVER'],['fire','FIRE','SPACE','RB','FIRE'],
 ] as const;
 const keyName=(key:string)=>key.replace(/^Key/,'').replace(/^Digit/,'').replace(/Left$|Right$/,'').replace('ArrowUp','↑').replace('ArrowDown','↓').replace('ArrowLeft','←').replace('ArrowRight','→').toUpperCase();

@@ -13,7 +13,7 @@ export interface InputSettings {
 export const DEFAULT_INPUT_SETTINGS: InputSettings = {
   controlScheme: 'auto',
   stickDeadzone: 0.16, triggerDeadzone: 0.08, sensitivity: 1, steeringRamp: 8,
-  bindings: { throttle: ['KeyW', 'ArrowUp'], brakeReverse: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'], handbrake: ['ShiftLeft', 'ShiftRight'], fire: ['Space'], siren: ['KeyE'], recover: ['KeyR'], bomb: ['KeyF'], oil: ['KeyQ'], blades: ['KeyC'] },
+  bindings: { throttle: ['KeyW', 'ArrowUp'], brakeReverse: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'], handbrake: ['ShiftLeft', 'ShiftRight'], fire: ['Space'], siren: ['KeyE'], recover: ['KeyR'], bomb: ['KeyB'], oil: ['KeyQ'], blades: ['KeyC'] },
 };
 const neutral = (): DriverActions => ({ steer: 0, throttle: 0, brakeReverse: 0, handbrake: false, fire: false, sirenToggle: false, recover: false });
 const neutralTouch = (): TouchControls => ({ steer: 0, throttle: 0, brakeReverse: 0, handbrake: false, fire: false, siren: false, recover: false });

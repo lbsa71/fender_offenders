@@ -153,7 +153,7 @@ describe('normalized driver input', () => {
   });
 });
 
-it.each([['KeyF',4,'bomb'],['KeyQ',10,'oil'],['KeyC',11,'blades']] as const)('maps %s, standard pad and touch to the same deploy action and clears it on focus loss',(key,index,deploy)=>{
+it.each([['KeyB',4,'bomb'],['KeyQ',10,'oil'],['KeyC',11,'blades']] as const)('maps %s, standard pad and touch to the same deploy action and clears it on focus loss',(key,index,deploy)=>{
  const input=new InputController();input.setEnabled(true);input.key(key,true);expect(input.sample(0)).toMatchObject({deploy});input.setFocused(false);input.setFocused(true);expect(input.sample(16)).not.toHaveProperty('deploy');
  input.poll([pad()],32);input.poll([button(pad(),index)],48);expect(input.sample(48)).toMatchObject({deploy});
  const touch=new InputController({controlScheme:'touch'});touch.setEnabled(true);touch.touch({...{steer:0,throttle:0,brakeReverse:0,handbrake:false,fire:false,siren:false,recover:false},deploy} as never);expect(touch.sample(0)).toMatchObject({deploy});touch.reset();expect(touch.sample(16)).not.toHaveProperty('deploy');
