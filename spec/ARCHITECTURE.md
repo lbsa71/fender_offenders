@@ -130,6 +130,8 @@ WebSocket is reliable/ordered. Packet-loss testing must model its stalls and ret
 5. Render the local car through the fractional interval after its most recent logical input tick, capped at 50 ms and the 300 ms snapshot-silence deadline. Each input batch retains its fixed tick times rather than bunching them at callback time. Keep that phase across ordinary packets so agreeing authority cannot accumulate a false visual offset. Ease position and shortest-arc yaw corrections with a 200 ms time constant. Position catch-up is capped at 80% of the moving car's speed: enough to repay sustained 60 Hz versus 20 Hz rate mismatch while preserving forward movement. Stationary corrections may converge at up to 4 m/s. Full resync baselines, identity/life changes and pause transitions reset histories. Routine finite corrections remain continuous regardless of distance; invalid corrections clear the offset.
 6. If history is insufficient or protocol/map versions change, perform a full resync instead of guessing.
 
+The app samples online frames with the session's current monotonic clock, shared with input and snapshot handling. An animation callback's timestamp can precede an input tick already delivered by a timer; using that older time can alternate short and long rendered travel even during steady driving.
+
 Only one module owns prediction. If the chosen Colyseus release supplies suitable helpers, wrap those helpers inside `net-client`; otherwise implement the loop there. Rendering must not run an additional reconciler.
 
 ### Remote interpolation

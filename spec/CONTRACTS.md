@@ -89,6 +89,8 @@ An `input-backlog` snapshot or `resync` prop patch represents continuous clock/i
 
 Local render sampling projects at most 50 ms from the most recent logical input tick, also bounded by the 300 ms snapshot-silence deadline. `submit(command, localTickTimeMs?)` accepts an optional browser-only time for that fixed tick; the app reconstructs it from its accumulator, and it is never serialized. Preserve that input phase across ordinary snapshots. Separate position/yaw offsets ease routine corrections over a 200 ms time constant without delaying fresh controls; moving position correction is limited to 80% of current speed, with a 4 m/s stationary convergence allowance. This repays sustained slow-authority mismatch while preserving forward motion. Remote cars use a 200 ms buffer, up to 300 ms of position/yaw extrapolation and gradual clock correction. A resumed world after a blackout over one second can rebase stale remote playback. These poses never feed back into physics, damage or campaign authority. No DTO or compatibility revision changes are required.
 
+The app calls `sampleFrame()` on the session's current monotonic clock, shared with input and snapshot handling. An older animation timestamp must not move the sample behind an already delivered input tick.
+
 For callers that omit logical input times, a late one-tick callback must preserve already displayed forward travel after render correction is applied. It may restore only that last delivered position, never unshown extrapolation. Fresh yaw and velocity remain predicted immediately; explicit resync/pause/life resets clear the guard.
 
 ## 3. State, configuration, and checkpoints

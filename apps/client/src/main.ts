@@ -115,7 +115,9 @@ async function boot() {
         const events = local.drainEvents(); if (active) { snapshot = local.snapshot(playerId); present(events); }
       }
     }
-    let renderFrame: RenderFrame | null = online?.sampleFrame(now) ?? null;
+    // Sample on the input/network clock. The animation timestamp can precede
+    // a timer-delivered input tick when its callback runs late.
+    let renderFrame: RenderFrame | null = online?.sampleFrame() ?? null;
     if (!renderFrame && local) {
       const state = local.snapshot(active ? playerId : 'preview');
       renderFrame = { sampleTimeSeconds: now / 1000, serverTick: state.serverTick, grenades: active && state.phase === 'playing' ? state.grenades ?? [] : [], vehicles: state.vehicles, projectiles: state.projectiles.map(projectile=>({...projectile,presentationAgeSeconds:Math.max(0,(state.serverTick-projectile.bornTick+1)/60)})), props: state.props, localEntityId: state.local?.vehicle.entityId ?? null, cameraTarget: state.local?.vehicle.pose ?? { x: 4, z: -48, yaw: 0 },
