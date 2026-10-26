@@ -28,6 +28,50 @@ function snapshot(tick: number, options: { direction?: number; epoch?: string; m
 }
 afterEach(() => { vi.useRealTimers(); wire.handlers.clear(); wire.deferBaseline = false; wire.queued = []; wire.batches=[]; });
 
+it('applies contact displacement once to the current local car without rewinding steering or dropping fresh commands',async()=>{
+  vi.useFakeTimers({toFake:['setInterval','clearInterval','performance']});
+  const source=unpackSnapshot(snapshot(100));source.local!.vehicle.velocity.z=20;wire.initial=packSnapshot(source);
+  const session=createOnlineSession('ws://clock-fixture',map);
+  const local=()=>session.sampleFrame()!.vehicles.find(car=>car.entityId==='local')!;
+  try{
+    await session.connect({roomId:crypto.randomUUID(),nickname:'Bumper contact without a time machine'});
+    for(let sequence=0;sequence<12;sequence++){vi.advanceTimersByTime(1000/60);session.submit({sessionEpoch:source.sessionEpoch,sequence,clientTick:sequence,actions:{...neutralActions(),throttle:1,steer:sequence<8?1:0}},performance.now());}
+    const before=local(),update=structuredClone(source);update.serverTick+=3;update.local!.lastConsumedSequence=3;
+    update.local!.vehicle.pose.x-=.12;update.local!.driver.resolvedSteering=1;
+    const contact={revision:1,pose:{x:-.12,z:0,yaw:0},velocity:{x:-.4,z:0,yawRate:0}};
+    const packet=packSnapshot(update);packet.local![3]=contact;wire.handlers.get('snapshot')!(packet);
+    const after=local();
+    expect(after.pose.x,'Apply only the room contact displacement, not its older absolute car pose').toBeCloseTo(before.pose.x-.12,6);
+    expect(after.pose.z).toBeCloseTo(before.pose.z,6);expect(after.pose.yaw).toBeCloseTo(before.pose.yaw,6);
+    expect(after.velocity.yawRate,'Contact must preserve local steering release').toBeCloseTo(before.velocity.yawRate,6);
+    expect(session.getStats().pendingInputs).toBe(8);
+    packet.t++;wire.handlers.get('snapshot')!(packet);expect(local().pose.x).toBeCloseTo(after.pose.x,6);
+    session.submit({sessionEpoch:source.sessionEpoch,sequence:12,clientTick:12,actions:{...neutralActions(),throttle:1,steer:-1}},performance.now());
+    vi.advanceTimersByTime(34);expect(wire.batches.at(-1)?.motion?.contactRevision).toBe(1);
+  }finally{await session.dispose();}
+});
+
+it('roundtrips cumulative contact corrections without losing sub-millimetre separation',()=>{
+  const state=unpackSnapshot(snapshot(100)),contact={revision:3,pose:{x:.000012,z:-.23456789,yaw:0},velocity:{x:-1.23456789,z:0,yawRate:0}};
+  Object.assign(state.local!,{contact});expect(unpackSnapshot(packSnapshot(state)).local!.contact).toEqual(contact);
+});
+
+it('predicts contact against the visible external car instead of an unseen extrapolated collider',async()=>{
+  vi.useFakeTimers({toFake:['setInterval','clearInterval','performance']});
+  const source=unpackSnapshot(snapshot(100)),remote=source.vehicles.find(v=>v.entityId==='remote')!;
+  remote.pose={x:100,z:106,yaw:0};remote.velocity={x:0,z:-10,yawRate:0};wire.initial=packSnapshot(source);
+  const session=createOnlineSession('ws://clock-fixture',map);
+  try{
+    await session.connect({roomId:crypto.randomUUID(),nickname:'Visible bumper'});
+    vi.advanceTimersByTime(100);const next=structuredClone(source);next.serverTick+=6;next.vehicles.find(v=>v.entityId==='remote')!.pose.z=105;
+    wire.handlers.get('snapshot')!(packSnapshot(next));vi.advanceTimersByTime(150);
+    const frame=session.sampleFrame()!,visible=frame.vehicles.find(v=>v.entityId==='remote')!;
+    expect(visible.pose.z-100,'The rendered cars must still have physical clearance').toBeGreaterThan(4.3);
+    session.submit({sessionEpoch:source.sessionEpoch,sequence:0,clientTick:0,actions:neutralActions()},performance.now());
+    expect(session.sampleFrame()!.vehicles.find(v=>v.entityId==='local')!.pose.z,'A future collider must not shove a stationary local car before visible contact').toBeCloseTo(100,6);
+  }finally{await session.dispose();}
+});
+
 it('replicates the completed local physics step outward, without sending presentation extrapolation or health', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
   const source=unpackSnapshot(snapshot(100));source.local!.vehicle.velocity.z=20;
@@ -37,7 +81,7 @@ it('replicates the completed local physics step outward, without sending present
     session.submit({sessionEpoch:source.sessionEpoch,sequence:0,clientTick:0,actions},performance.now());
     const expected=predictVehicle(map,source.local!.vehicle,source.local!.driver,actions);
     vi.advanceTimersByTime(34);session.sampleFrame();
-    expect(wire.batches.at(-1)?.motion).toEqual({sequence:0,discontinuityId:0,pose:expected.vehicle.pose,velocity:expected.vehicle.velocity});
+    expect(wire.batches.at(-1)?.motion).toEqual({sequence:0,discontinuityId:0,contactRevision:0,pose:expected.vehicle.pose,velocity:expected.vehicle.velocity});
     expect(wire.batches.at(-1)?.motion).not.toHaveProperty('health');
   }finally{await session.dispose();}
 });

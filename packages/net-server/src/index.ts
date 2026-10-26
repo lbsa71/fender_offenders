@@ -5,11 +5,12 @@ import { districtMap, districtProps, VEHICLE_BODIES } from '@fender/content';
 import { createSimulation, initPhysics, type Simulation } from '@fender/sim';
 import { GAMEPLAY_REVISION, PROTOCOL_VERSION, getVehicleProfile, isInputCommand, isInviteCode, isRecord, isVehicleBodyId, neutralActions, packSnapshot, sanitizeNickname, type AppliedDriverInput, type InputCommand, type LocalVehicleMotion, type VehicleBodyId, type VehicleState, type WorldSnapshot } from '@fender/contracts';
 import { createPropPublisher } from './prop-publisher.js';
+import { ContactLedger } from './contact-ledger.js';
 import { roomRegistry, serverMetrics } from './room-registry.js';
 export { roomRegistry, serverMetrics, getRoomMetrics } from './room-registry.js';
 export { createPropPublisher } from './prop-publisher.js';
 
-interface DriverConnection { epoch: string; entityId: string; queue: InputCommand[]; last: InputCommand | null; ack: number; received: number; lastInputAt: number; connected: boolean; windowStart: number; packets: number; reset?: WorldSnapshot['resetReason']; client: Client; latencyProbe: { nonce: string; sentAt: number } | null; pingMs: number | null; latencyMeasuredAt: number | null; propPublisher:ReturnType<typeof createPropPublisher>; menuOpen: boolean; hidden: boolean; lastActivityAt: number; activityNoticeAt: number; idleWarned: boolean; localDriving: boolean; motion: LocalVehicleMotion | null; pendingMotion: LocalVehicleMotion | null; motionAt: number; motionBudget: { distance: number; at: number } | null; }
+interface DriverConnection { epoch: string; entityId: string; queue: InputCommand[]; last: InputCommand | null; ack: number; received: number; lastInputAt: number; connected: boolean; windowStart: number; packets: number; reset?: WorldSnapshot['resetReason']; client: Client; latencyProbe: { nonce: string; sentAt: number } | null; pingMs: number | null; latencyMeasuredAt: number | null; propPublisher:ReturnType<typeof createPropPublisher>; menuOpen: boolean; hidden: boolean; lastActivityAt: number; activityNoticeAt: number; idleWarned: boolean; localDriving: boolean; motion: LocalVehicleMotion | null; pendingMotion: LocalVehicleMotion | null; motionAt: number; motionBudget: { distance: number; at: number } | null; contacts: ContactLedger; }
 function validLocalMotion(value: unknown, command: InputCommand, vehicle: VehicleState, driver: DriverConnection, previousSequence: number, now: number): value is LocalVehicleMotion {
   if (!isRecord(value) || value.sequence !== command.sequence || value.discontinuityId !== vehicle.discontinuityId || !isRecord(value.pose) || !isRecord(value.velocity) || vehicle.status !== 'active') return false;
   const { pose, velocity } = value;
@@ -92,9 +93,10 @@ export class DrivingRoom extends Room {
         }
         if (message.motion !== undefined && latest && !driver.menuOpen && !driver.hidden && !this.paused) {
           const vehicle = this.sim.authority(client.sessionId)?.vehicle;
-          if (vehicle && validLocalMotion(message.motion, latest, vehicle, driver, previousSequence, now)) {
-            const motion = message.motion;
-            driver.motion = driver.pendingMotion = { sequence: motion.sequence, discontinuityId: motion.discontinuityId, pose: { ...motion.pose }, velocity: { ...motion.velocity } };
+          if(vehicle)driver.contacts.sync(vehicle.discontinuityId);
+          const motion=driver.contacts.adjust(message.motion);
+          if (vehicle && motion && validLocalMotion(motion, latest, vehicle, driver, previousSequence, now)) {
+            driver.motion = driver.pendingMotion = { sequence: motion.sequence, discontinuityId: motion.discontinuityId, pose: { ...motion.pose }, velocity: { ...motion.velocity }, contactRevision:motion.contactRevision };
             driver.localDriving = true; driver.motionAt = now;
           } else {
             serverMetrics.rejectedInputs++;
@@ -169,7 +171,7 @@ export class DrivingRoom extends Room {
     this.autoDispose=false;this.emptySince=null;
     const epoch = randomUUID();
     const car = this.sim.addPlayer({ playerId: client.sessionId, nickname: auth.nickname, sessionEpoch: epoch, bodyAssetId: auth.vehicleBodyId ?? VEHICLE_BODIES[randomInt(VEHICLE_BODIES.length)] });
-    this.drivers.set(client.sessionId, { epoch, entityId: car.entityId, queue: [], last: null, ack: -1, received: -1, lastInputAt: 0, connected: true, windowStart: performance.now(), packets: 0, reset: 'join', client, latencyProbe: null, pingMs: null, latencyMeasuredAt: null, propPublisher:createPropPublisher(),menuOpen:false,hidden:false,lastActivityAt:this.wallNow(),activityNoticeAt:-Infinity,idleWarned:false,localDriving:false,motion:null,pendingMotion:null,motionAt:performance.now(),motionBudget:null });
+    this.drivers.set(client.sessionId, { epoch, entityId: car.entityId, queue: [], last: null, ack: -1, received: -1, lastInputAt: 0, connected: true, windowStart: performance.now(), packets: 0, reset: 'join', client, latencyProbe: null, pingMs: null, latencyMeasuredAt: null, propPublisher:createPropPublisher(),menuOpen:false,hidden:false,lastActivityAt:this.wallNow(),activityNoticeAt:-Infinity,idleWarned:false,localDriving:false,motion:null,pendingMotion:null,motionAt:performance.now(),motionBudget:null,contacts:new ContactLedger(car.discontinuityId) });
     this.updatePause();
     this.publish(client);
   }
@@ -221,7 +223,15 @@ export class DrivingRoom extends Room {
       inputs.set(d.entityId, { actions, sessionEpoch: d.epoch, sourceCommandSequence: d.last?.sequence ?? null, ...(localDriving ? { localDriving: true, ...(d.pendingMotion ? { motion: d.pendingMotion } : {}) } : {}) });
       d.pendingMotion = null;
     }
-    this.sim.step(inputs); this.tick++;
+    const contacts=this.sim.step(inputs); this.tick++;
+    for(const delta of contacts){
+      const driver=[...this.drivers.values()].find(d=>d.entityId===delta.entityId);
+      if(!driver)continue;
+      driver.contacts.record(delta);
+      // Reports already in flight carry an older contact acknowledgment. Keep
+      // their validation anchor in the corrected frame so they cannot undo it.
+      if(driver.motion)driver.motion=driver.contacts.adjust(driver.motion);
+    }
     const events = this.sim.drainEvents(); if (events.length) this.broadcast('events', events);
     if (this.tick % 3 === 0) for (const client of this.clients) this.publish(client);
     const cost = performance.now() - started; serverMetrics.steps++; serverMetrics.maxStepMs = Math.max(serverMetrics.maxStepMs, cost); if (cost > 8) serverMetrics.slowSteps++;
@@ -236,7 +246,11 @@ export class DrivingRoom extends Room {
       const fresh = connection?.connected && connection.latencyMeasuredAt !== null && now - connection.latencyMeasuredAt <= 3000;
       return { ...score, pingMs: fresh ? connection.pingMs : null };
     });
-    snapshot.sessionEpoch = d.epoch; if (snapshot.local) snapshot.local.lastConsumedSequence = d.ack;
+    snapshot.sessionEpoch = d.epoch;
+    if (snapshot.local) {
+      snapshot.local.lastConsumedSequence = d.ack;
+      d.contacts.sync(snapshot.local.vehicle.discontinuityId);snapshot.local.contact=d.contacts.state;
+    }
     snapshot.resetReason = d.reset; d.reset = undefined;
     const wire = d.propPublisher.filter(packSnapshot(snapshot),replacePropBaseline); serverMetrics.bytesPublished += JSON.stringify(wire).length;
     client.send('snapshot', wire);
@@ -252,6 +266,7 @@ export class DrivingRoom extends Room {
     // Preserve stable identity but replace the input epoch so old queued packets cannot resume.
     d.epoch = randomUUID(); d.connected = true; d.received = -1; d.ack = -1; d.last = null; d.queue = []; d.reset = 'reconnect';
     d.localDriving = false; d.motion = d.pendingMotion = null; d.motionAt = performance.now();
+    d.contacts=new ContactLedger(this.sim.authority(client.sessionId)!.vehicle.discontinuityId);
     d.client = client; d.latencyProbe = null; d.pingMs = null; d.latencyMeasuredAt = null;
     d.menuOpen=false;d.hidden=false;this.recordActivity(d);this.emptySince=null;this.updatePause();
     this.sim.setConnection(client.sessionId, 'connected'); this.publish(client,true);

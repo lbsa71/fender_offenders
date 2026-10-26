@@ -1,5 +1,5 @@
 import { CAMPAIGN_DISPATCHES, CAMPAIGN_ID, getBossTactics, getCampaignTarget, getDispatchFeatures, DEFAULT_DRIVING_CONTEXT, PROTOCOL_VERSION, isDriverActions, isVehicleBodyId, sanitizeNickname, validateMap } from '@fender/contracts';
-import type { AppliedDriverInput, ArrestGuidance, DispatchDrivingContext, BossTactics, CollisionMap, DriverActions, DriverRuntimeState, GameEvent, GameplayConfig, GrenadeState, LocalAuthorityState, PlanarPose, PlayerScore, ProjectileState, PropDefinition, VehicleState, WorldSnapshot } from '@fender/contracts';
+import type { AppliedDriverInput, VehicleContactDelta, ArrestGuidance, DispatchDrivingContext, BossTactics, CollisionMap, DriverActions, DriverRuntimeState, GameEvent, GameplayConfig, GrenadeState, LocalAuthorityState, PlanarPose, PlayerScore, ProjectileState, PropDefinition, VehicleState, WorldSnapshot } from '@fender/contracts';
 import { DEFAULT_GAMEPLAY_CONFIG, FIXED_DELTA, normalizeGameplay, type SimulationConfig } from './config.js';
 import { box, colliderPolygon, isPoseClear, overlap, segmentPolygon, type Point } from '../physics/geometry.js';
 import { driveVehicle, neutralActions, newDriver, resolveStatic, resolveVehicleContacts, type ContactImpact } from '../vehicles/controller.js';
@@ -37,7 +37,7 @@ export interface Simulation {
   correctLocalMotion(playerId: string): boolean;
   startRound(requesterId?: string): boolean;
   rematch(requesterId?: string): boolean;
-  step(inputs: ReadonlyMap<string, AppliedDriverInput>): void;
+  step(inputs: ReadonlyMap<string, AppliedDriverInput>): readonly VehicleContactDelta[];
   snapshot(forPlayerId?: string): WorldSnapshot;
   authority(playerId: string): LocalAuthorityState | null;
   restoreAuthority(local: LocalAuthorityState, tick: number, proxies?: VehicleState[]): void;
@@ -364,7 +364,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
         if (phase === 'countdown') { phase = 'playing'; phaseEnd = tick + config.rules.roundTicks; for (const r of records.values()) r.vehicle.protectedUntilTick = tick + config.rules.protectionTicks; }
         else if (phase === 'playing') { phase = 'results'; phaseEnd = null; projectiles.clear(); grenades.clear(); emit({ kind: 'round-ended', payload: { scores: clone([...scores.values()]), winnerPlayerId: null, reason: 'timeout' } }); }
       }
-      if (campaign && phase !== 'playing') return;
+      if (campaign && phase !== 'playing') return [];
       const context = campaign ? getDispatchFeatures(campaign.dispatchIndex) : DEFAULT_DRIVING_CONTEXT;
       const previous = new Map([...records.values()].map(r => [r.vehicle.entityId, clone(r.vehicle.pose)]));
       const impacts = new Map<string, ContactImpact>();
@@ -436,9 +436,13 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
         if (grenadeTarget && aiTactics && phase === 'playing') throwGrenade(r, grenadeTarget, aiTactics);
       }
       resolveVehicleContacts(allVehicles(), map, solids, observeImpact);
+      const contactDeltas: VehicleContactDelta[] = [];
       for (const [id, before] of localDriving) {
         const vehicle = records.get(id)!.vehicle;
-        if (vehicle.discontinuityId === before.discontinuityId && (Math.hypot(vehicle.pose.x - before.pose.x, vehicle.pose.z - before.pose.z) > .00001 || Math.hypot(vehicle.velocity.x - before.velocity.x, vehicle.velocity.z - before.velocity.z) > .00001)) vehicle.discontinuityId++;
+        if (vehicle.discontinuityId !== before.discontinuityId) continue;
+        const pose = {x:vehicle.pose.x-before.pose.x,z:vehicle.pose.z-before.pose.z,yaw:vehicle.pose.yaw-before.pose.yaw};
+        const velocity = {x:vehicle.velocity.x-before.velocity.x,z:vehicle.velocity.z-before.velocity.z,yawRate:vehicle.velocity.yawRate-before.velocity.yawRate};
+        if (Math.hypot(pose.x,pose.z,velocity.x,velocity.z)> .00001) contactDeltas.push({entityId:id,pose,velocity});
       }
       propPhysics?.step(allVehicles());
       if (phase === 'playing') for (const impact of impacts.values()) {
@@ -448,6 +452,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
         emit({ kind: 'crash', payload: { vehicleId: r.vehicle.entityId, position: clone(r.vehicle.pose), normal: impact.normal, speed: Math.min(60, impact.speed), discontinuityId: r.vehicle.discontinuityId } });
       }
       if (phase === 'playing') { stepProjectiles(previous); if (phase === 'playing') stepGrenades(); updatePursuit(); }
+      return contactDeltas;
     },
     snapshot(forPlayerId) {
       check(); return clone({ protocolVersion: PROTOCOL_VERSION, mapRevision: map.revision, gameplayRevision: config.revision, sessionEpoch: forPlayerId ? recordForPlayer(forPlayerId)?.epoch ?? '' : '', serverTick: tick, matchId, phase, phaseEndsAtTick: phaseEnd, vehicles: allVehicles(), projectiles: [...projectiles.values()], grenades: [...grenades.values()], scores: [...scores.values()], props: propPhysics?.snapshot() ?? [], local: forPlayerId ? authority(forPlayerId) : null, ...(pursuit ? { pursuit } : {}), ...(campaign ? { campaign } : {}) });

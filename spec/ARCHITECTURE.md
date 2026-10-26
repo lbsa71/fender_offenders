@@ -1,6 +1,6 @@
 # Architecture
 
-Status: architecture and acceptance targets for the implemented `arcade-v14` / protocol 4 alpha. Updated: 2026-10-26 for immediate local driving and buffered remote presentation. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
+Status: architecture and acceptance targets for the implemented `arcade-v15` / protocol 5 alpha. Updated: 2026-10-26 for immediate local driving and buffered remote presentation. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
 
 *One authority drives the rules. Everyone else gets a dashboard, not a spare steering wheel.*
 
@@ -57,7 +57,7 @@ Third-party dependencies remain behind their owning adapter. Colyseus schema dec
 | --- | --- | --- |
 | Local input | Local device | Normalize, timestamp, sequence, queue |
 | Own vehicle movement | Local controller, bounded by room validation | Apply input once and report completed movement; accept explicit interventions |
-| Shared contact outcomes | Server | Predict contact locally; accept a server discontinuity when the shared outcome changes |
+| Shared contact outcomes | Server | Predict contact locally; apply acknowledged contact deltas without resetting driving |
 | Opponents and traffic | Server | Interpolate; use collision proxies for local prediction |
 | Health, hits, projectiles, score, timers | Server | Show provisional cosmetics, apply confirmed state |
 | Camera, paint, smoke, skid marks, audio | Client | React to render frames and events |
@@ -95,9 +95,11 @@ Avoid assuming a rigid-body snapshot alone captures the whole game: include game
 
 ### Predicting contacts
 
-The client predicts its own car against static geometry and time-aligned kinematic proxies of nearby remote cars. The server applies shared bounded two-car separation/impulses. The predictor's kinematic response can disagree with that two-body outcome; measured collision-correction acceptance remains open.
+The client predicts its own car against static geometry and kinematic proxies at the same buffered positions and visual recovery offsets used to display nearby remote cars. A second, extrapolated collider must not hit the officer before the visible car arrives. The server applies shared bounded two-car separation/impulses. The predictor's kinematic response can disagree with that two-body outcome; wider collision fairness and human acceptance remain open.
 
-The server resolves shared contacts after placing approved local movement. If it changes that car's pose or velocity, it increments the discontinuity once and the client accepts the correction as a new baseline. Rejected current-life reports also produce an explicit correction; old-life reports cannot repeatedly reset the car. Full contact fairness and physical-controller acceptance remain open. Routine snapshot disagreement is not a reason to restore/replay steering.
+The server resolves shared contacts after placing approved local movement. `Simulation.step()` returns bounded contact displacements and velocity changes for locally driven cars. The room accumulates these within one vehicle life and retains 256 revision baselines. Each movement report acknowledges the last applied contact revision; the room translates older reports into the corrected frame before validating them. Ordinary contact never increments the vehicle discontinuity.
+
+The client applies only the difference from its last contact total to its current pose/velocity, once, preserving steering runtime, logical tick time and queued input. It does not restore the older absolute server pose. Contact totals retain full precision in snapshots. A true life change, rejected movement, full resync, pause or reconnect still establishes a complete baseline; unavailable revision history requests a fresh baseline rather than guessing. The room contact ledger is connection metadata, separate from simulation checkpoints, and reconnect starts it against the current full world. Full contact fairness and physical-controller acceptance remain open.
 
 ## 5. Networking
 
@@ -125,7 +127,7 @@ WebSocket is reliable/ordered. Packet-loss testing must model its stalls and ret
 1. On each client tick, apply the shared controller exactly once to the continuously retained local state.
 2. Batch commands with the completed movement corresponding to the final command. Keep pending commands only for bounded delivery/acknowledgment accounting.
 3. The room validates movement and mediates shared contacts, damage, fire and progression. It does not integrate fresh local steering a second time.
-4. Ordinary snapshots retire acknowledged commands and merge health/protection/siren metadata. They never restore/replay local drivetrain state or add local yaw offsets.
+4. Ordinary snapshots retire acknowledged commands and merge health/protection/siren metadata. They never restore/replay local drivetrain state or add local yaw offsets. New contact totals apply only their unapplied displacement/impulse to the current car.
 5. Render up to 50 ms beyond the most recent logical input tick. Fresh input remains local during snapshot delays; real disconnection and authoritative pause still block it.
 6. Explicit full resync, pause, status/life, match or epoch transitions replace local state and clear obsolete history. Genuine server interventions remain visible corrections; external cars alone use network smoothing.
 
@@ -135,7 +137,7 @@ Only one module owns prediction. If the chosen Colyseus release supplies suitabl
 
 ### Remote interpolation
 
-Render other cars about 200 ms behind estimated server time. Interpolate buffered snapshots by server tick and permit up to 300 ms of position/yaw extrapolation before holding. Correct ordinary clock phase by changing playback speed between 0.75× and 1.1×, rather than freezing or rewinding on a late packet. Blend recovered trajectories using separate visual offsets; prediction collision proxies use unsmoothed samples. Remote health and scores remain confirmed state.
+Render other cars about 200 ms behind estimated server time. Interpolate buffered snapshots by server tick and permit up to 300 ms of position/yaw extrapolation before holding. Correct ordinary clock phase by changing playback speed between 0.75× and 1.1×, rather than freezing or rewinding on a late packet. Blend recovered trajectories using separate visual offsets; local collision prediction samples that same visible trajectory. Remote health and scores remain confirmed state.
 
 Teleports, respawns, pause and session boundaries discard obsolete interpolation offsets. If a blackout exceeds one second and authority has advanced beyond the extrapolation window, restore the current buffered remote timeline and discard its stale visual trajectory; do not spend tens of seconds replaying missing traffic. This remote recovery does not reset the local car. Buffer duration is fixed; sustained overload and contact-correction acceptance remain open.
 

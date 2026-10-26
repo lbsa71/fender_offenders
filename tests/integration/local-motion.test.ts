@@ -48,6 +48,8 @@ async function fixture(players = 1) {
 
 it('replicates validated driver motion without steering it a second time or trusting client health and identity', async () => {
   const f = await fixture(2), report = f.motion(0), observerBefore = structuredClone(f.controlled.sim.authority(f.peers[1]!.sessionId)!.vehicle.pose);
+  const clock=vi.spyOn(performance,'now').mockReturnValue(performance.now());
+  try{
   await f.send([f.command(0, { ...neutralActions(), throttle: 1, steer: 1 })], { ...report, health: 9999, bodyAssetId: 'roadster', score: 9999 });
   f.controlled.step();
   expect(f.authority().vehicle.pose).toEqual(report.pose);
@@ -61,6 +63,7 @@ it('replicates validated driver motion without steering it a second time or trus
   expect(snapshots.get(f.peers[1]!.sessionId)!.vehicles.find(vehicle => vehicle.playerId === f.host.sessionId)!.pose).toEqual(report.pose);
   expect(snapshots.get(f.host.sessionId)!.local!.lastConsumedSequence).toBe(0);
   expect(f.authority().vehicle.pose).toEqual(report.pose);
+  }finally{clock.mockRestore();}
 });
 
 it('rejects malformed, wrong-sequence, stale-life, out-of-map and excessive local reports', async () => {
@@ -88,17 +91,33 @@ it('retains safe braking after motion stops and clears queued movement when a me
   const before = f.authority().vehicle.velocity.z; f.controlled.step(); expect(f.authority().vehicle.velocity.z).toBeLessThan(before); expect(f.authority().vehicle.velocity.z).toBeGreaterThan(4);
 });
 
-it('marks an authoritative contact as one new life correction and rejects pre-contact local reports', async () => {
-  const f = await fixture(2), checkpoint = f.controlled.sim.checkpoint();
-  checkpoint.state.records.find(record => record.vehicle.playerId === f.peers[1]!.sessionId)!.vehicle.pose = { x: 1.5, z: -76, yaw: 0 };
-  f.controlled.sim.restore(checkpoint);
-  const life = f.authority().vehicle.discontinuityId, report = f.motion(0, { pose: { x: .1, z: -76, yaw: 0 }, velocity: { x: 0, z: 0, yawRate: 0 } });
+it('retains a true life correction and rejects movement from before that intervention', async () => {
+  const f = await fixture(),life = f.authority().vehicle.discontinuityId, report = f.motion(0, { pose: { x: .1, z: -76, yaw: 0 }, velocity: { x: 0, z: 0, yawRate: 0 } });
   await f.send([f.command(0)], report); f.controlled.step();
+  f.controlled.sim.correctLocalMotion(f.host.sessionId);
   expect(f.authority().vehicle.discontinuityId).toBe(life + 1);
   const corrected = structuredClone(f.authority().vehicle.pose);
   await f.send([f.command(1)], { ...report, sequence: 1 }); f.controlled.step();
   expect(f.authority().vehicle.pose.x).toBeCloseTo(corrected.x, 5);
   expect(f.authority().vehicle.discontinuityId).toBe(life + 1);
+});
+
+it('keeps sustained contact in the same vehicle life and does not reapply a correction to in-flight movement',async()=>{
+  const f=await fixture(2),checkpoint=f.controlled.sim.checkpoint();
+  checkpoint.state.records.find(record=>record.vehicle.playerId===f.peers[1]!.sessionId)!.vehicle.pose={x:1.5,z:-76,yaw:0};f.controlled.sim.restore(checkpoint);
+  const life=f.authority().vehicle.discontinuityId,report=f.motion(0,{pose:{x:.1,z:-76,yaw:0},velocity:{x:0,z:0,yawRate:0}});
+  await f.send([f.command(0)],report);f.controlled.step();await f.publish();
+  expect(f.authority().vehicle.discontinuityId,'A bumper contact must not masquerade as a respawn or discard fresh input').toBe(life);
+  const corrected=structuredClone(f.authority().vehicle),contact=snapshots.get(f.host.sessionId)!.local!.contact!;
+  expect(contact.revision).toBeGreaterThan(0);
+  for(let sequence=1;sequence<=5;sequence++){
+    await f.send([f.command(sequence)],{...report,sequence,contactRevision:0});f.controlled.step();await f.publish();
+    expect(f.authority().vehicle.pose.x,'Reports sent before the correction arrived must not pull the car back into the suspect').toBeCloseTo(corrected.pose.x,5);
+    expect(snapshots.get(f.host.sessionId)!.local!.contact!.revision,'The same separation must not accumulate repeatedly while its acknowledgement is in flight').toBe(contact.revision);
+  }
+  await f.send([f.command(6)],{...report,sequence:6,pose:corrected.pose,contactRevision:contact.revision});f.controlled.step();await f.publish();
+  expect(f.authority().vehicle.pose.x,'An acknowledged correction must not be added to a report which already contains it').toBeCloseTo(corrected.pose.x,5);
+  expect(snapshots.get(f.host.sessionId)!.local!.contact!.revision).toBe(contact.revision);
 });
 
 it('explicitly corrects a rejected new movement once without a duplicate or stale-life reset loop', async () => {

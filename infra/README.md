@@ -1,6 +1,6 @@
 # Hosting and continuous delivery
 
-Reviewed: 2026-10-26 for `arcade-v14` / protocol 4; hosted observations below remain historical. Configuration below is verified from repository files; hosted/dashboard observations are historical, recorded on 2026-10-22/23 in [execution status](../spec/EXECUTION_STATUS.md). This review did not redeploy or probe the live service.
+Reviewed: 2026-10-26 for `arcade-v15` / protocol 5; hosted observations below remain historical. Configuration below is verified from repository files; hosted/dashboard observations are historical, recorded on 2026-10-22/23 in [execution status](../spec/EXECUTION_STATUS.md). This review did not redeploy or probe the live service.
 
 *The server is allowed to sleep. It is not allowed to dream up passing rollback evidence.*
 
