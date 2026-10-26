@@ -11,7 +11,7 @@ export const FIXED_DT = 1 / TICK_RATE;
 export const GAMEPLAY_REVISION = 'arcade-v17';
 export type { CampaignState, CampaignOutcome, DispatchOutcome, CampaignTarget, CampaignDispatch } from './campaign-types';
 export { CAMPAIGN_ID, CAMPAIGN_TITLE, CAMPAIGN_TARGETS, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, getCampaignTarget } from './campaign';
-export { getCampaignMugshot } from './campaign-mugshots';
+export { getCampaignMugshot, type CampaignMugshotVariant } from './campaign-mugshots';
 export { randomCallsign } from './callsigns';
 export { BOSS_TACTICS, getBossTactics } from './boss-tactics';
 export type { BossTactics } from './boss-tactics';

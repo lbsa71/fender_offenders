@@ -51,6 +51,16 @@ Only completed outcomes unlock story text. The UI can show future tracker slots 
 
 The original catalog and self-contained SVG portraits live in [campaign content](../packages/contracts/src/campaign.ts) and [mugshots](../packages/contracts/src/campaign-mugshots.ts). They share the six established vehicle designs and add no runtime asset requests.
 
+### Outcome portraits
+
+Every suspect has four cached variants built from the same original head, hair, skin/clothing palette, accessories, composition and outlined vector style. Briefings retain the original portrait. A shared `arrested` resolution puts the suspect behind bars; `wrecked` adds clean cartoon bandages and an arm sling; an unresolved results snapshot shows the suspect gloating with a grin, wink and thumbs-up. Bandages communicate the defeated getaway rather than a new injury/damage rule. No blood or imported imagery is used. The motor pool has finally filed the after photos.
+
+The UI selects the current dispatch's authoritative outcome, independently of which officer earned credit. An officer losing the race to an arrest still sees the jailed suspect; only an unresolved dispatch uses the escape portrait. Retry briefings restore the original. The finale's four ringleaders each retain their own recorded arrest/wreck variant. Both suspect ID and variant are part of the presentation cache key, so a retry/result change cannot leave stale art behind. Outcome descriptions appear in accessible image names.
+
+`getCampaignMugshot(id, variant?)` defaults to `briefing`; `CampaignMugshotVariant` also accepts `arrested`, `wrecked` and `escaped`. Unknown IDs use Nico's corresponding variant, and unknown runtime variants fall back to the briefing. The catalog/geometry is authored once per suspect; only expression and outcome layers vary. No snapshot, protocol or gameplay revision changes are needed.
+
+Reproduce the 40-image review sheet with [the outcome-portrait fixture](../packages/ui/dev/outcome-portraits.html) under Vite. `pnpm exec playwright test tests/e2e/outcome-portraits.spec.ts` captures all suspects at 160px and the shipped 96px size, checks visible pixel changes, current/result/retry/finale mapping and real-room arrest/late-join presentation. Colocated mugshot unit tests require identical non-expression/non-outcome SVG geometry and palettes across every variant, bounded safe markup and accessible descriptions.
+
 ## Parallel ownership and acceptance
 
 | Lane | Owned work | Required evidence |

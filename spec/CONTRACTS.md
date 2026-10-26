@@ -28,6 +28,8 @@ The armed-target extension exposes `getBossTactics(dispatchIndex)`, ten immutabl
 
 `CAMPAIGN_DISPATCHES`, `CAMPAIGN_TARGETS`, `CAMPAIGN_BOSSES`, `getCampaignTarget` and `getCampaignMugshot` expose original static story/portrait content. Each dispatch references a target ID; that target specifies its `VehicleBodyId`. The UI gates `reveal` text by successful outcomes. Shared snapshot encoding roundtrips the full bounded casefile for late join/reconnect; it does not publish portrait or cosmetic transforms. `pursuit-complete.payload.outcome` optionally distinguishes arrest/wreck; `round-ended.payload.reason` additionally accepts `wrecked`. Snapshots remain the durable UI authority.
 
+`getCampaignMugshot(id, variant?: CampaignMugshotVariant)` returns cached original SVG. The presentation-only variants are `briefing` (default), `arrested` (bars), `wrecked` (bandages), and `escaped` (gloating). All variants reuse the same suspect identity/accessory geometry and palette. Unknown IDs retain the requested variant on the authored fallback; unknown runtime variants use `briefing`. The UI derives this choice from the current dispatch's shared recorded resolution, with escape used only for unresolved results. It introduces no wire fields or simulation rules. See [outcome portrait semantics](CAMPAIGN.md#outcome-portraits).
+
 Production uses explicit campaign mode and retains existing lobby/countdown/playing/results phases. `start-round` and `rematch` retain their transport messages; campaign rematch means next briefing, timeout retry, or final reset. See [campaign semantics](CAMPAIGN.md). Old clients are rejected by the gameplay revision.
 
 ## 1. Conventions and invariants

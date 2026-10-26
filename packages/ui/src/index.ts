@@ -1,5 +1,6 @@
 import { getDispatchFeatures, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, CAMPAIGN_TITLE, getBossTactics, getCampaignMugshot, getCampaignTarget, getVehicleProfile, isInviteCode, isVehicleBodyId, randomCallsign, sanitizeNickname, VEHICLE_BODIES, type CampaignState, type CampaignTarget, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
 import './style.css';
+import type { CampaignMugshotVariant } from '@fender/contracts';
 import { controlGraphics, gamepadControls, keyboardBindings, keyboardControls } from './controls';
 import { controlHints, placeControlCard } from './tutorial';
 import { vehicleStats } from './vehicle-stats';
@@ -249,9 +250,11 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     shell.classList.toggle('fo-campaign-briefing-open', !briefing.hidden);
     shell.classList.toggle('fo-campaign-results', Boolean(campaign && hasResult() && menu !== 'settings' && menu !== 'help'));
   }
-  function portrait(node: HTMLElement, target: CampaignTarget) {
-    if (node.dataset.target !== target.id) { node.innerHTML = getCampaignMugshot(target.id); node.dataset.target = target.id; }
-    node.setAttribute('aria-label', `${target.name}, “${target.alias}”, ${target.role}`);
+  function portrait(node: HTMLElement, target: CampaignTarget, variant: CampaignMugshotVariant = 'briefing') {
+    if (node.dataset.target !== target.id || node.dataset.variant !== variant) {
+      node.innerHTML = getCampaignMugshot(target.id, variant); node.dataset.target = target.id; node.dataset.variant = variant;
+    }
+    node.setAttribute('aria-label', `${node.querySelector('svg')!.getAttribute('aria-label')}, ${target.role}`);
   }
   function officer(playerId: string) { return model.snapshot?.scores.find(score => score.playerId === playerId)?.nickname ?? 'Departed officer'; }
   function tracker(node: HTMLOListElement, campaign: CampaignState) {
@@ -292,7 +295,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     briefing.querySelector<HTMLElement>('[data-campaign-title]')!.textContent = CAMPAIGN_TITLE;
     briefing.querySelector<HTMLElement>('.fo-campaign-number')!.textContent = `${campaign.dispatchIndex === 0 && campaign.outcomes.length === 0 && model.snapshot?.phase === 'lobby' ? 'NEW CAMPAIGN · ' : ''}DISPATCH ${String(campaign.dispatchIndex + 1).padStart(2, '0')} / 10 · ${target.isBoss ? 'RINGLEADER' : 'CREW FILE'}`;
     for (const scope of [briefing, campaignResolution]) {
-      portrait(scope.querySelector<HTMLElement>('.fo-campaign-portrait')!, target);
+      portrait(scope.querySelector<HTMLElement>('.fo-campaign-portrait')!, target, scope === briefing ? 'briefing' : resolution?.outcome ?? 'escaped');
       scope.querySelector<HTMLElement>('[data-campaign-name]')!.textContent = target.name;
       scope.querySelector<HTMLElement>('[data-campaign-alias]')!.textContent = `“${target.alias}”`;
       scope.querySelector<HTMLElement>('.fo-campaign-role')!.textContent = target.role;
@@ -321,7 +324,9 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     const connections = campaignResolution.querySelector<HTMLElement>('.fo-campaign-connections')!; connections.hidden = !complete;
     const bosses = campaignResolution.querySelector<HTMLElement>('.fo-campaign-bosses')!;
     bosses.replaceChildren(...(complete ? CAMPAIGN_BOSSES.filter(boss => allOutcomes.some(outcome => CAMPAIGN_DISPATCHES[outcome.dispatchIndex]!.targetId === boss.id)).map(boss => {
-      const node = doc.createElement('article'); node.className = 'fo-campaign-boss'; const image = doc.createElement('div'); image.className = 'fo-campaign-portrait'; image.setAttribute('role', 'img'); portrait(image, boss);
+      const node = doc.createElement('article'); node.className = 'fo-campaign-boss'; const image = doc.createElement('div'); image.className = 'fo-campaign-portrait'; image.setAttribute('role', 'img');
+      const outcome = allOutcomes.find(outcome => CAMPAIGN_DISPATCHES[outcome.dispatchIndex]!.targetId === boss.id)!;
+      portrait(image, boss, outcome.outcome);
       const name = doc.createElement('strong'), role = doc.createElement('span'); name.textContent = boss.name; role.textContent = `“${boss.alias}” · ${boss.role}`; node.append(image, name, role); return node;
     }) : []));
     if (hasResult()) {
