@@ -2,7 +2,7 @@ import type { CollisionMap, DispatchDrivingContext, DriverActions, DriverRuntime
 import { FIXED_DELTA, normalizeGameplay, type SimulationConfig } from '../core/config.js';
 import { box, clamp, nearPolygon, overlap, pointInPolygon, wrapAngle, HALF_LENGTH, HALF_WIDTH, type Point } from '../physics/geometry.js';
 import { tuningForVehicle } from './profiles.js';
-import { ROAD_GADGET_RULES } from '@fender/contracts';
+import { ROAD_GADGET_RULES, WINTER_ROAD_RULES } from '@fender/contracts';
 
 export const neutralActions = (): DriverActions => ({ steer: 0, throttle: 0, brakeReverse: 0, handbrake: false, fire: false, sirenToggle: false, recover: false });
 export const newDriver = (): DriverRuntimeState => ({ resolvedSteering: 0, reverseHoldTicks: 0, nextFireTick: 0, shotOrdinal: 0, nextRecoveryTick: 0, lastDamageTick: null, recoilStrength: 0, simulatedTick: 0 });
@@ -29,12 +29,18 @@ export function driveVehicle(vehicle: VehicleState, driver: DriverRuntimeState, 
   let forward = vehicle.velocity.x * fx + vehicle.velocity.z * fz;
   let side = vehicle.velocity.x * rx + vehicle.velocity.z * rz;
   const oiled = vehicle.protectedUntilTick <= (driver.simulatedTick ?? 0) && context?.oilSlicks?.some(slick => slick.ownerEntityId !== vehicle.entityId && Math.hypot(vehicle.pose.x - slick.pose.x, vehicle.pose.z - slick.pose.z) < slick.radius);
-  const surface = surfaceAt(map, vehicle.pose), gripScale = (surface === 'dirt' ? 0.62 : surface === 'grass' ? 0.42 : 1) * (oiled ? ROAD_GADGET_RULES.oilGrip : context?.wetRoads && map.wetSurfaces?.some(zone => { const points: Point[] = []; for (let i=0;i<zone.polygonXZ.length;i+=2) points.push({x:zone.polygonXZ[i]!,z:zone.polygonXZ[i+1]!}); return pointInPolygon(vehicle.pose, points); }) ? .75 : 1);
+  const surface = surfaceAt(map, vehicle.pose);
+  const wet = context?.wetRoads && map.wetSurfaces?.some(zone => { const points: Point[] = []; for (let i=0;i<zone.polygonXZ.length;i+=2) points.push({x:zone.polygonXZ[i]!,z:zone.polygonXZ[i+1]!}); return pointInPolygon(vehicle.pose, points); });
+  const winter = context?.winterRoads === true;
+  const roadGrip = winter ? (wet ? WINTER_ROAD_RULES.frozenGrip : WINTER_ROAD_RULES.snowGrip) : oiled ? ROAD_GADGET_RULES.oilGrip : wet ? .75 : 1;
+  const gripScale = (surface === 'dirt' ? .62 : surface === 'grass' ? .42 : 1) * roadGrip;
+  const driveScale = winter ? (wet ? WINTER_ROAD_RULES.frozenDrive : WINTER_ROAD_RULES.snowDrive) : 1;
+  const brakeScale = winter ? (wet ? WINTER_ROAD_RULES.frozenBrake : WINTER_ROAD_RULES.snowBrake) : 1;
   if (actions.brakeReverse > 0.05) {
-    if (forward > 0.5) { forward = Math.max(0, forward - tune.braking * actions.brakeReverse * dt); driver.reverseHoldTicks = 0; }
-    else { driver.reverseHoldTicks++; if (driver.reverseHoldTicks >= tune.reverseHoldTicks) forward -= tune.reverseAcceleration * actions.brakeReverse * dt; }
-  } else { driver.reverseHoldTicks = 0; forward += tune.acceleration * actions.throttle * dt; }
-  if (actions.handbrake) forward -= Math.sign(forward) * Math.min(Math.abs(forward), tune.handbrakeDecel * dt);
+    if (forward > 0.5) { forward = Math.max(0, forward - tune.braking * actions.brakeReverse * dt * brakeScale); driver.reverseHoldTicks = 0; }
+    else { driver.reverseHoldTicks++; if (driver.reverseHoldTicks >= tune.reverseHoldTicks) forward -= tune.reverseAcceleration * actions.brakeReverse * dt * driveScale; }
+  } else { driver.reverseHoldTicks = 0; forward += tune.acceleration * actions.throttle * dt * driveScale; }
+  if (actions.handbrake) forward -= Math.sign(forward) * Math.min(Math.abs(forward), tune.handbrakeDecel * dt * brakeScale);
   forward *= Math.exp(-tune.drag * dt);
   forward = clamp(forward, -tune.reverseSpeed, tune.maxSpeed * (surface === 'grass' ? 0.65 : 1));
   // Steering lock shrinks with speed so full stick is usable on the highway.

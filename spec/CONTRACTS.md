@@ -1,12 +1,14 @@
 # Shared contracts
 
-Status: semantic contract reference for the integrated alpha (`arcade-v17` gameplay, protocol 5, map `sunset-borough-3`). Updated: 2026-10-26. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+Status: semantic contract reference for the local alpha (`arcade-v18` gameplay, protocol 5, map `sunset-borough-3`). Updated: 2026-10-26. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
 
 *The contracts are the traffic lights. Please resist interpreting red as an optional decoration.*
 
 This document defines cross-lane semantics and remaining acceptance expectations. Examples describe semantic TypeScript types, not the compact snapshot wire encoding or installed SDK API. Consumers use the package's public exports; additional validators and the complete proposed fixture catalog remain unfinished rather than implied by these examples.
 
 ## Campaign extension
+
+`arcade-v18` adds optional `DispatchDrivingContext.winterRoads`, derived from campaign index 8 by `getDispatchFeatures`. Omitted values preserve dry/wet legacy handling. The shared controller applies `WINTER_ROAD_RULES` to every car, including protection periods: snow/frozen-water grip 0.16/0.035, braking 0.20/0.06 and acceleration 0.65/0.28. Existing wet polygons select the extra-slick ice; oil cannot raise grip. Authority, client prediction and checkpoints use the same rules. No wire, input or map shape changes are needed; protocol 5/map `sunset-borough-3` remain. Matching gameplay clients are required, and `arcade-v17` is rejected. Rendering derives snow/frozen water from the same dispatch catalog and never claims physical authority.
 
 `arcade-v17` adds `DriverActions.deploy?: 'bomb' | 'oil' | 'blades'`, the same optional touch deployment intent, and `DriverRuntimeState.nextDeployTick?` for the shared manual cooldown. Invalid deployment enum values are rejected. Room-derived feature flags unlock police guns/bombs/oil/blades in dispatches 3/5/8/9, after their suspect introductions in 2/3/6/7. No client supplies damage, landing coordinates, cooldown or outcomes. The authority derives placement, validates phase/protection/obstruction/cooldown and publishes existing grenade/gadget states for peers and late joins. Protocol 5 and map `sunset-borough-3` remain; matching gameplay builds are required.
 

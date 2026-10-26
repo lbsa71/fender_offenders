@@ -179,7 +179,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   function updateTutorial(){
     const campaign=model.snapshot?.campaign,features=campaign?getDispatchFeatures(campaign.dispatchIndex):null,guns=features?.gunsEnabled??Boolean(model.snapshot);
     touchControls.setGunsEnabled(guns);touchControls.setWeaponsEnabled(features??{});
-    const reminder=currentReminder(),device=controlDevice(),hints=controlHints(device,settings.bindings,guns,features??{}),key=JSON.stringify({device,hints,reminder});
+    controls.classList.toggle('fo-snow-controls',features?.winterRoads===true);
+    const reminder=features?.winterRoads?'SNOW + ICE: brake early. Frozen puddles are even slicker. Steer gently.':currentReminder(),device=controlDevice(),hints=controlHints(device,settings.bindings,guns,features??{}),key=JSON.stringify({device,hints,reminder});
     if(key!==controlKey){controlKey=key;controls.replaceChildren(controlGraphics(doc,hints,device));if(reminder){const tip=doc.createElement('p');tip.dataset.controlLesson='';tip.textContent=reminder;controls.append(tip);}const tip=doc.createElement('small');tip.className='fo-tutorial-dismiss';tip.textContent=(device==='gamepad'?'MENU':'ESC')+' → CONTROLS HELP · HIDES AFTER 8 SECONDS';controls.append(tip);}
     for(const [action,enabled] of [['fire',guns],['bomb',features?.bombsEnabled],['oil',features?.oilEnabled],['blades',features?.bladesEnabled]]){const button=one(`[data-binding="${action}"]`);if(button.parentElement)button.parentElement.hidden=!enabled;}
     const cooldown=Math.max(0,Math.ceil(((model.snapshot?.local?.driver.nextDeployTick??0)-(model.snapshot?.serverTick??0))/60));

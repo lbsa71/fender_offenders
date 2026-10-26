@@ -1,6 +1,6 @@
 # Product specification
 
-Status: product baseline for the integrated `arcade-v17` alpha and remaining release acceptance. Updated: 2026-10-26 for longer avenues and suspect road gadgets. [Execution status](EXECUTION_STATUS.md) records dated evidence; requirements below do not imply completed acceptance.
+Status: product baseline for the local `arcade-v18` alpha and remaining release acceptance. Updated: 2026-10-26 for the snow dispatch, retaining longer avenues and suspect road gadgets. [Execution status](EXECUTION_STATUS.md) records dated evidence; requirements below do not imply completed acceptance.
 
 *Ten dispatches. Six cars. One district with a very relaxed attitude toward insurance premiums.*
 
@@ -170,3 +170,5 @@ Settings expose persisted Automatic, Touch, Controller and Keyboard schemes. Aut
 MMO infrastructure, realistic vehicle simulation, destructible buildings, humanoid combat, real vehicle branding, cross-session campaign saves, voice chat, public user-generated content, split screen, native mobile packages, and a custom rendering engine are outside scope. Generic browser touch controls, browser-local callsigns, garage and settings are implemented; campaign progress remains in memory. Changes to these assumptions require a product/architecture decision and updated task dependencies. The city council has declined to fund an MMO this quarter.
 
 The [staged tutorial](TUTORIAL.md) specifies persistent device-aware control icons, authoritative arrest guidance, dual garage previews, the dispatch-2 gun unlock, dispatch-3 bomb warning and dispatch-4 slippery puddles. Tutorial state is shared by the room.
+
+Dispatch 9 is a snow chase through the same district. Roads, ground, roofs, tree tops, street furniture and car tops visibly collect snow, with blue packed roads and frozen puddles retaining route/hazard contrast. All vehicles get pronounced ice handling; frozen authored water has still less grip/braking. Early braking and gentle counter-steering are taught beside all retained weapon controls. Falling flakes are bounded and optional under reduced motion; static winter cover and physics remain. The next dispatch thaws the district. This local acceptance does not imply human difficulty or minimum-device performance approval.

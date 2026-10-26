@@ -21,6 +21,7 @@ export class WetSurfaces {
   private readonly borderMaterial: StandardMaterial;
   time = 0;
   ripples = true;
+  frozen = false;
   reflection: MirrorTexture | null = null;
   private reflectionActive = false;
   private disposed = false;
@@ -62,14 +63,18 @@ export class WetSurfaces {
       }
     }
   }
+  setFrozen(frozen:boolean):void {
+    if(this.disposed||this.frozen===frozen)return;
+    this.frozen=frozen;this.material.albedoColor=Color3.FromHexString(frozen?'#bad6e3':'#155762');this.material.roughness=frozen?.28:.16;
+  }
   update(dt: number, quality: 'low' | 'medium' | 'high', reducedMotion: boolean): void {
     if (this.disposed) return;
-    this.ripples = quality !== 'low';
+    this.ripples = !this.frozen && quality !== 'low';
     if (!reducedMotion && this.ripples) this.time += Math.max(0, Math.min(.1, dt));
     const camera = this.scene.activeCamera;
     const planes = camera ? Frustum.GetPlanes(camera.getViewMatrix().multiply(camera.getProjectionMatrix())) : [];
     const visible = camera ? this.meshes.filter(mesh => mesh.isEnabled() && mesh.isVisible && mesh.isInFrustum(planes)) : [];
-    this.reflectionActive = visible.length > 0;
+    this.reflectionActive = !this.frozen && visible.length > 0;
     if (!this.reflectionActive) {
       const index = this.reflection ? this.scene.customRenderTargets.indexOf(this.reflection) : -1;
       if (index >= 0) this.scene.customRenderTargets.splice(index, 1);
@@ -94,7 +99,7 @@ export class WetSurfaces {
         box.maximumWorld.z > surface.position.z - 35 && box.minimumWorld.z < surface.position.z + 35);
     });
   }
-  getStats() { return { waterSurfaces: this.disposed ? 0 : this.meshes.filter(m=>m.isEnabled()).length, waterTime: this.time, waterRipples: this.ripples, waterReflectionPasses: this.reflectionActive && !this.disposed ? 1 : 0 }; }
+  getStats() { return { waterFrozen:this.frozen, waterSurfaces: this.disposed ? 0 : this.meshes.filter(m=>m.isEnabled()).length, waterTime: this.time, waterRipples: this.ripples, waterReflectionPasses: this.reflectionActive && !this.disposed ? 1 : 0 }; }
   dispose(): void { if (this.disposed) return; this.disposed = true; this.reflection?.dispose(); for (const mesh of [...this.meshes, ...this.borders]) mesh.dispose(); this.material.dispose(); this.borderMaterial.dispose(); }
 }
 
@@ -102,7 +107,7 @@ class WaterFinish extends MaterialPluginBase {
   private readonly sky = new Color3();
   constructor(material: PBRMaterial, private water: WetSurfaces) { super(material, 'ShallowWaterFinish', 200, { FENDER_SHALLOW_WATER: true }, true, true); }
   override getSamplers(samplers: string[]): void { samplers.push('waterReflectionSampler'); }
-  override getUniforms() { return { externalUniforms: ['waterTime', 'waterSkyColor', 'waterBounds', 'waterRectangular', 'waterViewProjection', 'waterReflectionReady'] }; }
+  override getUniforms() { return { externalUniforms: ['waterTime', 'waterSkyColor', 'waterBounds', 'waterRectangular', 'waterViewProjection', 'waterReflectionReady','waterFrozen'] }; }
   override bindForSubMesh(_buffer: UniformBuffer, scene: Scene, _engine: AbstractEngine, mesh: SubMesh): void {
     const surface = mesh.getRenderingMesh(), box = surface.getBoundingInfo().boundingBox;
     this.sky.set(scene.clearColor.r, scene.clearColor.g, scene.clearColor.b).toLinearSpaceToRef(this.sky);
@@ -112,25 +117,28 @@ class WaterFinish extends MaterialPluginBase {
     mesh.effect?.setFloat('waterTime', this.water.time);
     mesh.effect?.setMatrix('waterViewProjection', scene.getTransformMatrix());
     mesh.effect?.setTexture('waterReflectionSampler', this.water.reflection);
-    mesh.effect?.setFloat('waterReflectionReady', this.water.getStats().waterReflectionPasses);
+    mesh.effect?.setFloat('waterReflectionReady', this.water.getStats().waterReflectionPasses);mesh.effect?.setFloat('waterFrozen',this.water.frozen?1:0);
   }
   override getCustomCode(shaderType: string) {
     if (shaderType !== 'fragment') return null;
     return {
       CUSTOM_FRAGMENT_DEFINITIONS: `uniform float waterTime;
         uniform vec3 waterSkyColor; uniform vec4 waterBounds; uniform float waterRectangular;
-        uniform mat4 waterViewProjection; uniform sampler2D waterReflectionSampler; uniform float waterReflectionReady;`,
+        uniform mat4 waterViewProjection; uniform sampler2D waterReflectionSampler; uniform float waterReflectionReady; uniform float waterFrozen;`,
       CUSTOM_FRAGMENT_BEFORE_LIGHTS: `
         float waveA = dot(vPositionW.xz, vec2(3.8, 1.4)) + waterTime * 0.9;
         float waveB = dot(vPositionW.xz, vec2(-2.7, 5.1)) - waterTime * 0.7;
         float waveC = dot(vPositionW.xz, vec2(7.2, 4.3)) + waterTime * 1.1;
         vec2 waterSlope = vec2(3.8, 1.4) * cos(waveA) * 0.025
           + vec2(-2.7, 5.1) * cos(waveB) * 0.014 + vec2(7.2, 4.3) * cos(waveC) * 0.006;
+        waterSlope *= 1.0-waterFrozen;
         normalW = normalize(vec3(-waterSlope.x, 1.0, -waterSlope.y));
         vec2 waterLocal = abs((vPositionW.xz - waterBounds.xy) / waterBounds.zw);
         float shoreDistance = mix(length(waterLocal), max(waterLocal.x, waterLocal.y), waterRectangular);
         float shallowEdge = smoothstep(0.5, 1.0, shoreDistance);
-        surfaceAlbedo = mix(surfaceAlbedo, vec3(0.22, 0.43, 0.36), shallowEdge * 0.65);
+        surfaceAlbedo = mix(surfaceAlbedo, vec3(0.22, 0.43, 0.36), shallowEdge * 0.65 * (1.0-waterFrozen));
+        float iceCrack=pow(max(0.0,1.0-abs(sin(vPositionW.x*1.7+sin(vPositionW.z*0.8)*2.5))),28.0);
+        surfaceAlbedo=mix(surfaceAlbedo,mix(vec3(0.57,0.75,0.87),vec3(0.88,0.95,1.0),iceCrack),waterFrozen);
       `,
       CUSTOM_FRAGMENT_BEFORE_FOG: `
         vec3 reflectedScene = waterSkyColor;
@@ -141,9 +149,9 @@ class WaterFinish extends MaterialPluginBase {
           reflectedScene = pow(texture2D(waterReflectionSampler, clamp(reflectionUV, 0.001, 0.999)).rgb, vec3(2.2));
         }
         float waterFresnel = pow(1.0 - clamp(dot(normalW, viewDirectionW), 0.0, 1.0), 5.0);
-        finalColor.rgb = mix(finalColor.rgb, reflectedScene, 0.48 + waterFresnel * 0.42);
+        finalColor.rgb = mix(finalColor.rgb, reflectedScene, (0.48 + waterFresnel * 0.42)*(1.0-waterFrozen));
         float crease = pow(max(0.0, sin(waveA) * 0.65 + sin(waveB) * 0.35), 12.0);
-        finalColor.rgb += waterSkyColor * crease * 0.12 * (1.0 - shallowEdge * 0.4);
+        finalColor.rgb += waterSkyColor * crease * 0.12 * (1.0 - shallowEdge * 0.4)*(1.0-waterFrozen);
       `,
     };
   }

@@ -1,6 +1,6 @@
 # Architecture
 
-Status: architecture and acceptance targets for the integrated `arcade-v17` / protocol 5 alpha. Updated: 2026-10-26 for continuous local driving, longer avenues and bounded road gadgets. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
+Status: architecture and acceptance targets for the local `arcade-v18` / protocol 5 alpha. Updated: 2026-10-26 for winter handling/surfaces, retaining continuous local driving, longer avenues and bounded road gadgets. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
 
 *One authority drives the rules. Everyone else gets a dashboard, not a spare steering wheel.*
 
@@ -225,3 +225,5 @@ These references are background, not a dependency lock or a fresh compatibility 
 Dispatch capabilities derive from the shared catalog and authoritative campaign index. Simulation and prediction receive the same gun/wet-road context; the renderer consumes matching gun fittings and water footprints. Pursuit contenders publish their eligibility guidance alongside progress. See [tutorial rules and acceptance](TUTORIAL.md).
 
 Police deployment uses the normalized optional bomb/oil/blades intent. The room derives unlocks and landing/footprint geometry, owns the shared cooldown and normal credited damage, and publishes the existing grenade/gadget states. Devices provide bindings or labeled touch buttons; help reflects all retained unlocks. The local drivetrain and protocol 5 contact ledger retain their continuous ownership.
+
+The local `arcade-v18` winter follow-up derives `winterRoads` from dispatch 9 in the shared features catalog. Authority and prediction apply the same strong tire-force, braking and drive reductions; authored wet footprints become still slicker. Presentation adds one reversible up-facing snow material plugin, one 128-flake particle system (64 active on low, none with reduced motion), and a shared 16×16 procedural alpha texture. A uniform distinguishes packed blue road snow from fresh white snow, avoiding per-material custom-code cache collisions. Glass, beacons, objective markers and hazard warnings keep their established materials. All six water surfaces become flat ice: no ripples, liquid spray/sound or scheduled water-reflection pass. The existing target is reused after thaw. No lights, collisions or camera passes are added.

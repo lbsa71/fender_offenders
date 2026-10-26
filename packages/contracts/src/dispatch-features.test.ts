@@ -20,3 +20,9 @@ it('unlocks every police weapon one or two dispatches after its suspect introduc
  for(let stage=7;stage<10;stage++)expect(getDispatchFeatures(stage).lesson).toContain('oil');
  for(let stage=8;stage<10;stage++)expect(getDispatchFeatures(stage).lesson).toContain('blades');
 });
+
+it('makes only dispatch nine snowy, explains ice and retains every police weapon reminder',()=>{
+ for(let stage=0;stage<10;stage++)expect(getDispatchFeatures(stage)).toHaveProperty('winterRoads',stage===8);
+ const winter=getDispatchFeatures(8);expect(winter.lesson).toMatch(/snow/i);expect(winter.lesson).toMatch(/puddles.*slicker/i);expect(winter.lesson).toMatch(/brake early/i);
+ for(const weapon of ['guns','bomb','oil','blades'])expect(winter.lesson).toContain(weapon);
+});

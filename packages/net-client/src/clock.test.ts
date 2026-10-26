@@ -738,3 +738,11 @@ it.each([false, true].flatMap(timed => [0, 8, 16, 24, 32].flatMap(flushPhase => 
     expect(session.sampleFrame()!.vehicles.find(car => car.entityId === 'local')!.velocity.yawRate).toBeGreaterThan(.01);
   } finally { clearInterval(authorityTimer); clearInterval(inputTimer); clearInterval(renderTimer); await session.dispose(); }
 });
+
+it('derives winter grip from a late-joined campaign snapshot without correcting the current local driver',async()=>{
+ vi.useFakeTimers({toFake:['setInterval','clearInterval','performance']});const source=unpackSnapshot(snapshot(100));source.campaign={campaignId:'green-light-racket-v1',dispatchIndex:8,status:'active',outcomes:[]};source.local!.vehicle.velocity={x:4,z:20,yawRate:0};source.vehicles=source.vehicles.map(v=>v.entityId==='local'?source.local!.vehicle:v);wire.initial=packSnapshot(source);const session=createOnlineSession('ws://clock-fixture',map);
+ try{await session.connect({roomId:crypto.randomUUID(),nickname:'Ice inspector'});let dry={vehicle:structuredClone(source.local!.vehicle),driver:structuredClone(source.local!.driver)};
+ for(let sequence=0;sequence<15;sequence++){vi.advanceTimersByTime(1000/60);session.submit({sessionEpoch:source.sessionEpoch,sequence,clientTick:sequence,actions:neutralActions()},performance.now());dry=predictVehicle(map,dry.vehicle,dry.driver,neutralActions(),[],undefined,101+sequence);}
+ expect(session.getStats().pendingInputs).toBe(15);expect(session.sampleFrame()!.vehicles.find(v=>v.entityId==='local')!.velocity.x).toBeGreaterThan(dry.vehicle.velocity.x+1.5);
+ }finally{await session.dispose();}
+});

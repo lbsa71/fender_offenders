@@ -192,3 +192,5 @@
 .fo-touch-deploy{display:flex;gap:6px}.fo-touch-deploy button{flex:1;min-width:0;border-radius:10px;font-size:9px!important;padding:7px 3px}.fo-touch-deploy:has(button:not([hidden])){min-height:44px}
 
 .fo-touch-deploy:empty{display:none}
+
+.fo-prompts[data-tutorial-controls].fo-snow-controls{width:330px;grid-template-columns:repeat(3,minmax(0,1fr))}

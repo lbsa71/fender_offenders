@@ -25,7 +25,8 @@ interface Previous { pose: Pose; life: number; distance: number; nextSpray: numb
 export class WaterCrossings {
   private previous = new Map<string, Previous>();
   private time = 0;
-  update(vehicles: readonly VehicleState[], dt: number): SplashCue[] {
+  update(vehicles: readonly VehicleState[], dt: number, frozen = false): SplashCue[] {
+    if(frozen){this.reset();return [];}
     const delta = Number.isFinite(dt) ? Math.max(0, Math.min(.1, dt)) : 0; this.time += delta;
     const cues: SplashCue[] = [], active = new Set<string>();
     for (const vehicle of vehicles.slice(0, 32)) {

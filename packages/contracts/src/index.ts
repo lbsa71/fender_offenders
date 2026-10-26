@@ -1,4 +1,4 @@
-export { getDispatchFeatures, DEFAULT_DRIVING_CONTEXT } from './dispatch-features';
+export { getDispatchFeatures, DEFAULT_DRIVING_CONTEXT, WINTER_ROAD_RULES } from './dispatch-features';
 export type { DispatchFeatures, DispatchDrivingContext } from './dispatch-features';
 export { ROAD_GADGET_RULES, withRoadGadgets } from './road-gadgets';
 export type { RoadGadgetState } from './road-gadgets';
@@ -8,7 +8,7 @@ export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v17';
+export const GAMEPLAY_REVISION = 'arcade-v18';
 export type { CampaignState, CampaignOutcome, DispatchOutcome, CampaignTarget, CampaignDispatch } from './campaign-types';
 export { CAMPAIGN_ID, CAMPAIGN_TITLE, CAMPAIGN_TARGETS, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, getCampaignTarget } from './campaign';
 export { getCampaignMugshot } from './campaign-mugshots';

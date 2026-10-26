@@ -30,3 +30,8 @@ it('shows every unlocked deploy control on all devices, retaining remapped keys 
 it('keeps the default bomb key distinct from the common remapped F gun key',()=>{
  const hints=controlHints('keyboard',{fire:['KeyF']},true,{bombsEnabled:true});expect(hints.find(h=>h.action==='fire')!.glyph).toBe('F');expect(hints.find(h=>h.action==='bomb')!.glyph).toBe('B');
 });
+
+it('keeps a tall unlocked-controls card clear of a suspect marker near the local car',()=>{
+ const target={x:.505,y:.67},card=placeControlCard({x:.513,y:.78},960,640,330,270,target);
+ const width=Math.max(0,Math.min(card.x+330,target.x*960+100)-Math.max(card.x,target.x*960-100));const height=Math.max(0,Math.min(card.y+270,target.y*640+50)-Math.max(card.y,target.y*640-50));expect(width*height).toBe(0);expect(card.x+330).toBeLessThanOrEqual(948);expect(card.y+270).toBeLessThanOrEqual(640);
+});
