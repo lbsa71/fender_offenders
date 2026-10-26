@@ -35,6 +35,23 @@ beforeEach(() => { vi.stubGlobal('AudioContext', Context); });
 afterEach(() => { vi.unstubAllGlobals(); Context.instances = []; });
 
 describe('original bounded slapstick audio', () => {
+  it('gives a moving water crossing a short noise wash and bubble tail, with speed and distance response', () => {
+    const audio = new MotorAudio(); audio.unlock(); const context = Context.instances[0]!;
+    const splash = Reflect.get(audio, 'splash') as (strength: number, volume?: number) => void;
+    expect(splash, 'water crossings need an original splash sound').toBeTypeOf('function');
+    const start = context.sources.length; splash.call(audio, 1);
+    const voices = context.sources.slice(start); expect(voices.some(n => n.kind === 'noise')).toBe(true); expect(voices.some(n => n.kind === 'oscillator')).toBe(true);
+    expect(voices.every(n => n.stopAt! > .1 && n.stopAt! < .5)).toBe(true);
+    voices.forEach(n => n.finish()); const next = context.nodes.length; splash.call(audio, .2, .2);
+    const quiet = context.nodes.slice(next).filter(n => n.kind === 'gain').flatMap(n => n.gain.values);
+    expect(Math.max(...quiet)).toBeLessThan(.02);
+    const count = context.sources.length; audio.muted = true; splash.call(audio, 1); audio.muted = false; audio.volume = 0; splash.call(audio, 1);
+    expect(context.sources).toHaveLength(count);
+    audio.volume = .55; context.sources.slice(2).forEach(n => n.finish()); const burst = context.sources.length;
+    for (let i = 0; i < 32; i++) splash.call(audio, 1);
+    expect(context.sources.length - burst).toBeGreaterThan(0); expect(context.sources.length - burst).toBeLessThanOrEqual(12);
+    audio.dispose(); expect(context.nodes.every(n => n.disconnected)).toBe(true);
+  });
   it('preserves short pitched boing and high squeak cues', () => {
     const audio = new MotorAudio(); audio.unlock(); const context = Context.instances[0]!, before = context.sources.length;
     audio.cartoon('boing'); audio.cartoon('squeak'); const cues = context.sources.slice(before);

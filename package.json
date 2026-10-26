@@ -28,7 +28,7 @@
     "start": "tsx apps/server/src/index.ts",
     "preview": "vite preview --host 127.0.0.1",
     "test:ui": "node packages/ui/dev/garage-smoke.mjs && node packages/ui/dev/pursuit-smoke.mjs && node packages/ui/dev/campaign-smoke.mjs && node packages/ui/dev/callsigns-smoke.mjs && node packages/ui/dev/briefing-smoke.mjs",
-    "test:water": "tsx packages/renderer/scenarios/water-visibility-check.ts && tsx packages/renderer/scenarios/water-finish-check.ts"
+    "test:water": "tsx packages/renderer/scenarios/water-visibility-check.ts && tsx packages/renderer/scenarios/water-finish-check.ts && tsx packages/renderer/scenarios/water-splash-check.ts"
   },
   "dependencies": {
     "@fender/contracts": "workspace:*",
