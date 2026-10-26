@@ -1,9 +1,11 @@
 <!doctype html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Music media adapter fixture</title></head>
-<body><p>MEDIA ADAPTER FIXTURE: local WAV test signals, not the supplied soundtrack.</p><button id="activate">Activate audio</button><script type="module">
+<body><p id="source">MEDIA ADAPTER FIXTURE: local WAV test signals, not the supplied soundtrack.</p><button id="activate">Activate audio</button><script type="module">
 import { MusicPlayer } from '../src/music.ts';
 const wav = name => new URL(`../../content/audio/patrol/${name}.wav`, import.meta.url).href;
-const music = new MusicPlayer({ titles: [wav('idle')], slow: wav('drive'), fast: wav('road') }, { root: document.body });
+const supplied = new URLSearchParams(location.search).get('tracks') === 'public';
+if (supplied) document.querySelector('#source').textContent = 'SUPPLIED MP3 SOUNDTRACK: public title, slow and fast tracks.';
+const music = new MusicPlayer(supplied ? __FENDER_MUSIC_TRACKS__ : { titles: [wav('idle')], slow: wav('drive'), fast: wav('road') }, { root: document.body });
 const settings = { masterVolume: .8, musicVolume: .5, muted: false };
 let state = { screen: 'title', speed: 0, topSpeed: 28 }, previous = performance.now();
 music.setSettings(settings);

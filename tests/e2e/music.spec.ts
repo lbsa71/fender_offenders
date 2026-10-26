@@ -1,5 +1,40 @@
 import { expect, test } from './fixtures';
 
+test('supplied MP3s stream, decode and follow speed, volume and pause controls', async ({ page }) => {
+  await page.goto(`/@fs/${process.cwd().replaceAll('\\', '/')}/packages/renderer/dev/music.html?tracks=public`);
+  const title = page.locator('audio[data-music-track="title"]');
+  const slow = page.locator('audio[data-music-track="slow"]');
+  const fast = page.locator('audio[data-music-track="fast"]');
+  await expect(title).toHaveAttribute('src', '/titles.mp3');
+  await expect(slow).toHaveAttribute('src', '/slow.mp3');
+  await expect(fast).toHaveAttribute('src', '/fast.mp3');
+  await page.getByRole('button', { name: 'Activate audio' }).click();
+  const playing = (audio: typeof title) => audio.evaluate((a: HTMLAudioElement) => !a.paused && a.error === null && a.readyState >= 2 && Number.isFinite(a.duration) && a.duration > 30 && a.currentTime > 0);
+  const level = (kind: string) => page.evaluate(kind => (window as any).musicFixture.music.getStats().tracks.find((track: any) => track.kind === kind).volume, kind);
+  await expect.poll(() => playing(title)).toBe(true);
+  await expect.poll(() => level('title')).toBeGreaterThan(.35);
+  expect(await title.evaluate((a: HTMLAudioElement) => a.playbackRate)).toBe(1);
+  await page.evaluate(() => (window as any).musicFixture.set({ screen: 'dispatch', speed: 0 }));
+  await expect.poll(() => playing(slow)).toBe(true);
+  await expect.poll(() => title.evaluate((a: HTMLAudioElement) => a.paused)).toBe(true);
+  await expect.poll(() => level('slow')).toBeGreaterThan(.35);
+  await page.evaluate(() => (window as any).musicFixture.set({ speed: 28 }));
+  await expect.poll(() => playing(fast)).toBe(true);
+  await expect.poll(() => fast.evaluate((a: HTMLAudioElement) => a.playbackRate > 1.1 && a.playbackRate <= 1.15 && a.preservesPitch)).toBe(true);
+  await expect.poll(() => level('fast')).toBeGreaterThan(.35);
+  await expect.poll(() => slow.evaluate((a: HTMLAudioElement) => a.paused)).toBe(true);
+  await page.evaluate(() => (window as any).musicFixture.mute(true));
+  expect(await fast.evaluate((a: HTMLAudioElement) => a.muted)).toBe(true);
+  expect(await level('fast')).toBe(0);
+  await page.evaluate(() => (window as any).musicFixture.mute(false));
+  await expect.poll(() => level('fast')).toBeGreaterThan(.35);
+  await page.evaluate(() => (window as any).musicFixture.set({ paused: true }));
+  await expect.poll(() => fast.evaluate((a: HTMLAudioElement) => a.paused)).toBe(true);
+  const position = await fast.evaluate((a: HTMLAudioElement) => a.currentTime);
+  await page.evaluate(() => (window as any).musicFixture.set({ paused: false }));
+  await expect.poll(() => fast.evaluate((a: HTMLAudioElement) => !a.paused && a.currentTime > position)).toBe(true);
+});
+
 test('real browser media decodes, crossfades, changes tempo, mutes and resumes', async ({ page }) => {
   await page.goto(`/@fs/${process.cwd().replaceAll('\\', '/')}/packages/renderer/dev/music.html`);
   const title = page.locator('audio[data-music-track="title"]');
