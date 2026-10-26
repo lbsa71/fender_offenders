@@ -11,7 +11,7 @@ const chrome = process.env.CHROME_PATH ?? 'C:\\Program Files\\Google\\Chrome\\Ap
 const browser = await chromium.launch(existsSync(chromium.executablePath()) ? {} : { executablePath: chrome });
 const failures = [], errors = [], check = (condition, message) => { if (!condition) failures.push(message); };
 try {
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } }); page.on('pageerror', error => errors.push(error.message));
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' }); page.on('pageerror', error => errors.push(error.message));
   await page.goto('http://127.0.0.1:5188/packages/ui/dev/campaign.html'); await page.getByRole('textbox', { name: 'YOUR CALLSIGN', exact: true }).fill('Officer Rookie'); await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
   const set = options => page.evaluate(options => window.campaignFixture.set(options), options);
   const text = selector => page.locator(selector).evaluateAll(nodes => nodes[0]?.textContent ?? '');

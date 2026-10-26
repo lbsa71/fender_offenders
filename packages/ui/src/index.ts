@@ -1,6 +1,7 @@
 import { getDispatchFeatures, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, CAMPAIGN_TITLE, getBossTactics, getCampaignMugshot, getCampaignTarget, getVehicleProfile, isInviteCode, isVehicleBodyId, randomCallsign, sanitizeNickname, VEHICLE_BODIES, type CampaignState, type CampaignTarget, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
 import './style.css';
 import { controlHints, placeControlCard } from './tutorial';
+import { vehicleStats } from './vehicle-stats';
 
 export type MenuAction = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back' | 'pause';
 export type Menu = 'home' | 'pause' | 'settings' | null;
@@ -111,7 +112,6 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const objectiveTitle=one<HTMLElement>('[data-text="pursuit"]');objectiveTitle.dataset.objectiveTitle='';arrestHelp.dataset.objectiveInstruction='';
   const markerGuidance=doc.createElement('span');markerGuidance.className='fo-marker-guidance';
   const markerProgress=doc.createElement('progress');markerProgress.max=1;markerProgress.setAttribute('aria-label','Your arrest progress at suspect');targetBadge.append(markerGuidance,markerProgress);
-  const previewLabels=doc.createElement('div');previewLabels.className='fo-preview-labels';previewLabels.hidden=true;previewLabels.innerHTML='<span>YOUR UNIT</span><span>WANTED</span>';shell.append(previewLabels);
   let controlAnchor:{x:number;y:number}|null=null,badgeAnchor:{x:number;y:number}|null=null,controlKey='',controlWidth=252,controlHeight=116,shellWidth=view?.innerWidth??960,shellHeight=view?.innerHeight??720;
   const controlObserver=typeof ResizeObserver==='undefined'?null:new ResizeObserver(entries=>{for(const entry of entries){if(entry.target===shell){shellWidth=entry.contentRect.width;shellHeight=entry.contentRect.height;}else if(entry.contentRect.width){controlWidth=entry.borderBoxSize[0]?.inlineSize??entry.contentRect.width;controlHeight=entry.borderBoxSize[0]?.blockSize??entry.contentRect.height;}}positionControls();});
   controlObserver?.observe(shell);controlObserver?.observe(controls);
@@ -129,13 +129,13 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const resultOutcome = doc.createElement('p'); resultOutcome.className = 'fo-result-outcome'; resultOutcome.hidden = true; one('.fo-results h2').after(resultOutcome);
   one('.fo-home .fo-muted').textContent = 'Ten connected dispatches. Arrest suspects or stop their getaway cars.';
   one('.fo-home [data-action="practice"] small').textContent = 'Play. Share the URL anytime.';
-  const garage = doc.createElement('section'); garage.className = 'fo-garage'; garage.setAttribute('aria-label', 'Assigned vehicle garage');
-  garage.innerHTML = `<div class="fo-garage-heading"><span class="fo-kicker">CITY MOTOR POOL / YOUR ASSIGNED UNIT</span><h1>TAKE THE KEYS.</h1><h2 data-text="vehicle-name"></h2><span class="fo-vehicle-role" data-text="vehicle-role"></span></div><div class="fo-garage-card"><div class="fo-garage-stats"><div><span>ARMOR</span><strong data-text="vehicle-armor"></strong></div><div><span>TOP SPEED</span><strong data-text="vehicle-speed"></strong></div><div><span>ACCELERATION</span><meter aria-label="Vehicle acceleration" min="0" max="1" value="0"></meter></div><div><span>HANDLING</span><meter aria-label="Vehicle handling" min="0" max="1" value="0"></meter></div></div><p data-text="vehicle-description"></p><button type="button" data-action="reassign">REASSIGN VEHICLE</button><span class="fo-garage-note">LUCK OF THE MOTOR POOL. MAKE IT YOURS.</span></div>`;
+  const garage = doc.createElement('section'); garage.className = 'fo-garage'; garage.setAttribute('aria-label', 'Vehicle comparison');
+  garage.innerHTML = `<header class="fo-garage-heading"><span class="fo-kicker">DISPATCH LINEUP / PURSUIT PREVIEW</span><h1>ON THEIR TAIL.</h1></header><div class="fo-vehicle-comparison"><article class="fo-garage-card" data-vehicle-comparison="unit"><span class="fo-kicker">YOUR UNIT</span><h2 data-text="vehicle-name"></h2><span class="fo-vehicle-role" data-text="vehicle-role"></span><div class="fo-garage-stats"><div><span>ARMOR</span><strong data-text="vehicle-armor"></strong></div><div><span>TOP SPEED</span><strong data-text="vehicle-speed"></strong></div><div><span>ACCELERATION</span><meter aria-label="Vehicle acceleration" min="0" max="1" value="0"></meter></div><div><span>HANDLING</span><meter aria-label="Vehicle handling" min="0" max="1" value="0"></meter></div></div><p data-text="vehicle-description"></p><button type="button" data-action="reassign">REASSIGN VEHICLE</button></article><article class="fo-garage-card fo-suspect-card" data-vehicle-comparison="suspect"><span class="fo-kicker">SUSPECT CAR</span><h2 data-text="suspect-vehicle-name"></h2><span class="fo-vehicle-role" data-text="suspect-vehicle-role"></span><div class="fo-garage-stats"><div><span>ARMOR</span><strong data-text="suspect-vehicle-armor"></strong></div><div><span>TOP SPEED</span><strong data-text="suspect-vehicle-speed"></strong></div><div><span>ACCELERATION</span><meter aria-label="Suspect acceleration" min="0" max="1" value="0"></meter></div><div><span>HANDLING</span><meter aria-label="Suspect handling" min="0" max="1" value="0"></meter></div></div><p data-text="suspect-vehicle-description"></p><span class="fo-garage-note">MATCH THEIR SPEED. MAKE THE ARREST.</span></article></div>`;
   shell.append(garage);
   const briefing = doc.createElement('section'); briefing.className = 'fo-campaign-briefing'; briefing.hidden = true; briefing.setAttribute('aria-label', 'Campaign dispatch briefing');
   briefing.innerHTML = '<header><span class="fo-kicker">MAJOR CASE / MOTOR DIVISION</span><h2 data-campaign-title></h2><span class="fo-campaign-number"></span></header><div class="fo-campaign-scroll"><div class="fo-campaign-target"><div class="fo-campaign-portrait" role="img"></div><div><span class="fo-campaign-role"></span><h3 data-campaign-name></h3><strong data-campaign-alias></strong><span data-campaign-target-car></span></div></div><h3 class="fo-campaign-dispatch-title"></h3><p data-campaign-briefing></p><section class="fo-campaign-progress"><h3>DISPATCH TRACKER / 10 FILES</h3><ol class="fo-campaign-tracker"></ol></section><details class="fo-campaign-evidence"><summary>CASE FILE / EARNED LEADS</summary><ol class="fo-campaign-casefile"></ol><p class="fo-campaign-no-evidence">No leads filed yet. Resolve this dispatch to unseal the next clue.</p></details></div><footer><button class="fo-primary" data-action="campaign-start">START DISPATCH →</button><span class="fo-campaign-wait" hidden>RECONNECT TO CONTINUE</span><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button></footer>';
   shell.append(briefing);
-  const lesson=doc.createElement('section');lesson.className='fo-tutorial-lesson';lesson.dataset.tutorialLesson='';lesson.setAttribute('role','status');lesson.setAttribute('aria-live','polite');lesson.innerHTML='<strong></strong><p></p>';briefing.querySelector('.fo-campaign-scroll')!.prepend(lesson);
+  const lesson=doc.createElement('section');lesson.className='fo-tutorial-lesson';lesson.dataset.tutorialLesson='';lesson.setAttribute('role','status');lesson.setAttribute('aria-live','polite');lesson.innerHTML='<strong></strong><p></p>';
   let lessonKey='';
   const campaignRoster = doc.createElement('section'); campaignRoster.className = 'fo-campaign-roster'; campaignRoster.hidden = true;
   campaignRoster.innerHTML = '<h3>UNITS ON THIS CASE</h3><div class="fo-score-head"><span aria-hidden="true">#</span><span>UNIT</span><span>PING / ms</span><span>PTS</span></div><ol></ol>';
@@ -143,6 +143,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const tacticsCard = doc.createElement('section'); tacticsCard.className = 'fo-campaign-tactics'; tacticsCard.dataset.campaignTactics = ''; tacticsCard.setAttribute('aria-label', 'Target tactics and counterplay');
   tacticsCard.innerHTML = '<span class="fo-kicker" data-tactics-rank></span><h4 data-tactics-label></h4><div class="fo-tactics-meta"><span data-tactics-style></span><span data-tactics-weapon></span></div><label class="fo-tactics-difficulty"><span></span><meter min="1" max="10" value="1" aria-label="Target difficulty"></meter></label><p data-tactics-description></p>';
   briefing.querySelector('.fo-campaign-target')!.after(tacticsCard);
+  briefing.querySelector('.fo-campaign-target')!.after(lesson);
   const campaignResolution = doc.createElement('section'); campaignResolution.className = 'fo-campaign-resolution'; campaignResolution.hidden = true; campaignResolution.setAttribute('aria-label', 'Campaign dispatch resolution');
   campaignResolution.innerHTML = '<h3 class="fo-campaign-resolution-label"></h3><div class="fo-campaign-target"><div class="fo-campaign-portrait" role="img"></div><div><span class="fo-campaign-role"></span><h3 data-campaign-name></h3><strong data-campaign-alias></strong></div></div><ol class="fo-campaign-tracker"></ol><section class="fo-campaign-connections" hidden><h3>FOUR RINGLEADERS. ONE RACKET.</h3><div class="fo-campaign-bosses"></div></section><section class="fo-campaign-evidence"><h3>CASE FILE / EARNED LEADS</h3><ol class="fo-campaign-casefile"></ol><p class="fo-campaign-no-evidence">No new evidence. The suspect escaped; retry this dispatch.</p></section>';
   resultOutcome.after(campaignResolution);
@@ -291,20 +292,33 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if (targetBadge.getAttribute('aria-label') !== accessible) targetBadge.setAttribute('aria-label', accessible);
   }
   function setTargetIndicator(indicator: TargetIndicator | null) { targetIndicator = indicator; updateTargetBadge(); }
-  const canReassign = () => !pending && (menu === 'home' && !model.snapshot || menu === null && lobby() && ['lobby', 'playing'].includes(statusName(model.status)));
+  const canReassign = () => !pending && menu === null && lobby() && ['lobby', 'playing'].includes(statusName(model.status));
   function visibleControls() { return all<HTMLButtonElement | HTMLInputElement | HTMLSelectElement | HTMLElement>('button,input,select,summary').filter(node => !node.closest('[hidden]') && !(node as HTMLButtonElement).disabled && (!node.closest('.fo-hud') || lobby() && node.matches('[data-action="start"],[data-action="invite"]')) && !node.closest('.fo-top')); }
   function updateGarage() {
-    const visible = menu === 'home' && !model.snapshot || menu === null && lobby();
-    garage.hidden = !visible;previewLabels.hidden=!visible||!model.snapshot?.campaign;
+    const visible = menu === null && lobby();
+    garage.hidden = !visible;
     shell.classList.toggle('fo-in-garage', visible);
     shell.classList.toggle('fo-lobby', visible && lobby());
     garage.dataset.vehicle = vehicle;
-    const profile = getVehicleProfile(vehicle);
+    const profile = vehicleStats(vehicle, model.snapshot?.local?.vehicle);
     write('vehicle-name', profile.name); write('vehicle-role', profile.role);
-    write('vehicle-armor', `${profile.maxHealth} HP`); write('vehicle-speed', `${Math.round(profile.topSpeed * 3.6)} KM/H`);
+    write('vehicle-armor', `${profile.maxHealth} HP`); write('vehicle-speed', `${profile.speedKmh} KM/H`);
     write('vehicle-description', profile.description);
-    one<HTMLMeterElement>('[aria-label="Vehicle acceleration"]').value = Math.min(1, profile.acceleration / 24);
-    one<HTMLMeterElement>('[aria-label="Vehicle handling"]').value = Math.min(1, profile.steeringRate / 2.6 * Math.sqrt(profile.grip / 10));
+    one<HTMLMeterElement>('[aria-label="Vehicle acceleration"]').value = profile.accelerationMeter;
+    one<HTMLMeterElement>('[aria-label="Vehicle handling"]').value = profile.handlingMeter;
+    const campaign = model.snapshot?.campaign, suspectCard = one('[data-vehicle-comparison="suspect"]');
+    suspectCard.hidden = !campaign;
+    if (campaign) {
+      const target = getCampaignTarget(CAMPAIGN_DISPATCHES[campaign.dispatchIndex]!.targetId);
+      const suspect = model.snapshot?.vehicles.find(car => car.entityId === model.snapshot?.pursuit?.suspectId);
+      const suspectProfile = vehicleStats(target.vehicleBodyId, suspect);
+      write('suspect-vehicle-name', suspectProfile.name); write('suspect-vehicle-role', suspectProfile.role);
+      write('suspect-vehicle-armor', `${suspectProfile.maxHealth} HP`);
+      write('suspect-vehicle-speed', `${suspectProfile.speedKmh} KM/H`);
+      write('suspect-vehicle-description', suspectProfile.description);
+      one<HTMLMeterElement>('[aria-label="Suspect acceleration"]').value = suspectProfile.accelerationMeter;
+      one<HTMLMeterElement>('[aria-label="Suspect handling"]').value = suspectProfile.handlingMeter;
+    }
     one<HTMLButtonElement>('[data-action="reassign"]').disabled = !canReassign();
   }
   function showMenu(next: Menu = 'pause') {

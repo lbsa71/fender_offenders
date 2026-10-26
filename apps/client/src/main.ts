@@ -119,7 +119,7 @@ async function boot() {
         pursuit: active && state.phase === 'playing' && state.pursuit?.state !== 'complete' ? state.pursuit : undefined };
     }
     renderer.setDispatch(active && snapshot?.campaign ? CAMPAIGN_DISPATCHES[snapshot.campaign.dispatchIndex]?.id ?? null : null);
-    renderer.setGaragePreview(!active || snapshot?.phase === 'lobby' ? ui.getVehicle() : null);
+    renderer.setGaragePreview(active && snapshot?.phase === 'lobby' ? ui.getVehicle() : null);
     if (renderFrame && (!active || ui.isMenuVisible())) renderFrame.pursuit = undefined;
     if (renderFrame) renderer.render(renderFrame, dt);
     ui.setTargetIndicator(active ? renderer.getTargetIndicator() : null);
@@ -138,7 +138,7 @@ async function boot() {
       get snapshot() { return snapshot ? structuredClone(snapshot) : null; },
       get events() { return structuredClone(observedEvents); },
       get identity() { return { playerId, roomId, active, mode }; },
-      get garage() { return { vehicleBodyId: ui.getVehicle(), visible: !active || snapshot?.phase === 'lobby' }; },
+      get garage() { return { vehicleBodyId: ui.getVehicle(), visible: active && snapshot?.phase === 'lobby' }; },
       get stats() { return { renderer: renderer.getStats(), network: online?.getStats(), frameDurations: [...frameDurations] }; },
       get input() { return input!.getStatus(); },
     }) });

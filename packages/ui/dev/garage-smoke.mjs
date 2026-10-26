@@ -8,7 +8,7 @@ await server.listen();
 const chrome = process.env.CHROME_PATH ?? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const browser = await chromium.launch(existsSync(chromium.executablePath()) ? {} : { executablePath: chrome });
 try {
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   const url = 'http://127.0.0.1:5183/packages/ui/dev/index.html';
   await page.goto(url); await page.getByRole('heading', { name: "You're on duty." }).waitFor();
@@ -18,6 +18,9 @@ try {
   assert.equal(await page.locator('.fo-garage').getAttribute('data-vehicle'), first);
   await page.reload(); await page.getByRole('heading', { name: "You're on duty." }).waitFor(); assert.equal(await stored(), first);
   const reassign = page.getByRole('button', { name: 'REASSIGN VEHICLE', exact: true });
+  assert.equal(await reassign.isVisible(), false, 'entry only asks for a callsign');
+  await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
+  await page.evaluate(() => { const { ui, snapshot } = window.fixture; ui.update({ status: { state: 'lobby' }, snapshot: { ...snapshot, phase: 'lobby' } }); });
   await reassign.focus(); await page.keyboard.press('Enter');
   const second = await stored(); assert.ok(bodies.includes(second)); assert.notEqual(second, first, 'reassign always rolls a different car');
   await page.reload(); await page.getByRole('heading', { name: "You're on duty." }).waitFor(); assert.equal(await stored(), second);
@@ -63,6 +66,8 @@ try {
   await page.reload(); await page.getByRole('heading', { name: "You're on duty." }).waitFor(); assert.ok(bodies.includes(await stored()), 'corrupted storage repairs to a safe valid assignment');
   await page.evaluate(() => localStorage.setItem('fender-garage-v1', JSON.stringify({ vehicleBodyId: 'hovercraft' })));
   await page.reload(); await page.getByRole('heading', { name: "You're on duty." }).waitFor(); assert.ok(bodies.includes(await stored()), 'unknown saved body repairs to a valid assignment');
+  await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
+  await updateLobby('lobby', 'capture-lobby');
   mkdirSync('work', { recursive: true });
   for (const viewport of [{ width: 1440, height: 900 }, { width: 960, height: 640 }]) {
     await page.setViewportSize(viewport); await page.screenshot({ path: `work/garage-ui-${viewport.width}.png` });
@@ -73,9 +78,9 @@ try {
     const card = document.querySelector('.fo-garage-card').getBoundingClientRect(), toast = document.querySelector('.fo-toast').getBoundingClientRect();
     return card.left < toast.right && card.right > toast.left && card.top < toast.bottom && card.bottom > toast.top;
   });
-  const homeOverlap = await overlapsStats();
+  const firstLobbyOverlap = await overlapsStats();
   await updateLobby('lobby', 'toast-lobby'); await reassign.click(); const lobbyOverlap = await overlapsStats();
-  assert.deepEqual({ homeOverlap, lobbyOverlap }, { homeOverlap: false, lobbyOverlap: false }, 'reassignment notification must not obscure garage statistics at 960×640');
+  assert.deepEqual({ firstLobbyOverlap, lobbyOverlap }, { firstLobbyOverlap: false, lobbyOverlap: false }, 'reassignment notification must not obscure garage statistics at 960×640');
   await page.evaluate(() => window.fixture.ui.update({ status: { state: 'error', reason: 'invalid-vehicle' } }));
   assert.equal(await page.getByText('Choose a valid garage vehicle and try again.', { exact: true }).count(), 1, 'invalid vehicle rejects have an actionable message');
   assert.deepEqual(errors, []); console.log('Garage persistence, keyboard/controller reassign, lobby sync and countdown locks passed.');

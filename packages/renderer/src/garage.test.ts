@@ -5,6 +5,24 @@ let engine:NullEngine,garage:ReturnType<typeof createGaragePreview>;
 beforeEach(()=>{engine=new NullEngine();garage=createGaragePreview(engine);});
 afterEach(()=>{garage.dispose();engine.dispose();});
 describe('native garage turntable',()=>{
+  it('moves the road behind the chase and freezes all decorative motion when reduced',()=>{
+    garage.setBody('patrol',false,'roadster',false);garage.update(0,false);
+    const dash=garage.scene.getMeshByName('garage-registration')!;
+    const start=dash.position.z;garage.update(.1,false);
+    expect(dash.position.z).toBeLessThan(start);
+    const frozen=dash.position.z,unit=garage.scene.getTransformNodeByName('vehicle-garage-preview')!.rotation.y;
+    garage.update(.5,true);
+    expect(dash.position.z).toBe(frozen);
+    expect(garage.scene.getTransformNodeByName('vehicle-garage-preview')!.rotation.y).toBe(unit);
+  });
+  it('stages both cars in one shared chase view with the suspect ahead',()=>{
+    garage.setBody('patrol',false,'roadster',false);garage.update(.1,true);
+    expect(garage.scene.activeCameras??[garage.scene.activeCamera]).toHaveLength(1);
+    expect(garage.scene.getMeshByName('garage-stage-rival')).toBeNull();
+    const unit=garage.scene.getTransformNodeByName('vehicle-garage-preview')!;
+    const suspect=garage.scene.getTransformNodeByName('vehicle-garage-suspect')!;
+    expect(suspect.getAbsolutePosition().z).toBeGreaterThan(unit.getAbsolutePosition().z+3);
+  });
   it('returns to the player camera after leaving a two-car briefing',()=>{
     garage.setBody('patrol',false,'roadster',false);garage.update(.1,true);garage.scene.render();
     garage.setBody('ambulance');garage.update(.1,true);

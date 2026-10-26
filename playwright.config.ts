@@ -19,6 +19,7 @@ export default defineConfig({
     // Gameplay checks run on the real low preset at a bounded software-GPU cost.
     // The desktop typography scenario opts back into its original 1440×900 size.
     viewport: { width: 960, height: 640 },
+    actionTimeout: 12000,
     headless: true,
     launchOptions: systemChrome && existsSync(systemChrome) ? { executablePath: systemChrome } : {},
     // Screencasts force WebGL ReadPixels every frame on software-rendered CI.

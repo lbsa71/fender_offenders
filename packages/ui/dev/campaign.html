@@ -3,11 +3,13 @@
 import { mountGameUi } from '../src/index.ts';
 import * as catalog from '../../contracts/src/campaign.ts';
 import { getCampaignMugshot } from '../../contracts/src/campaign-mugshots.ts';
+import { getVehicleProfile } from '../../contracts/src/index.ts';
 import { getBossTactics } from '../../contracts/src/boss-tactics.ts';
 const fixture = { starts: 0, rematches: 0, options: {}, catalog };
 const fixtureUrl=new URL(location.href);if(!fixtureUrl.searchParams.has('room')){fixtureUrl.searchParams.set('room','CampaignFixture1');history.replaceState(null,'',fixtureUrl);}
 fixture.mugshots = () => catalog.CAMPAIGN_TARGETS.map(target => ({ ...target, svg: getCampaignMugshot(target.id) }));
 fixture.tactics = getBossTactics;
+fixture.profile = getVehicleProfile;
 const ui = mountGameUi(document.querySelector('#ui'), {
   onPlay() { fixture.set({ stage: 0, phase: 'lobby', mode: 'practice', outcomes: [] }); },
   onStartRound() { fixture.starts++; fixture.set({ ...fixture.options, phase: 'countdown' }); },
@@ -18,11 +20,12 @@ fixture.set = (options = {}) => {
   fixture.options = { ...options };
   const stage = options.stage ?? 0, dispatch = catalog.CAMPAIGN_DISPATCHES[stage];
   const target = catalog.getCampaignTarget(dispatch?.targetId ?? 'unknown');
-  const vehicle = { entityId: 'local', playerId: 'you', bodyAssetId: ui.getVehicle(), pose: { x: 0, z: 0, yaw: 0 }, velocity: { x: 0, z: 0, yawRate: 0 }, health: 100, maxHealth: 100, status: 'active', protectedUntilTick: 0, respawnAtTick: null, sirenOn: false, discontinuityId: 0 };
+  const body = options.vehicleBodyId ?? ui.getVehicle();
+  const vehicle = { entityId: 'local', playerId: 'you', bodyAssetId: body, pose: { x: 0, z: 0, yaw: 0 }, velocity: { x: 0, z: 0, yawRate: 0 }, health: getVehicleProfile(body).maxHealth, maxHealth: options.unitMaxHealth ?? getVehicleProfile(body).maxHealth, status: 'active', protectedUntilTick: 0, respawnAtTick: null, sirenOn: false, discontinuityId: 0 };
   const phase = options.phase ?? 'lobby';
-  ui.update({ mode: options.mode ?? 'practice', localPlayerId: 'you', canStart: options.canStart ?? true, roomId: options.mode === 'online' ? 'CASE12345' : null, status: { state: options.status ?? (phase === 'lobby' ? 'lobby' : 'playing') }, error: null,
+  ui.update({ selectedVehicleBodyId: body, mode: options.mode ?? 'practice', localPlayerId: 'you', canStart: options.canStart ?? true, roomId: options.mode === 'online' ? 'CASE12345' : null, status: { state: options.status ?? (phase === 'lobby' ? 'lobby' : 'playing') }, error: null,
     snapshot: { protocolVersion: 1, mapRevision: 'fixture', gameplayRevision: 'fixture', matchId: 'campaign-fixture', sessionEpoch: 'fixture', serverTick: 300, phase, phaseEndsAtTick: phase === 'countdown' ? 480 : 18000,
-      vehicles: [vehicle, { ...vehicle, entityId: 'suspect', playerId: null, bodyAssetId: target.vehicleBodyId }], projectiles: [],
+      vehicles: [vehicle, { ...vehicle, entityId: 'suspect', playerId: null, bodyAssetId: target.vehicleBodyId, maxHealth: options.suspectMaxHealth ?? getVehicleProfile(target.vehicleBodyId).maxHealth }], projectiles: [],
       scores: [{ playerId: 'you', nickname: 'Officer Rookie', score: 3, wrecks: 0, connection: options.localConnection ?? 'connected', pingMs: 'localPing' in options ? options.localPing : 24 }, { playerId: 'backup', nickname: 'Parking Menace', score: 99, wrecks: 8, connection: 'connected', pingMs: 85 }],
       local: { vehicle, driver: { resolvedSteering: 0, reverseHoldTicks: 0, nextFireTick: 0, shotOrdinal: 0, nextRecoveryTick: 0, lastDamageTick: null }, lastConsumedSequence: 0 },
       pursuit: { state: phase === 'results' && options.outcomes?.some(outcome => outcome.dispatchIndex === stage) ? 'complete' : 'chasing', suspectId: 'suspect', progress: 0, elapsedTicks: 300, winnerPlayerId: options.outcomes?.find(outcome => outcome.dispatchIndex === stage)?.playerId ?? null },

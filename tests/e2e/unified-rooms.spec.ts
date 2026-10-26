@@ -73,7 +73,11 @@ test('shares an ongoing solo patrol from its pause menu and adds backup without 
     await a.waitForTimeout(4000);
     await expect(a.getByText('Backup joined. The dispatch is live.',{exact:true})).toBeVisible();
     await expect.poll(async()=>(await state(b))?.campaign).toEqual((await state(a)).campaign);
-    await b.keyboard.press('Escape');await b.getByRole('button',{name:'END PATROL'}).click();
+    await b.bringToFront();
+    await b.keyboard.press('Escape');
+    // Keep the room lifecycle keyboard-driven; pointer stability belongs to the UI fixture.
+    const leave=b.getByRole('button',{name:'END PATROL'});await expect(leave).toBeVisible();
+    await leave.focus();await expect(leave).toBeFocused();await b.keyboard.press('Enter');
     await expect.poll(async()=>(await state(a))?.paused).toBe(true);
     await expect(a.getByText('Backup joined. The dispatch is live.',{exact:true})).toBeHidden();
   }finally{await aContext.close();await bContext.close();}

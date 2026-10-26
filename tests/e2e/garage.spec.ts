@@ -14,6 +14,8 @@ test('garage persists its assignment, changes via keyboard and dispatches that b
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto('/'); await expect(page.getByRole('heading', { name: "You're on duty." })).toBeVisible();
   const initial = await selection(page); expect(VEHICLE_BODIES).toContain(initial);
+  await expect(page.locator('.fo-garage')).toBeHidden();
+  await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
   await expect(page.locator('.fo-garage')).toHaveAttribute('data-vehicle', initial!);
   await expect.poll(async () => (await renderer(page))?.garageBody).toBe(initial);
   const angle = (await renderer(page))!.garageAngle!;
@@ -28,17 +30,23 @@ test('garage persists its assignment, changes via keyboard and dispatches that b
       await page.setViewportSize(viewport); await frames(page); await page.waitForTimeout(1000); await page.screenshot({ path: `work/garage-live-${viewport.width}.png` });
     }
   }
-  await page.reload(); await expect(page.locator('.fo-garage')).toHaveAttribute('data-vehicle', initial!);
+  await page.reload(); expect(await selection(page)).toBe(initial);
+  await expect(page.locator('.fo-garage')).toBeHidden();
+  await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
+  await expect(page.locator('.fo-garage')).toHaveAttribute('data-vehicle', initial!);
   await page.getByRole('button', { name: 'REASSIGN VEHICLE', exact: true }).focus(); await page.keyboard.press('Enter');
   const reassigned = await selection(page); expect(VEHICLE_BODIES).toContain(reassigned); expect(reassigned).not.toBe(initial);
-  await page.reload(); await expect(page.locator('.fo-garage')).toHaveAttribute('data-vehicle', reassigned!);
+  await page.reload(); expect(await selection(page)).toBe(reassigned);
+  await expect(page.locator('.fo-garage')).toBeHidden();
   await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
+  await expect(page.locator('.fo-garage')).toHaveAttribute('data-vehicle', reassigned!);
   await expect.poll(async () => (await state(page))?.local?.vehicle.bodyAssetId).toBe(reassigned);
   await page.getByRole('button', { name: 'START DISPATCH' }).click();
   await expect.poll(async () => (await state(page))?.phase).toBe('playing');
   await expect(page.locator('[data-text="health"]')).toHaveText('100%');
   await expect(page.getByRole('button', { name: 'REASSIGN VEHICLE', exact: true })).toBeHidden();
   await page.keyboard.press('Escape'); await page.getByRole('button', { name: 'END PATROL' }).click();
+  await expect(page.locator('.fo-garage')).toBeHidden();
   await expect(page.locator('.fo-garage')).toHaveAttribute('data-vehicle', reassigned!);
   await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
   await expect.poll(async () => (await state(page))?.local?.vehicle.bodyAssetId).toBe(reassigned);
@@ -49,6 +57,7 @@ test('garage repairs corrupted saved assignment before dispatch', async ({ page 
   await page.addInitScript(() => { if (!sessionStorage.getItem('garage-corrupt-seeded')) { localStorage.setItem('fender-garage-v1', '{broken'); sessionStorage.setItem('garage-corrupt-seeded', 'yes'); } });
   await page.goto('/'); await expect(page.getByRole('heading', { name: "You're on duty." })).toBeVisible();
   expect(VEHICLE_BODIES).toContain(await selection(page));
+  await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
   await expect(page.getByRole('button', { name: 'REASSIGN VEHICLE', exact: true })).toBeEnabled();
 });
 

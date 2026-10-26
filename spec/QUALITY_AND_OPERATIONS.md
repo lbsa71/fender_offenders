@@ -23,7 +23,8 @@ The root scripts below exist in [package.json](../package.json). `test:network` 
 | `pnpm test` | Both headless Vitest projects; no browser processes |
 | `pnpm test:unit` | Isolated contracts/input/math/HUD/presentation logic, controlled dependencies |
 | `pnpm test:integration` | Real physics, renderer adapters, HTTP/rooms/client lifecycle, prediction, hosting and tooling |
-| `pnpm test:e2e` | Local game browser scenarios followed by pursuit/campaign/callsign UI fixtures |
+| `pnpm test:ui` | Five UI fixtures with mocked snapshots; real DOM/CSS without physics, WebGL or server sockets |
+| `pnpm test:e2e` | Local game browser smoke/integration scenarios followed by `pnpm test:ui` |
 | `pnpm hooks:install` | Install the local E2E pre-push gate, automatically installed by local `pnpm install` too |
 | `pnpm test:integration` with `tests/integration` | Real ordered TCP-delay/jitter/stall harness; full packet-loss/correction profiles remain open |
 | `pnpm test:load` | Eight SDK clients in one room, configurable duration and snapshot payload estimate; separate sim benchmarks measure step cost, and multi-room capacity remains open |
@@ -111,7 +112,7 @@ Use identical scripted inputs for client/server replay where appropriate. Keep p
 ## 7. CI and review gates
 
 - CI on pull requests/main: install from lockfile, types/docs, separate unit and integration suites, assets, production build and production-container smoke. No browser checks run in CI.
-- Local pre-push: run all game browser scenarios and pursuit/campaign/callsign UI fixtures through `.githooks/pre-push`; failure blocks the push. Install with `pnpm hooks:install` for an existing checkout. Custom hook paths are preserved and must include `pnpm test:e2e`.
+- Local pre-push: run game browser smoke/integration scenarios and the five mocked-state UI fixtures through `.githooks/pre-push`; failure blocks the push. Install with `pnpm hooks:install` for an existing checkout. Custom hook paths are preserved and must include `pnpm test:e2e`.
 - Contract changes: schema/fixture compatibility checks and affected consumer tests.
 - Simulation/network changes: replay and authority tests plus relevant impaired-network scenario.
 - Content/rendering changes: asset checks, scene capture, and performance delta for affected scene.

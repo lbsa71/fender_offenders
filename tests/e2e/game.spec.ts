@@ -24,16 +24,6 @@ test('home and practice load without external fonts or remote content', async ({
   expect(externalRequests, 'Home and practice must use only local application resources').toEqual([]);
 });
 
-test('garage typography and statistics fit inside their desktop panels', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/');
-  await expect(page.getByRole('heading', { name: "You're on duty." })).toBeVisible();
-  const overflow = await page.locator('.fo-garage-card').evaluate(node => node.scrollWidth - node.clientWidth);
-  expect(overflow, 'The vehicle statistics must fit within the garage card width').toBeLessThanOrEqual(0);
-  const titleOverflow = await page.locator('[data-text="vehicle-name"]').evaluate(node => node.scrollWidth - node.clientWidth);
-  expect(titleOverflow, 'The assigned vehicle name must fit within the garage heading width').toBeLessThanOrEqual(0);
-});
-
 type DebugWindow = Window & { __FENDER_DEBUG__?: { snapshot: WorldSnapshot | null | (() => WorldSnapshot | null); events?: GameEvent[]; stats?: {renderer?:{muzzleFlashes?:number;impactRings?:number;props?:number;pedestrians?:number}} } };
 async function snapshot(page: Page) {
   return page.evaluate(() => { const debug = (window as DebugWindow).__FENDER_DEBUG__; return typeof debug?.snapshot === 'function' ? debug.snapshot() : debug?.snapshot ?? null; });

@@ -8,7 +8,7 @@ Fender Offenders is a playable browser arcade driving and vehicle-combat alpha i
 
 This is a playable alpha, not a release candidate. [Execution status](spec/EXECUTION_STATUS.md) records all 49 implementation tasks, observed checks, and remaining acceptance gates. Fender Offenders remains a working name without trademark clearance.
 
-Documentation reviewed: **2026-10-25**, for the tutorial room build (`arcade-v11`, protocol 3, map `sunset-borough-2`). Civilian cars are unarmed, wrecks split into their original physical components, and dusk/night lamps stay illuminated at any camera distance. Every playable campaign now uses a server room; local previews retain bounded stepping and online input uses an independent fixed-step timer with a four-tick stall cap. The paperwork is catching up with the patrol car.
+Documentation reviewed: **2026-10-26**, for the tutorial room build (`arcade-v11`, protocol 3, map `sunset-borough-2`). Civilian cars are unarmed, wrecks split into their original physical components, and dusk/night lamps stay illuminated at any camera distance. Every playable campaign now uses a server room; local previews retain bounded stepping and online input uses an independent fixed-step timer with a four-tick stall cap. The paperwork is catching up with the patrol car.
 
 ## Run locally
 
@@ -44,13 +44,13 @@ A lone officer opening a menu or hiding the tab pauses the server world. Backup 
 
 The single **Invite URL** button stays available before entry, during play and in menus. It copies the current address; friends enter that same campaign with your earned leads, score, car and dispatch timer intact. Backup joins the patrol already underway.
 
-Your first visit randomly assigns a patrol sedan, interceptor, roadster, army 4×4, ambulance or fire-chief SUV. The garage saves the assignment in this browser and shows the car on a rotating turntable, with its strengths and trade-offs. **Reassign vehicle** rolls a different car at home or in every dispatch briefing, beside the target's mugshot and assigned car. The choice locks at countdown; reconnects and respawns preserve it. Clearing browser storage starts a new garage assignment.
+Your first visit asks for a callsign and saves a random patrol sedan, interceptor, roadster, army 4×4, ambulance or fire-chief SUV. The dispatch briefing shows your unit chasing the suspect on one shared road, with armor, speed, acceleration and handling for both cars. **Reassign vehicle** rolls a different car there, alongside the suspect's mugshot and dispatch. The choice locks at countdown; reconnects and respawns preserve it. Clearing browser storage starts a new garage assignment. Quick swooshes and suspect reveals finish within 220 ms and never delay a button press.
 
 Fresh browsers also receive a random callsign such as **Captain Waffle** or **Squeaky Hubcap**. **Reroll callsign** picks another, or type your own. Generated and custom choices are saved between dispatches and reloads; the existing twenty-character limit applies.
 
 Cars have distinct armor, speed, acceleration, steering and grip, using the same shared rules for authority, local prediction and practice. The army 4×4 absorbs more hits but accelerates and turns slowly; the roadster is fast and fragile. Collision dimensions, weapons and spawn protection remain equal. See the measured [vehicle balance report](packages/sim/BALANCE.md) for all six roles and the automated guardrails.
 
-Cornering adds cartoon body lean and squash, while visible road humps trigger compression, rebound and short synthesized sounds. These animations preserve the underlying driving pose and collision shape. Reduced-motion preferences and reduced-shake settings suppress the deformation and turntable rotation.
+Cornering adds cartoon body lean and squash, while visible road humps trigger compression, rebound and short synthesized sounds. These animations preserve the underlying driving pose and collision shape. Reduced-motion preferences and reduced-shake settings suppress the deformation, briefing road/car motion and UI animations.
 
 Confirmed crashes squash the coachwork in the impact direction and spring back, with severity-scaled slapstick audio. Both guns fire real projectiles from their barrel tips, 2.45 m forward and 0.63 m either side of the car center. Each deals 5 damage, retaining 10 damage per volley at the same 12-tick cadence. Paired flashes follow the moving guns, with one recoil and sound per volley. Fresh trails start at the muzzle; local rounds advance by at most 100 ms to match driving prediction, while remote rounds use buffered playback. These effects share bounded pools and audio limits; crashes do not add ram damage.
 
@@ -94,7 +94,8 @@ Pulling the stick backward brakes a forward-moving car before reversing, just li
 | `pnpm test` | Run both headless suites; no browsers |
 | `pnpm test:unit` | Run isolated logic with controlled dependencies; no sockets, real physics or renderer adapters |
 | `pnpm test:integration` | Run real physics/render adapters, HTTP/Colyseus rooms, prediction, hosting and tooling checks |
-| `pnpm test:e2e` | Local Playwright game scenarios, then pursuit/campaign/callsign browser fixtures |
+| `pnpm test:ui` | Five fast UI fixtures with mocked game state; real DOM/CSS, no physics, renderer or sockets |
+| `pnpm test:e2e` | Local Playwright game smoke/integration scenarios, then `pnpm test:ui` |
 | `pnpm hooks:install` | Install the local Git pre-push hook; also runs automatically on local dependency installation |
 | `pnpm test:load` | Run eight real SDK clients against the local server; write a payload-estimate report |
 | `pnpm test:deploy` | Check production readiness/HTML and two real multiplayer WebSocket clients at `TEST_SERVER_URL` |
