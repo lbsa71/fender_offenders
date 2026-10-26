@@ -88,6 +88,8 @@ The labeled touch controls replace the floating keyboard/controller card. Fire a
 
 Pulling the stick backward brakes a forward-moving car before reversing, just like the left trigger. Stick and trigger input combine without adding extra acceleration. The touch pad uses the same vehicle-relative steering and brake/reverse rules. Pointer cancellation, lost capture, viewport resize, focus loss, menus and control changes clear held touches; a fresh touch is required. Callsign text entry uses the device's keyboard. Unknown controller mappings direct players to touch or keyboard in settings rather than guessing button assignments. Browser touch/controller checks use Chromium touch emulation and injected standard gamepads; physical iPad, Android and controller acceptance and sustained mobile performance remain open.
 
+Small-phone touch layouts target iPhone SE 2020/2022-sized screens: 375×667 portrait, 667×375 landscape and a reduced 667×290 visible viewport. The compact dashboard keeps health, pursuit and campaign information clear of the driving buttons; all driving targets remain at least 44 CSS pixels. A short landscape leaderboard scrolls above the action buttons. The briefing reserves at least 80 CSS pixels for scrolling case details and groups its settings/help actions beside each other. Entry, briefing, pause and control settings are covered by [small-screen browser checks](tests/e2e/small-touch.spec.ts). Real iPhone Safari, sustained frame rate and the original 2016 SE remain separate acceptance work. The pocket patrol still needs a road test.
+
 ## Developer commands
 
 | Command | Current behavior |

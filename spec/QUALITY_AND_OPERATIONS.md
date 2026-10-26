@@ -67,6 +67,7 @@ Initial categories:
 - Target: mainstream desktop or laptop GPU, 1920×1080, medium preset, 60 fps target.
 - Minimum candidate: an available integrated-GPU laptop, 1280×720 or dynamic render scale, low preset, 30 fps minimum.
 - Compatibility: Windows Chrome/Edge and Firefox; macOS Safari and Chrome. Test browser versions available at release and record exact builds.
+- Small-phone candidate: iPhone SE 2020/2022 with touch or a standard-mapped controller. Chromium DPR-2 layout checks cover 375×667, 667×375 and reduced visible height at 667×290, including entry, briefing, live HUD, pause and settings. Require all driving targets to remain at least 44 CSS pixels and clear of visible HUD panels; keep health visible and HUD panels separated. Real iPhone Safari, viewport changes while browser controls/keyboard appear, controller pairing and sustained on-device performance remain unverified. The original 2016 SE needs its own browser/runtime and hardware acceptance.
 - Input: one real standard-mapped Xbox-style controller and one additional available controller family. Record whether the browser reports standard mapping. Do not advertise untested controller models.
 - Renderer: WebGL2 on each release browser; WebGPU only on supported tested combinations. Simulate capability absence to verify fallback at startup.
 
