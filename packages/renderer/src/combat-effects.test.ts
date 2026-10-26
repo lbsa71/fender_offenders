@@ -7,6 +7,12 @@ let engine:NullEngine,scene:Scene,effects:CombatEffects;
 beforeEach(()=>{engine=new NullEngine();scene=new Scene(engine);effects=new CombatEffects(scene);});
 afterEach(()=>{effects.dispose();scene.dispose();engine.dispose();});
 describe('bounded native confirmed weapon effects',()=>{
+ it('raises directed anti-air tracers and impact feedback to the helper instead of drawing a ground hit',()=>{
+  const shot={entityId:'air-shot',ownerEntityId:'hero',pose:{x:0,z:10,yaw:0},velocity:{x:0,z:70,yawRate:0},bornTick:0,expiresTick:200,sourceCommandSequence:1,sourceShotOrdinal:0,presentationAgeSeconds:.2,tracerHeight:12,tracerSlope:.5};
+  effects.renderProjectiles([shot],.1);const core=scene.getMeshByName('pooled-tracer-core-0')!;
+  expect(core.position.y).toBeGreaterThan(10);expect(core.rotation.x).toBeLessThan(0);
+  (effects.impact as (...args:any[])=>void)({x:0,z:20,yaw:0},1,false,18);expect(scene.getMeshByName('pooled-impact-ring-0')!.position.y).toBe(18);
+ });
  it('starts fresh tracer cores/trails at the physical muzzle and grows only within explicit flight age and first-visible history',()=>{
   const shot={entityId:'fresh',ownerEntityId:'hero',pose:{x:.63,z:2.45,yaw:0},velocity:{x:0,z:70,yawRate:0},bornTick:600,expiresTick:720,sourceCommandSequence:1,sourceShotOrdinal:0,presentationAgeSeconds:0};
   const render=effects.renderProjectiles as (shots:typeof shot[],dt?:number)=>void;render.call(effects,[shot],1/60);

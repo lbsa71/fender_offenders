@@ -1,6 +1,6 @@
 # Hosting and continuous delivery
 
-The current `arcade-v18` build contains five ten-dispatch cases in shared source. Room creation selects one server-side; completion can open a different case in the same room. Retention keeps that case ID in memory. This adds no database, storage migration or hosting-plan change; a deployment still resets in-memory rooms. The production smoke accepts any valid case and checks that solo entry and live backup share it.
+The current `arcade-v19` build contains five ten-dispatch cases in shared source. Room creation selects one server-side; completion can open a different case in the same room. Retention keeps that case ID in memory. This adds no database, storage migration or hosting-plan change; a deployment still resets in-memory rooms. The production smoke accepts any valid case and checks that solo entry and live backup share it.
 
 Reviewed: 2026-10-26 for `arcade-v15` / protocol 5; hosted observations below remain historical. Configuration below is verified from repository files; hosted/dashboard observations are historical, recorded on 2026-10-22/23 in [execution status](../spec/EXECUTION_STATUS.md). This review did not redeploy or probe the live service.
 

@@ -44,9 +44,9 @@ export class CombatEffects{
   if(this.disposed)return;
   for(const f of this.flashes)if(f.groupKey===groupKey&&f.life>0){const p=origins[f.barrelIndex];if(!p){f.life=0;f.flare.isVisible=f.core.isVisible=false;continue;}f.flare.position.set(-p.x,p.height??1.2,p.z);f.core.position.copyFrom(f.flare.position);f.flare.rotation.y=f.core.rotation.y=-p.yaw;}
  }
- impact(position:PlanarPose,strength:number,reducedFlash=false):void{
-  if(this.disposed)return;const r=this.rings[this.ringIndex++%this.rings.length]!;r.life=r.duration=.25+Math.min(1,strength)*.25;r.strength=Math.max(.2,Math.min(2,strength))*(reducedFlash?.55:1);r.mesh.position.set(-position.x,.13,position.z);r.mesh.isVisible=true;
-  this.flash(position.x,position.z,position.yaw,Math.min(1.6,strength)*(reducedFlash?.35:.9),.075);
+ impact(position:PlanarPose,strength:number,reducedFlash=false,height?:number):void{
+  if(this.disposed)return;const r=this.rings[this.ringIndex++%this.rings.length]!;r.life=r.duration=.25+Math.min(1,strength)*.25;r.strength=Math.max(.2,Math.min(2,strength))*(reducedFlash?.55:1);r.mesh.position.set(-position.x,height??.13,position.z);r.mesh.isVisible=true;
+  this.flash(position.x,position.z,position.yaw,Math.min(1.6,strength)*(reducedFlash?.35:.9),.075,height??1.22);
  }
  renderProjectiles(projectiles:RenderProjectileState[],delta=1/60):void{
   if(this.disposed)return;const dt=Math.min(.1,Math.max(0,Number.isFinite(delta)?delta:0)),frame=++this.projectileFrame;
@@ -56,8 +56,9 @@ export class CombatEffects{
    const explicit=p.presentationAgeSeconds,age=Math.min(history.age,typeof explicit==='number'&&Number.isFinite(explicit)?Math.max(0,explicit):history.age);
    const speed=Math.hypot(p.velocity.x,p.velocity.z),distance=speed*age,minimum=.08,endOffset=Math.max(0,minimum-distance),sin=Math.sin(p.pose.yaw),cos=Math.cos(p.pose.yaw);
    const length=Math.min(Math.max(2.4,Math.min(6,speed*.075)),Math.max(minimum,distance)),coreLength=Math.min(1.7,Math.max(minimum,distance));
-   core.position.set(-(p.pose.x+sin*(endOffset-coreLength*.5)),1.2,p.pose.z+cos*(endOffset-coreLength*.5));core.rotation.y=trail.rotation.y=-p.pose.yaw;core.scaling.z=coreLength/1.7;
-   trail.position.set(-(p.pose.x+sin*(endOffset-length*.5)),1.19,p.pose.z+cos*(endOffset-length*.5));trail.scaling.z=length;
+   const height=p.tracerHeight??1.2,slope=p.tracerSlope??0;core.rotation.x=trail.rotation.x=-Math.atan(slope);
+   core.position.set(-(p.pose.x+sin*(endOffset-coreLength*.5)),height-coreLength*.5*slope,p.pose.z+cos*(endOffset-coreLength*.5));core.rotation.y=trail.rotation.y=-p.pose.yaw;core.scaling.z=coreLength/1.7;
+   trail.position.set(-(p.pose.x+sin*(endOffset-length*.5)),height-.01-length*.5*slope,p.pose.z+cos*(endOffset-length*.5));trail.scaling.z=length;
   }
   for(const [id,history]of this.projectileAges)if(history.seen!==frame)this.projectileAges.delete(id);
  }

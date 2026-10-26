@@ -173,13 +173,14 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     return [
       'Catch up → match speed → stay close for 3 seconds. Arresting is automatic.',
       'Approach from behind or a flank. Police guns arrive next dispatch.',
-      'Fire forward in short bursts. Bombs: leave the marked circle.',
-      'Puddles reduce grip. Steer gently.',
-      'Throw a bomb ahead. Leave its marked circle.',
+      'Fire forward in short bursts. Bombs predict your route: leave the marked circle within 1 second.',
+      'Puddles reduce grip. Steer gently; enemy bombs lead your route and explode after 0.8 seconds.',
+      'Bomb ahead. A black chopper bombs your route: shoot toward its amber ground marker to down it for this dispatch.',
       'Suspect oil: steer around marked patches.',
       'Amber hubcaps warn of blades. Give them room.',
       'Drop oil behind you after a cutoff.',
-      'Side blades punish close passes.',
+      'Use side blades. A black chopper returns: shoot toward its amber ground marker to down it for this dispatch.',
+      'Dodge fast bombs. A black chopper returns: shoot toward its amber ground marker to down it for this dispatch.',
     ][index]??'';
   }
   function currentReminder() {

@@ -1,6 +1,6 @@
 # Every campaign has a room
 
-Status: implemented for `arcade-v18`, protocol 5. Updated: 2026-10-26. Evidence is recorded in [execution status](EXECUTION_STATUS.md#unified-room-sessions). Named-hardware capacity and public deployment acceptance remain separate gates.
+Status: implemented for `arcade-v19`, protocol 5. Updated: 2026-10-26. Evidence is recorded in [execution status](EXECUTION_STATUS.md#unified-room-sessions). Named-hardware capacity and public deployment acceptance remain separate gates.
 
 *One officer is a task force. Two officers are a task force with witnesses.*
 

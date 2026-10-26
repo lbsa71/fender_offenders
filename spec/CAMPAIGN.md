@@ -1,6 +1,6 @@
 # Five storylines, ten dispatches each
 
-Status: implemented; human difficulty/controller acceptance remains open. Reviewed: 2026-10-26. Gameplay revision: `arcade-v18` (protocol 5). Campaign catalog: five versioned storylines; 50 authored dispatches.
+Status: implemented; human difficulty/controller acceptance remains open. Reviewed: 2026-10-26. Gameplay revision: `arcade-v19` (protocol 5). Campaign catalog: five versioned storylines; 50 authored dispatches.
 
 *The Green Light Society promised faster traffic. Apparently they meant faster getaway cars.*
 

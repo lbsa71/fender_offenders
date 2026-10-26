@@ -2,7 +2,7 @@
 
 All fifty dispatch IDs resolve through the shared five-case catalog to a local stage, authored theme and suspect body. The garage and live renderer use that same selection, including the unarmed opening and later fittings. Original body geometry and fragment construction are reused; no new imported media, draw passes or driving authority changes accompany the story expansion.
 
-Reviewed: 2026-10-26 for `arcade-v18`. *All the squash, none of the collision-authority paperwork.*
+Reviewed: 2026-10-26 for `arcade-v19`. *All the squash, none of the collision-authority paperwork.*
 
 `CarFactory` renders the six IDs exported by `@fender/content`'s `VEHICLE_BODIES`: patrol, interceptor, roadster, army, ambulance and fire-chief. Traffic retains its independent civilian body. Geometry/materials and fallback synthesis are original project work; no downloaded models or textures are needed. The [patrol bank](../../spec/AUDIO.md) adds local CC0 recordings and original sound arrangements. Profiles in `@fender/contracts` give the bodies different health/handling; the shared engine recordings receive six distinct pitch/brightness tunings.
 
@@ -116,3 +116,8 @@ Visible water now reflects nearby scene geometry through one shared planar targe
 `water-crossings.ts` sweeps the two leading tires against the authored water polygons and rate-limits visual/audio cues. `water-splashes.ts` renders speed-scaled, short-lived fans using one geometry/material and 96 reusable droplets (48 on low), with no airborne spray in reduced motion. The same cue plays one of three authored spray/wash/droplet samples, with speed strength, stereo placement, distance attenuation and the existing effects-volume/mute/voice budget. Original synthesis remains the loading/failure fallback. First appearance, stationary/crawling cars, life changes and large teleports produce no cue.
 
 `pnpm test:water` also runs `water-splash-check.ts`, which drives the real renderer through a puddle at the normal follow camera, checks airborne spray pixels and a matching cue, verifies reduced-motion/garage cleanup, and writes `work/water-splashes/driving-splash.png`, `crossing.json`, `audio.json` and an original fallback `splash.wav` from native OfflineAudioContext synthesis. `pnpm test:audio` separately checks the loaded bank and spatial water-crossing adapter. Behavioral crossing and sound-budget coverage remains in the unit suite; no browser is added to CI.
+
+
+## Black helicopter
+
+`pnpm test:helicopter` starts an isolated renderer fixture on 5285 (or uses `RENDER_SCENARIO_URL`). It checks real driving-camera pixels, readable health, altitude, fall/crash deduplication, stale-state rejection, ten garage cycles with stable mesh/material/texture counts and shader errors. Captures and JSON are saved in `work/helicopter`. Pure route/health/wire and actual room behavior are covered separately in the headless suites. One reusable procedural helicopter adds no lights or textures. The combined action-performance fixture also includes it; short traces do not certify the five-minute release gate.

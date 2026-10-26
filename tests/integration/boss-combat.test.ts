@@ -34,6 +34,15 @@ function encounter(host:Awaited<ReturnType<typeof peer>>,stage=0){
  sim.restore(c);host.room.send('resync');return{sim,bossId:boss.vehicle.entityId};
 }
 beforeAll(async()=>{server=await createGameServer(2722);});
+it('shares a shootable helper and its permanent dispatch loss with backup and a late joiner',async()=>{
+ const host=await peer(),guest=await peer(host.room.roomId),{sim}=encounter(host,4),c=sim.checkpoint();
+ c.state.helicopter={state:{entityId:'shared-air',dispatchIndex:4,phase:'attack',health:10,from:{x:45,z:-76},to:{x:45,z:-76},yaw:Math.PI/2,startedAtTick:c.tick,endsAtTick:c.tick+1000},nextBombTick:c.tick+1000,targetId:null};
+ sim.restore(c);host.room.send('resync');guest.room.send('resync');await until(()=>guest.state.helicopter?.phase==='attack','Backup must reconstruct the incoming aircraft');
+ host.room.send('input',{kind:'input',commands:Array.from({length:4},(_,sequence)=>({sessionEpoch:host.state.sessionEpoch,sequence,clientTick:sequence,actions:{steer:0,throttle:0,brakeReverse:0,handbrake:false,fire:true,sirenToggle:false,recover:false}}))});
+ await until(()=>host.state.helicopter?.phase==='downed'&&guest.state.helicopter?.phase==='downed','Ordinary admitted gunfire must down the shared helper');
+ expect(host.state.helicopter).toMatchObject({entityId:'shared-air',health:0});const late=await peer(host.room.roomId);expect(late.state.helicopter).toEqual(host.state.helicopter);
+ expect(late.state.phase).toBe('playing');expect(late.state.campaign!.dispatchIndex).toBe(4);
+});
 afterEach(async()=>{ await disposeTestRooms();await Promise.all(rooms.splice(0).map(room=>room.connection.isOpen?room.leave(true):Promise.resolve()));});
 afterAll(async()=>{await server?.gracefullyShutdown(false);});
 
@@ -97,7 +106,7 @@ it('replicates the brake-to-breakaway transition when the officer passes ahead, 
 it('Hector broadcasts a fixed grenade warning to peers and a late joiner, then explodes once with shared authority',async()=>{
  const host=await peer(),guest=await peer(host.room.roomId),{bossId}=encounter(host,4);
  await until(()=>Boolean(host.state.grenades?.length)&&Boolean(guest.state.grenades?.length),'Grenadier must publish a live landing/fuse warning');
- const grenade=host.state.grenades![0]!;expect(grenade.ownerEntityId).toBe(bossId);expect(grenade.detonatesAtTick-grenade.bornTick).toBeGreaterThanOrEqual(72);
+ const grenade=host.state.grenades![0]!;expect(grenade.ownerEntityId).toBe(bossId);expect(grenade.detonatesAtTick-grenade.bornTick).toBe(48);
  expect(guest.state.grenades!.find(g=>g.entityId===grenade.entityId)).toEqual(grenade);
  const late=await peer(host.room.roomId);expect(late.state.grenades!.find(g=>g.entityId===grenade.entityId)).toEqual(grenade);
  await until(()=>host.events.some(event=>event.kind==='grenade-exploded'&&event.payload.grenadeId===grenade.entityId)&&guest.events.some(event=>event.kind==='grenade-exploded'&&event.payload.grenadeId===grenade.entityId),'Both observers receive the explosion');
