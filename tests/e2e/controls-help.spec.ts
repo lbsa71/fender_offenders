@@ -157,4 +157,14 @@ test('help preserves the unarmed opener and updates the gun unlock and dispatch 
   for (let i = 0; i < 2; i++) await expect(fire.nth(i)).toBeVisible();
   await stage(3);
   await expect(page.locator('.fo-help-view [data-control-lesson]')).toContainText('Puddles reduce grip');
+  const contrast = await page.locator('.fo-help-view [data-control-lesson]').evaluate(node => {
+    const rgba = (color: string) => color.match(/[\d.]+/g)!.map(Number);
+    const style = getComputedStyle(node), foreground = rgba(style.color), background = rgba(style.backgroundColor);
+    const panel = rgba(getComputedStyle(node.closest('.fo-panel')!).backgroundColor), alpha = background[3] ?? 1;
+    const luminance = (rgb: number[]) => rgb.slice(0, 3).map(channel => { const value = channel / 255; return value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4; }).reduce((sum, value, i) => sum + value * [0.2126, 0.7152, 0.0722][i]!, 0);
+    const text = luminance(foreground), surface = luminance(background.map((channel, i) => channel * alpha + panel[i]! * (1 - alpha)));
+    return (Math.max(text, surface) + .05) / (Math.min(text, surface) + .05);
+  });
+  expect(contrast, 'The lesson must remain readable on the help panel').toBeGreaterThanOrEqual(4.5);
+  await page.screenshot({ path: test.info().outputPath('help-lesson.png') });
 });
