@@ -19,6 +19,9 @@ for (const viewport of [{ width: 375, height: 667 }, { width: 667, height: 375 }
     await expect(controls).toBeVisible();
     await expect(page.getByRole('button', { name: 'Drift and fire together' })).toBeVisible();
     await expect(page.locator('.fo-car-state')).toBeVisible();
+    for (const selector of ['.fo-wordmark', '.fo-scoreboard', '.fo-campaign-live', '.fo-speed', '.fo-pursuit', '.fo-prompts', '.fo-invite', '.fo-target-label']) {
+      await expect(page.locator(selector)).toBeHidden();
+    }
     await page.screenshot({ path: `work/se-driving-${viewport.width}x${viewport.height}.png` });
     const layout = await page.evaluate(() => {
       const rect = (node: Element) => { const b = node.getBoundingClientRect(); return { x: b.x, y: b.y, right: b.right, bottom: b.bottom, width: b.width, height: b.height }; };
@@ -33,6 +36,7 @@ for (const viewport of [{ width: 375, height: 667 }, { width: 667, height: 375 }
     expect(layout.hudOverlaps, 'driving HUD panels must remain readable without covering one another').toEqual([]);
     await page.getByRole('button', { name: 'Open pause menu' }).tap();
     await expect(controls).toBeHidden();
+    await expect(page.getByRole('region', { name: 'Dispatch details' })).toContainText('DISPATCH 2 / 10');
     await page.getByRole('button', { name: 'SETTINGS & CONTROLS' }).tap();
     await expect(page.getByLabel('Control scheme', { exact: true })).toHaveValue('auto');
     await page.getByRole('button', { name: 'SAVE & BACK' }).tap();

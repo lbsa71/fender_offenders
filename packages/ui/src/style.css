@@ -228,3 +228,37 @@
   .fo-campaign-briefing-open .fo-connection{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
   .fo-campaign-briefing-open .fo-invite{top:12px;left:70px;right:auto;min-height:48px;max-width:80px}
 }
+.fo-pause-dispatch{display:none}
+/* Small windscreens: the road gets the space, dispatch paperwork stays in pause. */
+@media(max-width:740px),(max-height:420px){
+  .fo-ui .fo-scoreboard,.fo-ui .fo-pursuit,.fo-ui .fo-campaign-live,.fo-ui:not(.fo-is-playing) .fo-hud{display:none}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-wordmark,
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-connection:not(.fo-connection-reconnecting):not(.fo-connection-broken):not(.fo-connection-connecting),
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-speed,.fo-ui.fo-is-playing:not(.fo-in-garage) .fo-prompts,
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-invite,.fo-ui.fo-is-playing:not(.fo-in-garage) .fo-target-label{display:none}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-top{top:max(8px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));justify-content:flex-end}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-top-right{gap:0}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-icon{width:44px;height:44px;min-width:44px;min-height:44px}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-connection{position:absolute;top:48px;left:50%;transform:translateX(-50%);white-space:nowrap}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-round{top:max(12px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);min-width:64px;padding:5px 8px;border:0}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-round>span{display:none}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-round strong{font-size:20px}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-instruments{display:flex;top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));bottom:auto;transform:none;width:92px;padding:6px;border:0}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-car-state{display:block;width:100%;padding:0}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-car-state>.fo-label{font-size:0;line-height:10px;letter-spacing:0}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-car-state b{font-size:9px}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-car-state>span{display:none}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-health{height:5px;margin:4px 0 0}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-target-indicator{width:92px;left:clamp(60px,var(--target-x,50%),calc(100% - 60px));top:clamp(80px,var(--target-y,50%),calc(100% - 210px))}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-target-arrow{width:24px;height:24px;margin:0 auto 1px}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-target-distance{display:block;width:max-content;margin:0 auto;font-size:8px;padding:2px 4px}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-marker-guidance{font-size:8px;line-height:1.2;margin-top:1px}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-target-indicator progress{display:block;width:72px;height:4px;margin:1px auto 0}
+  .fo-pause-dispatch{display:block;margin:18px 0 0;padding-top:10px;border-top:1px solid var(--line);font-size:9px;line-height:1.5}
+  .fo-pause-dispatch p{margin:0 0 8px}
+  .fo-pause-dispatch ol{list-style:none;margin:0;padding:0}
+  .fo-pause-dispatch .fo-score-head,.fo-pause-dispatch li{display:grid;grid-template-columns:12px minmax(0,1fr) 42px 24px;gap:6px;align-items:center}
+  .fo-pause-dispatch li{padding:7px 0;border-top:1px solid var(--line)}
+  .fo-pause-dispatch .fo-score-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .fo-pause-dispatch strong{text-align:right}
+}

@@ -206,6 +206,9 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   resultOutcome.after(campaignResolution);
   const latestLead = doc.createElement('section'); latestLead.className = 'fo-campaign-new-lead'; latestLead.hidden = true; latestLead.innerHTML = '<span class="fo-kicker">NEW LEAD</span><p></p>'; campaignResolution.querySelector('.fo-campaign-resolution-label')!.after(latestLead);
   const campaignLive = doc.createElement('aside'); campaignLive.className = 'fo-campaign-live'; campaignLive.hidden = true; campaignLive.setAttribute('aria-label', 'Campaign progress'); campaignLive.innerHTML = '<span></span><ol class="fo-campaign-tracker"></ol>'; shell.append(campaignLive);
+  const pauseDetails = doc.createElement('section'); pauseDetails.className = 'fo-pause-dispatch'; pauseDetails.setAttribute('aria-label', 'Dispatch details');
+  pauseDetails.innerHTML = '<p data-pause-case></p><p data-pause-unit></p><div class="fo-score-head"><span aria-hidden="true">#</span><span>UNIT</span><span>PING / ms</span><span>PTS</span></div><ol></ol>';
+  one('.fo-pause').append(pauseDetails);
   const campaignWait = doc.createElement('p'); campaignWait.className = 'fo-campaign-wait'; campaignWait.hidden = true; campaignWait.textContent = 'RECONNECT TO CONTINUE'; one('[data-action="rematch"]').after(campaignWait);
   let campaignViewKey = '';
   const write = (key: string, value: string) => { const node = one(`[data-text="${key}"]`); if (node.textContent !== value) node.textContent = value; };
@@ -343,7 +346,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     // The position is applied directly every frame. The former CSS left/top transition was retargeted on each
     // write, which made Blink's style recalculation grow for the whole dispatch and read as worsening frame drops.
     targetBadge.style.setProperty('--target-x', `${Math.max(0, Math.min(1, indicator.x)) * 100}%`);
-    const safeY=indicator.offscreen && indicator.x<.35 ? Math.max(indicator.y,Math.min(.65,(shellWidth<=740?390:340)/shellHeight)) : indicator.y;
+    const compact = shellWidth <= 740 || shellHeight <= 420;
+    const safeY=!compact && indicator.offscreen && indicator.x<.35 ? Math.max(indicator.y,Math.min(.65,340/shellHeight)) : indicator.y;
     targetBadge.style.setProperty('--target-y', `${Math.max(0, Math.min(1, safeY)) * 100}%`);badgeAnchor={x:indicator.x,y:safeY};
     targetAngle += Math.atan2(Math.sin(indicator.angle - targetAngle), Math.cos(indicator.angle - targetAngle));
     targetBadge.style.setProperty('--target-angle', `${targetAngle}rad`);
@@ -403,6 +407,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     updateTargetBadge();updateTutorial();
     updateControls();
     updateTouchVisibility();
+    updatePauseDetails();
     if (menu !== null) focusFirst();
   }
   async function play() {
@@ -487,6 +492,15 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const scoreRows = new Map<string, HTMLLIElement>();
   const resultRows = new Map<string, HTMLLIElement>();
   const campaignRosterRows = new Map<string, HTMLLIElement>();
+  const pauseScoreRows = new Map<string, HTMLLIElement>();
+  function updatePauseDetails() {
+    if (menu !== 'pause') return;
+    const campaign = model.snapshot?.campaign, hud = deriveHud(model);
+    const target = campaign ? getCampaignTarget(CAMPAIGN_DISPATCHES[campaign.dispatchIndex]!.targetId) : null;
+    pauseDetails.querySelector('[data-pause-case]')!.textContent = campaign ? `DISPATCH ${campaign.dispatchIndex + 1} / 10 · ${target!.name}` : 'CURRENT PATROL';
+    pauseDetails.querySelector('[data-pause-unit]')!.textContent = `UNIT INTEGRITY ${Math.ceil(hud.health)}% · ${hud.speed} KM/H`;
+    updateScores(pauseDetails.querySelector('ol')!, false, pauseScoreRows);
+  }
   function updateScores(target: HTMLOListElement, results: boolean, rows = results ? resultRows : scoreRows) {
     const scores = [...(model.snapshot?.scores ?? [])].sort((a, b) => b.score - a.score || a.nickname.localeCompare(b.nickname));
     const liveIds = new Set(scores.map(score => score.playerId));
@@ -572,6 +586,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     const showCallout = snapshot?.phase === 'countdown' || hud.status !== 'active'; hide('.fo-center-callout', !showCallout);
     write('callout-label', snapshot?.phase === 'countdown' ? 'READY TO ROLL?' : 'UNIT OUT OF ACTION'); write('callout', snapshot?.phase === 'countdown' ? String(Math.max(1, Math.ceil(hud.seconds))) : `BACK IN ${Math.ceil(hud.respawn)}…`);
     updateScores(one('[data-scores]'), false);
+    updatePauseDetails();
     if (hasResult()) updateScores(one('[data-results]'), true);
     if (hasResult() && !snapshot?.campaign) {
       const winnerId = authorityPursuit?.winnerPlayerId;

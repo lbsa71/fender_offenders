@@ -43,7 +43,7 @@ Targets now [fight back with distinct driving and weapon tactics](BOSS_COMBAT.md
 ## 5. Core loop
 
 1. Open the game and activate audio/input with an intentional start action.
-2. Receive a random room URL on opening the bare URL, then keep, reroll or type a callsign and choose Hit the streets. Share the address bar or use the single Invite URL button, available before and throughout play. There is no separate room creation/join form. The title screen allocates no server simulation. Callsigns and the assigned garage car persist in this browser.
+2. Receive a random room URL on opening the bare URL, then keep, reroll or type a callsign and choose Hit the streets. Share the address bar or use the single Invite URL button, available before play and in the pause menu; larger screens also retain it during driving. There is no separate room creation/join form. The title screen allocates no server simulation. Callsigns and the assigned garage car persist in this browser.
 3. Read the target dossier, tactics, assigned car and earned casefile. Reassign the player's car if desired, then start the dispatch; any connected officer can start, including a lone player.
 4. Drive, drift, dodge traffic and marked grenades, and arrest or wreck the shared target. Multiplayer rivals can also shoot one another; the first target resolution wins the dispatch.
 5. Respawn quickly after an officer's wreck and rejoin the action. Arrests earn three points and green checks; credited target wrecks earn one point and amber marks. Both advance the story.
