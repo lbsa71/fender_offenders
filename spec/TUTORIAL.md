@@ -1,6 +1,6 @@
 # Rookie patrol: learn the job, keep the keys
 
-Status: implemented in `arcade-v14`, protocol 4, map `sunset-borough-2`. Reviewed: 2026-10-26. Human difficulty, physical-controller and sustained performance acceptance remain open. [Execution status](EXECUTION_STATUS.md) records observed checks.
+Status: implemented locally in `arcade-v15`, protocol 4, map `sunset-borough-3`. Reviewed: 2026-10-26. Human difficulty, physical-controller and sustained performance acceptance remain open. [Execution status](EXECUTION_STATUS.md) records observed checks.
 
 *Dispatch supplies the lesson. Procurement supplies the noisy accessories one case later.*
 
@@ -10,13 +10,16 @@ Status: implemented in `arcade-v14`, protocol 4, map `sunset-borough-2`. Reviewe
 | 2 · Clamp Down | **UNLOCKED: GUNS!** Forward fire and recoil; short bursts preserve control | Arrest or credited target wreck |
 | 3 · Duplicate Trouble | Suspect bombs: leave the fixed landing circle before detonation; introductory fuse 150 ticks / 2.5 seconds | Arrest or credited target wreck |
 | 4 · Express Distress | Road puddles activate; ease off and steer gently | Arrest or credited target wreck |
-| 5–10 | Existing tactics combine the learned mechanics; guns and puddles remain available | Arrest or credited target wreck |
+| 5 · Stamp Duty | Existing grenade tactics combine the learned mechanics | Arrest or credited target wreck |
+| 6 · False Alarm | Marked oil briefly reduces grip; steer around it, with normal grip returning on exit | Arrest or credited target wreck |
+| 7 · Cone of Silence | Amber hubcaps warn before short side blades; leave side clearance and use a front cutoff | Arrest or credited target wreck |
+| 8–10 | Existing tactics combine the learned mechanics; guns and puddles remain available | Arrest or credited target wreck |
 
 The shared `getDispatchFeatures(dispatchIndex)` catalog derives equipment, accepted outcomes, road activation and lesson copy from authoritative campaign progress. Unlocks belong to the room, including late joins and reconnects. Retry keeps the dispatch; campaign restart returns to the unarmed opener. No account, player tutorial save or extra lobby is added. The three-second countdown and five-minute dispatch timer remain.
 
 ## Clear instructions while driving
 
-The floating control card follows the local car, stays within the viewport and chooses a side clear of the suspect marker for the first **eight seconds of active keyboard/controller play per mounted page**. Menus, countdown, results, hidden tabs, touch mode, interrupted connections and authoritative pause suspend its remaining time. Later dispatches and HUD/device updates do not restart it. The card uses raised keyboard keycaps and controller stick, trigger, bumper and face-button graphics for the selected device, including actual remapped keys. Gun prompts and the fire-remapping row are hidden in dispatch 1. A short current-lesson reminder appears below the controls in dispatches 1–4, including for newly joined backup.
+The floating control card follows the local car, stays within the viewport and chooses a side clear of the suspect marker for the first **eight seconds of active keyboard/controller play per mounted page**. Menus, countdown, results, hidden tabs, touch mode, interrupted connections and authoritative pause suspend its remaining time. Later dispatches and HUD/device updates do not restart it. The card uses raised keyboard keycaps and controller stick, trigger, bumper and face-button graphics for the selected device, including actual remapped keys. Gun prompts and the fire-remapping row are hidden in dispatch 1. A current-lesson reminder appears below the controls in dispatches 1–4 and 6–7, including for newly joined backup, and remains available through pause help after the card dismisses.
 
 **CONTROLS HELP** remains available in home, pause, results and briefing menus after the card disappears. It shows both full layouts and the current lesson, respects the unarmed opener and gun unlock, and stays open until closed. Keyboard and controller menu navigation reach the same guide. Opening it neutralizes driving through the existing menu callback; Escape/controller Back returns to the previous menu.
 

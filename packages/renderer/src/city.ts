@@ -35,15 +35,18 @@ export function buildCity(scene: Scene): Mesh[] {
     mesh.position.set(x, y, z); return add(mesh, color);
   };
 
+  const width = districtMap.bounds.maxX - districtMap.bounds.minX, depth = districtMap.bounds.maxZ - districtMap.bounds.minZ;
+  const extent = width / 2, outerRoad = Math.max(...roadCenters);
   box('harbor-water', 0, -1.3, 0, 1200, .1, 1200, '#7fa7a8');
-  box('district-foundation', 0, -.8, 0, 270, 1, 270, '#7e9385');
-  box('ground', 0, -.21, 0, 270, .3, 270, '#6f987f');
+  box('district-foundation', 0, -.8, 0, width + 20, 1, depth + 20, '#7e9385');
+  box('ground', 0, -.21, 0, width + 20, .3, depth + 20, '#6f987f');
   for(let i=0;i<70;i++){
-    const side=i%4,along=Math.sin(i*19.57)*240,away=145+(i%9)*12;
+    const side=i%4,along=Math.sin(i*19.57)*(extent+115),away=extent+20+(i%9)*12;
     box('water-glint',side<2?along:(side===2?away:-away),-1.235,side>=2?along:(side===0?away:-away),5+i%7,.008,.14,'#98b8b5');
   }
-  box('city-pad', 0, -.06, 0, 250, .06, 250, '#52666b');
-  for (const x of [-40, 40]) for (const z of [-40, 40]) {
+  box('city-pad', 0, -.06, 0, width, .06, depth, '#52666b');
+  const blockCenters = roadCenters.slice(1).map((road, index) => (road + roadCenters[index]!) / 2);
+  for (const x of blockCenters) for (const z of blockCenters) {
     box('sidewalk-block', x, .05, z, 64, .18, 64, '#c8c6ac');
     box('garden-block', x, .16, z, 56, .12, 56, '#8ba079');
     // Footpaths around the central block gardens.
@@ -54,18 +57,20 @@ export function buildCity(scene: Scene): Mesh[] {
   }
   for (const side of [-1, 1]) {
     // Leave the authored 16m road corridors open through the outer dressing.
-    for(const [start,end] of [[-125,-88],[-72,-8],[8,72],[88,125]]){
+    const cuts = [-extent, ...roadCenters.flatMap(road => [road - 8, road + 8]), extent];
+    for(let i=0;i<cuts.length;i+=2){
+      const start=cuts[i]!,end=cuts[i+1]!;
       const center=(start!+end!)/2,length=end!-start!;
-      box('outer-walk', side * 94, .06, center, 10, .2, length, '#c8c6ac');
-      box('outer-walk', center, .06, side * 94, length, .2, 10, '#c8c6ac');
-      box('outer-grass', side * 112, .1, center, 25, .1, length, '#91a47c');
-      box('outer-grass', center, .1, side * 112, length, .1, 25, '#91a47c');
+      box('outer-walk', side * (outerRoad + 14), .06, center, 10, .2, length, '#c8c6ac');
+      box('outer-walk', center, .06, side * (outerRoad + 14), length, .2, 10, '#c8c6ac');
+      box('outer-grass', side * (extent - 10), .1, center, 19, .1, length, '#91a47c');
+      box('outer-grass', center, .1, side * (extent - 10), length, .1, 19, '#91a47c');
     }
   }
   for (const p of roadCenters) {
-    box('asphalt', p, .004, 0, 16, .02, 250, '#4d6268');
-    box('asphalt', 0, .006, p, 250, .02, 16, '#4d6268');
-    for (let i = -120; i <= 120; i += 9) if (roadCenters.every((r) => Math.abs(i - r) > 11)) {
+    box('asphalt', p, .004, 0, 16, .02, depth, '#4d6268');
+    box('asphalt', 0, .006, p, width, .02, 16, '#4d6268');
+    for (let i = -extent + 5; i <= extent - 5; i += 9) if (roadCenters.every((r) => Math.abs(i - r) > 11)) {
       box('center-dash', p, .026, i, .16, .014, 4, '#e9c979');
       box('center-dash', i, .028, p, 4, .014, .16, '#e9c979');
       for (const s of [-1, 1]) {
@@ -99,7 +104,7 @@ export function buildCity(scene: Scene): Mesh[] {
     const mesh=new Mesh(surface.id,scene),v=new VertexData();v.positions=positions;v.indices=indices;v.normals=[];v.uvs=Array(positions.length/3*2).fill(0);VertexData.ComputeNormals(positions,indices,v.normals);v.applyToMesh(mesh);add(mesh,'#bd9b6f');
   }
   for (let i = 0; i < 90; i++) {
-    const x = Math.sin(i * 38.31) * 122, z = Math.cos(i * 22.47) * 122;
+    const x = Math.sin(i * 38.31) * (extent - 3), z = Math.cos(i * 22.47) * (extent - 3);
     if (roadCenters.every((r) => Math.abs(x - r) > 15 && Math.abs(z - r) > 15)) box('grass-detail', x, .221, z, 1.7, .015, 1, i % 2 ? '#94a77f' : '#849b74');
   }
   // A parking apron next to the precinct, with painted bays and wheel stops.
@@ -160,8 +165,8 @@ export function buildCity(scene: Scene): Mesh[] {
   }
   // Trees and street furniture are drawn from authoritative rigid-prop state.
   for (const side of [-1,1]) {
-    box('district-wall',side*125,1,0,1.5,2,252,'#849b8c');
-    box('district-wall',0,1,side*125,252,2,1.5,'#849b8c');
+    box('district-wall',side*extent,1,0,1.5,2,depth+2,'#849b8c');
+    box('district-wall',0,1,side*extent,width+2,2,1.5,'#849b8c');
   }
   const merged: Mesh[]=[];
   for (const [m,meshes] of groups) {

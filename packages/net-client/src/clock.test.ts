@@ -28,6 +28,25 @@ function snapshot(tick: number, options: { direction?: number; epoch?: string; m
 }
 afterEach(() => { vi.useRealTimers(); wire.handlers.clear(); wire.deferBaseline = false; wire.queued = []; wire.batches=[]; });
 
+it('applies received armed oil to the continuous local driver without waiting for a server position correction', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
+  const source = unpackSnapshot(snapshot(100)); source.local!.vehicle.velocity = { x: 4, z: 12, yawRate: 0 };
+  source.vehicles = source.vehicles.map(vehicle => vehicle.entityId === 'local' ? source.local!.vehicle : vehicle);
+  const gadgets = [{ entityId: 'received-oil', ownerEntityId: 'remote', kind: 'oil' as const, pose: { x: 100, z: 100, yaw: 0 }, bornTick: 40, activeAtTick: 85, expiresTick: 385 }];
+  wire.initial = packSnapshot({ ...source, gadgets }); const session = createOnlineSession('ws://clock-fixture', map);
+  try {
+    await session.connect({ roomId: crypto.randomUUID(), nickname: 'Oil inspector' });
+    let dry = { vehicle: structuredClone(source.local!.vehicle), driver: structuredClone(source.local!.driver) };
+    for (let sequence = 0; sequence < 10; sequence++) {
+      session.submit({ sessionEpoch: source.sessionEpoch, sequence, clientTick: sequence, actions: neutralActions() }, performance.now());
+      dry = predictVehicle(map, dry.vehicle, dry.driver, neutralActions(), [], undefined, 101 + sequence);
+    }
+    const rendered = session.sampleFrame()!.vehicles.find(vehicle => vehicle.entityId === 'local')!;
+    expect(rendered.velocity.x).toBeGreaterThan(dry.vehicle.velocity.x + .25);
+    expect(session.sampleFrame()).toHaveProperty('gadgets', gadgets);
+  } finally { await session.dispose(); }
+});
+
 it('replicates the completed local physics step outward, without sending presentation extrapolation or health', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
   const source=unpackSnapshot(snapshot(100));source.local!.vehicle.velocity.z=20;

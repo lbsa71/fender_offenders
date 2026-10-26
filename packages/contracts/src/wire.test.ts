@@ -2,6 +2,11 @@ import {describe,it,expect} from 'vitest';
 import {packSnapshot,unpackSnapshot,type WorldSnapshot} from './index';
 const snapshot:WorldSnapshot={protocolVersion:1,mapRevision:'map',gameplayRevision:'rules',sessionEpoch:'epoch',serverTick:0,matchId:'match',phase:'lobby',phaseEndsAtTick:null,vehicles:[],projectiles:[],scores:[{playerId:'a',nickname:'Alpha',score:0,wrecks:0,connection:'connected'}],local:null};
 describe('scoreboard latency wire compatibility',()=>{
+  it('reconstructs fixed oil warnings and hubcap timing for peers and late joins',()=>{
+    const gadgets=[{entityId:'oil-1',ownerEntityId:'boss',kind:'oil' as const,pose:{x:3.125,z:-8.5,yaw:.25},bornTick:10,activeAtTick:55,expiresTick:355},{entityId:'blades-1',ownerEntityId:'boss-2',kind:'blades' as const,pose:{x:-4,z:8,yaw:0},bornTick:20,activeAtTick:80,expiresTick:170}];
+    const source={...snapshot,gadgets};expect(unpackSnapshot(packSnapshot(source))).toHaveProperty('gadgets',gadgets);
+    expect(unpackSnapshot(packSnapshot(snapshot))).toHaveProperty('gadgets',[]);expect(source.gadgets).toEqual(gadgets);
+  });
   it('preserves recoil load and the prediction tick in the local authority baseline',()=>{
     const vehicle={entityId:'recoil-car',playerId:'a',bodyAssetId:'patrol',pose:{x:0,z:0,yaw:0},velocity:{x:0,z:15,yawRate:0},health:100,status:'active' as const,protectedUntilTick:0,respawnAtTick:null,sirenOn:false,discontinuityId:0};
     const driver={resolvedSteering:.2,reverseHoldTicks:0,nextFireTick:132,shotOrdinal:4,nextRecoveryTick:0,lastDamageTick:null,recoilStrength:.75,simulatedTick:120};

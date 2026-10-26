@@ -1,6 +1,6 @@
 # Product specification
 
-Status: product baseline for the implemented `arcade-v11` alpha and remaining release acceptance. Updated: 2026-10-25. [Execution status](EXECUTION_STATUS.md) records dated evidence; requirements below do not imply completed acceptance.
+Status: product baseline for the local `arcade-v15` alpha and remaining release acceptance. Updated: 2026-10-26 for longer avenues and suspect road gadgets. [Execution status](EXECUTION_STATUS.md) records dated evidence; requirements below do not imply completed acceptance.
 
 *Ten dispatches. Six cars. One district with a very relaxed attitude toward insurance premiums.*
 
@@ -128,7 +128,7 @@ Settings expose persisted Automatic, Touch, Controller and Keyboard schemes. Aut
 
 ## 9. District, traffic, and pursuit challenge
 
-- Starting district target: roughly 250 m by 250 m; adjust after speed/camera playtesting.
+- Local `arcade-v15` district: 400 m by 400 m, extending the original 250 m town around the same centre. Long 400 m main streets and 312 m pursuit straights allow normal full-speed driving; cross streets and the original dirt shortcuts preserve cutoff choices. Human handling/camera acceptance remains open.
 - Include at least one loop, multiple intersections, a commercial block, a residential edge, an industrial space, and two dirt shortcuts.
 - Roads must allow two cars to pass and must avoid repeated camera occlusion from tall buildings.
 - Buildings near the camera may fade visually; their physical blockers remain unchanged and readable.
@@ -137,7 +137,8 @@ Settings expose persisted Automatic, Touch, Controller and Keyboard schemes. Aut
 - Traffic can collide but does not shoot. It must recover from jams without blocking a route indefinitely.
 - Campaign dispatches identify one AI suspect; the opener is unarmed and arrest-only. An active connected officer must stay strictly within 8 m, below 5 m/s relative speed, with clear world line of sight for three seconds. Each officer owns progress, which decays when ineligible. After dispatch 1, arrest or credited target destruction completes the campaign dispatch; the legacy noncampaign fixture retains arrest-only completion.
 - The suspect has a persistent world marker and labeled camera-relative screen-edge guidance. Markers clear for menus, disconnected sessions and completed dispatches. Existing replicated vehicle poses drive presentation; no cosmetic marker transforms are transmitted.
-- Server-owned loose props and toppled lamps/signs/trees use separate 3D physics without feeding impulses or damage back to cars. Twenty-four local cosmetic pedestrians avoid rendered vehicles and cannot be injured. See [world reactions](WORLD_REACTIONS.md); enterable buildings and a larger open world remain deferred.
+- Server-owned loose props and toppled lamps/signs/trees use separate 3D physics without feeding impulses or damage back to cars. Twenty-four local cosmetic pedestrians avoid rendered vehicles and cannot be injured. See [world reactions](WORLD_REACTIONS.md); enterable buildings and further open-world expansion remain deferred.
+- Original spy-car gadgets add positional counterplay in later dispatches: marked oil briefly reduces grip inside a small patch, and warned hubcap blades threaten close side-by-side driving. Suspects carry the initial equipment; the original four lessons stay unchanged. Short effects, twelve-second cooldowns and front-cutoff arrest counterplay keep the escalation bounded. See [boss combat](BOSS_COMBAT.md#road-gadgets).
 
 ## 10. Presentation and feedback
 

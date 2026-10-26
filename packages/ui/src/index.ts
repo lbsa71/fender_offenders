@@ -172,6 +172,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   function setControlAnchor(anchor:{x:number;y:number}|null){controlAnchor=anchor;positionControls();}
   function currentReminder() {
     const index = model.snapshot?.campaign?.dispatchIndex;
+    if(index===5||index===6)return getDispatchFeatures(index).lesson;
     return index === undefined ? '' : ['Arresting is automatic. Stay close and match speed.', 'Fire forward in short bursts.', 'Bombs: leave the marked circle.', 'Puddles reduce grip. Steer gently.'][index] ?? '';
   }
   function updateTutorial(){

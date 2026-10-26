@@ -1,6 +1,7 @@
 import { Client, ErrorCode, MatchMakeError, ServerError, type Room, type SeatReservation } from '@colyseus/sdk';
 import { predictVehicle } from '@fender/sim';
 import { ProjectilePresentation } from './projectile-presentation';
+import { withRoadGadgets } from '@fender/contracts';
 import { GAMEPLAY_REVISION, PROTOCOL_VERSION, getDispatchFeatures, DEFAULT_DRIVING_CONTEXT, isInviteCode, isRecord, unpackSnapshot, type CollisionMap, type GameEvent, type GameSession, type InputCommand, type JoinResult, type LocalAuthorityState, type LocalVehicleMotion, type PropState, type RenderFrame, type SessionRequest, type SessionStatus, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
 const clone = <T>(v: T): T => structuredClone(v);
 const wrap = (n: number) => Math.atan2(Math.sin(n), Math.cos(n));
@@ -210,7 +211,9 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       if (!frozenCampaign(snapshot) && (snapshot.phase === 'playing' || snapshot.phase === 'lobby')) {
         const now = performance.now(), previousTickTime = predictionAt;
         const actions = snapshot.phase === 'playing' ? command.actions : { ...command.actions, fire: false };
-        const result = predictVehicle(map, predicted.vehicle, predicted.driver, actions, remoteAt(estimatedTick).filter(v => v.entityId !== predicted!.vehicle.entityId), undefined, Math.max(snapshot.serverTick, predicted.driver.simulatedTick ?? 0) + 1, snapshot.campaign ? getDispatchFeatures(snapshot.campaign.dispatchIndex) : DEFAULT_DRIVING_CONTEXT);
+        const simulationTick = Math.max(snapshot.serverTick, predicted.driver.simulatedTick ?? 0) + 1;
+        const drivingContext = withRoadGadgets(snapshot.campaign ? getDispatchFeatures(snapshot.campaign.dispatchIndex) : DEFAULT_DRIVING_CONTEXT, snapshot.gadgets ?? [], simulationTick);
+        const result = predictVehicle(map, predicted.vehicle, predicted.driver, actions, remoteAt(estimatedTick).filter(v => v.entityId !== predicted!.vehicle.entityId), undefined, simulationTick, drivingContext);
         predicted.vehicle = result.vehicle; predicted.driver = result.driver;
         const timed = localTickTimeMs !== undefined && Number.isFinite(localTickTimeMs);
         predictionAt = timed ? Math.max(now - 1000, Math.min(now, localTickTimeMs!)) : now;
@@ -288,6 +291,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       }
       return { sampleTimeSeconds: now / 1000, vehicles, projectiles: projectilePresentation.sample(predicted?.vehicle.entityId??null,estimatedTick,playbackTick), props: propsAt(playbackTick), localEntityId: predicted?.vehicle.entityId ?? null, cameraTarget: vehicles.find(v => v.playerId === playerId)?.pose ?? null,
         serverTick: hazardTick, grenades: snapshot.phase === 'playing' ? clone((snapshot.grenades ?? []).filter(grenade => grenade.detonatesAtTick > hazardTick)) : [],
+        gadgets: snapshot.phase === 'playing' ? clone((snapshot.gadgets ?? []).filter(gadget => gadget.expiresTick > hazardTick)) : [],
         pursuit: snapshot.phase === 'playing' && snapshot.pursuit?.state !== 'complete' ? clone(snapshot.pursuit) : undefined };
     },
     getSnapshot: () => snapshot,

@@ -1,11 +1,14 @@
 export { getDispatchFeatures, DEFAULT_DRIVING_CONTEXT } from './dispatch-features';
 export type { DispatchFeatures, DispatchDrivingContext } from './dispatch-features';
+export { ROAD_GADGET_RULES, withRoadGadgets } from './road-gadgets';
+export type { RoadGadgetState } from './road-gadgets';
+import type { RoadGadgetState } from './road-gadgets';
 export const PROTOCOL_VERSION = 4;
 export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v14';
+export const GAMEPLAY_REVISION = 'arcade-v15';
 export type { CampaignState, CampaignOutcome, DispatchOutcome, CampaignTarget, CampaignDispatch } from './campaign-types';
 export { CAMPAIGN_ID, CAMPAIGN_TITLE, CAMPAIGN_TARGETS, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, getCampaignTarget } from './campaign';
 export { getCampaignMugshot } from './campaign-mugshots';
@@ -89,6 +92,7 @@ export interface WorldSnapshot {
   vehicles: VehicleState[]; projectiles: ProjectileState[]; scores: PlayerScore[];
   props?: PropState[];
   grenades?: GrenadeState[];
+  gadgets?: RoadGadgetState[];
   local: LocalAuthorityState | null;
   resetReason?: 'join' | 'reconnect' | 'input-backlog' | 'resync';
   pursuit?: PursuitState;
@@ -136,6 +140,7 @@ export interface RenderFrame {
   vehicles: VehicleState[]; projectiles: RenderProjectileState[]; cameraTarget: PlanarPose | null;
   props?: PropState[];
   grenades?: GrenadeState[];
+  gadgets?: RoadGadgetState[];
   /** Presentation clock in authority ticks, buffered online and exact in practice. */
   serverTick?: number;
   pursuit?: PursuitState;

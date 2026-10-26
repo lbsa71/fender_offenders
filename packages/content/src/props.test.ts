@@ -6,6 +6,6 @@ it('authors bounded stable props for all existing trees and street furniture plu
  expect(props.length).toBeLessThanOrEqual(192);expect(new Set(props.map(p=>p.entityId)).size).toBe(props.length);
  expect(props.filter(p=>p.kind==='tree')).toHaveLength(content.trees.length);
  for(const kind of ['barrel','crate','bin','lamp','sign','tree','bench'])expect(props.some(p=>p.kind===kind)).toBe(true);
- expect(props.filter(p=>p.kind==='lamp')).toHaveLength(30);expect(props.filter(p=>p.kind==='bench')).toHaveLength(30);expect(props.filter(p=>p.kind==='bin')).toHaveLength(30);
+ expect(props.filter(p=>p.kind==='lamp')).toHaveLength(54);expect(props.filter(p=>p.kind==='bench')).toHaveLength(30);expect(props.filter(p=>p.kind==='bin')).toHaveLength(30);
  expect(props.every(p=>Object.values(p.position).every(Number.isFinite))).toBe(true);
 });

@@ -1,6 +1,6 @@
 # Architecture
 
-Status: architecture and acceptance targets for the implemented `arcade-v14` / protocol 4 alpha. Updated: 2026-10-26 for immediate local driving and buffered remote presentation. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
+Status: architecture and acceptance targets for the local `arcade-v15` / protocol 4 alpha. Updated: 2026-10-26 for continuous local driving, longer avenues and bounded road gadgets. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
 
 *One authority drives the rules. Everyone else gets a dashboard, not a spare steering wheel.*
 
@@ -27,6 +27,8 @@ flowchart LR
 ```
 
 The authoritative server has no renderer, DOM, or Babylon dependency. Every playable campaign runs in a server room. The browser runs a local menu-preview simulation and runs its own continuous car controller from a server baseline. Presentation consumes an immutable render frame rather than reaching into room schemas or physics objects.
+
+Road-gadget snapshots carry fixed oil footprints and timed owner-relative blades. The same shared controller derives armed oil grip for the local driver and server-simulated cars; ordinary snapshots still do not replace the driver's pose or velocity. Blade damage, cooldowns, lifecycle and hit deduplication remain server-owned. Presentation reconstructs warnings from current snapshots through an eight-slot pool; no new player input action is introduced.
 
 Production CLI startup warms one disposable campaign's initial physics and sparse snapshot encoding before listening. It creates no room, leaves room metrics untouched and disposes its temporary world. Real room clocks, campaign progress and scenery begin fresh. The exported server factory remains available to controlled integration harnesses; the production image exercises the CLI bootstrap and readiness path.
 

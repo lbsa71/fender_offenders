@@ -6,6 +6,7 @@ export interface BossTactics {
   readonly bulletDamage: number; readonly burstShots: number; readonly burstIntervalTicks: number; readonly burstRecoveryTicks: number;
   readonly windupTicks: number; readonly grenadeCooldownTicks: number; readonly grenadeFlightTicks: number; readonly grenadeFuseTicks: number;
   readonly grenadeDamage: number; readonly grenadeRadius: number;
+  readonly gadget?: 'oil' | 'blades';
 }
 const profile = (id: string, label: string, drivingStyle: BossTactics['drivingStyle'], weapon: BossTactics['weapon'], difficulty: number, description: string, overrides: Partial<BossTactics> = {}): BossTactics => Object.freeze({
   id, label, drivingStyle, weapon, difficulty, description,
@@ -23,8 +24,8 @@ export const BOSS_TACTICS: readonly BossTactics[] = Object.freeze([
   profile('duplicate-trouble', 'Courier lob', 'weaver', 'grenades', 3, 'Pip swerves when you close in and throws a slow grenade lob. The landing ring stays fixed: move away before the fuse expires.', { grenadeFuseTicks: 150 }),
   profile('express-distress', 'Express detour', 'weaver', 'grenades', 4, 'Rosa swerves sharply when you close in and drops marked grenades more often. Cross behind her and leave the landing ring during its visible fuse.'),
   profile('stamp-duty', 'Hot-stamp grenadier', 'weaver', 'grenades', 5, 'Hector makes broad swerves when you close in while lobbing marked grenades. Match his movement, leave each fixed blast ring, then arrest during recovery.', { weaveAmplitude: .48, weavePeriodTicks: 180 }),
-  profile('false-alarm', 'Siren drive-by', 'runner', 'burst', 6, 'Otis runs a quicker escape line with short drive-by bursts. His guns still point forward; approach the flanks during recovery.'),
-  profile('cone-of-silence', 'Rolling roadblock', 'brake-check', 'burst', 7, 'Tess brakes hard when you close in behind, then floors it briefly. Cut her off during the long driving cooldown; watch for three forward volleys.', { burstShots: 3 }),
+  profile('false-alarm', 'Siren drive-by', 'runner', 'burst', 6, 'Otis drops small oil slicks when you close behind. Steer around the amber-edged patches; they briefly reduce grip. His guns point forward, so approach the flanks during recovery.', { gadget: 'oil' }),
+  profile('cone-of-silence', 'Rolling roadblock', 'brake-check', 'burst', 7, 'Tess brake-checks, then floors it briefly. Amber hubcaps warn before short side blades extend: leave side clearance, cut in front and match speed during her long cooldown.', { burstShots: 3, gadget: 'blades' }),
   profile('premium-care', 'Serpentine drive-by', 'weaver', 'burst', 8, 'Iris cuts sharp, fast swerves when you close in and fires four forward drive-by volleys. Follow the rhythm, stay off her nose, and match speed during recovery.', { weaveAmplitude: .88, weavePeriodTicks: 120, burstShots: 4 }),
   profile('paper-trail', 'Accountant crossfire', 'runner', 'mixed', 9, 'Juno alternates escape bursts and fixed grenade zones. Move out of the marked landing area and catch the pause between attacks.'),
   profile('green-light', 'Chairman intercept', 'interceptor', 'mixed', 10, 'Aldo steers toward your route and alternates five forward volleys with grenades. Break his firing line, dodge the fixed blast ring, then exploit recovery.', { burstShots: 5, engageRange: 36 }),

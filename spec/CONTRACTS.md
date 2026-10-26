@@ -1,12 +1,14 @@
 # Shared contracts
 
-Status: semantic contract reference for the implemented alpha (`arcade-v14` gameplay, protocol 4, map `sunset-borough-2`). Updated: 2026-10-26. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+Status: semantic contract reference for the local alpha (`arcade-v15` gameplay, protocol 4, map `sunset-borough-3`). Updated: 2026-10-26. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
 
 *The contracts are the traffic lights. Please resist interpreting red as an optional decoration.*
 
 This document defines cross-lane semantics and remaining acceptance expectations. Examples describe semantic TypeScript types, not the compact snapshot wire encoding or installed SDK API. Consumers use the package's public exports; additional validators and the complete proposed fixture catalog remain unfinished rather than implied by these examples.
 
 ## Campaign extension
+
+`arcade-v15` adds bounded suspect road gadgets and the 400 m `sunset-borough-3` map, retaining protocol 4 and continuous local movement ownership. `WorldSnapshot.gadgets?` and `RenderFrame.gadgets?` contain at most eight `RoadGadgetState` values: entity/owner IDs, kind `oil` or `blades`, planar pose, born/active/expiry ticks. Nine-field compact tuples carry those values; missing lists decode to empty. Oil stays fixed, blade poses follow their owner, and current snapshots reconstruct warnings for peers/late joins. Cooldowns and per-deployment blade hit IDs remain in trusted checkpoints. `withRoadGadgets` derives armed oil footprints for the shared controller; normal server-owned damage and explicit interventions remain unchanged. Older gameplay/map clients are rejected. See [gadget timing and counterplay](BOSS_COMBAT.md#road-gadgets).
 
 `arcade-v14` / protocol 4 adds `InputBatch.motion?: LocalVehicleMotion`: completed local `sequence`, `discontinuityId`, planar `pose` and `velocity`. Matching client/server versions are mandatory. The room validates the owning session, current life, accepted batch sequence, finite values, map bounds, speed/yaw-rate and bounded displacement. Health, body, identity and outcomes are never accepted from this payload. Ordinary snapshots retire acknowledged samples and merge shared metadata without restoring local driving. Server intervention uses an explicit discontinuity/full baseline. The map revision remains `sunset-borough-2`.
 
