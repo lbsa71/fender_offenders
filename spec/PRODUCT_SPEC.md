@@ -29,7 +29,7 @@ Targets now [fight back with distinct driving and weapon tactics](BOSS_COMBAT.md
 - Chrome/Edge, Firefox, and Safari are release test targets subject to the explicit matrix in QUALITY_AND_OPERATIONS.md.
 - WebGL2 is the baseline. WebGPU is optional and must not be necessary to play.
 - First release assumes one local player per browser session. Online multiplayer is not local split screen.
-- Mobile/touch controls and native packages are deferred.
+- Generic touch controls are implemented for browsers on touch-capable devices, alongside controllers. Physical mobile hardware/browser acceptance and sustained performance remain open; native packages are deferred.
 
 ## 4. Scope by release slice
 
@@ -68,6 +68,8 @@ Server rooms advance fixed 60 Hz ticks, with at most four catch-up steps; client
 ## 7. Input behavior
 
 All devices produce the same action structure. Gameplay never reads raw DOM events or gamepad objects.
+
+Settings expose persisted Automatic, Touch, Controller and Keyboard schemes. Automatic begins with touch on touch-capable hardware and follows actual driving-device use; tapping the play area returns to touch. Explicit schemes restrict driving to the selected source and keep the overlay stable. Touch uses a vehicle-relative drive pad (up throttle, down brake/reverse, horizontal steering), held Fire and Drift buttons, a combined Drift + Fire button for two-thumb play, Siren and one-second Recover. All menus remain tappable. The overlay hides in menus, briefings, results and interrupted connections. Pointer cancellation, capture loss, viewport resize and input resets clear pointer ownership and neutralize held controls. Landscape is recommended; compact landscape and portrait layouts retain visible health and touch targets of at least 44 CSS pixels.
 
 | Action | Keyboard default | Standard gamepad default |
 | --- | --- | --- |
@@ -164,6 +166,6 @@ All devices produce the same action structure. Gameplay never reads raw DOM even
 
 ## 12. Non-goals for this plan
 
-MMO infrastructure, realistic vehicle simulation, destructible buildings, humanoid combat, real vehicle branding, cross-session campaign saves, voice chat, public user-generated content, split screen, mobile controls, and a custom rendering engine are outside scope. Browser-local callsigns, garage and settings are implemented; campaign progress remains in memory. Changes to these assumptions require a product/architecture decision and updated task dependencies. The city council has declined to fund an MMO this quarter.
+MMO infrastructure, realistic vehicle simulation, destructible buildings, humanoid combat, real vehicle branding, cross-session campaign saves, voice chat, public user-generated content, split screen, native mobile packages, and a custom rendering engine are outside scope. Generic browser touch controls, browser-local callsigns, garage and settings are implemented; campaign progress remains in memory. Changes to these assumptions require a product/architecture decision and updated task dependencies. The city council has declined to fund an MMO this quarter.
 
 The [staged tutorial](TUTORIAL.md) specifies persistent device-aware control icons, authoritative arrest guidance, dual garage previews, the dispatch-2 gun unlock, dispatch-3 bomb warning and dispatch-4 slippery puddles. Tutorial state is shared by the room.

@@ -1,6 +1,6 @@
 # Rookie patrol: learn the job, keep the keys
 
-Status: implemented in `arcade-v11`, protocol 3, map `sunset-borough-2`. Reviewed: 2026-10-25. Human difficulty, physical-controller and sustained performance acceptance remain open. [Execution status](EXECUTION_STATUS.md) records observed checks.
+Status: implemented in `arcade-v12`, protocol 3, map `sunset-borough-2`. Reviewed: 2026-10-26. Human difficulty, physical-controller and sustained performance acceptance remain open. [Execution status](EXECUTION_STATUS.md) records observed checks.
 
 *Dispatch supplies the lesson. Procurement supplies the noisy accessories one case later.*
 
@@ -16,7 +16,11 @@ The shared `getDispatchFeatures(dispatchIndex)` catalog derives equipment, accep
 
 ## Clear instructions while driving
 
-The persistent floating control card follows the local car, stays within the viewport and chooses a side clear of the suspect marker. It shows labeled keyboard keycaps or standard-controller glyphs for the active device, including actual remapped keys. Gun prompts and the fire-remapping row are hidden in dispatch 1. A short current-lesson reminder remains below the controls in dispatches 1–4 so live backup also receives the instruction. Menus, countdown, results and authoritative pause hide live driving prompts.
+The floating control card follows the local car, stays within the viewport and chooses a side clear of the suspect marker for the first **eight seconds of active keyboard/controller play per mounted page**. Menus, countdown, results, hidden tabs, touch mode, interrupted connections and authoritative pause suspend its remaining time. Later dispatches and HUD/device updates do not restart it. The card uses raised keyboard keycaps and controller stick, trigger, bumper and face-button graphics for the selected device, including actual remapped keys. Gun prompts and the fire-remapping row are hidden in dispatch 1. A short current-lesson reminder appears below the controls in dispatches 1–4, including for newly joined backup.
+
+**CONTROLS HELP** remains available in home, pause, results and briefing menus after the card disappears. It shows both full layouts and the current lesson, respects the unarmed opener and gun unlock, and stays open until closed. Keyboard and controller menu navigation reach the same guide. Opening it neutralizes driving through the existing menu callback; Escape/controller Back returns to the previous menu.
+
+For touch driving, the labeled drive pad and action buttons replace that floating card. Fire and Drift + Fire remain hidden in dispatch 1 and appear with the room's dispatch-2 gun unlock. Settings choose Automatic, Touch, Controller or Keyboard; explicit choices keep the driving source and overlay fixed. Touch hints use gestures/button names, while keyboard/controller cards retain their device-specific icons and remapped keys.
 
 The objective names the suspect: **APPREHEND NICO**. Arresting is automatic: catch up, match speed, and stay close for three seconds. The server's existing eligibility checks publish `get-closer`, `match-speed`, `clear-obstruction`, `hold-steady` or `unavailable` for each contender. The suspect marker displays the local officer's guidance and progress; another officer's progress cannot fill it. Existing strict distance below 8 m, relative speed below 5 m/s, line-of-sight and progress decay remain authoritative.
 

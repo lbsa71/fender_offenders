@@ -36,7 +36,7 @@ Only player and villain cars carry modeled guns. `traffic-*` body IDs select una
 
 ## Pedestrian safety
 
-The bounded crowd follows authored pavement and zebra-crossing loops. People wait for a predicted safe gap, flee approaching vehicles, and retreat if a crossing becomes unsafe. Avoidance considers every rendered car, including traffic, reversing/turning motion and the sweep from the last rendered position. It runs before the scene is drawn, including zero-delta snapshots and teleports.
+The bounded crowd follows authored pavement and zebra-crossing loops. People wait for a predicted safe gap and flee only approaching active player vehicles or the suspect identified by `frame.pursuit.suspectId`. Ordinary cars do not trigger running. Crossing waits and overlap protection still consider every rendered car, including traffic, reversing/turning motion and the sweep from the last rendered position. These checks run before the scene is drawn, including zero-delta snapshots and teleports.
 
 Safe refuges must lie on pavement outside building footprints. A final safety check relocates a cosmetic figure to a validated refuge in an emergency; if none exists it temporarily hides that figure. This fallback guarantees visual separation under late or discontinuous state delivery. The normal animation is walking, waiting or running. People have no health, projectile target, hit event or vehicle collider, and cannot be injured. The crowd is local presentation rather than synchronized gameplay state.
 

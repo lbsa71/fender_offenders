@@ -46,8 +46,8 @@ export class PedestrianCrowd {
     }
     const part = template.createInstance(name); part.parent = parent; part.position.set(x, y, z); part.isVisible = true; part.isPickable = false; return part;
   }
-  update(vehicles: readonly VehicleState[], dt: number, reducedMotion: boolean) {
-    if (this.disposed) return; this.motion.update(vehicles, dt);
+  update(vehicles: readonly VehicleState[], dt: number, reducedMotion: boolean, suspectId?: string) {
+    if (this.disposed) return; this.motion.update(vehicles, dt, suspectId);
     for (const state of this.motion.getStates()) {
       const person = this.people[state.id]!; person.root.setEnabled(!state.hiddenSafety);
       // Shared driving coordinates are reflected exactly once at this renderer boundary.

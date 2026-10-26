@@ -1,12 +1,16 @@
 # Shared contracts
 
-Status: semantic contract reference for the implemented alpha (`arcade-v11` gameplay, protocol 3, map `sunset-borough-2`). Updated: 2026-10-25. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+Status: semantic contract reference for the implemented alpha (`arcade-v13` gameplay, protocol 3, map `sunset-borough-2`). Updated: 2026-10-26. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
 
 *The contracts are the traffic lights. Please resist interpreting red as an optional decoration.*
 
 This document defines cross-lane semantics and remaining acceptance expectations. Examples describe semantic TypeScript types, not the compact snapshot wire encoding or installed SDK API. Consumers use the package's public exports; additional validators and the complete proposed fixture catalog remain unfinished rather than implied by these examples.
 
 ## Campaign extension
+
+`arcade-v13` adds a short full-throttle breakaway after the closing-pursuit brake check, with a six-second cooldown and unchanged speed/arrest rules. Brake-check, breakaway and cooldown deadlines live in the existing trusted boss checkpoint; no new wire fields are required. Matching-build checks reject `arcade-v12` and earlier clients. Protocol 3 and map `sunset-borough-2` remain unchanged. See [boss driving rules](BOSS_COMBAT.md#difficulty-and-authority).
+
+`arcade-v12` makes suspect evasive steering and stronger brake checks conditional on a nearby officer closing the gap, integrated with the `arcade-v11` tutorial/touch/solo baseline. The authority checkpoints the evasion target and maneuver start tick with the existing boss runtime. Gameplay version checks reject `arcade-v11` and earlier clients; the baseline's protocol 3 and all wire tuple shapes remain unchanged. See [boss driving rules](BOSS_COMBAT.md#difficulty-and-authority).
 
 The armed-target extension exposes `getBossTactics(dispatchIndex)`, ten immutable `BOSS_TACTICS` profiles and `randomCallsign(random?)`. `WorldSnapshot.grenades?: GrenadeState[]` carries bounded authoritative hazards. Each grenade contains entity/owner IDs, immutable origin/target poses, born/landing/detonation ticks, blast radius and damage. Wire decoding defaults missing legacy grenade fields to an empty roster. `RenderFrame.grenades` and `serverTick` provide presentation data; online sampling advances the hazard clock monotonically and keeps nonplaying campaign phases frozen.
 
@@ -35,7 +39,13 @@ Production uses explicit campaign mode and retains existing lobby/countdown/play
 ## 2. Device input and commands
 
 ```ts
-type DeviceKind = "keyboard" | "gamepad";
+type DeviceKind = "keyboard" | "gamepad" | "touch";
+type ControlScheme = "auto" | DeviceKind;
+
+interface TouchControls {
+  steer: number; throttle: number; brakeReverse: number;
+  handbrake: boolean; fire: boolean; siren: boolean; recover: boolean;
+}
 
 interface DriverActions {
   steer: number;             // [-1, 1], vehicle-relative
@@ -69,11 +79,19 @@ interface InputSource {
 
 `sample()` is called once per local sim tick. It consumes one-shot edges once, even when a render frame runs multiple simulation steps. Menu actions use a separate UI event stream and must not accidentally become driving/fire actions.
 
+`ControlScheme` is a persisted local setting. `auto` begins with touch when `navigator.maxTouchPoints > 0`, otherwise keyboard, then follows actual device use. Explicit schemes admit only that device's driving input. Touch sends held semantic controls from UI to input; `siren` becomes a one-tick toggle and `recover` becomes a single request after a one-second hold. Raw pointer IDs and geometry remain in UI. Touch cancellation, lost capture and viewport resize reset held input and immediately neutralize the session. UI resets its pointer ownership whenever input resets, so old pointer moves cannot reapply held controls. These additions change no wire DTO, simulation rule or protocol revision.
+
 Focus loss/device disconnect generates a session control `neutralize` request immediately and clears held state locally. The server still enforces stale-input neutralization if that request never arrives. A client cannot use neutralize/recover to stop authoritative momentum instantly.
 
-Input samples do not purchase extra physics ticks. Authority combines older queued samples into the latest held state when needed, retaining up to two samples for jitter. Combined siren toggles retain odd/even parity; a combined recovery request is applied once. The acknowledgment covers consumed samples, including replaced held states. The 12-sample flood guard and 100 ms stale-input braking remain. Client immediate prediction and replay stop six ticks beyond confirmed authority while continuing to send fresh controls. The steering queue is not a historical reenactment society.
+Input samples do not purchase extra authoritative physics ticks. Authority combines older queued samples into the latest held state when needed, retaining up to two samples for jitter. Combined siren toggles retain odd/even parity; a combined recovery request is applied once. The acknowledgment covers consumed samples, including replaced held states. The 12-sample flood guard and 100 ms stale-input braking remain. Healthy client driving predicts each input locally without an acknowledgment gate and replays its bounded pending history; 300 ms of snapshot silence stops fresh prediction. The steering queue is not a historical reenactment society.
 
 An `input-backlog` snapshot or `resync` prop patch represents continuous clock/input recovery. Apply its acknowledgment and reconcile pending input with ordinary smoothing. A full `resync` baseline still clears prediction; pause, match/epoch and vehicle discontinuity changes always retain their reset semantics.
+
+Local render sampling projects at most 50 ms from the most recent logical input tick, also bounded by the 300 ms snapshot-silence deadline. `submit(command, localTickTimeMs?)` accepts an optional browser-only time for that fixed tick; the app reconstructs it from its accumulator, and it is never serialized. Preserve that input phase across ordinary snapshots. Separate position/yaw offsets ease routine corrections over a 200 ms time constant without delaying fresh controls; moving position correction is limited to 80% of current speed, with a 4 m/s stationary convergence allowance. This repays sustained slow-authority mismatch while preserving forward motion. Remote cars use a 200 ms buffer, up to 300 ms of position/yaw extrapolation and gradual clock correction. A resumed world after a blackout over one second can rebase stale remote playback. These poses never feed back into physics, damage or campaign authority. No DTO or compatibility revision changes are required.
+
+The app calls `sampleFrame()` on the session's current monotonic clock, shared with input and snapshot handling. An older animation timestamp must not move the sample behind an already delivered input tick.
+
+For callers that omit logical input times, a late one-tick callback must preserve already displayed forward travel after render correction is applied. It may restore only that last delivered position, never unshown extrapolation. Fresh yaw and velocity remain predicted immediately; explicit resync/pause/life resets clear the guard.
 
 ## 3. State, configuration, and checkpoints
 
@@ -295,7 +313,7 @@ Types referenced but not expanded here are concrete exports: `SessionRequest`, `
 
 Do not put prediction into `GameRenderer`. `net-client` owns prediction and render sampling for every playable room, including one officer. Local simulations remain for the menu preview and isolated fixtures. `WorldSnapshot.paused` passes through compact snapshots and freezes prediction, interpolation, projectiles and hazard clocks. `presence` reports boolean menu/hidden state; rate-limited `activity` reports deliberate interaction. `idle-warning` sets or clears warning state, and `session-ended` with `idle-timeout` prevents automatic reconnect. See [room sessions](ROOM_SESSIONS.md) for retention, admission and wall-clock policy.
 
-Projectile presentation uses the predicted local car clock (at most six ticks ahead) and buffered remote car clock. It never rewinds an already shown round; confirmed impacts or absence from the latest authoritative state retire it. Presentation clips against world geometry and cannot cause damage. `presentationAgeSeconds` is render-only, never serialized, and bounds fresh tracer length from simulation age. `sampleTimeSeconds` remains a browser clock and must not be used as projectile age. New match/session epoch/life boundaries clear the relevant presentation history.
+Projectile presentation uses the estimated local authority clock (at most six ticks ahead) and buffered remote car clock. The local projectile cap is separate from immediate car prediction. It never rewinds an already shown round; confirmed impacts or absence from the latest authoritative state retire it. Presentation clips against world geometry and cannot cause damage. `presentationAgeSeconds` is render-only, never serialized, and bounds fresh tracer length from simulation age. `sampleTimeSeconds` remains a browser clock and must not be used as projectile age. New match/session epoch/life boundaries clear the relevant presentation history.
 
 `PursuitState` contains `state: 'chasing'|'arresting'|'complete'`, `suspectId`, leading `progress` and `elapsedTicks`, plus optional `arrestingPlayerId`, `winnerPlayerId` (nullable) and `contenders: Array<{playerId,progress,guidance?}>`. Every contender owns independent progress; clients show the local contender's progress. The first qualifying arrest ends the dispatch, with stable player-ID tie resolution. Campaign mode additionally resolves credited target destruction; projectile resolution precedes arrest progress on the same tick. `pursuit-complete` carries optional player/suspect/outcome fields; `round-ended.reason` accepts `apprehended`, `wrecked` or `timeout`. State carries the result for late join/reconnect. Combat standings cannot override the resolving officer. See [the original decision](adr/001-competitive-pursuit.md) and [current campaign lifecycle](CAMPAIGN.md).
 

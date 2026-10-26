@@ -1,11 +1,15 @@
 import { getDispatchFeatures, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, CAMPAIGN_TITLE, getBossTactics, getCampaignMugshot, getCampaignTarget, getVehicleProfile, isInviteCode, isVehicleBodyId, randomCallsign, sanitizeNickname, VEHICLE_BODIES, type CampaignState, type CampaignTarget, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
 import './style.css';
+import { controlGraphics, gamepadControls, keyboardBindings, keyboardControls } from './controls';
 import { controlHints, placeControlCard } from './tutorial';
 import { vehicleStats } from './vehicle-stats';
+import type { ControlScheme, TouchControls } from '@fender/contracts';
+import { mountTouchControls } from './touch';
 
 export type MenuAction = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back' | 'pause';
-export type Menu = 'home' | 'pause' | 'settings' | null;
+export type Menu = 'home' | 'pause' | 'settings' | 'help' | null;
 export interface UiSettings {
+  controlScheme: ControlScheme;
   masterVolume: number;
   musicVolume: number;
   effectsVolume: number;
@@ -34,6 +38,8 @@ export interface UiModel {
   selectedVehicleBodyId?: VehicleBodyId;
 }
 export interface UiCallbacks {
+  onTouchInput?: (state: TouchControls) => void;
+  onTouchCancel?: () => void;
   onPlay: (request: { nickname: string; roomId: string; vehicleBodyId?: VehicleBodyId }) => void | Promise<void>;
   onActivity?: () => void;
   onVehicleChange?: (vehicleBodyId: VehicleBodyId) => void;
@@ -44,7 +50,7 @@ export interface UiCallbacks {
   onSettings?: (settings: UiSettings) => void;
   onMenuVisibility?: (visible: boolean) => void;
 }
-const defaults: UiSettings = { masterVolume: .7, musicVolume: .3, effectsVolume: .8, reducedShake: false, reducedFlash: false, vibration: true, quality: 'medium', stickDeadzone: .16, triggerDeadzone: .08, sensitivity: 1, bindings: {} };
+const defaults: UiSettings = { controlScheme: 'auto', masterVolume: .7, musicVolume: .3, effectsVolume: .8, reducedShake: false, reducedFlash: false, vibration: true, quality: 'medium', stickDeadzone: .16, triggerDeadzone: .08, sensitivity: 1, bindings: {} };
 const errorMessages: Record<string, string> = {
   'idle-timeout': 'Your unit was signed off after 15 minutes of inactivity. Enter the room again to continue if it is still available.',
   'invalid-vehicle': 'Choose a valid garage vehicle and try again.',
@@ -74,6 +80,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   let stored: Partial<UiSettings> = {};
   try { stored = JSON.parse(view?.localStorage.getItem('fender-settings-v1') ?? '{}') as Partial<UiSettings>; } catch { /* Storage is optional. */ }
   let settings: UiSettings = { ...defaults, ...stored, bindings: stored.bindings ?? {} };
+  if (!['auto', 'touch', 'gamepad', 'keyboard'].includes(settings.controlScheme)) settings.controlScheme = 'auto';
   let model: UiModel = {};
   let targetIndicator: TargetIndicator | null = null;
   let targetAngle = 0;
@@ -97,9 +104,55 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     <section class="fo-hud" hidden aria-label="Driving dashboard"><div class="fo-round"><span data-text="phase">FREE PATROL</span><strong data-text="timer">05:00</strong></div><aside class="fo-scoreboard"><div class="fo-label">DISPATCH LEADERBOARD</div><ol data-scores></ol></aside><div class="fo-instruments"><div class="fo-speed"><strong data-text="speed">0</strong><span>KM/H</span></div><div class="fo-car-state"><div class="fo-label">UNIT INTEGRITY <b data-text="health">100%</b></div><div class="fo-health"><i></i></div><span data-text="ammo">AUTO / UNLIMITED AMMO</span></div></div><div class="fo-prompts" data-text="prompts">WASD DRIVE · SHIFT DRIFT · SPACE FIRE</div><div class="fo-recover" hidden><span>RECOVERING UNIT</span><progress max="1" value="0"></progress></div><div class="fo-pursuit" hidden><span data-text="pursuit">INTERCEPT THE SUSPECT</span><progress max="1" value="0"></progress></div><div class="fo-center-callout" hidden><span data-text="callout-label">STAND BY</span><strong data-text="callout">3</strong></div><button class="fo-start" data-action="start" hidden>START ROUND →</button></section>
     <div class="fo-menu-backdrop"></div><main class="fo-menu"><div class="fo-hero" aria-hidden="true"></div><section class="fo-panel" aria-label="Dispatch menu"><div class="fo-panel-heading"><span class="fo-kicker" data-text="panel-kicker">CITY MOTOR DIVISION</span><span class="fo-panel-no">FORM 01–FO</span></div><div class="fo-home"><h2>You're on duty.</h2><p class="fo-muted">Pick a callsign. Take the keys.</p><label class="fo-field">YOUR CALLSIGN<input name="nickname" maxlength="20" autocomplete="nickname" spellcheck="false" value="Officer Rookie" placeholder="Officer Rookie"></label><button class="fo-primary" data-action="practice"><span>HIT THE STREETS<small>Play. Share the URL anytime.</small></span><b>↗</b></button></div><div class="fo-pause" hidden><h2>Taking a breather?</h2><p class="fo-muted" data-text="pause-description">Your patrol is paused.</p><button class="fo-primary" data-action="resume">BACK ON PATROL →</button><button class="fo-secondary" data-action="leave">END PATROL <span>↗</span></button></div><div class="fo-settings" hidden><h2>Fine tuning.</h2><p class="fo-muted">Make this patrol yours.</p><div class="fo-settings-list"><label>Master volume<input type="range" data-setting="masterVolume" min="0" max="1" step=".05"></label><label>Music<input type="range" data-setting="musicVolume" min="0" max="1" step=".05"></label><label>Effects<input type="range" data-setting="effectsVolume" min="0" max="1" step=".05"></label><label>Graphics<select data-setting="quality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label><label>Reduce camera shake<input type="checkbox" data-setting="reducedShake"></label><label>Reduce flashes<input type="checkbox" data-setting="reducedFlash"></label><label>Controller vibration<input type="checkbox" data-setting="vibration"></label><label>Stick dead zone<input type="range" data-setting="stickDeadzone" min=".05" max=".5" step=".01"></label><label>Trigger dead zone<input type="range" data-setting="triggerDeadzone" min="0" max=".5" step=".01"></label><label>Steering sensitivity<input type="range" data-setting="sensitivity" min=".4" max="1.8" step=".05"></label></div><details class="fo-bindings"><summary>KEYBOARD BINDINGS</summary><div data-bindings></div></details><button class="fo-secondary" data-action="settings-back">SAVE & BACK <span>↩</span></button></div><div class="fo-results" hidden><span class="fo-kicker">CASE CLOSED</span><h2 data-text="result-title">Patrol complete.</h2><p class="fo-muted">Final standings / confirmed by dispatch</p><ol data-results></ol><button class="fo-primary" data-action="rematch">ANOTHER ROUND →</button><button class="fo-secondary" data-action="leave">BACK TO DISPATCH <span>↗</span></button></div><div class="fo-notice" role="status" aria-live="polite" hidden></div><footer class="fo-panel-footer"><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button><span class="fo-input-hint" data-text="input-hint">↑ ↓ SELECT · ENTER CONFIRM</span></footer></section></main><button class="fo-invite" data-action="invite">INVITE URL</button><footer class="fo-bottom"><span>MINOR INFRACTIONS. MAJOR COLLISIONS.</span><span>DRIVE FAST. FILE LATER.</span></footer><div class="fo-toast" role="status" aria-live="polite" hidden></div>`;
   root.append(shell);
+  const touchControls = mountTouchControls(shell, state => callbacks.onTouchInput?.(state), () => callbacks.onTouchCancel?.());
+  const scheme = doc.createElement('label'); scheme.textContent = 'Control scheme';
+  scheme.innerHTML += '<select data-setting="controlScheme" aria-label="Control scheme"><option value="auto">Automatic</option><option value="touch">Touch</option><option value="gamepad">Controller</option><option value="keyboard">Keyboard</option></select>';
+  shell.querySelector('.fo-settings-list')!.prepend(scheme);
+  const schemeHelp = doc.createElement('p'); schemeHelp.className = 'fo-control-help';
+  schemeHelp.textContent = 'Automatic follows keyboard or controller use. Tap the play area to return to touch. Choose a control scheme to keep it fixed.';
+  scheme.after(schemeHelp);
   const idleWarning=doc.createElement('section');idleWarning.className='fo-idle-warning';idleWarning.setAttribute('role','alert');idleWarning.hidden=true;idleWarning.innerHTML='<p>Your unit is idle. You will disconnect in one minute.</p><button data-action="stay-active">STAY ON PATROL</button>';shell.append(idleWarning);
   const one = <T extends HTMLElement = HTMLElement>(selector: string) => shell.querySelector<T>(selector)!;
   const all = <T extends HTMLElement = HTMLElement>(selector: string) => [...shell.querySelectorAll<T>(selector)];
+  const tutorial = one('.fo-prompts'); tutorial.removeAttribute('data-text'); tutorial.hidden = true;
+  const help = doc.createElement('div'); help.className = 'fo-help-view'; help.hidden = true;
+  help.innerHTML = '<h2>Controls help.</h2><p class="fo-muted">A refresher from the motor pool. Close this guide when you are ready to roll.</p><section class="fo-controls-guide" aria-label="Driving controls"><section><h3>KEYBOARD</h3><div data-keyboard-controls></div></section><section><h3>CONTROLLER</h3><p class="fo-controller-note">Standard layout · A / X / Y labels</p><div data-gamepad-controls></div></section></section><button class="fo-secondary" data-action="help-back">BACK</button>';
+  one('.fo-settings').after(help);
+  const helpLesson = doc.createElement('p'); helpLesson.dataset.controlLesson = ''; helpLesson.className = 'fo-help-lesson'; help.querySelector('.fo-muted')!.after(helpLesson);
+  const addHelpButton = (footer: HTMLElement) => {
+    const button = doc.createElement('button'); button.className = 'fo-text-button fo-help-button'; button.dataset.action = 'help'; button.textContent = 'CONTROLS HELP'; footer.append(button);
+  };
+  addHelpButton(one('.fo-panel-footer'));
+  let tutorialRemaining = 8000;
+  let tutorialStarted: number | null = null;
+  let tutorialTimer: ReturnType<typeof setTimeout> | undefined;
+  let controlsViewKey = '';
+  function updateControls() {
+    updateTutorial();
+    const device = controlDevice(), campaign = model.snapshot?.campaign;
+    const guns = campaign ? getDispatchFeatures(campaign.dispatchIndex).gunsEnabled : true;
+    const reminder = currentReminder();
+    const key = JSON.stringify([device, settings.bindings, guns, reminder]);
+    if (key !== controlsViewKey) {
+      controlsViewKey = key;
+      help.querySelector('[data-keyboard-controls]')!.replaceChildren(keyboardControls(doc, settings.bindings));
+      help.querySelector('[data-gamepad-controls]')!.replaceChildren(gamepadControls(doc));
+      help.querySelectorAll<HTMLElement>('[data-control="fire"]').forEach(row => { row.hidden = !guns; });
+      helpLesson.textContent = reminder; helpLesson.hidden = !reminder;
+    }
+    const visible = device !== 'touch' && !disposed && !doc.hidden && menu === null && model.snapshot?.phase === 'playing' && !model.snapshot.paused && !model.error
+      && (model.mode !== 'online' || statusName(model.status) === 'playing') && tutorialRemaining > 0;
+    if (!visible && tutorialStarted !== null) {
+      tutorialRemaining = Math.max(0, tutorialRemaining - ((view?.performance.now() ?? Date.now()) - tutorialStarted));
+      tutorialStarted = null; clearTimeout(tutorialTimer);
+    }
+    tutorial.hidden = !visible;
+    positionControls();
+    if (visible && tutorialStarted === null) {
+      tutorialStarted = view?.performance.now() ?? Date.now();
+      tutorialTimer = setTimeout(() => { tutorialRemaining = 0; tutorialStarted = null; updateControls(); }, tutorialRemaining);
+    }
+  }
   const targetBadge = doc.createElement('div'); targetBadge.className = 'fo-target-indicator'; targetBadge.hidden = true; targetBadge.setAttribute('role', 'img');
   targetBadge.innerHTML = '<span class="fo-target-arrow" aria-hidden="true"><svg viewBox="0 0 44 44"><path class="fo-target-chevron" d="m8 23 14-14 14 14"/><path class="fo-target-chevron" d="m8 36 14-14 14 14"/></svg></span><strong class="fo-target-label">WANTED SUSPECT</strong><span class="fo-target-distance"></span>';
   shell.append(targetBadge);
@@ -117,12 +170,15 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   controlObserver?.observe(shell);controlObserver?.observe(controls);
   function positionControls(){if(controls.hidden)return;const p=placeControlCard(controlAnchor??{x:.5,y:.55},shellWidth,shellHeight,controlWidth,controlHeight,targetBadge.hidden?null:badgeAnchor);controls.style.transform=`translate(${Math.round(p.x)}px,${Math.round(p.y)}px)`;}
   function setControlAnchor(anchor:{x:number;y:number}|null){controlAnchor=anchor;positionControls();}
+  function currentReminder() {
+    const index = model.snapshot?.campaign?.dispatchIndex;
+    return index === undefined ? '' : ['Arresting is automatic. Stay close and match speed.', 'Fire forward in short bursts.', 'Bombs: leave the marked circle.', 'Puddles reduce grip. Steer gently.'][index] ?? '';
+  }
   function updateTutorial(){
     const campaign=model.snapshot?.campaign,features=campaign?getDispatchFeatures(campaign.dispatchIndex):null,guns=features?.gunsEnabled??Boolean(model.snapshot);
-    controls.hidden=menu!==null||model.snapshot?.phase!=='playing'||model.snapshot.paused===true;
-    const reminders=['Arresting is automatic. Stay close and match speed.','Fire forward in short bursts.','Bombs: leave the marked circle.','Puddles reduce grip. Steer gently.'];
-    const reminder=campaign?reminders[campaign.dispatchIndex]??'': '',hints=controlHints(model.device??'keyboard',settings.bindings,guns),key=JSON.stringify({hints,reminder});
-    if(key!==controlKey){controlKey=key;controls.replaceChildren(...hints.map(h=>{const row=doc.createElement('span'),icon=doc.createElement('kbd'),label=doc.createElement('span');icon.textContent=h.glyph;label.textContent=h.label;row.dataset.control=h.action;row.append(icon,label);return row;}));if(reminder){const tip=doc.createElement('p');tip.dataset.controlLesson='';tip.textContent=reminder;controls.append(tip);}}
+    touchControls.setGunsEnabled(guns);
+    const reminder=currentReminder(),device=controlDevice(),hints=controlHints(device,settings.bindings,guns),key=JSON.stringify({device,hints,reminder});
+    if(key!==controlKey){controlKey=key;controls.replaceChildren(controlGraphics(doc,hints,device));if(reminder){const tip=doc.createElement('p');tip.dataset.controlLesson='';tip.textContent=reminder;controls.append(tip);}const tip=doc.createElement('small');tip.className='fo-tutorial-dismiss';tip.textContent=(device==='gamepad'?'MENU':'ESC')+' → CONTROLS HELP · HIDES AFTER 8 SECONDS';controls.append(tip);}
     const fire=one('[data-binding="fire"]');if(fire.parentElement)fire.parentElement.hidden=!guns;
     write('ammo',guns?'AUTO / UNLIMITED AMMO':'TRAINING / UNARMED');positionControls();
   }
@@ -135,6 +191,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const briefing = doc.createElement('section'); briefing.className = 'fo-campaign-briefing'; briefing.hidden = true; briefing.setAttribute('aria-label', 'Campaign dispatch briefing');
   briefing.innerHTML = '<header><span class="fo-kicker">MAJOR CASE / MOTOR DIVISION</span><h2 data-campaign-title></h2><span class="fo-campaign-number"></span></header><div class="fo-campaign-scroll"><div class="fo-campaign-target"><div class="fo-campaign-portrait" role="img"></div><div><span class="fo-campaign-role"></span><h3 data-campaign-name></h3><strong data-campaign-alias></strong><span data-campaign-target-car></span></div></div><h3 class="fo-campaign-dispatch-title"></h3><p data-campaign-briefing></p><section class="fo-campaign-progress"><h3>DISPATCH TRACKER / 10 FILES</h3><ol class="fo-campaign-tracker"></ol></section><details class="fo-campaign-evidence"><summary>CASE FILE / EARNED LEADS</summary><ol class="fo-campaign-casefile"></ol><p class="fo-campaign-no-evidence">No leads filed yet. Resolve this dispatch to unseal the next clue.</p></details></div><footer><button class="fo-primary" data-action="campaign-start">START DISPATCH →</button><span class="fo-campaign-wait" hidden>RECONNECT TO CONTINUE</span><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button></footer>';
   shell.append(briefing);
+  addHelpButton(briefing.querySelector('footer')!);
   const lesson=doc.createElement('section');lesson.className='fo-tutorial-lesson';lesson.dataset.tutorialLesson='';lesson.setAttribute('role','status');lesson.setAttribute('aria-live','polite');lesson.innerHTML='<strong></strong><p></p>';
   let lessonKey='';
   const campaignRoster = doc.createElement('section'); campaignRoster.className = 'fo-campaign-roster'; campaignRoster.hidden = true;
@@ -175,6 +232,11 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   function focusFirst() { const focusable = visibleControls(); (focusable.find(node => node.matches('.fo-primary')) ?? focusable[0])?.focus({ preventScroll: true }); }
   const lobby = () => model.snapshot?.phase === 'lobby' && (model.mode === 'online' || Boolean(model.snapshot.campaign));
   const hasResult = (candidate = model) => candidate.snapshot?.phase === 'results' || !candidate.snapshot?.campaign && candidate.mode === 'practice' && candidate.snapshot?.pursuit?.state === 'complete';
+  const controlDevice = () => settings.controlScheme === 'auto' ? model.device ?? ((view?.navigator.maxTouchPoints ?? 0) > 0 ? 'touch' : 'keyboard') : settings.controlScheme;
+  function updateTouchVisibility() {
+    const visible = controlDevice() === 'touch' && menu === null && Boolean(model.snapshot) && !lobby() && !hasResult() && !['reconnecting', 'disconnected', 'error'].includes(statusName(model.status));
+    touchControls.setVisible(visible); shell.classList.toggle('fo-touch-active', visible);
+  }
   const canDispatch = () => model.canStart !== false && (model.mode !== 'online' || ['lobby', 'playing'].includes(statusName(model.status)));
   function updateCampaignVisibility() {
     const campaign = model.snapshot?.campaign;
@@ -182,7 +244,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     campaignResolution.hidden = !campaign || !hasResult();
     campaignLive.hidden = !campaign || model.snapshot?.phase !== 'playing' || menu !== null;
     shell.classList.toggle('fo-campaign-briefing-open', !briefing.hidden);
-    shell.classList.toggle('fo-campaign-results', Boolean(campaign && hasResult() && menu !== 'settings'));
+    shell.classList.toggle('fo-campaign-results', Boolean(campaign && hasResult() && menu !== 'settings' && menu !== 'help'));
   }
   function portrait(node: HTMLElement, target: CampaignTarget) {
     if (node.dataset.target !== target.id) { node.innerHTML = getCampaignMugshot(target.id); node.dataset.target = target.id; }
@@ -323,19 +385,24 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   }
   function showMenu(next: Menu = 'pause') {
     if(persistentToast && (next===null || next==='home'))clearToast();
-    if (next === 'settings') previousMenu = menu;
+    if (next === 'settings' || next === 'help') previousMenu = menu;
     menu = next;
     shell.classList.toggle('fo-is-playing', menu === null);
     shell.classList.toggle('fo-is-settings', menu === 'settings');
+    shell.classList.toggle('fo-is-help', menu === 'help');
     hide('.fo-menu', menu === null); hide('.fo-menu-backdrop', menu === null); hide('.fo-hero', menu !== 'home'); hide('.fo-bottom', menu !== 'home');
-    const results = hasResult() && !resultDismissed && menu !== 'settings';
+    const results = hasResult() && !resultDismissed && menu !== 'settings' && menu !== 'help';
     hide('.fo-home', menu !== 'home' || results); hide('.fo-pause', menu !== 'pause' || results); hide('.fo-settings', menu !== 'settings'); hide('.fo-results', !results);
-    hide('[data-action="settings"]', menu === 'settings');
+    help.hidden = menu !== 'help';
+    hide('[data-action="settings"]', menu === 'settings' || menu === 'help');
+    one('.fo-panel-footer .fo-help-button').hidden = menu === 'settings' || menu === 'help';
     write('pause-description', model.snapshot?.paused ? 'Your patrol is paused while you are alone. Backup joining resumes the dispatch.' : 'THE DISPATCH IS LIVE. Your unit has its controls released.');
     callbacks.onMenuVisibility?.(menu !== null || lobby());
     updateGarage();
     updateCampaignVisibility();
     updateTargetBadge();updateTutorial();
+    updateControls();
+    updateTouchVisibility();
     if (menu !== null) focusFirst();
   }
   async function play() {
@@ -352,7 +419,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     catch (error) { notify(error instanceof Error ? error.message : 'Dispatch could not be reached. Try again.'); }
     finally { pending = false; if (!disposed) { all<HTMLButtonElement>('.fo-home button').forEach(button => { button.disabled = false; }); updateGarage(); updateCampaign(); if (model.snapshot?.campaign && lobby() && menu === null) focusFirst(); } }
   }
-  const bindingDefaults: Record<string, string[]> = { throttle: ['KeyW'], brakeReverse: ['KeyS'], left: ['KeyA'], right: ['KeyD'], handbrake: ['ShiftLeft'], fire: ['Space'], siren: ['KeyE'], recover: ['KeyR'] };
+  const bindingDefaults = keyboardBindings;
   const bindingLabels: Record<string, string> = { throttle: 'Accelerate', brakeReverse: 'Brake / reverse', left: 'Steer left', right: 'Steer right', handbrake: 'Handbrake', fire: 'Fire', siren: 'Siren', recover: 'Hold to recover' };
   for (const [action, fallback] of Object.entries(bindingDefaults)) {
     const row = doc.createElement('label'); row.textContent = bindingLabels[action] ?? action;
@@ -390,6 +457,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
       case 'leave': resultDismissed = true; callbacks.onLeave?.(); model = {}; showMenu('home'); hide('.fo-hud', true); notify(''); break;
       case 'settings': showMenu('settings'); break;
       case 'settings-back': showMenu(previousMenu); break;
+      case 'help': showMenu('help'); break;
+      case 'help-back': showMenu(previousMenu); break;
       case 'start': callbacks.onStartRound?.(); break;
       case 'campaign-start': if (canDispatch()) callbacks.onStartRound?.(); break;
       case 'rematch': callbacks.onRematch?.(); break;
@@ -411,9 +480,10 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     event.preventDefault(); event.stopImmediatePropagation();
     const action = bindingAction; bindingAction = null;
     if (event.code !== 'Escape' && !['Enter', 'Tab'].includes(event.code)) settings.bindings[action] = [event.code];
-    one(`[data-binding="${action}"]`).textContent = (settings.bindings[action] ?? bindingDefaults[action] ?? []).join(' / ').replaceAll('Key', ''); persist();
+    one(`[data-binding="${action}"]`).textContent = (settings.bindings[action] ?? bindingDefaults[action] ?? []).join(' / ').replaceAll('Key', ''); persist(); updateControls();
   };
   shell.addEventListener('click', click); shell.addEventListener('input', change); doc.addEventListener('keydown', remapKey, true);
+  doc.addEventListener('visibilitychange', updateControls);
   const scoreRows = new Map<string, HTMLLIElement>();
   const resultRows = new Map<string, HTMLLIElement>();
   const campaignRosterRows = new Map<string, HTMLLIElement>();
@@ -482,7 +552,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
 
     hide('.fo-start', !snapshot || snapshot.phase !== 'lobby' || model.mode !== 'online' || model.canStart === false || Boolean(snapshot.campaign));
     updateTutorial();
-    write('input-hint', model.device === 'gamepad' ? '↕ SELECT · A CONFIRM · B BACK' : '↑ ↓ SELECT · ENTER CONFIRM');
+    write('input-hint', controlDevice() === 'touch' ? 'TAP TO SELECT' : controlDevice() === 'gamepad' ? '↕ SELECT · A CONFIRM · B BACK' : '↑ ↓ SELECT · ENTER CONFIRM');
     const recovery = number(model.recoverProgress ?? 0); hide('.fo-recover', recovery <= 0); one<HTMLProgressElement>('.fo-recover progress').value = recovery;
     const authorityPursuit = snapshot?.pursuit;
     const pursuit = authorityPursuit ? { progress: authorityPursuit.progress, complete: authorityPursuit.state === 'complete' } : model.pursuit;
@@ -517,18 +587,20 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     const reason = typeof model.status === 'object' ? model.status.reason ?? model.status.message : undefined;
     const error = model.error ?? (status === 'error' ? reason ?? 'network-error' : null);
     if (error) { if (menu === null) showMenu('pause'); notify(errorMessages[error] ?? error); }
-    if (model.unsupportedPad && model.unsupportedPad !== lastUnsupportedPad) toast('UNSUPPORTED CONTROLLER MAPPING — KEYBOARD CONTROLS AVAILABLE');
+    if (model.unsupportedPad && model.unsupportedPad !== lastUnsupportedPad) toast('UNSUPPORTED CONTROLLER MAPPING — CHOOSE TOUCH OR KEYBOARD IN SETTINGS');
     lastUnsupportedPad = model.unsupportedPad ?? null;
     updateGarage();
     updateCampaign();
     updateTargetBadge();
+    updateControls();
+    updateTouchVisibility();
     if (snapshot?.campaign && lobby() && menu === null && (!wasLobby || previousDispatch !== snapshot.campaign.dispatchIndex)) focusFirst();
   }
   function navigate(action: MenuAction) {
     callbacks.onActivity?.();
     if (action === 'pause' || action === 'back') {
       if (bindingAction) { bindingAction = null; return; }
-      if (menu === 'settings') showMenu(previousMenu);
+      if (menu === 'settings' || menu === 'help') showMenu(previousMenu);
       else if (model.snapshot && !hasResult()) { showMenu(menu === null ? 'pause' : null); if (menu === null) callbacks.onResume?.(); }
       return;
     }
@@ -546,10 +618,10 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     }
   }
   showMenu('home'); shell.classList.toggle('fo-reduced-motion', settings.reducedShake); callbacks.onSettings?.(structuredClone(settings));
-  return { update, showMenu, navigate, setTargetIndicator, setControlAnchor, getVehicle: () => vehicle, getSettings: () => structuredClone(settings), setSettings: (next: Partial<UiSettings>) => {
+  return { update, showMenu, navigate, setTargetIndicator, setControlAnchor, resetTouchControls: touchControls.reset, getVehicle: () => vehicle, getSettings: () => structuredClone(settings), setSettings: (next: Partial<UiSettings>) => {
     settings = { ...settings, ...next };
     for (const input of all<HTMLInputElement | HTMLSelectElement>('[data-setting]')) { const key = input.dataset.setting as keyof UiSettings; if (input instanceof HTMLInputElement && input.type === 'checkbox') input.checked = Boolean(settings[key]); else input.value = String(settings[key]); }
-    persist();
+    persist(); updateControls();
   }, isMenuVisible: () => menu !== null || lobby(), isMenuOpen: () => menu !== null,
-    dispose: () => { disposed = true; controlObserver?.disconnect(); clearTimeout(toastTimer); shell.removeEventListener('click', click); shell.removeEventListener('input', change); doc.removeEventListener('keydown', remapKey, true); shell.remove(); } };
+    dispose: () => { disposed = true; controlObserver?.disconnect(); clearTimeout(toastTimer); clearTimeout(tutorialTimer); touchControls.dispose(); shell.removeEventListener('click', click); shell.removeEventListener('input', change); doc.removeEventListener('keydown', remapKey, true); doc.removeEventListener('visibilitychange', updateControls); shell.remove(); } };
 }

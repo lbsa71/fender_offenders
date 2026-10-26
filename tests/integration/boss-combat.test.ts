@@ -19,7 +19,7 @@ async function peer(roomId?:string){
  room.onMessage('snapshot',(wire:WireSnapshot)=>states.push(unpackSnapshot(wire,states.at(-1)?.props)));
  room.onMessage('events',(batch:GameEvent[])=>events.push(...batch));room.onMessage('latency-probe',({nonce}:{nonce:string})=>room.send('latency-pong',{nonce}));
  room.send('resync');await until(()=>states.length>0,'Initial boss encounter baseline');
- return{room,events,get state(){return states.at(-1)!;}};
+ return{room,events,states,get state(){return states.at(-1)!;}};
 }
 function encounter(host:Awaited<ReturnType<typeof peer>>,stage=0){
  const sim=(matchMaker.getLocalRoomById(host.room.roomId) as unknown as {sim:Simulation}).sim;
@@ -37,6 +37,21 @@ beforeAll(async()=>{server=await createGameServer(2722);});
 afterEach(async()=>{ await disposeTestRooms();await Promise.all(rooms.splice(0).map(room=>room.connection.isOpen?room.leave(true):Promise.resolve()));});
 afterAll(async()=>{await server?.gracefullyShutdown(false);});
 
+it.each([[1,'distant'],[1,'closing'],[4,'distant'],[4,'closing']] as const)('replicates dispatch %s driving under a %s pursuit through both real clients',async(stage,approach)=>{
+ const host=await peer(),guest=await peer(host.room.roomId),{sim,bossId}=encounter(host,stage),c=sim.checkpoint();
+ const boss=c.state.records.find(r=>r.vehicle.entityId===bossId)!,officer=c.state.records.find(r=>r.vehicle.playerId===host.room.sessionId)!;
+ boss.vehicle.velocity={x:12,z:0,yawRate:0};delete boss.bossAi;
+ officer.vehicle.pose={x:approach==='closing'?-14:-44,z:-76,yaw:Math.PI/2};officer.vehicle.velocity={x:18,z:0,yawRate:0};
+ sim.restore(c);host.room.send('resync');guest.room.send('resync');
+ await until(()=>host.states.some(s=>s.serverTick>=c.tick+45),'The live authority must publish 0.75 seconds of suspect driving');
+ const sample=host.states.find(s=>s.serverTick>=c.tick+45)!,history=host.states.filter(s=>s.serverTick>=c.tick+30&&s.serverTick<=sample.serverTick).map(s=>s.vehicles.find(v=>v.entityId===bossId)!);
+ expect(history.length).toBeGreaterThan(0);
+ if(stage===1){const speed=Math.min(...history.map(v=>Math.hypot(v.velocity.x,v.velocity.z)));if(approach==='closing')expect(speed).toBeLessThan(2);else expect(speed).toBeGreaterThan(8);}
+ else{const displacement=Math.max(...history.map(v=>Math.abs(v.pose.z+76)));if(approach==='closing')expect(displacement).toBeGreaterThan(1);else expect(displacement).toBeLessThan(.2);}
+ await until(()=>guest.states.some(s=>s.serverTick===sample.serverTick),'Both observers must receive the same authoritative driving tick');
+ expect(guest.states.find(s=>s.serverTick===sample.serverTick)!.vehicles.find(v=>v.entityId===bossId)).toEqual(sample.vehicles.find(v=>v.entityId===bossId));
+});
+
 it('the authoritative second target fires real shots, damages an officer and shares the attack with both clients',async()=>{
  const host=await peer(),guest=await peer(host.room.roomId),{bossId}=encounter(host,1);
  await until(()=>host.events.some(event=>event.kind==='shot'&&event.payload.shooterId===bossId),'Campaign target must shoot back');
@@ -45,6 +60,23 @@ it('the authoritative second target fires real shots, damages an officer and sha
  await until(()=>guest.events.some(event=>event.eventId===shot.eventId),'Both observers see the same boss volley');
  expect(guest.events.find(event=>event.eventId===shot.eventId)).toEqual(shot);
  expect(host.state.campaign!.outcomes).toHaveLength(1);expect(host.state.scores.every(score=>score.score===0)).toBe(true);
+});
+
+it('replicates the brake-to-breakaway transition when the officer passes ahead, including a restored authority checkpoint',async()=>{
+ const host=await peer(),guest=await peer(host.room.roomId),{sim,bossId}=encounter(host,1),start=sim.checkpoint();
+ const boss=start.state.records.find(r=>r.vehicle.entityId===bossId)!,officer=start.state.records.find(r=>r.vehicle.playerId===host.room.sessionId)!;
+ boss.vehicle.velocity={x:12,z:0,yawRate:0};delete boss.bossAi;
+ officer.vehicle.pose={x:-14,z:-76,yaw:Math.PI/2};officer.vehicle.velocity={x:18,z:0,yawRate:0};sim.restore(start);
+ await until(()=>host.states.some(s=>s.serverTick>start.tick&&Math.hypot(s.vehicles.find(v=>v.entityId===bossId)!.velocity.x,s.vehicles.find(v=>v.entityId===bossId)!.velocity.z)<2),'The authority must first publish the hard brake check');
+ const c=sim.checkpoint(),braking=c.state.records.find(r=>r.vehicle.entityId===bossId)!,passing=c.state.records.find(r=>r.vehicle.playerId===host.room.sessionId)!;
+ passing.vehicle.pose={x:braking.vehicle.pose.x+20,z:-76,yaw:Math.PI/2};passing.vehicle.velocity={x:0,z:0,yawRate:0};sim.restore(c);
+ await until(()=>host.states.some(s=>s.serverTick>=c.tick+45),'The authority must publish the short breakaway after the officer passes');
+ const sample=host.states.find(s=>s.serverTick>=c.tick+45)!,escape=sample.vehicles.find(v=>v.entityId===bossId)!;
+ expect(Math.hypot(escape.velocity.x,escape.velocity.z)).toBeGreaterThan(8);
+ expect(Math.hypot(escape.velocity.x,escape.velocity.z)).toBeLessThan(10.3);
+ await until(()=>guest.states.some(s=>s.serverTick===sample.serverTick),'Backup must receive the same breakaway tick');
+ expect(guest.states.find(s=>s.serverTick===sample.serverTick)!.vehicles.find(v=>v.entityId===bossId)).toEqual(escape);
+ expect(sample.campaign!.outcomes).toHaveLength(1);expect(sample.pursuit!.state).not.toBe('complete');
 });
 
 it('Hector broadcasts a fixed grenade warning to peers and a late joiner, then explodes once with shared authority',async()=>{

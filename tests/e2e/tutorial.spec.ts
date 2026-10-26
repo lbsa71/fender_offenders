@@ -1,6 +1,6 @@
 import { arrestFixture, createGameContext, dispatchFixture, expect, test } from './fixtures';
 
-test('teaches an unarmed first arrest with persistent remapped controls and both briefing cars',async({page},testInfo)=>{
+test('teaches an unarmed first arrest with temporary remapped controls and both briefing cars',async({page},testInfo)=>{
  await page.addInitScript(()=>localStorage.setItem('fender-settings-v1',JSON.stringify({bindings:{throttle:['KeyI']}})));
  await page.goto('/');await page.getByRole('button',{name:'HIT THE STREETS'}).click();
  await expect(page.getByRole('region',{name:'Campaign dispatch briefing'})).toBeVisible();
@@ -26,13 +26,18 @@ test('an arrest unlocks guns for the room and later briefings teach bombs and pu
  await expect(page.locator('[data-tutorial-controls]')).toBeVisible();await arrestFixture(page);
  await expect(page.getByText('ARREST CERTIFIED',{exact:true})).toBeVisible();await page.getByRole('button',{name:'NEXT BRIEFING'}).click();
  await expect(page.locator('[data-tutorial-lesson]')).toContainText('UNLOCKED: GUNS!');
- await page.getByRole('button',{name:'START DISPATCH'}).click();await expect(page.locator('[data-tutorial-controls]')).toContainText('FIRE');await expect(page.locator('[data-tutorial-controls]')).toBeVisible();
+ await page.getByRole('button',{name:'START DISPATCH'}).click();
+ await page.keyboard.press('Escape');await page.getByRole('button',{name:'CONTROLS HELP',exact:true}).click();
+ await expect(page.locator('.fo-help-view [data-control="fire"]')).toHaveCount(2);
+ for(const row of await page.locator('.fo-help-view [data-control="fire"]').all())await expect(row).toBeVisible();
+ await page.keyboard.press('Escape');await page.getByRole('button',{name:'BACK ON PATROL'}).click();
  await page.keyboard.down('Space');await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.snapshot.local.driver.shotOrdinal??0)).toBeGreaterThan(0);await page.keyboard.up('Space');
  await dispatchFixture(page,2);await expect(page.locator('[data-tutorial-lesson]')).toContainText('Leave the marked circle');
  await dispatchFixture(page,3);await expect(page.locator('[data-tutorial-lesson]')).toContainText('Puddles reduce grip');
  await page.getByRole('button',{name:'START DISPATCH'}).click();await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.stats.renderer.waterSurfaces)).toBe(6);
- await expect(page.locator('[data-control-lesson]')).toContainText('Puddles reduce grip');
- const backupContext=await createGameContext(browser);try{const backup=await backupContext.newPage();await backup.goto(page.url());await backup.getByRole('button',{name:'HIT THE STREETS'}).click();await expect(backup.locator('[data-control-lesson]')).toContainText('Puddles reduce grip');await expect(backup.locator('[data-control="fire"]')).toBeVisible();expect(await backup.evaluate(()=>(window as any).__FENDER_DEBUG__?.snapshot.campaign.dispatchIndex)).toBe(3);}finally{await backupContext.close();}
+ await page.keyboard.press('Escape');await page.getByRole('button',{name:'CONTROLS HELP',exact:true}).click();
+ await expect(page.locator('.fo-help-view [data-control-lesson]')).toContainText('Puddles reduce grip');
+ const backupContext=await createGameContext(browser);try{const backup=await backupContext.newPage();await backup.goto(page.url());await backup.getByRole('button',{name:'HIT THE STREETS'}).click();await expect(backup.locator('[data-tutorial-controls] [data-control-lesson]')).toContainText('Puddles reduce grip');await expect(backup.locator('[data-tutorial-controls] [data-control="fire"]')).toBeVisible();expect(await backup.evaluate(()=>(window as any).__FENDER_DEBUG__?.snapshot.campaign.dispatchIndex)).toBe(3);}finally{await backupContext.close();}
 });
 
 test('shares a chase preview and both stats on a narrow briefing without covering its start action',async({page},testInfo)=>{

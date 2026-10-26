@@ -1,6 +1,6 @@
 # Architecture
 
-Status: architecture and acceptance targets for the implemented `arcade-v11` / protocol 3 alpha. Updated: 2026-10-25 for unified room sessions, including staged tutorials and independent online input timing. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
+Status: architecture and acceptance targets for the implemented `arcade-v12` / protocol 3 alpha. Updated: 2026-10-26 for immediate local driving and buffered remote presentation. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
 
 *One authority drives the rules. Everyone else gets a dashboard, not a spare steering wheel.*
 
@@ -10,7 +10,7 @@ The current code uses Babylon WebGL rendering, a custom Colyseus session/predict
 
 ```mermaid
 flowchart LR
-  Devices[Keyboard / gamepad] --> Input[Normalized input]
+  Devices[Keyboard / gamepad / touch] --> Input[Normalized input]
   Input --> Local[Local prediction]
   Local --> View[Render frame]
   View --> Babylon[Babylon renderer / audio]
@@ -37,11 +37,11 @@ Production CLI startup warms one disposable campaign's initial physics and spars
 | contracts | None | DTOs, validation, protocol/config versions, adapter interfaces |
 | physics | None | Single initialization promise for the pinned Rapier WASM runtime; each adapter owns its own worlds |
 | sim | contracts, physics | Vehicle controller, collision world, combat, traffic, game rules |
-| input | contracts | Device sampling, mappings, dead zones, focus/disconnect behavior |
+| input | contracts | Device sampling/selection, held touch normalization, mappings, dead zones, focus/disconnect behavior |
 | renderer | contracts, content, physics | Babylon objects, materials, camera, audio, VFX, render interpolation and cosmetic debris physics |
 | net-client | contracts, sim | Transport adapter, clock estimate, prediction history, reconciliation |
 | net-server | contracts, sim | Room authority, input validation, state publication, reconnect |
-| ui | contracts | DOM menus/HUD/settings, semantic UI actions |
+| ui | contracts | DOM menus/HUD/settings, touch pointer ownership, semantic UI actions |
 | content | contracts | Validated runtime catalog, collision maps, asset/provenance records |
 | test-support (planned) | contracts; sim only for replay helpers | Proposed central fixture catalog; current fixtures live with packages and under `tests/` |
 | apps/client | Public APIs of client-facing packages | Composition, scheduling, lifecycle, error boundary |
@@ -126,17 +126,19 @@ WebSocket is reliable/ordered. Packet-loss testing must model its stalls and ret
 1. On each client simulation tick, generate an input command and apply it to the local prediction world.
 2. Save command and prediction history in a bounded ring buffer; batch commands for transport.
 3. On an authoritative update, locate the matching acknowledgment boundary and restore authoritative local-car state.
-4. Discard commands at or below that boundary and replay eligible unacknowledged commands in order. Immediate prediction and replay stop six ticks (100 ms) beyond the latest authoritative tick; fresh control packets continue while movement waits for confirmation.
-5. Decay small visual corrections over roughly 50–100 ms. Input-backlog recovery and clock-only resync patches reconcile without clearing fresh controls or teleporting the car. Full resync baselines, identity/life changes and pause transitions still reset histories; large/invalid corrections snap.
+4. Discard acknowledged commands and replay the bounded pending history in order. Healthy local driving has no acknowledgment or server-tick gate: each input changes the local car immediately. After 300 ms without a snapshot, stop fresh movement prediction until updates return; transport and the 180-command bound remain active.
+5. Render the local car through the fractional interval after its most recent logical input tick, capped at 50 ms and the 300 ms snapshot-silence deadline. Each input batch retains its fixed tick times rather than bunching them at callback time. Keep that phase across ordinary packets so agreeing authority cannot accumulate a false visual offset. Ease position and shortest-arc yaw corrections with a 200 ms time constant. Position catch-up is capped at 80% of the moving car's speed: enough to repay sustained 60 Hz versus 20 Hz rate mismatch while preserving forward movement. Stationary corrections may converge at up to 4 m/s. Full resync baselines, identity/life changes and pause transitions reset histories. Routine finite corrections remain continuous regardless of distance; invalid corrections clear the offset.
 6. If history is insufficient or protocol/map versions change, perform a full resync instead of guessing.
+
+The app samples online frames with the session's current monotonic clock, shared with input and snapshot handling. An animation callback's timestamp can precede an input tick already delivered by a timer; using that older time can alternate short and long rendered travel even during steady driving.
 
 Only one module owns prediction. If the chosen Colyseus release supplies suitable helpers, wrap those helpers inside `net-client`; otherwise implement the loop there. Rendering must not run an additional reconciler.
 
 ### Remote interpolation
 
-Render other cars initially about 100 ms behind estimated server time, with a tunable 50–150 ms buffer. Interpolate buffered snapshots by server tick. Bound extrapolation to 100 ms, then hold/fade with a connection indication. Reset histories across teleports, respawns, and session epochs. Remote health and scores use confirmed state, not extrapolation.
+Render other cars about 200 ms behind estimated server time. Interpolate buffered snapshots by server tick and permit up to 300 ms of position/yaw extrapolation before holding. Correct ordinary clock phase by changing playback speed between 0.75× and 1.1×, rather than freezing or rewinding on a late packet. Blend recovered trajectories using separate visual offsets; prediction collision proxies use unsmoothed samples. Remote health and scores remain confirmed state.
 
-The current implementation uses a fixed 100 ms buffer. Its presentation tick cannot move backward when a late snapshot lowers the clock estimate: playback holds until the estimate catches up. Match changes also clear history and the presentation tick. This prevents clock-induced backward motion; it does not remove authoritative collision corrections or implement an adaptive jitter buffer.
+Teleports, respawns, pause and session boundaries discard obsolete interpolation offsets. If a blackout exceeds one second and authority has advanced beyond the extrapolation window, restore the current buffered remote timeline and discard its stale visual trajectory; do not spend tens of seconds replaying missing traffic. This remote recovery does not reset the local car. Buffer duration is fixed; sustained overload and contact-correction acceptance remain open.
 
 ### Shared latency display
 

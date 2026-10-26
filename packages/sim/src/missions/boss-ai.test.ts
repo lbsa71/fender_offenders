@@ -24,11 +24,16 @@ it('the grenade ringleader visibly throws a fixed landing target, then detonates
  expect(grenade!.ownerEntityId).toBe(targetId);expect(grenade!.detonatesAtTick-grenade!.bornTick).toBeGreaterThanOrEqual(72);expect(grenade!.blastRadius).toBeLessThanOrEqual(7);expect(sim.snapshot().vehicles.find(v=>v.entityId===officerId)!.health).toBe(100);
  ticks(sim,100);expect(sim.snapshot().vehicles.find(v=>v.entityId===officerId)!.health).toBeLessThan(100);const events=sim.drainEvents();expect(events.filter(e=>e.kind==='grenade-exploded')).toHaveLength(1);expect(sim.snapshot().grenades).toEqual([]);
 });
-it('produces four distinct real-controller ringleader trajectories, including brake checks and different serpentine rhythms',()=>{
- const{sim,targetId,officerId}=fixture();const snapshot=sim.snapshot(),source=snapshot.vehicles.find(v=>v.entityId===targetId)!,officer=structuredClone(snapshot.vehicles.find(v=>v.entityId===officerId)!);officer.pose={x:6,z:-14,yaw:0};
+it('produces four distinct real-controller ringleader trajectories under a closing pursuit, including brake checks and different serpentine rhythms',()=>{
+ const{sim,targetId,officerId}=fixture();const snapshot=sim.snapshot(),source=snapshot.vehicles.find(v=>v.entityId===targetId)!,officer=structuredClone(snapshot.vehicles.find(v=>v.entityId===officerId)!);
  const paths=[1,4,7,9].map(stage=>{
   const vehicle=structuredClone(source),runtime=newBossAi(0),driver=newDriver(),steers:number[]=[],speeds:number[]=[];vehicle.velocity.z=12;
-  for(let tick=1;tick<=240;tick++){const decision=stepBossAi(vehicle,{...neutralActions(),throttle:.65},[officer],runtime,getBossTactics(stage),tick,20,()=>false);steers.push(decision.actions.steer);driveVehicle(vehicle,driver,decision.actions,arena(),[]);speeds.push(Math.hypot(vehicle.velocity.x,vehicle.velocity.z));}
+  for(let tick=1;tick<=240;tick++){
+   const fx=Math.sin(vehicle.pose.yaw),fz=Math.cos(vehicle.pose.yaw);
+   officer.pose={x:vehicle.pose.x-fx*14+fz*4,z:vehicle.pose.z-fz*14-fx*4,yaw:vehicle.pose.yaw};
+   officer.velocity={x:vehicle.velocity.x+fx*6,z:vehicle.velocity.z+fz*6,yawRate:0};
+   const decision=stepBossAi(vehicle,{...neutralActions(),throttle:.65},[officer],runtime,getBossTactics(stage),tick,20,()=>false);steers.push(decision.actions.steer);driveVehicle(vehicle,driver,decision.actions,arena(),[]);speeds.push(Math.hypot(vehicle.velocity.x,vehicle.velocity.z));
+  }
   return{vehicle,steers,speeds};
  });
  expect(Math.min(...paths[0]!.speeds.slice(0,90)),'Mabel must perform a real brake check').toBeLessThan(2);
@@ -36,6 +41,15 @@ it('produces four distinct real-controller ringleader trajectories, including br
  const changes=(steers:number[])=>steers.reduce((count,value,index)=>index&&value*steers[index-1]!<0?count+1:count,0);
  expect(changes(paths[2]!.steers)).toBeGreaterThan(changes(paths[1]!.steers));
  expect(Math.max(...paths[2]!.steers.map(Math.abs))).toBeGreaterThan(Math.max(...paths[1]!.steers.map(Math.abs)));
+});
+it('allows a matched-speed front cutoff to finish an arrest during the suspect breakaway',()=>{
+ const{sim,targetId,officerId}=fixture(1),c=sim.checkpoint(),boss=c.state.records.find(r=>r.vehicle.entityId===targetId)!,officer=c.state.records.find(r=>r.vehicle.entityId===officerId)!;
+ const speed=getBossTactics(1).cruiseSpeed;
+ boss.vehicle.velocity={x:0,z:speed,yawRate:0};officer.vehicle.pose={x:0,z:5,yaw:0};officer.vehicle.velocity={x:0,z:speed,yawRate:0};
+ boss.bossAi=newBossAi(c.tick);boss.bossAi.breakawayUntilTick=c.tick+60;boss.bossAi.nextBrakeCheckTick=c.tick+420;
+ c.state.contenderTicks=[['officer',179]];sim.restore(c);ticks(sim,1);
+ expect(sim.snapshot()).toMatchObject({phase:'results',pursuit:{state:'complete',winnerPlayerId:'officer'}});
+ expect(sim.snapshot().campaign!.outcomes).toMatchObject([{outcome:'arrested',playerId:'officer'}]);
 });
 it('uses deterministic target ties, visible windup, bounded bursts and a recovery gap',()=>{
  const{sim,targetId,officerId}=fixture();const source=sim.snapshot().vehicles.find(v=>v.entityId===targetId)!,officer=sim.snapshot().vehicles.find(v=>v.entityId===officerId)!,second={...structuredClone(officer),entityId:'aaa-officer',playerId:'second'};

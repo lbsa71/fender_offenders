@@ -13,6 +13,7 @@ test('home and practice load without external fonts or remote content', async ({
     } else await route.continue();
   });
   await practice(page);
+  await expect(page.locator('.fo-prompts')).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as DebugWindow).__FENDER_DEBUG__?.stats?.renderer?.props ?? 0)).toBeGreaterThan(100);
   await expect.poll(() => page.evaluate(() => (window as DebugWindow).__FENDER_DEBUG__?.stats?.renderer?.pedestrians ?? 0)).toBe(24);
   expect((await snapshot(page))!.props!.some(prop => prop.kind === 'tree' && prop.mode === 'fixed')).toBe(true);
@@ -20,7 +21,6 @@ test('home and practice load without external fonts or remote content', async ({
   expect((await snapshot(page))!.vehicles.filter(vehicle => vehicle.entityId === objective.suspectId)).toHaveLength(1);
   await expect(page.getByRole('img', { name: /^Wanted suspect,/ })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
-  await expect(page.locator('.fo-prompts')).toBeVisible();
   expect(externalRequests, 'Home and practice must use only local application resources').toEqual([]);
 });
 
@@ -133,8 +133,8 @@ test('a standard controller can start, drive, pause, navigate and safely disconn
   await dispatchFixture(page,1);
   await tap(0);
   await expect.poll(async () => (await snapshot(page))?.phase).toBe('playing');
-  await expect(page.locator('[data-control="steer"]')).toContainText('◀ L ▶');
-  await expect(page.locator('[data-control="throttle"] kbd')).toHaveText('RT / ↑');
+  await expect(page.locator('[data-tutorial-controls]').getByRole('img', { name: 'Left stick' })).toBeVisible();
+  await expect(page.locator('[data-tutorial-controls]').getByRole('img', { name: 'Right trigger' })).toBeVisible();
   await expect(page.locator('[data-text="phase"]')).toHaveText('COMPETING PURSUIT');
   await stickY(0); // Let the newly enabled controller observe a neutral frame before a fresh press.
   await stickY(-1);

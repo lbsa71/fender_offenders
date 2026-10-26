@@ -5,7 +5,7 @@ export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v11';
+export const GAMEPLAY_REVISION = 'arcade-v13';
 export type { CampaignState, CampaignOutcome, DispatchOutcome, CampaignTarget, CampaignDispatch } from './campaign-types';
 export { CAMPAIGN_ID, CAMPAIGN_TITLE, CAMPAIGN_TARGETS, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, getCampaignTarget } from './campaign';
 export { getCampaignMugshot } from './campaign-mugshots';
@@ -15,7 +15,13 @@ export type { BossTactics } from './boss-tactics';
 import type { CampaignState, CampaignOutcome } from './campaign-types';
 export { VEHICLE_BODIES, VEHICLE_PROFILES, getVehicleProfile, isVehicleBodyId } from './vehicle-profiles';
 export type { VehicleBodyId, VehicleProfile } from './vehicle-profiles';
-export type DeviceKind = 'keyboard' | 'gamepad';
+export type DeviceKind = 'keyboard' | 'gamepad' | 'touch';
+export type ControlScheme = 'auto' | DeviceKind;
+/** Held touch controls; the input adapter owns siren edges and recovery timing. */
+export interface TouchControls {
+  steer: number; throttle: number; brakeReverse: number;
+  handbrake: boolean; fire: boolean; siren: boolean; recover: boolean;
+}
 export interface DriverActions {
   steer: number; throttle: number; brakeReverse: number;
   handbrake: boolean; fire: boolean; sirenToggle: boolean; recover: boolean;
@@ -151,7 +157,8 @@ export interface SessionStatus {
 }
 export interface GameSession {
   connect(request: SessionRequest): Promise<JoinResult>;
-  submit(command: InputCommand): void; neutralize(): void;
+  /** localTickTimeMs is a browser-only logical input time; it is never sent. */
+  submit(command: InputCommand, localTickTimeMs?: number): void; neutralize(): void;
   request(action: 'start-round' | 'rematch' | 'leave'): void;
   selectVehicle(bodyId: import('./vehicle-profiles').VehicleBodyId): void;
   setPresence(menuOpen: boolean, hidden: boolean): void;

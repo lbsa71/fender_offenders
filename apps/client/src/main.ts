@@ -5,7 +5,7 @@ import { createInputSource, type InputSettings } from '@fender/input';
 import { mountGameUi, type UiSettings } from '@fender/ui';
 import { createOnlineSession } from '@fender/net-client';
 import { CAMPAIGN_DISPATCHES, isVehicleBodyId, neutralActions, type GameEvent, type RenderFrame, type SessionRequest, type SessionStatus, type WorldSnapshot } from '@fender/contracts';
-import { planFrame } from './pacing';
+import { FIXED_STEP, planFrame } from './pacing';
 import './style.css';
 
 const initialUrl = new URL(location.href);
@@ -33,7 +33,7 @@ async function boot() {
   function present(events: GameEvent[]) { renderer.present(events); observedEvents.push(...events); if (observedEvents.length > 100) observedEvents.splice(0, observedEvents.length - 100); }
   function applySettings(settings: UiSettings) {
     renderer.setSettings(settings);
-    input?.setSettings({ stickDeadzone: settings.stickDeadzone, triggerDeadzone: settings.triggerDeadzone, sensitivity: settings.sensitivity, bindings: settings.bindings as InputSettings['bindings'] });
+    input?.setSettings({ controlScheme: settings.controlScheme, stickDeadzone: settings.stickDeadzone, triggerDeadzone: settings.triggerDeadzone, sensitivity: settings.sensitivity, bindings: settings.bindings as InputSettings['bindings'] });
   }
   async function leave() {
     active = false; input?.setEnabled(false); snapshot = null; roomId = ''; playerId = ''; observedEvents = [];
@@ -65,6 +65,8 @@ async function boot() {
     ui.showMenu(null); input?.setEnabled(!ui.isMenuVisible() && snapshot?.phase !== 'lobby');
   }
   const ui = mountGameUi(root, {
+    onTouchInput: state => input?.setTouchState(state),
+    onTouchCancel: () => input?.resetHeldState(),
     onPlay: play,
     onResume: () => { void renderer.unlockAudio(); },
     onLeave: () => { void leave(); },
@@ -75,7 +77,7 @@ async function boot() {
     onActivity: () => online?.activity(),
     onMenuVisibility: visible => { input?.setEnabled(active && !visible && snapshot?.phase !== 'lobby'); if(online)online.setPresence(ui.isMenuOpen(),document.hidden); },
   });
-  input = createInputSource({ onNeutralize: () => online?.neutralize(), onMenuAction: action => ui.navigate(action) });
+  input = createInputSource({ onNeutralize: () => online?.neutralize(), onReset: () => ui.resetTouchControls(), onMenuAction: action => ui.navigate(action) });
   applySettings(ui.getSettings());
   const resize = () => renderer.resize(); window.addEventListener('resize', resize);
   const visibility = () => { accumulator = inputAccumulator = 0; previousInputAt = previousTime = previousFrameAt = performance.now(); input?.resetHeldState(); online?.setPresence(ui.isMenuOpen(),document.hidden); };
@@ -90,7 +92,8 @@ async function boot() {
     input!.setEnabled(!ui.isMenuVisible() && snapshot.phase !== 'lobby');
     const plan = planFrame(inputAccumulator, elapsed, snapshot.paused ? 'paused' : 'online'); inputAccumulator = plan.accumulator;
     for (let step = 0; step < plan.steps; step++) {
-      online.submit({ sessionEpoch: epoch, sequence: sequence++, clientTick: ++clientTick, actions: input!.sample() });
+      const tickTime = now - (plan.accumulator + (plan.steps - 1 - step) * FIXED_STEP) * 1000;
+      online.submit({ sessionEpoch: epoch, sequence: sequence++, clientTick: ++clientTick, actions: input!.sample() }, tickTime);
     }
   }, 1000 / 60);
   function frame(now: number) {
@@ -112,7 +115,9 @@ async function boot() {
         const events = local.drainEvents(); if (active) { snapshot = local.snapshot(playerId); present(events); }
       }
     }
-    let renderFrame: RenderFrame | null = online?.sampleFrame(now) ?? null;
+    // Sample on the input/network clock. The animation timestamp can precede
+    // a timer-delivered input tick when its callback runs late.
+    let renderFrame: RenderFrame | null = online?.sampleFrame() ?? null;
     if (!renderFrame && local) {
       const state = local.snapshot(active ? playerId : 'preview');
       renderFrame = { sampleTimeSeconds: now / 1000, serverTick: state.serverTick, grenades: active && state.phase === 'playing' ? state.grenades ?? [] : [], vehicles: state.vehicles, projectiles: state.projectiles.map(projectile=>({...projectile,presentationAgeSeconds:Math.max(0,(state.serverTick-projectile.bornTick+1)/60)})), props: state.props, localEntityId: state.local?.vehicle.entityId ?? null, cameraTarget: state.local?.vehicle.pose ?? { x: 4, z: -48, yaw: 0 },
