@@ -1,10 +1,12 @@
 # Implementation plan
 
-Status: acceptance plan for the playable `arcade-v10` alpha. Updated: 2026-10-25 following `0bde06a` and the persistent-lamp correction. Current states and dated evidence for all 49 tasks are in [the execution ledger](spec/EXECUTION_STATUS.md). Task IDs, dependencies and milestone gates remain stable; delivery choices below reflect the current implementation.
+Status: acceptance plan for the local `arcade-v11` alpha. Updated: 2026-10-26 for closing-pursuit suspect driving, following the `arcade-v10` baseline. Current states and dated evidence for all 49 tasks are in [the execution ledger](spec/EXECUTION_STATUS.md). Task IDs, dependencies and milestone gates remain stable; delivery choices below reflect the current implementation.
 
 *The city is playable. The release paperwork still has several outstanding warrants.*
 
 ## Next acceptance work
+
+The local `arcade-v11` follow-up gates suspect swerves and harder brake checks on a nearby officer closing the gap. It preserves protocol 2 and existing wire shapes; [boss combat](spec/BOSS_COMBAT.md) defines the conditions. Grenade particle bursts and pedestrian threat filtering are in the same dedicated worktree. These local changes do not claim a hosted rollout or close the driving/performance acceptance gates below.
 
 The [unified room model](spec/ROOM_SESSIONS.md) replaces production solo/private mode separation: every 1–8-player campaign runs on the server, any connected officer can proceed from a briefing, and friends join live. Empty rooms pause for up to 15 minutes with oldest-empty capacity reclamation; idle connected tabs warn at 14 minutes and disconnect at 15. F/S/N/U/Q share this integration sequentially; the combined room/recoil build uses protocol 2 and `arcade-v10`. Storage remains process memory. Graphics and named-hardware acceptance continue independently.
 

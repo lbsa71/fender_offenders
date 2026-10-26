@@ -5,7 +5,7 @@ export interface PedestrianState { id: number; x: number; z: number; yaw: number
 interface Point { x: number; z: number }
 interface Refuge extends Point { route: number; segment: number; progress: number }
 interface Walker extends PedestrianState { route: number; segment: number; progress: number; calm: number; target: Refuge | null }
-interface CarPath { now: Point; swept: Point; future: Point[] }
+interface CarPath { now: Point; swept: Point; future: Point[]; threat: boolean }
 // Includes the maximum cartoon car stretch and the figure's swinging arms.
 const FIXED = 1 / 60, CLEARANCE = 4.7;
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -38,18 +38,18 @@ export class PedestrianMotion {
       return { id, route, segment, progress, ...mix(path.points[segment]!, path.points[(segment + 1) % path.points.length]!, progress), yaw: 0, mode: 'walking', hiddenSafety: false, gait: id * .71, calm: 0, target: null };
     }) : [];
   }
-  private paths(vehicles: readonly VehicleState[]): CarPath[] {
+  private paths(vehicles: readonly VehicleState[], suspectId?: string): CarPath[] {
     return vehicles.filter(v => v.status !== 'respawning' && Number.isFinite(v.pose.x) && Number.isFinite(v.pose.z)).map(v => {
       const now = { x: v.pose.x, z: v.pose.z }, future = [now]; let x = now.x, z = now.z, vx = Number.isFinite(v.velocity.x) ? v.velocity.x : 0, vz = Number.isFinite(v.velocity.z) ? v.velocity.z : 0;
       const turn = Math.max(-3, Math.min(3, v.velocity.yawRate || 0)), step = .2;
       for (let i = 0; i < 20; i++) { const angle = turn * step, nx = vx * Math.cos(angle) + vz * Math.sin(angle); vz = vz * Math.cos(angle) - vx * Math.sin(angle); vx = nx; x += vx * step; z += vz * step; future.push({ x, z }); }
-      return { now, swept: this.previous.get(v.entityId) ?? now, future };
+      return { now, swept: this.previous.get(v.entityId) ?? now, future, threat: v.status === 'active' && (v.playerId != null || v.entityId === suspectId) };
     });
   }
   private clear(point: Point, paths: CarPath[], predict = 0) {
     return paths.every(car => pointSegment(point, car.swept, car.now) > CLEARANCE && car.future.slice(1, 1 + predict).every((next, i) => pointSegment(point, car.future[i]!, next) > CLEARANCE + .25));
   }
-  private threatened(point: Point, paths: CarPath[]) { return paths.some(car => car.future.slice(1, 9).some((next, i) => pointSegment(point, car.future[i]!, next) < 8)); }
+  private threatened(point: Point, paths: CarPath[]) { return paths.some(car => car.threat && car.future.slice(1, 9).some((next, i) => pointSegment(point, car.future[i]!, next) < 8)); }
   private sidewalkPath(a: Point, b: Point) { const steps = Math.ceil(distance(a, b) / .6); for (let i = 0; i <= steps; i++) if (!isPedestrianSidewalk(mix(a, b, i / Math.max(1, steps)))) return false; return true; }
   private refuge(walker: Walker, paths: CarPath[], emergency: boolean): Refuge | null {
     let best: Refuge | null = null, cost = Infinity;
@@ -64,7 +64,8 @@ export class PedestrianMotion {
   }
   private safety(walker: Walker, paths: CarPath[]) {
     if (this.clear(walker, paths)) { walker.hiddenSafety = false; return; }
-    const refuge = this.refuge(walker, paths, true); walker.mode = 'running'; walker.calm = 1.2; walker.target = null;
+    const refuge = this.refuge(walker, paths, true), threat = this.threatened(walker, paths);
+    walker.mode = threat ? 'running' : 'waiting'; walker.calm = threat ? 1.2 : 0; walker.target = null;
     if (refuge) { this.emergencyRetreats++; walker.x = refuge.x; walker.z = refuge.z; walker.route = refuge.route; walker.segment = refuge.segment; walker.progress = refuge.progress; walker.hiddenSafety = false; }
     else walker.hiddenSafety = true;
   }
@@ -99,8 +100,8 @@ export class PedestrianMotion {
     }
     this.safety(walker, paths);
   }
-  update(vehicles: readonly VehicleState[], dt: number) {
-    if (this.disposed) return; const paths = this.paths(vehicles);
+  update(vehicles: readonly VehicleState[], dt: number, suspectId?: string) {
+    if (this.disposed) return; const paths = this.paths(vehicles, suspectId);
     this.accumulator += Math.max(0, Math.min(.25, Number.isFinite(dt) ? dt : 0));
     while (this.accumulator + 1e-9 >= FIXED) { for (const walker of this.walkers) this.step(walker, paths); this.accumulator -= FIXED; }
     for (const walker of this.walkers) this.safety(walker, paths);

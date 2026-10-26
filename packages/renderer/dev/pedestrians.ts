@@ -23,18 +23,19 @@ const crowd = new PedestrianCrowd(scene), factory = new CarFactory(scene), visua
 visual.health.isVisible = visual.healthBack.isVisible = visual.marker.isVisible = false;
 const vehicle = (z: number, x = 4, speed = 28): VehicleState => ({ entityId: 'qa-car', playerId: null, bodyAssetId: 'patrol', pose: { x, z, yaw: 0 }, velocity: { x: 0, z: speed, yawRate: 0 }, health: 100, status: 'active', protectedUntilTick: 0, respawnAtTick: null, sirenOn: false, discontinuityId: 0 });
 let frames = 0, maxHidden = 0, maxRunning = 0, minimumSeparation = Infinity, maxEmergencyRetreats = 0;
-const flee = new URLSearchParams(location.search).has('flee');
+const params = new URLSearchParams(location.search), suspect = params.has('suspect'), flee = params.has('flee') || suspect, traffic = params.has('traffic'), moving = flee || traffic;
 await scene.whenReadyAsync();
 function draw() {
-  const car = vehicle(flee ? -52 + Math.min(frames, 84) * 28 / 60 : -24, flee ? 8 : 4, flee ? 28 : 0);
+  const car = vehicle(moving ? -52 + Math.min(frames, 84) * 28 / 60 : -24, flee ? 8 : 4, moving ? 28 : 0);
+  if (flee && !suspect) car.playerId = 'officer';
   visual.root.position.set(-car.pose.x, .03, car.pose.z);
-  crowd.update(flee ? [car] : [], 1 / 60, false);
+  crowd.update(moving ? [car] : [], 1 / 60, false, suspect ? car.entityId : undefined);
   const stats = crowd.getStats(); maxHidden = Math.max(maxHidden, stats.hiddenSafety); maxRunning = Math.max(maxRunning, stats.running);
   maxEmergencyRetreats = Math.max(maxEmergencyRetreats, stats.emergencyRetreats);
   for (let id = 0; id < 24; id++) { const person = scene.getTransformNodeByName(`pedestrian-${id}`)!; if (person.isEnabled()) minimumSeparation = Math.min(minimumSeparation, Math.hypot(person.position.x - visual.root.position.x, person.position.z - visual.root.position.z)); }
-  document.querySelector('.stats')!.textContent = `BOROUGH FOOT TRAFFIC / ${flee ? 'RUN FOR IT' : 'AFTERNOON STROLL'}\nVISIBLE ${stats.visible}   WALKING ${stats.walking}\nRUNNING ${stats.running}   WAITING ${stats.waiting}\nSAFETY HIDDEN ${stats.hiddenSafety}`;
+  document.querySelector('.stats')!.textContent = `BOROUGH FOOT TRAFFIC / ${suspect ? 'SUSPECT APPROACHING' : flee ? 'OFFICER APPROACHING' : traffic ? 'ORDINARY TRAFFIC' : 'AFTERNOON STROLL'}\nVISIBLE ${stats.visible}   WALKING ${stats.walking}\nRUNNING ${stats.running}   WAITING ${stats.waiting}\nSAFETY HIDDEN ${stats.hiddenSafety}`;
   scene.render();
-  if (++frames < (flee ? 84 : 120)) requestAnimationFrame(draw);
+  if (++frames < (moving ? 84 : 120)) requestAnimationFrame(draw);
   else Object.assign(window, { pedestrianQa: { crowd, stats, maxHidden, maxRunning, minimumSeparation, maxEmergencyRetreats, frames, scene } });
 }
 requestAnimationFrame(draw);

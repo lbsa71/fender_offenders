@@ -24,11 +24,16 @@ it('the grenade ringleader visibly throws a fixed landing target, then detonates
  expect(grenade!.ownerEntityId).toBe(targetId);expect(grenade!.detonatesAtTick-grenade!.bornTick).toBeGreaterThanOrEqual(72);expect(grenade!.blastRadius).toBeLessThanOrEqual(7);expect(sim.snapshot().vehicles.find(v=>v.entityId===officerId)!.health).toBe(100);
  ticks(sim,100);expect(sim.snapshot().vehicles.find(v=>v.entityId===officerId)!.health).toBeLessThan(100);const events=sim.drainEvents();expect(events.filter(e=>e.kind==='grenade-exploded')).toHaveLength(1);expect(sim.snapshot().grenades).toEqual([]);
 });
-it('produces four distinct real-controller ringleader trajectories, including brake checks and different serpentine rhythms',()=>{
- const{sim,targetId,officerId}=fixture();const snapshot=sim.snapshot(),source=snapshot.vehicles.find(v=>v.entityId===targetId)!,officer=structuredClone(snapshot.vehicles.find(v=>v.entityId===officerId)!);officer.pose={x:6,z:-14,yaw:0};
+it('produces four distinct real-controller ringleader trajectories under a closing pursuit, including brake checks and different serpentine rhythms',()=>{
+ const{sim,targetId,officerId}=fixture();const snapshot=sim.snapshot(),source=snapshot.vehicles.find(v=>v.entityId===targetId)!,officer=structuredClone(snapshot.vehicles.find(v=>v.entityId===officerId)!);
  const paths=[1,4,7,9].map(stage=>{
   const vehicle=structuredClone(source),runtime=newBossAi(0),driver=newDriver(),steers:number[]=[],speeds:number[]=[];vehicle.velocity.z=12;
-  for(let tick=1;tick<=240;tick++){const decision=stepBossAi(vehicle,{...neutralActions(),throttle:.65},[officer],runtime,getBossTactics(stage),tick,20,()=>false);steers.push(decision.actions.steer);driveVehicle(vehicle,driver,decision.actions,arena(),[]);speeds.push(Math.hypot(vehicle.velocity.x,vehicle.velocity.z));}
+  for(let tick=1;tick<=240;tick++){
+   const fx=Math.sin(vehicle.pose.yaw),fz=Math.cos(vehicle.pose.yaw);
+   officer.pose={x:vehicle.pose.x-fx*14+fz*4,z:vehicle.pose.z-fz*14-fx*4,yaw:vehicle.pose.yaw};
+   officer.velocity={x:vehicle.velocity.x+fx*6,z:vehicle.velocity.z+fz*6,yawRate:0};
+   const decision=stepBossAi(vehicle,{...neutralActions(),throttle:.65},[officer],runtime,getBossTactics(stage),tick,20,()=>false);steers.push(decision.actions.steer);driveVehicle(vehicle,driver,decision.actions,arena(),[]);speeds.push(Math.hypot(vehicle.velocity.x,vehicle.velocity.z));
+  }
   return{vehicle,steers,speeds};
  });
  expect(Math.min(...paths[0]!.speeds.slice(0,90)),'Mabel must perform a real brake check').toBeLessThan(2);

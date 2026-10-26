@@ -2,6 +2,7 @@ import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 import {NullEngine} from '@babylonjs/core/Engines/nullEngine';
 import {Scene} from '@babylonjs/core/scene';
 import {Logger} from '@babylonjs/core/Misc/logger';
+import type {ParticleSystem} from '@babylonjs/core/Particles/particleSystem';
 import type {GrenadeState} from '@fender/contracts';
 import {GrenadeEffects,grenadeVisualPose,type GrenadeCue} from './grenade-effects';
 const grenade=(id='g'):GrenadeState=>({entityId:id,ownerEntityId:'boss',origin:{x:4,z:-30,yaw:0},target:{x:4,z:-10,yaw:0},bornTick:100,landsAtTick:160,detonatesAtTick:220,blastRadius:6,damage:35});
@@ -9,6 +10,33 @@ let engine:NullEngine,scene:Scene,effects:GrenadeEffects;
 beforeEach(()=>{engine=new NullEngine();scene=new Scene(engine);effects=new GrenadeEffects(scene);});
 afterEach(()=>{effects.dispose();scene.dispose();engine.dispose();});
 describe('authority-driven cartoon grenades',()=>{
+ it('bursts into soft textured particles that spread, cool and fade into rising smoke',()=>{
+  effects.explode('g',grenade().target,6,220);
+  const systems=scene.particleSystems.filter(s=>s.name.startsWith('grenade-blast-0-')) as ParticleSystem[];
+  expect(systems).toHaveLength(3);
+  for(const system of systems){expect(system.particleTexture?.hasAlpha).toBe(true);expect(system.particles.length).toBeGreaterThan(8);}
+  const fire=systems.find(s=>s.name.endsWith('-fire'))!,smoke=systems.find(s=>s.name.endsWith('-smoke'))!,embers=systems.find(s=>s.name.endsWith('-embers'))!;
+  const start=fire.particles.map(p=>p.position.clone());
+  effects.update(0);effects.update(.2);effects.update(.1);
+  expect(fire.particles.some((p,i)=>p.position.subtract(start[i]!).length()>1)).toBe(true);
+  expect(new Set(fire.particles.map(p=>p.size.toFixed(3))).size).toBeGreaterThan(8);
+  expect(embers.particles.some(p=>p.position.y>1)).toBe(true);
+  const earlySmoke=smoke.particles.map(p=>({y:p.position.y,size:p.size,alpha:p.color.a}));
+  for(let i=0;i<5;i++)effects.update(.2);
+  expect(fire.particles.every(p=>p.color.a===0)).toBe(true);
+  expect(smoke.particles.some((p,i)=>p.position.y>earlySmoke[i]!.y+1&&p.size>earlySmoke[i]!.size)).toBe(true);
+  expect(smoke.particles.reduce((sum,p)=>sum+p.color.a,0)).toBeLessThan(earlySmoke.reduce((sum,p)=>sum+p.alpha,0));
+  expect(scene.meshes.filter(m=>m.isEnabled()&&m.isVisible&&m.name.startsWith('grenade-blast-'))).toHaveLength(0);
+ });
+ it('reuses particle systems and textures across blast saturation and releases them on disposal',()=>{
+  const resources={systems:scene.particleSystems.length,textures:scene.textures.length,meshes:scene.meshes.length};
+  expect(resources.systems).toBe(24);
+  for(let i=0;i<40;i++)effects.explode('burst-'+i,{x:i,z:0,yaw:0},6,220);
+  expect(scene.particleSystems.reduce((sum,s)=>sum+s.getActiveCount(),0)).toBeLessThanOrEqual(640);
+  expect({systems:scene.particleSystems.length,textures:scene.textures.length,meshes:scene.meshes.length}).toEqual(resources);
+  effects.reset();expect(scene.particleSystems.every(s=>s.getActiveCount()===0)).toBe(true);
+  effects.dispose();expect(scene.particleSystems).toHaveLength(0);expect(scene.textures).toHaveLength(0);
+ });
  it('lobs from authority origin to one fixed landing point and settles without changing inputs',()=>{
   const g=grenade(),original=JSON.stringify(g),start=grenadeVisualPose(g,100),middle=grenadeVisualPose(g,130),land=grenadeVisualPose(g,160),fuse=grenadeVisualPose(g,210);expect(start).not.toBeNull();expect(start!.x).toBe(4);expect(start!.z).toBe(-30);expect(middle!.y).toBeGreaterThan(5);expect(middle!.z).toBe(-20);expect(land!.z).toBe(-10);expect(land!.landed).toBe(true);expect(fuse!.x).toBe(4);expect(fuse!.z).toBe(-10);expect(fuse!.y).toBeLessThan(.7);expect(JSON.stringify(g)).toBe(original);
  });
