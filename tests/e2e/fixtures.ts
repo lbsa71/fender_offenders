@@ -15,13 +15,16 @@ export async function arrestFixture(page:Page){
 }
 
 /** Exercise the shipped low preset; do not replace the renderer or simulation. */
-export async function configureGameContext(context: BrowserContext): Promise<void> {
-  await context.addInitScript(() => {
+export async function configureGameContext(context: BrowserContext, hasTouch = false): Promise<void> {
+  await context.addInitScript((touch: boolean) => {
+    // Installed Chrome can expose the host touchscreen even with hasTouch:false.
+    // Keep capability detection consistent with the requested test device.
+    Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, get: () => touch ? 1 : 0 });
     // Preserve settings on reload so the persistence assertions retain meaning.
     if (localStorage.getItem('fender-settings-v1') === null) {
       localStorage.setItem('fender-settings-v1', JSON.stringify({ quality: 'low' }));
     }
-  });
+  }, hasTouch);
 }
 
 export async function createGameContext(browser: Browser): Promise<BrowserContext> {
@@ -31,8 +34,8 @@ export async function createGameContext(browser: Browser): Promise<BrowserContex
 }
 
 export const test = base.extend({
-  context: async ({ context }, use) => {
-    await configureGameContext(context);
+  context: async ({ context, hasTouch }, use) => {
+    await configureGameContext(context, hasTouch);
     await use(context);
   },
 });

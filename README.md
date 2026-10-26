@@ -38,7 +38,7 @@ The [first four dispatches teach the job](spec/TUTORIAL.md): arrest Nico without
 - Local movement prediction, remote interpolation with a playback clock that does not rewind on late snapshots, reconnect handling, input admission checks, and immediate control neutralization on focus/device loss or menu entry.
 - Server-measured ping in milliseconds for every player in online standings and results, plus a persistent Wi-Fi indicator for connecting, connected, reconnecting and lost connections. Unknown or stale ping reads “—”.
 - Reusable invite links: joining a valid room code after a restart opens a fresh room under the same code. Simultaneous visitors join the same room. Match progress and scores reset with the server.
-- Keyboard and standard-mapped controller input, device prompts, keyboard remapping, dead zones, sensitivity, persisted settings, reduced shake/flashes, and graphics/audio controls. No external fonts or runtime art downloads are requested.
+- Keyboard, standard-mapped controller and generic touch input, device prompts, keyboard remapping, dead zones, sensitivity, persisted control selection, reduced shake/flashes, and graphics/audio controls. No external fonts or runtime art downloads are requested.
 
 A lone officer opening a menu or hiding the tab pauses the server world. Backup joining resumes it with a notice. With multiple officers, menus neutralize only that driver's controls. Empty worlds freeze, including their dispatch clocks. Idle players receive a warning at 14 minutes and are disconnected at 15; heartbeats do not count as activity. See [room sessions](spec/ROOM_SESSIONS.md) for retention, reconnect and storage rules. Controller coverage currently uses synthetic standard-mapped devices; physical-controller handling and the full browser/OS matrix remain open. Music and vibration settings do not establish a shipped soundtrack or tested haptics.
 
@@ -70,19 +70,23 @@ Twenty-four cosmetic pedestrians walk sidewalks, wait for safe crossing gaps and
 
 ## Controls
 
-| Action | Keyboard | Standard controller |
-| --- | --- | --- |
-| Accelerate | W / Up | Left stick forward, or right trigger |
-| Brake / reverse | S / Down | Left stick backward, or left trigger |
-| Steer | A/D or Left/Right | Left stick left/right |
-| Handbrake | Shift | A / south button |
-| Fire | Space | Right shoulder |
-| Siren | E | X / west button |
-| Recover a stuck car | Hold R for one second | Hold Y / north button for one second |
-| Pause / settings | Escape | Menu / Start |
-| Menu navigation | Arrows, Enter, Escape; Tab for fields | D-pad / stick, A confirm, B back |
+Choose **Control scheme** in **Settings & controls**: **Automatic**, **Touch**, **Controller** or **Keyboard**. The choice persists. Automatic starts with touch on devices reporting touch support, otherwise keyboard; using a controller or keyboard switches the active device. Tap the play area to return to touch. An explicit choice keeps the driving source and overlay fixed. Touch controls appear during driving and hide in menus, briefings, results and lost connections. No touchscreen detection relies on an iPad name tag.
 
-Pulling the stick backward brakes a forward-moving car before reversing, just like the left trigger. Stick and trigger input combine without adding extra acceleration. Callsign text entry uses the keyboard. Unknown controller mappings display a keyboard-fallback message rather than guessing button assignments.
+The labeled touch controls replace the floating keyboard/controller card. Fire and Drift + Fire appear when the campaign unlocks guns in dispatch 2; the first dispatch remains an unarmed arrest lesson.
+
+| Action | Keyboard | Standard controller | Touch |
+| --- | --- | --- | --- |
+| Accelerate | W / Up | Left stick forward, or right trigger | Drag drive pad up |
+| Brake / reverse | S / Down | Left stick backward, or left trigger | Drag drive pad down |
+| Steer | A/D or Left/Right | Left stick left/right | Drag drive pad left/right |
+| Handbrake | Shift | A / south button | Hold Drift |
+| Fire | Space | Right shoulder | Hold Fire; Drift + Fire holds both |
+| Siren | E | X / west button | Tap Siren |
+| Recover a stuck car | Hold R for one second | Hold Y / north button for one second | Hold Recover for one second |
+| Pause / settings | Escape | Menu / Start | Pause button |
+| Menu navigation | Arrows, Enter, Escape; Tab for fields | D-pad / stick, A confirm, B back | Tap buttons and fields |
+
+Pulling the stick backward brakes a forward-moving car before reversing, just like the left trigger. Stick and trigger input combine without adding extra acceleration. The touch pad uses the same vehicle-relative steering and brake/reverse rules. Pointer cancellation, lost capture, viewport resize, focus loss, menus and control changes clear held touches; a fresh touch is required. Callsign text entry uses the device's keyboard. Unknown controller mappings direct players to touch or keyboard in settings rather than guessing button assignments. Browser touch/controller checks use Chromium touch emulation and injected standard gamepads; physical iPad, Android and controller acceptance and sustained mobile performance remain open.
 
 ## Developer commands
 

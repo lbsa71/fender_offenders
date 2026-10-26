@@ -33,7 +33,7 @@ async function boot() {
   function present(events: GameEvent[]) { renderer.present(events); observedEvents.push(...events); if (observedEvents.length > 100) observedEvents.splice(0, observedEvents.length - 100); }
   function applySettings(settings: UiSettings) {
     renderer.setSettings(settings);
-    input?.setSettings({ stickDeadzone: settings.stickDeadzone, triggerDeadzone: settings.triggerDeadzone, sensitivity: settings.sensitivity, bindings: settings.bindings as InputSettings['bindings'] });
+    input?.setSettings({ controlScheme: settings.controlScheme, stickDeadzone: settings.stickDeadzone, triggerDeadzone: settings.triggerDeadzone, sensitivity: settings.sensitivity, bindings: settings.bindings as InputSettings['bindings'] });
   }
   async function leave() {
     active = false; input?.setEnabled(false); snapshot = null; roomId = ''; playerId = ''; observedEvents = [];
@@ -65,6 +65,8 @@ async function boot() {
     ui.showMenu(null); input?.setEnabled(!ui.isMenuVisible() && snapshot?.phase !== 'lobby');
   }
   const ui = mountGameUi(root, {
+    onTouchInput: state => input?.setTouchState(state),
+    onTouchCancel: () => input?.resetHeldState(),
     onPlay: play,
     onResume: () => { void renderer.unlockAudio(); },
     onLeave: () => { void leave(); },
@@ -75,7 +77,7 @@ async function boot() {
     onActivity: () => online?.activity(),
     onMenuVisibility: visible => { input?.setEnabled(active && !visible && snapshot?.phase !== 'lobby'); if(online)online.setPresence(ui.isMenuOpen(),document.hidden); },
   });
-  input = createInputSource({ onNeutralize: () => online?.neutralize(), onMenuAction: action => ui.navigate(action) });
+  input = createInputSource({ onNeutralize: () => online?.neutralize(), onReset: () => ui.resetTouchControls(), onMenuAction: action => ui.navigate(action) });
   applySettings(ui.getSettings());
   const resize = () => renderer.resize(); window.addEventListener('resize', resize);
   const visibility = () => { accumulator = inputAccumulator = 0; previousInputAt = previousTime = previousFrameAt = performance.now(); input?.resetHeldState(); online?.setPresence(ui.isMenuOpen(),document.hidden); };

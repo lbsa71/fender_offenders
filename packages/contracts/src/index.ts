@@ -15,7 +15,13 @@ export type { BossTactics } from './boss-tactics';
 import type { CampaignState, CampaignOutcome } from './campaign-types';
 export { VEHICLE_BODIES, VEHICLE_PROFILES, getVehicleProfile, isVehicleBodyId } from './vehicle-profiles';
 export type { VehicleBodyId, VehicleProfile } from './vehicle-profiles';
-export type DeviceKind = 'keyboard' | 'gamepad';
+export type DeviceKind = 'keyboard' | 'gamepad' | 'touch';
+export type ControlScheme = 'auto' | DeviceKind;
+/** Held touch controls; the input adapter owns siren edges and recovery timing. */
+export interface TouchControls {
+  steer: number; throttle: number; brakeReverse: number;
+  handbrake: boolean; fire: boolean; siren: boolean; recover: boolean;
+}
 export interface DriverActions {
   steer: number; throttle: number; brakeReverse: number;
   handbrake: boolean; fire: boolean; sirenToggle: boolean; recover: boolean;

@@ -10,7 +10,7 @@ The current code uses Babylon WebGL rendering, a custom Colyseus session/predict
 
 ```mermaid
 flowchart LR
-  Devices[Keyboard / gamepad] --> Input[Normalized input]
+  Devices[Keyboard / gamepad / touch] --> Input[Normalized input]
   Input --> Local[Local prediction]
   Local --> View[Render frame]
   View --> Babylon[Babylon renderer / audio]
@@ -37,11 +37,11 @@ Production CLI startup warms one disposable campaign's initial physics and spars
 | contracts | None | DTOs, validation, protocol/config versions, adapter interfaces |
 | physics | None | Single initialization promise for the pinned Rapier WASM runtime; each adapter owns its own worlds |
 | sim | contracts, physics | Vehicle controller, collision world, combat, traffic, game rules |
-| input | contracts | Device sampling, mappings, dead zones, focus/disconnect behavior |
+| input | contracts | Device sampling/selection, held touch normalization, mappings, dead zones, focus/disconnect behavior |
 | renderer | contracts, content, physics | Babylon objects, materials, camera, audio, VFX, render interpolation and cosmetic debris physics |
 | net-client | contracts, sim | Transport adapter, clock estimate, prediction history, reconciliation |
 | net-server | contracts, sim | Room authority, input validation, state publication, reconnect |
-| ui | contracts | DOM menus/HUD/settings, semantic UI actions |
+| ui | contracts | DOM menus/HUD/settings, touch pointer ownership, semantic UI actions |
 | content | contracts | Validated runtime catalog, collision maps, asset/provenance records |
 | test-support (planned) | contracts; sim only for replay helpers | Proposed central fixture catalog; current fixtures live with packages and under `tests/` |
 | apps/client | Public APIs of client-facing packages | Composition, scheduling, lifecycle, error boundary |
