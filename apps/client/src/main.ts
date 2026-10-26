@@ -5,7 +5,7 @@ import { createInputSource, type InputSettings } from '@fender/input';
 import { mountGameUi, type UiSettings } from '@fender/ui';
 import { createOnlineSession } from '@fender/net-client';
 import { CAMPAIGN_DISPATCHES, isVehicleBodyId, neutralActions, type GameEvent, type RenderFrame, type SessionRequest, type SessionStatus, type WorldSnapshot } from '@fender/contracts';
-import { planFrame } from './pacing';
+import { FIXED_STEP, planFrame } from './pacing';
 import './style.css';
 
 const initialUrl = new URL(location.href);
@@ -92,7 +92,8 @@ async function boot() {
     input!.setEnabled(!ui.isMenuVisible() && snapshot.phase !== 'lobby');
     const plan = planFrame(inputAccumulator, elapsed, snapshot.paused ? 'paused' : 'online'); inputAccumulator = plan.accumulator;
     for (let step = 0; step < plan.steps; step++) {
-      online.submit({ sessionEpoch: epoch, sequence: sequence++, clientTick: ++clientTick, actions: input!.sample() });
+      const tickTime = now - (plan.accumulator + (plan.steps - 1 - step) * FIXED_STEP) * 1000;
+      online.submit({ sessionEpoch: epoch, sequence: sequence++, clientTick: ++clientTick, actions: input!.sample() }, tickTime);
     }
   }, 1000 / 60);
   function frame(now: number) {

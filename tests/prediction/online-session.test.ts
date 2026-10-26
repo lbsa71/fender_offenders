@@ -28,7 +28,7 @@ afterEach(async () => { await disposeTestRooms(); await Promise.allSettled(sessi
 afterAll(async () => { await server?.gracefullyShutdown(false); });
 
 describe('real online prediction facade baseline', () => {
-  it('keeps a healthy solo input stream bounded when authority temporarily runs at twenty ticks per second', async () => {
+  it.each([20, 60])('keeps a healthy solo input stream responsive and bounded at %i authority ticks per second', async tickRate => {
     const value = session(), joined = await value.connect({ roomId: crypto.randomUUID(), nickname: 'Slow authority', vehicleBodyId: 'patrol' });
     const room = matchMaker.getLocalRoomById(joined.roomId);
     // Drive the actual room's real step at a controlled cadence. Network,
@@ -50,7 +50,7 @@ describe('real online prediction facade baseline', () => {
     const started = performance.now(); let sequence = 0, previousZ: number | null = null;
     value.onSnapshot(snapshot => { if (snapshot.resetReason === 'input-backlog') resets.push(snapshot.resetReason); });
     let authoritySteps = 0;
-    const authorityTimer = setInterval(() => { controlled.step(); authoritySteps++; }, 50);
+    const authorityTimer = setInterval(() => { controlled.step(); authoritySteps++; }, 1000 / tickRate);
     const inputTimer = setInterval(() => {
       submit(value, sequence++);
       const frame = value.sampleFrame()!, local = frame.vehicles.find(vehicle => vehicle.entityId === joined.localEntityId)!;
@@ -61,11 +61,17 @@ describe('real online prediction facade baseline', () => {
       previousZ = local.pose.z;
     }, 1000 / 60);
     try {
-      await until(() => authoritySteps >= 60, 'sixty slow-authority ticks', 10000);
+      await until(() => authoritySteps >= tickRate * 6, 'six seconds of controlled authority', 10000);
       expect(controlled.sim.authority(joined.playerId)!.vehicle.pose.z).toBeGreaterThan(-56);
       expect(resets, 'A healthy steady input stream must not repeatedly invoke the flood-reset path').toEqual([]);
       expect(serverMetrics.queueResets - resetBefore).toBe(0);
-      expect(Math.max(...leads), 'Slow authority must not let prediction run several metres ahead').toBeLessThan(3);
+      // The user prioritizes continuous local input over the previous 100ms
+      // ACK gate. This artificial 20Hz world permits 300ms at patrol top speed,
+      // while keeping the original queue-reset and backwards-motion guards.
+      expect(Math.max(...leads), 'Normal rooms retain the tighter bound; overloaded rooms permit the requested extra prediction').toBeLessThan(tickRate === 20 ? 28 * .3 : 3);
+      const middle = leads.slice(Math.floor(leads.length / 3), Math.floor(leads.length * 2 / 3));
+      const final = leads.slice(Math.floor(leads.length * 2 / 3));
+      expect(Math.max(...final) - Math.max(...middle), 'Temporary lead must settle rather than grow every second').toBeLessThan(1);
       expect(Math.max(...reverseSteps), 'A clear straight solo drive must not snap backward after warm-up').toBeLessThan(.5);
     } finally { clearInterval(authorityTimer); clearInterval(inputTimer); }
   });
