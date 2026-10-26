@@ -22,6 +22,8 @@ Fresh Windows and Linux verification passes **714 tests across 76 files**; Windo
 
 Three pure ledger checks cover in-flight versus acknowledged reports, bounded history, invalid acknowledgments and life changes. The old contact-generation assertion is replaced by the new same-life contact check while explicit hard-correction/stale-life rejection coverage remains. The compatible build is **protocol 5 / `arcade-v15`**, with map `sunset-borough-2` unchanged. Client and server deploy together. Wider contact fairness, device and capacity acceptance remain open; bumpers no longer get to issue fresh driving licences.
 
+Integration with main `3502b47` preserves the water visibility correction below and the pinned Node image. The merged source passes **715 headless tests across 76 files on Windows (24.04 s) and Linux (22.24 s)**, type/document checks, asset validation and production build. Publication uses the existing pre-push browser/UI/water gate and main/CI workflow; these source checks alone do not certify a hosted deployment.
+
 ## Water visibility regression
 
 2026-10-26: the owner reported that the deployed game still showed no ponds, swimming pool or puddles. In the isolated graphics worktree, updated to live `e480d91`, the new native normal-follow-camera check reproduced **zero changed pixels** for the road puddle, pond and pool on both low/medium presets. The pond/pool meshes were enabled but back-face culled: their raw triangle winding did not match the right-handed renderer after coordinate conversion. Disabling culling in a diagnostic made them visible and established the cause. Puddles additionally disappeared during the first three dispatches. The new pool-footprint unit test independently failed: a nominal 9 m width rendered at 6.364 m.
