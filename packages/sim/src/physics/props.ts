@@ -57,16 +57,23 @@ export function createPropPhysics(map: CollisionMap, input: readonly PropDefinit
       const active = vehicles.filter(v=>v.status==='active').slice(0,24), ids = new Set(active.map(v=>v.entityId));
       for (const car of cars) if (!ids.has(car.entityId)) world.removeRigidBody(world.getRigidBody(car.handle));
       cars = cars.filter(car=>ids.has(car.entityId));
+      // Prop transforms cannot change until world.step(). Sample each WASM body
+      // once instead of reading all of them again for every moving car.
+      const bodies = records.map(record => world.getRigidBody(record.handle));
+      const positions = bodies.map(body => body.translation());
       for (const v of active) {
         let car = cars.find(car=>car.entityId===v.entityId);
         if (!car) { const body = world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(v.pose.x,.65,v.pose.z).setRotation(yaw(v.pose.yaw))); world.createCollider(RAPIER.ColliderDesc.cuboid(.95,.65,2.15).setCollisionGroups(CAR_GROUPS),body); car={entityId:v.entityId,handle:body.handle,pose:{...v.pose},discontinuityId:v.discontinuityId}; cars.push(car); }
         const proxy = world.getRigidBody(car.handle), teleported = car.discontinuityId!==v.discontinuityId || Math.hypot(v.pose.x-car.pose.x,v.pose.z-car.pose.z)>6;
         if (teleported) { proxy.setTranslation({x:v.pose.x,y:.65,z:v.pose.z},true); proxy.setRotation(yaw(v.pose.yaw),true); }
         const start = teleported ? v.pose : car.pose, delta={x:v.pose.x-start.x,y:0,z:v.pose.z-start.z}, speed=Math.hypot(v.velocity.x,v.velocity.z);
-        if (speed>.75) for (const record of records) {
+        const sweepRadius=Math.hypot(delta.x,delta.z)+7,sweepRadiusSquared=sweepRadius*sweepRadius;
+        if (speed>.75) for (let index=0;index<records.length;index++) {
+          const record=records[index]!;
           if (tick<record.nextKickTick) continue;
-          const body=world.getRigidBody(record.handle), point=body.translation();
-          if (Math.hypot(point.x-v.pose.x,point.z-v.pose.z)>Math.hypot(delta.x,delta.z)+7) continue;
+          const body=bodies[index]!, point=positions[index]!;
+          const dx=point.x-v.pose.x,dz=point.z-v.pose.z;
+          if (dx*dx+dz*dz>sweepRadiusSquared) continue;
           let contact=false;
           for(let i=0;i<body.numColliders();i++) if(body.collider(i).castShape(ZERO,CAR_SHAPE,{x:start.x,y:.65,z:start.z},yaw(start.yaw),delta,0,1,true) || body.collider(i).intersectsShape(CAR_SHAPE,{x:v.pose.x,y:.65,z:v.pose.z},yaw(v.pose.yaw))) {contact=true;break;}
           if (!contact || teleported) continue;
@@ -77,17 +84,23 @@ export function createPropPhysics(map: CollisionMap, input: readonly PropDefinit
         }
         proxy.setNextKinematicTranslation({x:v.pose.x,y:.65,z:v.pose.z}); proxy.setNextKinematicRotation(yaw(v.pose.yaw)); car.pose={...v.pose}; car.discontinuityId=v.discontinuityId;
       }
-      for (const r of records) if(r.mode==='dynamic') {
-        const body=world.getRigidBody(r.handle), p=body.translation(), v=body.linvel(),a=body.angvel(),s=Math.hypot(v.x,v.y,v.z),spin=Math.hypot(a.x,a.y,a.z);
+      for (let index=0;index<records.length;index++) if(records[index]!.mode==='dynamic') {
+        const r=records[index]!,body=bodies[index]!,p=positions[index]!,v=body.linvel(),a=body.angvel(),s=Math.hypot(v.x,v.y,v.z),spin=Math.hypot(a.x,a.y,a.z);
         if (![p.x,p.y,p.z,s,spin].every(Number.isFinite) || p.y < -5 || p.y > 35 || p.x<map.bounds.minX-5 || p.x>map.bounds.maxX+5 || p.z<map.bounds.minZ-5 || p.z>map.bounds.maxZ+5) {
           const initial=definitions.find(p=>p.entityId===r.entityId)!; body.setTranslation(initial.position,true);body.setRotation(yaw(initial.yaw??0),true);body.setLinvel(ZERO,true);body.setAngvel(ZERO,true);r.discontinuityId++;
         } else {if(s>22)body.setLinvel({x:v.x*22/s,y:v.y*22/s,z:v.z*22/s},true);if(spin>14)body.setAngvel({x:a.x*14/spin,y:a.y*14/spin,z:a.z*14/spin},true);}
       }
-      const moving=new Map(records.filter(r=>r.mode==='dynamic').map(r=>{const body=world.getRigidBody(r.handle);return[r.handle,{velocity:{...body.linvel()},angular:{...body.angvel()},center:{...body.worldCom()}}] as const;}));
+      const moving=new Map<number,{velocity:RAPIER.Vector;angular:RAPIER.Vector;center:RAPIER.Vector}>();
+      for(let index=0;index<records.length;index++)if(records[index]!.mode==='dynamic'){
+        const body=bodies[index]!,velocity=body.linvel(),angular=body.angvel();
+        // Exact zero pre-step motion cannot satisfy the closing-speed threshold,
+        // even if this solver step wakes the body through another contact.
+        if(velocity.x||velocity.y||velocity.z||angular.x||angular.y||angular.z)moving.set(records[index]!.handle,{velocity,angular,center:body.worldCom()});
+      }
       world.step();
       const releases:{record:PropRecord;point:RAPIER.Vector;normal:RAPIER.Vector;impulse:number;closing:number}[]=[];
-      for(const record of records) if(record.mode==='fixed') {
-        const body=world.getRigidBody(record.handle);let strongest:typeof releases[number]|undefined;
+      if(moving.size)for(let index=0;index<records.length;index++) if(records[index]!.mode==='fixed') {
+        const record=records[index]!,body=bodies[index]!;let strongest:typeof releases[number]|undefined;
         for(let i=0;i<body.numColliders();i++) {
           const fixed=body.collider(i);
           world.contactPairsWith(fixed,other=>{

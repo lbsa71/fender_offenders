@@ -55,6 +55,7 @@ export function stepBossAi(vehicle: VehicleState, base: DriverActions, officers:
   }
   if (speed >= Math.min(tactics.cruiseSpeed, speedLimit)) result.actions.throttle = 0;
   if (runtime.attackOrdinal && runtime.attackKind === null && tick < runtime.nextAttackTick) result.actions.throttle *= .45;
+  if (tactics.weapon === 'none') { runtime.attackKind = null; runtime.burstRemaining = 0; return result; }
   if (!runtime.attackKind && tick >= runtime.nextAttackTick) {
     runtime.attackKind = tactics.weapon === 'grenades' || tactics.weapon === 'mixed' && runtime.attackOrdinal % 2 === 1 && tick >= runtime.nextGrenadeTick ? 'grenade' : 'burst';
     runtime.attackOrdinal++; runtime.windupUntilTick = tick + tactics.windupTicks; runtime.burstRemaining = tactics.burstShots; runtime.nextShotTick = runtime.windupUntilTick;

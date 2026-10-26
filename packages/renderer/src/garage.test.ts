@@ -5,6 +5,18 @@ let engine:NullEngine,garage:ReturnType<typeof createGaragePreview>;
 beforeEach(()=>{engine=new NullEngine();garage=createGaragePreview(engine);});
 afterEach(()=>{garage.dispose();engine.dispose();});
 describe('native garage turntable',()=>{
+  it('returns to the player camera after leaving a two-car briefing',()=>{
+    garage.setBody('patrol',false,'roadster',false);garage.update(.1,true);garage.scene.render();
+    garage.setBody('ambulance');garage.update(.1,true);
+    expect(garage.scene.activeCamera?.name).toBe('garage-camera');
+  });
+  it('shows the actual suspect alongside the selected car with independent weapon fittings',()=>{
+    garage.setBody('patrol',false,'roadster',false);
+    expect(garage.scene.meshes.some(m=>m.name.startsWith('garage-suspect-')&&m.isVisible)).toBe(true);
+    expect(garage.getStats()).toMatchObject({bodyAssetId:'patrol',suspectBody:'roadster',armed:false,suspectArmed:false});
+    garage.setBody('army',true,'patrol',true);
+    expect(garage.getStats()).toMatchObject({bodyAssetId:'army',suspectBody:'patrol',armed:true,suspectArmed:true});
+  });
   it('disables garage shadows for low quality and restores them at high quality',()=>{
     const setQuality=Reflect.get(garage,'setQuality') as (quality:string)=>void;
     expect(setQuality).toBeTypeOf('function');setQuality('low');expect(garage.scene.shadowsEnabled).toBe(false);setQuality('high');expect(garage.scene.shadowsEnabled).toBe(true);

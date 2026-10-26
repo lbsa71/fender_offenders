@@ -1,5 +1,5 @@
-import { CAMPAIGN_DISPATCHES, CAMPAIGN_ID, getBossTactics, getCampaignTarget, PROTOCOL_VERSION, isDriverActions, isVehicleBodyId, sanitizeNickname, validateMap } from '@fender/contracts';
-import type { AppliedDriverInput, BossTactics, CollisionMap, DriverActions, DriverRuntimeState, GameEvent, GameplayConfig, GrenadeState, LocalAuthorityState, PlanarPose, PlayerScore, ProjectileState, PropDefinition, VehicleState, WorldSnapshot } from '@fender/contracts';
+import { CAMPAIGN_DISPATCHES, CAMPAIGN_ID, getBossTactics, getCampaignTarget, getDispatchFeatures, DEFAULT_DRIVING_CONTEXT, PROTOCOL_VERSION, isDriverActions, isVehicleBodyId, sanitizeNickname, validateMap } from '@fender/contracts';
+import type { AppliedDriverInput, ArrestGuidance, DispatchDrivingContext, BossTactics, CollisionMap, DriverActions, DriverRuntimeState, GameEvent, GameplayConfig, GrenadeState, LocalAuthorityState, PlanarPose, PlayerScore, ProjectileState, PropDefinition, VehicleState, WorldSnapshot } from '@fender/contracts';
 import { DEFAULT_GAMEPLAY_CONFIG, FIXED_DELTA, normalizeGameplay, type SimulationConfig } from './config.js';
 import { box, colliderPolygon, isPoseClear, overlap, segmentPolygon, type Point } from '../physics/geometry.js';
 import { driveVehicle, neutralActions, newDriver, resolveStatic, resolveVehicleContacts, type ContactImpact } from '../vehicles/controller.js';
@@ -141,6 +141,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
   };
   const completePursuit = (winner: string, outcome: 'arrested' | 'wrecked', elapsedTicks = pursuit?.elapsedTicks ?? 0) => {
     if (!pursuit || pursuit.state === 'complete' || phase !== 'playing') return;
+    if (campaign && outcome === 'wrecked' && getDispatchFeatures(campaign.dispatchIndex).arrestOnly) return;
     if (campaign) {
       if (campaign.outcomes.some(result => result.dispatchIndex === campaign!.dispatchIndex)) return;
       campaign.outcomes.push({ dispatchIndex: campaign.dispatchIndex, outcome, playerId: winner, callsign: scores.get(winner)!.nickname, elapsedTicks });
@@ -273,18 +274,21 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
     const suspect = records.get(pursuit.suspectId)?.vehicle;
     if (!suspect) return;
     const eligible = new Set<string>();
+    const guidance = new Map<string, ArrestGuidance>();
     for (const r of records.values()) {
       const id = r.vehicle.playerId;
-      if (id && scores.get(id)?.connection === 'connected' && r.vehicle.status === 'active' && suspect.status !== 'respawning'
-        && Math.hypot(r.vehicle.pose.x - suspect.pose.x, r.vehicle.pose.z - suspect.pose.z) < 8
-        && Math.hypot(r.vehicle.velocity.x - suspect.velocity.x, r.vehicle.velocity.z - suspect.velocity.z) < 5
-        && queries.segmentHit(r.vehicle.pose, suspect.pose) === null) eligible.add(id);
+      if (!id) continue;
+      const reason: ArrestGuidance = scores.get(id)?.connection !== 'connected' || r.vehicle.status !== 'active' || suspect.status === 'respawning' ? 'unavailable'
+        : Math.hypot(r.vehicle.pose.x - suspect.pose.x, r.vehicle.pose.z - suspect.pose.z) >= 8 ? 'get-closer'
+        : Math.hypot(r.vehicle.velocity.x - suspect.velocity.x, r.vehicle.velocity.z - suspect.velocity.z) >= 5 ? 'match-speed'
+        : queries.segmentHit(r.vehicle.pose, suspect.pose) !== null ? 'clear-obstruction' : 'hold-steady';
+      guidance.set(id, reason); if (reason === 'hold-steady') eligible.add(id);
     }
     for (const id of new Set([...scores.keys(), ...contenderTicks.keys()])) {
       const progress = eligible.has(id) ? (contenderTicks.get(id) ?? 0) + 1 : Math.max(0, (contenderTicks.get(id) ?? 0) - 2);
       if (scores.has(id) || progress) contenderTicks.set(id, progress); else contenderTicks.delete(id);
     }
-    const contenders = [...scores.keys()].sort().map(playerId => ({ playerId, progress: Math.min(1, (contenderTicks.get(playerId) ?? 0) / config.rules.arrestTicks) }));
+    const contenders = [...scores.keys()].sort().map(playerId => ({ playerId, progress: Math.min(1, (contenderTicks.get(playerId) ?? 0) / config.rules.arrestTicks), guidance: guidance.get(playerId) ?? 'unavailable' }));
     const leaders = contenders.filter(c => eligible.has(c.playerId)).sort((a, b) => b.progress - a.progress || (a.playerId < b.playerId ? -1 : a.playerId > b.playerId ? 1 : 0));
     arrestTicks = Math.max(0, ...contenderTicks.values());
     pursuit.contenders = contenders;
@@ -355,6 +359,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
         else if (phase === 'playing') { phase = 'results'; phaseEnd = null; projectiles.clear(); grenades.clear(); emit({ kind: 'round-ended', payload: { scores: clone([...scores.values()]), winnerPlayerId: null, reason: 'timeout' } }); }
       }
       if (campaign && phase !== 'playing') return;
+      const context = campaign ? getDispatchFeatures(campaign.dispatchIndex) : DEFAULT_DRIVING_CONTEXT;
       const previous = new Map([...records.values()].map(r => [r.vehicle.entityId, clone(r.vehicle.pose)]));
       const impacts = new Map<string, ContactImpact>();
       const observeImpact = (impact: ContactImpact) => { if (impact.speed > (impacts.get(impact.vehicleId)?.speed ?? 0)) impacts.set(impact.vehicleId, impact); };
@@ -392,7 +397,8 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
         if (actions.sirenToggle) r.vehicle.sirenOn = !r.vehicle.sirenOn;
         if (actions.recover) recovery(r);
         r.driver.simulatedTick = tick;
-        driveVehicle(r.vehicle, r.driver, actions, map, solids, config, observeImpact);
+        driveVehicle(r.vehicle, r.driver, actions, map, solids, config, observeImpact, context);
+        if (!context.gunsEnabled) actions.fire = false;
         if (actions.fire && phase === 'playing' && (r.vehicle.playerId || aiTactics)) fire(r, aiTactics);
         if (grenadeTarget && aiTactics && phase === 'playing') throwGrenade(r, grenadeTarget, aiTactics);
       }
@@ -436,12 +442,12 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
   };
 }
 
-export function predictVehicle(map: CollisionMap, vehicle: VehicleState, driver: DriverRuntimeState, actions: DriverActions, proxies: VehicleState[] = [], config?: GameplayConfig, serverTick?: number): { vehicle: VehicleState; driver: DriverRuntimeState } {
+export function predictVehicle(map: CollisionMap, vehicle: VehicleState, driver: DriverRuntimeState, actions: DriverActions, proxies: VehicleState[] = [], config?: GameplayConfig, serverTick?: number, context: DispatchDrivingContext = DEFAULT_DRIVING_CONTEXT): { vehicle: VehicleState; driver: DriverRuntimeState } {
   const predicted = clone(vehicle), runtime = clone(driver), solids = map.colliders.filter(c => c.layer === 'world-solid').map(colliderPolygon);
   const tuning = normalizeGameplay(config), tick = serverTick ?? (runtime.simulatedTick ?? 0) + 1;
   runtime.simulatedTick = tick;
-  driveVehicle(predicted, runtime, actions, map, solids, tuning);
-  if (predicted.status === 'active' && actions.fire && tick >= runtime.nextFireTick) applyVolleyRecoil(predicted, runtime, tick, tuning);
+  driveVehicle(predicted, runtime, actions, map, solids, tuning, undefined, context);
+  if (predicted.status === 'active' && context.gunsEnabled && actions.fire && tick >= runtime.nextFireTick) applyVolleyRecoil(predicted, runtime, tick, tuning);
   // Proxies are samples at the replay tick. Contact separation moves only the predicted car.
   for (const proxy of proxies) if (proxy.entityId !== predicted.entityId && proxy.status === 'active') {
     const push = overlap(box(predicted.pose), box(proxy.pose));

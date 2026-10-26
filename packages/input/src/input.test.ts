@@ -5,6 +5,59 @@ function pad(overrides: Partial<PadState> = {}): PadState { return { id: 'Test s
 function button(p: PadState, index: number, value = 1): PadState { return { ...p, buttons: p.buttons.map((b, i) => i === index ? { value, pressed: value > .5 } : b) }; }
 
 describe('normalized driver input', () => {
+  it('persists an explicit control scheme and defaults invalid choices to automatic', () => {
+    expect(sanitizeSettings({ controlScheme: 'touch' }).controlScheme).toBe('touch');
+    expect(sanitizeSettings({ controlScheme: 'gamepad' }).controlScheme).toBe('gamepad');
+    expect(sanitizeSettings({ controlScheme: 'invalid' as never }).controlScheme).toBe('auto');
+  });
+  it('an explicit touch scheme ignores keyboard and controller driving', () => {
+    const input = new InputController({ controlScheme: 'touch' }); input.setEnabled(true);
+    input.poll([pad()], 0); input.key('KeyW', true);
+    input.poll([button(button(pad(), 7), 5)], 16);
+    expect(input.sample(16)).toMatchObject({ throttle: 0, fire: false });
+    expect(input.device).toBe('touch');
+  });
+  it('normalizes touch driving and consumes siren and recovery only once', () => {
+    const input = new InputController({ controlScheme: 'touch' }); input.setEnabled(true);
+    input.touch({ steer: .4, throttle: 2, brakeReverse: -1, handbrake: true, fire: true, siren: true, recover: true });
+    expect(input.sample(0)).toEqual({ steer: .4, throttle: 1, brakeReverse: 0, handbrake: true, fire: true, sirenToggle: true, recover: false });
+    expect(input.sample(999)).toMatchObject({ sirenToggle: false, recover: false });
+    expect(input.sample(1000).recover).toBe(true); expect(input.sample(1017).recover).toBe(false);
+  });
+  it('touch cannot replay across focus loss, menus or controller takeover', () => {
+    const input = new InputController(); input.setEnabled(true);
+    const held = { steer: .5, throttle: 1, brakeReverse: 0, handbrake: false, fire: true, siren: false, recover: false };
+    input.touch(held); expect(input.sample(0).fire).toBe(true);
+    input.setFocused(false); input.touch(held); input.setFocused(true);
+    expect(input.sample(16)).toMatchObject({ steer: 0, throttle: 0, fire: false });
+    input.touch(held); input.setEnabled(false); input.touch(held); input.setEnabled(true);
+    expect(input.sample(32)).toMatchObject({ throttle: 0, fire: false });
+    input.touch(held); input.poll([pad()], 48); input.poll([button(pad(), 6)], 64);
+    expect(input.device).toBe('gamepad');
+    expect(input.sample(64)).toMatchObject({ throttle: 0, brakeReverse: 1, fire: false });
+  });
+  it('explicit controller and keyboard choices ignore touch driving', () => {
+    for (const controlScheme of ['gamepad', 'keyboard'] as const) {
+      const input = new InputController({ controlScheme }); input.setEnabled(true);
+      input.touch({ steer: 1, throttle: 1, brakeReverse: 0, handbrake: true, fire: true, siren: true, recover: true });
+      expect(input.sample(0)).toMatchObject({ steer: 0, throttle: 0, fire: false, sirenToggle: false });
+      expect(input.device).toBe(controlScheme);
+    }
+  });
+  it('invalid touch axes are neutral instead of becoming a steering request', () => {
+    const input = new InputController({ controlScheme: 'touch' }); input.setEnabled(true);
+    input.touch({ steer: NaN, throttle: Infinity, brakeReverse: -Infinity, handbrake: false, fire: false, siren: false, recover: false });
+    expect(input.sample(0)).toMatchObject({ steer: 0, throttle: 0, brakeReverse: 0 });
+  });
+  it('keeps a quick siren tap until one simulation tick consumes it', () => {
+    const input = new InputController({ controlScheme: 'touch' }); input.setEnabled(true);
+    const released = { steer: 0, throttle: 0, brakeReverse: 0, handbrake: false, fire: false, siren: false, recover: false };
+    input.touch({ ...released, siren: true }); input.touch(released);
+    expect(input.sample(0).sirenToggle).toBe(true);
+    expect(input.sample(16).sirenToggle).toBe(false);
+    input.touch({ ...released, siren: true }); input.reset();
+    expect(input.sample(32).sirenToggle).toBe(false);
+  });
   it('uses forward left-stick Y as analog throttle while retaining independent steering', () => {
     const input = new InputController(); input.setEnabled(true); input.poll([pad()], 0);
     input.poll([pad({ axes: [.58, -.58] })], 16);

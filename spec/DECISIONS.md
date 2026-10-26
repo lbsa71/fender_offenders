@@ -10,6 +10,7 @@ Updated: 2026-10-25 following `0bde06a` and the persistent-lamp correction. Requ
 | --- | --- | --- |
 | D31 | Every campaign has a 1–8-player server room and URL; any connected officer can proceed from a briefing; friends may join live | Owner-approved [room model](ROOM_SESSIONS.md), 2026-10-25; supersedes production local-solo, two-player minimum and creator-only defaults |
 | D32 | Fifteen-minute empty retention and connected-idle timeout; oldest eligible empty-room reclamation; process memory initially | Owner choices, 2026-10-25; preserve ten-second reconnect and pending admissions, keep Render Free |
+| D33 | Generic touch interface on any touch-capable device, alongside standard controllers; persisted Automatic/Touch/Controller/Keyboard choice controls the driving source and overlay | Owner direction, 2026-10-25; supersedes browser touch deferral. Physical mobile/controller and performance acceptance remain open |
 | D01 | Original 1987 arcade APB is the inspiration | User clarification |
 | D02 | Web game with 3D graphics; fast fun action is the priority | User request |
 | D03 | Babylon.js is the selected rendering/game engine | User accepted the recommendation |
@@ -69,4 +70,4 @@ Do not block routine implementation on optional product choices: use the default
 
 ## Deferred features
 
-Separate aiming, teams, public matchmaking, account/campaign persistence, native/mobile builds, split screen, realistic suspension, airborne vehicle combat, destructible buildings, and cosmetic monetization are follow-up decisions after M4. Shared pursuit, cosmetic suspension and reactive street furniture are already implemented within the current scope. Do not silently prepare large frameworks for deferred work; [the acceptance queue](../IMPLEMENTATION_PLAN.md#next-acceptance-work) comes first.
+Separate aiming, teams, public matchmaking, account/campaign persistence, native mobile packages, split screen, realistic suspension, airborne vehicle combat, destructible buildings, and cosmetic monetization are follow-up decisions after M4. Generic browser touch controls, shared pursuit, cosmetic suspension and reactive street furniture are implemented within the current scope. Do not silently prepare large frameworks for deferred work; [the acceptance queue](../IMPLEMENTATION_PLAN.md#next-acceptance-work) comes first.

@@ -1,10 +1,11 @@
 import { Client, ErrorCode, MatchMakeError, ServerError, type Room, type SeatReservation } from '@colyseus/sdk';
 import { predictVehicle } from '@fender/sim';
 import { ProjectilePresentation } from './projectile-presentation';
-import { GAMEPLAY_REVISION, PROTOCOL_VERSION, isInviteCode, isRecord, unpackSnapshot, type CollisionMap, type GameEvent, type GameSession, type InputCommand, type JoinResult, type LocalAuthorityState, type PropState, type RenderFrame, type SessionRequest, type SessionStatus, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
+import { GAMEPLAY_REVISION, PROTOCOL_VERSION, getDispatchFeatures, DEFAULT_DRIVING_CONTEXT, isInviteCode, isRecord, unpackSnapshot, type CollisionMap, type GameEvent, type GameSession, type InputCommand, type JoinResult, type LocalAuthorityState, type PropState, type RenderFrame, type SessionRequest, type SessionStatus, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
 const clone = <T>(v: T): T => structuredClone(v);
 const wrap = (n: number) => Math.atan2(Math.sin(n), Math.cos(n));
 const frozenCampaign = (state: WorldSnapshot) => state.paused === true || Boolean(state.campaign) && state.phase !== 'playing';
+const MAX_PREDICTION_TICKS = 6;
 export function interpolateVehicle(a: VehicleState, b: VehicleState, t: number): VehicleState {
   if (a.discontinuityId !== b.discontinuityId || a.status !== b.status) return clone(b);
   const v = clone(b); v.pose.x = a.pose.x + (b.pose.x - a.pose.x) * t; v.pose.z = a.pose.z + (b.pose.z - a.pose.z) * t; v.pose.yaw = a.pose.yaw + wrap(b.pose.yaw - a.pose.yaw) * t; return v;
@@ -66,7 +67,10 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
     if (snapshot && next.serverTick < snapshot.serverTick && next.matchId === snapshot.matchId && next.sessionEpoch === snapshot.sessionEpoch) return;
     if (next.resetReason === 'resync' && !wire.propsPatch) latestFullResync = next;
     const frozen = frozenCampaign(next);
-    const reset = next.resetReason || next.paused !== snapshot?.paused || next.matchId !== snapshot?.matchId || next.sessionEpoch !== snapshot?.sessionEpoch || next.local?.vehicle.discontinuityId !== snapshot?.local?.vehicle.discontinuityId || frozen && next.phase !== snapshot?.phase;
+    // Queue/clock recovery does not teleport the vehicle. Its acknowledgment
+    // retires old samples; ordinary replay and smoothing retain fresh controls.
+    const continuousRecovery = next.resetReason === 'input-backlog' || next.resetReason === 'resync' && wire.propsPatch;
+    const reset = (!continuousRecovery && next.resetReason) || next.paused !== snapshot?.paused || next.matchId !== snapshot?.matchId || next.sessionEpoch !== snapshot?.sessionEpoch || next.local?.vehicle.discontinuityId !== snapshot?.local?.vehicle.discontinuityId || frozen && next.phase !== snapshot?.phase;
     const oldPose = predicted?.vehicle.pose;
     snapshot = next; lastSnapshotAt = performance.now();projectilePresentation.receive(next,Boolean(reset));
     if (reset) { pending = []; outgoing = []; history = []; correctionX = correctionZ = 0; playbackTick = null; }
@@ -77,8 +81,9 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       predicted = clone(next.local);
       if (pending.length > 180) { pending = []; room?.send('resync'); }
       if (!frozen) for (const entry of pending) {
+        if ((predicted.driver.simulatedTick ?? next.serverTick) >= next.serverTick + MAX_PREDICTION_TICKS) break;
         const actions = next.phase === 'playing' ? entry.command.actions : { ...entry.command.actions, fire: false };
-        const result = predictVehicle(map, predicted.vehicle, predicted.driver, actions, remoteAt(entry.estimatedTick).filter(v => v.entityId !== predicted!.vehicle.entityId), undefined, Math.max(next.serverTick, predicted.driver.simulatedTick ?? 0) + 1);
+        const result = predictVehicle(map, predicted.vehicle, predicted.driver, actions, remoteAt(entry.estimatedTick).filter(v => v.entityId !== predicted!.vehicle.entityId), undefined, Math.max(next.serverTick, predicted.driver.simulatedTick ?? 0) + 1, next.campaign ? getDispatchFeatures(next.campaign.dispatchIndex) : DEFAULT_DRIVING_CONTEXT);
         predicted.vehicle = result.vehicle; predicted.driver = result.driver;
       }
       if (oldPose && !reset && !frozen) {
@@ -160,9 +165,9 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
       const estimatedTick = snapshot.serverTick + (performance.now() - lastSnapshotAt + rtt / 2) * .06;
       pending.push({ command, estimatedTick }); outgoing.push(command);
       if (outgoing.length > 12 || pending.length > 180) { outgoing = []; pending = []; room?.send('resync'); return; }
-      if (!frozenCampaign(snapshot) && (snapshot.phase === 'playing' || snapshot.phase === 'lobby')) {
+      if (!frozenCampaign(snapshot) && (snapshot.phase === 'playing' || snapshot.phase === 'lobby') && (predicted.driver.simulatedTick ?? snapshot.serverTick) < snapshot.serverTick + MAX_PREDICTION_TICKS) {
         const actions = snapshot.phase === 'playing' ? command.actions : { ...command.actions, fire: false };
-        const result = predictVehicle(map, predicted.vehicle, predicted.driver, actions, remoteAt(estimatedTick).filter(v => v.entityId !== predicted!.vehicle.entityId), undefined, Math.max(snapshot.serverTick, predicted.driver.simulatedTick ?? 0) + 1);
+        const result = predictVehicle(map, predicted.vehicle, predicted.driver, actions, remoteAt(estimatedTick).filter(v => v.entityId !== predicted!.vehicle.entityId), undefined, Math.max(snapshot.serverTick, predicted.driver.simulatedTick ?? 0) + 1, snapshot.campaign ? getDispatchFeatures(snapshot.campaign.dispatchIndex) : DEFAULT_DRIVING_CONTEXT);
         predicted.vehicle = result.vehicle; predicted.driver = result.driver;
       }
     },

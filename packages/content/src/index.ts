@@ -1,4 +1,5 @@
 import type { CollisionMap, SceneManifest } from '@fender/contracts';
+import { ROAD_PUDDLES } from './water';
 import { defineDistrictProps } from './props.js';
 
 /** Authored in meters, +Z north/front. Render and physics consume these same footprints. */
@@ -33,12 +34,13 @@ const laneNodes = [
   { id: 'isw', x: -4, z: -84 }, { id: 'inw', x: -4, z: 84 }, { id: 'ine', x: 84, z: 84 }, { id: 'ise', x: 84, z: -84 },
 ];
 export const districtMap: CollisionMap = {
-  id: 'sunset-borough', revision: 'sunset-borough-1',
+  id: 'sunset-borough', revision: 'sunset-borough-2',
   bounds: { minX: -125, maxX: 125, minZ: -125, maxZ: 125 },
   colliders: [
     ...buildings.map((b) => ({ id: b.id, shape: 'box' as const, pose: { x: b.x, z: b.z, yaw: 0 }, halfExtents: { x: b.width / 2, y: b.height / 2, z: b.depth / 2 }, layer: 'world-solid' as const, surface: 'asphalt' as const })),
     ...[{ x: -126, z: 0, w: 2, d: 254 }, { x: 126, z: 0, w: 2, d: 254 }, { x: 0, z: -126, w: 254, d: 2 }, { x: 0, z: 126, w: 254, d: 2 }].map((b, i) => ({ id: `boundary-${i}`, shape: 'box' as const, pose: { x: b.x, z: b.z, yaw: 0 }, halfExtents: { x: b.w / 2, y: 1, z: b.d / 2 }, layer: 'world-solid' as const, surface: 'grass' as const })),
   ],
+  wetSurfaces: ROAD_PUDDLES,
   surfaces: [
     { id: 'ground', polygonXZ: [-125, -125, 125, -125, 125, 125, -125, 125], surface: 'grass' },
     ...roadCenters.flatMap((p) => [{ id: `road-x-${p}`, polygonXZ: [p - 8, -125, p + 8, -125, p + 8, 125, p - 8, 125], surface: 'asphalt' as const }, { id: `road-z-${p}`, polygonXZ: [-125, p - 8, 125, p - 8, 125, p + 8, -125, p + 8], surface: 'asphalt' as const }]),
@@ -60,7 +62,7 @@ export const districtMap: CollisionMap = {
 };
 
 export { VEHICLE_BODIES } from '@fender/contracts';
-export { DISTRICT_WATER } from './water';
+export { DISTRICT_WATER, ROAD_PUDDLES, waterFootprint } from './water';
 export const ASSET_PROVENANCE = {
   revision: 'original-procedural-1',
   creator: 'Fender Offenders project',

@@ -1,13 +1,30 @@
-import { test as base, expect, type Browser, type BrowserContext } from '@playwright/test';
+import { test as base, expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
+
+export async function dispatchFixture(page:Page,stage:number){
+ await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.snapshot?.campaign)).toBeDefined();
+ const room=new URL(page.url()).searchParams.get('room')!;
+ const port=Number(process.env.FENDER_E2E_SERVER_PORT??2867)+1000;
+ const response=await page.request.post(`http://127.0.0.1:${port}/room/${room}/stage/${stage}`);
+ expect(response.ok()).toBe(true);
+ await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.snapshot?.campaign?.dispatchIndex)).toBe(stage);
+}
+export async function arrestFixture(page:Page){
+ const room=new URL(page.url()).searchParams.get('room')!;
+ const port=Number(process.env.FENDER_E2E_SERVER_PORT??2867)+1000;
+ expect((await page.request.post(`http://127.0.0.1:${port}/room/${room}/arrest/0`)).ok()).toBe(true);
+}
 
 /** Exercise the shipped low preset; do not replace the renderer or simulation. */
-export async function configureGameContext(context: BrowserContext): Promise<void> {
-  await context.addInitScript(() => {
+export async function configureGameContext(context: BrowserContext, hasTouch = false): Promise<void> {
+  await context.addInitScript((touch: boolean) => {
+    // Installed Chrome can expose the host touchscreen even with hasTouch:false.
+    // Keep capability detection consistent with the requested test device.
+    Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, get: () => touch ? 1 : 0 });
     // Preserve settings on reload so the persistence assertions retain meaning.
     if (localStorage.getItem('fender-settings-v1') === null) {
       localStorage.setItem('fender-settings-v1', JSON.stringify({ quality: 'low' }));
     }
-  });
+  }, hasTouch);
 }
 
 export async function createGameContext(browser: Browser): Promise<BrowserContext> {
@@ -17,8 +34,8 @@ export async function createGameContext(browser: Browser): Promise<BrowserContex
 }
 
 export const test = base.extend({
-  context: async ({ context }, use) => {
-    await configureGameContext(context);
+  context: async ({ context, hasTouch }, use) => {
+    await configureGameContext(context, hasTouch);
     await use(context);
   },
 });

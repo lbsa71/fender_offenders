@@ -1,9 +1,13 @@
-import { CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, CAMPAIGN_TITLE, getBossTactics, getCampaignMugshot, getCampaignTarget, getVehicleProfile, isInviteCode, isVehicleBodyId, randomCallsign, sanitizeNickname, VEHICLE_BODIES, type CampaignState, type CampaignTarget, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
+import { getDispatchFeatures, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, CAMPAIGN_TITLE, getBossTactics, getCampaignMugshot, getCampaignTarget, getVehicleProfile, isInviteCode, isVehicleBodyId, randomCallsign, sanitizeNickname, VEHICLE_BODIES, type CampaignState, type CampaignTarget, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
 import './style.css';
+import { controlHints, placeControlCard } from './tutorial';
+import type { ControlScheme, TouchControls } from '@fender/contracts';
+import { mountTouchControls } from './touch';
 
 export type MenuAction = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back' | 'pause';
 export type Menu = 'home' | 'pause' | 'settings' | null;
 export interface UiSettings {
+  controlScheme: ControlScheme;
   masterVolume: number;
   musicVolume: number;
   effectsVolume: number;
@@ -32,6 +36,8 @@ export interface UiModel {
   selectedVehicleBodyId?: VehicleBodyId;
 }
 export interface UiCallbacks {
+  onTouchInput?: (state: TouchControls) => void;
+  onTouchCancel?: () => void;
   onPlay: (request: { nickname: string; roomId: string; vehicleBodyId?: VehicleBodyId }) => void | Promise<void>;
   onActivity?: () => void;
   onVehicleChange?: (vehicleBodyId: VehicleBodyId) => void;
@@ -42,7 +48,7 @@ export interface UiCallbacks {
   onSettings?: (settings: UiSettings) => void;
   onMenuVisibility?: (visible: boolean) => void;
 }
-const defaults: UiSettings = { masterVolume: .7, musicVolume: .3, effectsVolume: .8, reducedShake: false, reducedFlash: false, vibration: true, quality: 'medium', stickDeadzone: .16, triggerDeadzone: .08, sensitivity: 1, bindings: {} };
+const defaults: UiSettings = { controlScheme: 'auto', masterVolume: .7, musicVolume: .3, effectsVolume: .8, reducedShake: false, reducedFlash: false, vibration: true, quality: 'medium', stickDeadzone: .16, triggerDeadzone: .08, sensitivity: 1, bindings: {} };
 const errorMessages: Record<string, string> = {
   'idle-timeout': 'Your unit was signed off after 15 minutes of inactivity. Enter the room again to continue if it is still available.',
   'invalid-vehicle': 'Choose a valid garage vehicle and try again.',
@@ -72,6 +78,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   let stored: Partial<UiSettings> = {};
   try { stored = JSON.parse(view?.localStorage.getItem('fender-settings-v1') ?? '{}') as Partial<UiSettings>; } catch { /* Storage is optional. */ }
   let settings: UiSettings = { ...defaults, ...stored, bindings: stored.bindings ?? {} };
+  if (!['auto', 'touch', 'gamepad', 'keyboard'].includes(settings.controlScheme)) settings.controlScheme = 'auto';
   let model: UiModel = {};
   let targetIndicator: TargetIndicator | null = null;
   let targetAngle = 0;
@@ -95,6 +102,13 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     <section class="fo-hud" hidden aria-label="Driving dashboard"><div class="fo-round"><span data-text="phase">FREE PATROL</span><strong data-text="timer">05:00</strong></div><aside class="fo-scoreboard"><div class="fo-label">DISPATCH LEADERBOARD</div><ol data-scores></ol></aside><div class="fo-instruments"><div class="fo-speed"><strong data-text="speed">0</strong><span>KM/H</span></div><div class="fo-car-state"><div class="fo-label">UNIT INTEGRITY <b data-text="health">100%</b></div><div class="fo-health"><i></i></div><span data-text="ammo">AUTO / UNLIMITED AMMO</span></div></div><div class="fo-prompts" data-text="prompts">WASD DRIVE · SHIFT DRIFT · SPACE FIRE</div><div class="fo-recover" hidden><span>RECOVERING UNIT</span><progress max="1" value="0"></progress></div><div class="fo-pursuit" hidden><span data-text="pursuit">INTERCEPT THE SUSPECT</span><progress max="1" value="0"></progress></div><div class="fo-center-callout" hidden><span data-text="callout-label">STAND BY</span><strong data-text="callout">3</strong></div><button class="fo-start" data-action="start" hidden>START ROUND →</button></section>
     <div class="fo-menu-backdrop"></div><main class="fo-menu"><div class="fo-hero" aria-hidden="true"></div><section class="fo-panel" aria-label="Dispatch menu"><div class="fo-panel-heading"><span class="fo-kicker" data-text="panel-kicker">CITY MOTOR DIVISION</span><span class="fo-panel-no">FORM 01–FO</span></div><div class="fo-home"><h2>You're on duty.</h2><p class="fo-muted">Pick a callsign. Take the keys.</p><label class="fo-field">YOUR CALLSIGN<input name="nickname" maxlength="20" autocomplete="nickname" spellcheck="false" value="Officer Rookie" placeholder="Officer Rookie"></label><button class="fo-primary" data-action="practice"><span>HIT THE STREETS<small>Play. Share the URL anytime.</small></span><b>↗</b></button></div><div class="fo-pause" hidden><h2>Taking a breather?</h2><p class="fo-muted" data-text="pause-description">Your patrol is paused.</p><button class="fo-primary" data-action="resume">BACK ON PATROL →</button><button class="fo-secondary" data-action="leave">END PATROL <span>↗</span></button></div><div class="fo-settings" hidden><h2>Fine tuning.</h2><p class="fo-muted">Make this patrol yours.</p><div class="fo-settings-list"><label>Master volume<input type="range" data-setting="masterVolume" min="0" max="1" step=".05"></label><label>Music<input type="range" data-setting="musicVolume" min="0" max="1" step=".05"></label><label>Effects<input type="range" data-setting="effectsVolume" min="0" max="1" step=".05"></label><label>Graphics<select data-setting="quality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label><label>Reduce camera shake<input type="checkbox" data-setting="reducedShake"></label><label>Reduce flashes<input type="checkbox" data-setting="reducedFlash"></label><label>Controller vibration<input type="checkbox" data-setting="vibration"></label><label>Stick dead zone<input type="range" data-setting="stickDeadzone" min=".05" max=".5" step=".01"></label><label>Trigger dead zone<input type="range" data-setting="triggerDeadzone" min="0" max=".5" step=".01"></label><label>Steering sensitivity<input type="range" data-setting="sensitivity" min=".4" max="1.8" step=".05"></label></div><details class="fo-bindings"><summary>KEYBOARD BINDINGS</summary><div data-bindings></div></details><button class="fo-secondary" data-action="settings-back">SAVE & BACK <span>↩</span></button></div><div class="fo-results" hidden><span class="fo-kicker">CASE CLOSED</span><h2 data-text="result-title">Patrol complete.</h2><p class="fo-muted">Final standings / confirmed by dispatch</p><ol data-results></ol><button class="fo-primary" data-action="rematch">ANOTHER ROUND →</button><button class="fo-secondary" data-action="leave">BACK TO DISPATCH <span>↗</span></button></div><div class="fo-notice" role="status" aria-live="polite" hidden></div><footer class="fo-panel-footer"><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button><span class="fo-input-hint" data-text="input-hint">↑ ↓ SELECT · ENTER CONFIRM</span></footer></section></main><button class="fo-invite" data-action="invite">INVITE URL</button><footer class="fo-bottom"><span>MINOR INFRACTIONS. MAJOR COLLISIONS.</span><span>DRIVE FAST. FILE LATER.</span></footer><div class="fo-toast" role="status" aria-live="polite" hidden></div>`;
   root.append(shell);
+  const touchControls = mountTouchControls(shell, state => callbacks.onTouchInput?.(state), () => callbacks.onTouchCancel?.());
+  const scheme = doc.createElement('label'); scheme.textContent = 'Control scheme';
+  scheme.innerHTML += '<select data-setting="controlScheme" aria-label="Control scheme"><option value="auto">Automatic</option><option value="touch">Touch</option><option value="gamepad">Controller</option><option value="keyboard">Keyboard</option></select>';
+  shell.querySelector('.fo-settings-list')!.prepend(scheme);
+  const schemeHelp = doc.createElement('p'); schemeHelp.className = 'fo-control-help';
+  schemeHelp.textContent = 'Automatic follows keyboard or controller use. Tap the play area to return to touch. Choose a control scheme to keep it fixed.';
+  scheme.after(schemeHelp);
   const idleWarning=doc.createElement('section');idleWarning.className='fo-idle-warning';idleWarning.setAttribute('role','alert');idleWarning.hidden=true;idleWarning.innerHTML='<p>Your unit is idle. You will disconnect in one minute.</p><button data-action="stay-active">STAY ON PATROL</button>';shell.append(idleWarning);
   const one = <T extends HTMLElement = HTMLElement>(selector: string) => shell.querySelector<T>(selector)!;
   const all = <T extends HTMLElement = HTMLElement>(selector: string) => [...shell.querySelectorAll<T>(selector)];
@@ -106,6 +120,26 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const arrestLabel = doc.createElement('span'); arrestLabel.className = 'fo-arrest-label';
   const arrestProgress = one<HTMLProgressElement>('.fo-pursuit progress'); arrestProgress.setAttribute('aria-label', 'Your arrest progress'); arrestProgress.before(arrestLabel);
   const arrestHelp = doc.createElement('small'); arrestHelp.className = 'fo-arrest-help'; arrestHelp.textContent = 'Stay close & match speed · 3s'; one('.fo-pursuit').append(arrestHelp);
+  const controls=one<HTMLElement>('.fo-prompts');controls.dataset.tutorialControls='';controls.setAttribute('aria-label','Driving controls');controls.setAttribute('role','group');controls.replaceChildren();
+  const objectiveTitle=one<HTMLElement>('[data-text="pursuit"]');objectiveTitle.dataset.objectiveTitle='';arrestHelp.dataset.objectiveInstruction='';
+  const markerGuidance=doc.createElement('span');markerGuidance.className='fo-marker-guidance';
+  const markerProgress=doc.createElement('progress');markerProgress.max=1;markerProgress.setAttribute('aria-label','Your arrest progress at suspect');targetBadge.append(markerGuidance,markerProgress);
+  const previewLabels=doc.createElement('div');previewLabels.className='fo-preview-labels';previewLabels.hidden=true;previewLabels.innerHTML='<span>YOUR UNIT</span><span>WANTED</span>';shell.append(previewLabels);
+  let controlAnchor:{x:number;y:number}|null=null,badgeAnchor:{x:number;y:number}|null=null,controlKey='',controlWidth=252,controlHeight=116,shellWidth=view?.innerWidth??960,shellHeight=view?.innerHeight??720;
+  const controlObserver=typeof ResizeObserver==='undefined'?null:new ResizeObserver(entries=>{for(const entry of entries){if(entry.target===shell){shellWidth=entry.contentRect.width;shellHeight=entry.contentRect.height;}else if(entry.contentRect.width){controlWidth=entry.borderBoxSize[0]?.inlineSize??entry.contentRect.width;controlHeight=entry.borderBoxSize[0]?.blockSize??entry.contentRect.height;}}positionControls();});
+  controlObserver?.observe(shell);controlObserver?.observe(controls);
+  function positionControls(){if(controls.hidden)return;const p=placeControlCard(controlAnchor??{x:.5,y:.55},shellWidth,shellHeight,controlWidth,controlHeight,targetBadge.hidden?null:badgeAnchor);controls.style.transform=`translate(${Math.round(p.x)}px,${Math.round(p.y)}px)`;}
+  function setControlAnchor(anchor:{x:number;y:number}|null){controlAnchor=anchor;positionControls();}
+  function updateTutorial(){
+    const campaign=model.snapshot?.campaign,features=campaign?getDispatchFeatures(campaign.dispatchIndex):null,guns=features?.gunsEnabled??Boolean(model.snapshot);
+    controls.hidden=controlDevice()==='touch'||menu!==null||model.snapshot?.phase!=='playing'||model.snapshot.paused===true;
+    touchControls.setGunsEnabled(guns);
+    const reminders=['Arresting is automatic. Stay close and match speed.','Fire forward in short bursts.','Bombs: leave the marked circle.','Puddles reduce grip. Steer gently.'];
+    const reminder=campaign?reminders[campaign.dispatchIndex]??'': '',hints=controlHints(controlDevice(),settings.bindings,guns),key=JSON.stringify({hints,reminder});
+    if(key!==controlKey){controlKey=key;controls.replaceChildren(...hints.map(h=>{const row=doc.createElement('span'),icon=doc.createElement('kbd'),label=doc.createElement('span');icon.textContent=h.glyph;label.textContent=h.label;row.dataset.control=h.action;row.append(icon,label);return row;}));if(reminder){const tip=doc.createElement('p');tip.dataset.controlLesson='';tip.textContent=reminder;controls.append(tip);}}
+    const fire=one('[data-binding="fire"]');if(fire.parentElement)fire.parentElement.hidden=!guns;
+    write('ammo',guns?'AUTO / UNLIMITED AMMO':'TRAINING / UNARMED');positionControls();
+  }
   const resultOutcome = doc.createElement('p'); resultOutcome.className = 'fo-result-outcome'; resultOutcome.hidden = true; one('.fo-results h2').after(resultOutcome);
   one('.fo-home .fo-muted').textContent = 'Ten connected dispatches. Arrest suspects or stop their getaway cars.';
   one('.fo-home [data-action="practice"] small').textContent = 'Play. Share the URL anytime.';
@@ -115,6 +149,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const briefing = doc.createElement('section'); briefing.className = 'fo-campaign-briefing'; briefing.hidden = true; briefing.setAttribute('aria-label', 'Campaign dispatch briefing');
   briefing.innerHTML = '<header><span class="fo-kicker">MAJOR CASE / MOTOR DIVISION</span><h2 data-campaign-title></h2><span class="fo-campaign-number"></span></header><div class="fo-campaign-scroll"><div class="fo-campaign-target"><div class="fo-campaign-portrait" role="img"></div><div><span class="fo-campaign-role"></span><h3 data-campaign-name></h3><strong data-campaign-alias></strong><span data-campaign-target-car></span></div></div><h3 class="fo-campaign-dispatch-title"></h3><p data-campaign-briefing></p><section class="fo-campaign-progress"><h3>DISPATCH TRACKER / 10 FILES</h3><ol class="fo-campaign-tracker"></ol></section><details class="fo-campaign-evidence"><summary>CASE FILE / EARNED LEADS</summary><ol class="fo-campaign-casefile"></ol><p class="fo-campaign-no-evidence">No leads filed yet. Resolve this dispatch to unseal the next clue.</p></details></div><footer><button class="fo-primary" data-action="campaign-start">START DISPATCH →</button><span class="fo-campaign-wait" hidden>RECONNECT TO CONTINUE</span><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button></footer>';
   shell.append(briefing);
+  const lesson=doc.createElement('section');lesson.className='fo-tutorial-lesson';lesson.dataset.tutorialLesson='';lesson.setAttribute('role','status');lesson.setAttribute('aria-live','polite');lesson.innerHTML='<strong></strong><p></p>';briefing.querySelector('.fo-campaign-scroll')!.prepend(lesson);
+  let lessonKey='';
   const campaignRoster = doc.createElement('section'); campaignRoster.className = 'fo-campaign-roster'; campaignRoster.hidden = true;
   campaignRoster.innerHTML = '<h3>UNITS ON THIS CASE</h3><div class="fo-score-head"><span aria-hidden="true">#</span><span>UNIT</span><span>PING / ms</span><span>PTS</span></div><ol></ol>';
   briefing.querySelector('.fo-campaign-target')!.after(campaignRoster);
@@ -152,6 +188,11 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   function focusFirst() { const focusable = visibleControls(); (focusable.find(node => node.matches('.fo-primary')) ?? focusable[0])?.focus({ preventScroll: true }); }
   const lobby = () => model.snapshot?.phase === 'lobby' && (model.mode === 'online' || Boolean(model.snapshot.campaign));
   const hasResult = (candidate = model) => candidate.snapshot?.phase === 'results' || !candidate.snapshot?.campaign && candidate.mode === 'practice' && candidate.snapshot?.pursuit?.state === 'complete';
+  const controlDevice = () => settings.controlScheme === 'auto' ? model.device ?? ((view?.navigator.maxTouchPoints ?? 0) > 0 ? 'touch' : 'keyboard') : settings.controlScheme;
+  function updateTouchVisibility() {
+    const visible = controlDevice() === 'touch' && menu === null && Boolean(model.snapshot) && !lobby() && !hasResult() && !['reconnecting', 'disconnected', 'error'].includes(statusName(model.status));
+    touchControls.setVisible(visible); shell.classList.toggle('fo-touch-active', visible);
+  }
   const canDispatch = () => model.canStart !== false && (model.mode !== 'online' || ['lobby', 'playing'].includes(statusName(model.status)));
   function updateCampaignVisibility() {
     const campaign = model.snapshot?.campaign;
@@ -189,12 +230,13 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if (key === campaignViewKey) return; campaignViewKey = key;
     const dispatch = CAMPAIGN_DISPATCHES[campaign.dispatchIndex] ?? CAMPAIGN_DISPATCHES[0]!;
     const target = getCampaignTarget(dispatch.targetId), resolution = campaign.outcomes.find(outcome => outcome.dispatchIndex === campaign.dispatchIndex);
-    const tactics = getBossTactics(campaign.dispatchIndex);
+    const tactics = getBossTactics(campaign.dispatchIndex),features=getDispatchFeatures(campaign.dispatchIndex);
+    const nextLesson=features.lessonTitle+features.lesson;if(lessonKey!==nextLesson){lessonKey=nextLesson;lesson.querySelector('strong')!.textContent=features.lessonTitle;lesson.querySelector('p')!.textContent=features.lesson;}
     tacticsCard.classList.toggle('fo-boss-tactics', target.isBoss); tacticsCard.dataset.drivingStyle = tactics.drivingStyle;
     tacticsCard.querySelector('[data-tactics-rank]')!.textContent = target.isBoss ? 'RINGLEADER TACTICS' : 'TARGET TACTICS';
     tacticsCard.querySelector('[data-tactics-label]')!.textContent = tactics.label;
     tacticsCard.querySelector('[data-tactics-style]')!.textContent = tactics.drivingStyle.replaceAll('-', ' ').toUpperCase();
-    tacticsCard.querySelector('[data-tactics-weapon]')!.textContent = tactics.weapon === 'burst' ? 'FORWARD BURSTS' : tactics.weapon === 'grenades' ? 'MARKED GRENADES' : 'BURSTS + GRENADES';
+    tacticsCard.querySelector('[data-tactics-weapon]')!.textContent = tactics.weapon === 'none' ? 'UNARMED' : tactics.weapon === 'burst' ? 'FORWARD BURSTS' : tactics.weapon === 'grenades' ? 'MARKED GRENADES' : 'BURSTS + GRENADES';
     tacticsCard.querySelector('.fo-tactics-difficulty>span')!.textContent = `DIFFICULTY ${tactics.difficulty} / 10`;
     tacticsCard.querySelector<HTMLMeterElement>('meter')!.value = tactics.difficulty;
     tacticsCard.querySelector('[data-tactics-description]')!.textContent = tactics.description;
@@ -227,7 +269,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     latestLead.querySelector('p')!.textContent = resolution ? dispatch.reveal : '';
     const start = one<HTMLButtonElement>('[data-action="campaign-start"]'); start.disabled = pending || !canDispatch();
     briefing.querySelector<HTMLElement>('.fo-campaign-wait')!.hidden = canDispatch();
-    campaignResolution.querySelector<HTMLElement>('.fo-campaign-resolution-label')!.textContent = complete ? 'CAMPAIGN COMPLETE' : resolution ? `${resolution.outcome.toUpperCase()} / DISPATCH ${campaign.dispatchIndex + 1}` : 'DISPATCH UNRESOLVED / SUSPECT ESCAPED';
+    campaignResolution.querySelector<HTMLElement>('.fo-campaign-resolution-label')!.textContent = complete ? 'CAMPAIGN COMPLETE' : resolution && campaign.dispatchIndex===0 && resolution.outcome==='arrested' ? 'ARREST CERTIFIED' : resolution ? `${resolution.outcome.toUpperCase()} / DISPATCH ${campaign.dispatchIndex + 1}` : 'DISPATCH UNRESOLVED / SUSPECT ESCAPED';
     campaignResolution.querySelector<HTMLElement>('.fo-campaign-target')!.hidden = complete;
     const connections = campaignResolution.querySelector<HTMLElement>('.fo-campaign-connections')!; connections.hidden = !complete;
     const bosses = campaignResolution.querySelector<HTMLElement>('.fo-campaign-bosses')!;
@@ -257,7 +299,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     // The position is applied directly every frame. The former CSS left/top transition was retargeted on each
     // write, which made Blink's style recalculation grow for the whole dispatch and read as worsening frame drops.
     targetBadge.style.setProperty('--target-x', `${Math.max(0, Math.min(1, indicator.x)) * 100}%`);
-    targetBadge.style.setProperty('--target-y', `${Math.max(0, Math.min(1, indicator.y)) * 100}%`);
+    const safeY=indicator.offscreen && indicator.x<.35 ? Math.max(indicator.y,Math.min(.65,(shellWidth<=740?390:340)/shellHeight)) : indicator.y;
+    targetBadge.style.setProperty('--target-y', `${Math.max(0, Math.min(1, safeY)) * 100}%`);badgeAnchor={x:indicator.x,y:safeY};
     targetAngle += Math.atan2(Math.sin(indicator.angle - targetAngle), Math.cos(indicator.angle - targetAngle));
     targetBadge.style.setProperty('--target-angle', `${targetAngle}rad`);
     const label = indicator.offscreen ? 'SUSPECT' : 'WANTED SUSPECT', meters = Math.max(0, Math.min(99999, Math.round(indicator.distanceMeters)));
@@ -271,7 +314,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   function visibleControls() { return all<HTMLButtonElement | HTMLInputElement | HTMLSelectElement | HTMLElement>('button,input,select,summary').filter(node => !node.closest('[hidden]') && !(node as HTMLButtonElement).disabled && (!node.closest('.fo-hud') || lobby() && node.matches('[data-action="start"],[data-action="invite"]')) && !node.closest('.fo-top')); }
   function updateGarage() {
     const visible = menu === 'home' && !model.snapshot || menu === null && lobby();
-    garage.hidden = !visible;
+    garage.hidden = !visible;previewLabels.hidden=!visible||!model.snapshot?.campaign;
     shell.classList.toggle('fo-in-garage', visible);
     shell.classList.toggle('fo-lobby', visible && lobby());
     garage.dataset.vehicle = vehicle;
@@ -297,7 +340,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     callbacks.onMenuVisibility?.(menu !== null || lobby());
     updateGarage();
     updateCampaignVisibility();
-    updateTargetBadge();
+    updateTargetBadge();updateTutorial();
+    updateTouchVisibility();
     if (menu !== null) focusFirst();
   }
   async function play() {
@@ -443,8 +487,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     shell.classList.toggle('fo-reconnecting', reconnecting);
 
     hide('.fo-start', !snapshot || snapshot.phase !== 'lobby' || model.mode !== 'online' || model.canStart === false || Boolean(snapshot.campaign));
-    write('prompts', model.device === 'gamepad' ? 'LEFT STICK DRIVE · RT/LT DRIVE/BRAKE · A DRIFT · RB FIRE · X SIREN · HOLD Y RECOVER' : 'WASD DRIVE · SHIFT DRIFT · SPACE FIRE · E SIREN · HOLD R RECOVER');
-    write('input-hint', model.device === 'gamepad' ? '↕ SELECT · A CONFIRM · B BACK' : '↑ ↓ SELECT · ENTER CONFIRM');
+    updateTutorial();
+    write('input-hint', controlDevice() === 'touch' ? 'TAP TO SELECT' : controlDevice() === 'gamepad' ? '↕ SELECT · A CONFIRM · B BACK' : '↑ ↓ SELECT · ENTER CONFIRM');
     const recovery = number(model.recoverProgress ?? 0); hide('.fo-recover', recovery <= 0); one<HTMLProgressElement>('.fo-recover progress').value = recovery;
     const authorityPursuit = snapshot?.pursuit;
     const pursuit = authorityPursuit ? { progress: authorityPursuit.progress, complete: authorityPursuit.state === 'complete' } : model.pursuit;
@@ -452,8 +496,13 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if (pursuit) {
       const own = authorityPursuit?.contenders?.find(contender => contender.playerId === model.localPlayerId)?.progress;
       const progress = Math.max(0, Math.min(1, number(own ?? (model.mode === 'practice' || authorityPursuit?.arrestingPlayerId === model.localPlayerId ? pursuit.progress : 0))));
-      write('pursuit', snapshot?.campaign ? model.mode === 'online' ? 'FIRST TO RESOLVE DISPATCH' : 'ARREST OR WRECK THE TARGET' : model.mode === 'online' ? 'FIRST TO APPREHEND' : 'APPREHEND THE SUSPECT');
-      arrestHelp.textContent = snapshot?.campaign ? 'Stay close & match speed · 3s · or wreck target' : 'Stay close & match speed · 3s';
+      const chapter=snapshot?.campaign?CAMPAIGN_DISPATCHES[snapshot.campaign.dispatchIndex]:null;
+      const name=chapter?getCampaignTarget(chapter.targetId).name.split(' ')[0]!.toUpperCase():'THE SUSPECT';
+      write('pursuit', `APPREHEND ${name}`);
+      arrestHelp.textContent = 'Catch up → match speed → stay close for 3 seconds.';
+      const guidance=authorityPursuit?.contenders?.find(c=>c.playerId===model.localPlayerId)?.guidance;
+      const labels={'get-closer':'Get closer','match-speed':'Match speed','clear-obstruction':'Clear the obstruction','hold-steady':'Hold steady','unavailable':'Return to your unit'};
+      markerGuidance.textContent=guidance?labels[guidance]:'Get closer';markerProgress.value=progress;
       arrestLabel.textContent = `YOUR ARREST / ${Math.round(progress * 100)}%`; arrestProgress.value = progress;
     }
     const showCallout = snapshot?.phase === 'countdown' || hud.status !== 'active'; hide('.fo-center-callout', !showCallout);
@@ -474,11 +523,12 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     const reason = typeof model.status === 'object' ? model.status.reason ?? model.status.message : undefined;
     const error = model.error ?? (status === 'error' ? reason ?? 'network-error' : null);
     if (error) { if (menu === null) showMenu('pause'); notify(errorMessages[error] ?? error); }
-    if (model.unsupportedPad && model.unsupportedPad !== lastUnsupportedPad) toast('UNSUPPORTED CONTROLLER MAPPING — KEYBOARD CONTROLS AVAILABLE');
+    if (model.unsupportedPad && model.unsupportedPad !== lastUnsupportedPad) toast('UNSUPPORTED CONTROLLER MAPPING — CHOOSE TOUCH OR KEYBOARD IN SETTINGS');
     lastUnsupportedPad = model.unsupportedPad ?? null;
     updateGarage();
     updateCampaign();
     updateTargetBadge();
+    updateTouchVisibility();
     if (snapshot?.campaign && lobby() && menu === null && (!wasLobby || previousDispatch !== snapshot.campaign.dispatchIndex)) focusFirst();
   }
   function navigate(action: MenuAction) {
@@ -503,10 +553,10 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     }
   }
   showMenu('home'); shell.classList.toggle('fo-reduced-motion', settings.reducedShake); callbacks.onSettings?.(structuredClone(settings));
-  return { update, showMenu, navigate, setTargetIndicator, getVehicle: () => vehicle, getSettings: () => structuredClone(settings), setSettings: (next: Partial<UiSettings>) => {
+  return { update, showMenu, navigate, setTargetIndicator, setControlAnchor, resetTouchControls: touchControls.reset, getVehicle: () => vehicle, getSettings: () => structuredClone(settings), setSettings: (next: Partial<UiSettings>) => {
     settings = { ...settings, ...next };
     for (const input of all<HTMLInputElement | HTMLSelectElement>('[data-setting]')) { const key = input.dataset.setting as keyof UiSettings; if (input instanceof HTMLInputElement && input.type === 'checkbox') input.checked = Boolean(settings[key]); else input.value = String(settings[key]); }
     persist();
   }, isMenuVisible: () => menu !== null || lobby(), isMenuOpen: () => menu !== null,
-    dispose: () => { disposed = true; clearTimeout(toastTimer); shell.removeEventListener('click', click); shell.removeEventListener('input', change); doc.removeEventListener('keydown', remapKey, true); shell.remove(); } };
+    dispose: () => { disposed = true; controlObserver?.disconnect(); clearTimeout(toastTimer); touchControls.dispose(); shell.removeEventListener('click', click); shell.removeEventListener('input', change); doc.removeEventListener('keydown', remapKey, true); shell.remove(); } };
 }

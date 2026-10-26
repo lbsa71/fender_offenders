@@ -6,7 +6,7 @@ import { newBossAi, stepBossAi } from './boss-ai.js';
 import { driveVehicle, newDriver } from '../vehicles/controller.js';
 const arena=():CollisionMap=>({id:'boss-arena',revision:'boss-1',bounds:{minX:-200,maxX:200,minZ:-200,maxZ:200},colliders:[],surfaces:[],spawns:[{id:'a',pose:{x:-40,z:-30,yaw:0},clearanceRadius:5},{id:'b',pose:{x:40,z:30,yaw:0},clearanceRadius:5}],laneNodes:[{id:'south',x:0,z:-100},{id:'north',x:0,z:100}],laneEdges:[{from:'south',to:'north',speedLimit:.01},{from:'north',to:'south',speedLimit:.01}]});
 const sims:Simulation[]=[];
-function fixture(stage=0,map=arena()){
+function fixture(stage=1,map=arena()){
  const sim=createSimulation(map,{mode:'practice',trafficCount:0,pursuit:true,campaign:true});sims.push(sim);sim.addPlayer({playerId:'officer',nickname:'Officer',bodyAssetId:'patrol'});
  const c=sim.checkpoint(),target=c.state.records.find(r=>r.traffic?.suspect)!;c.state.phase='playing';c.state.phaseEnd=10000;c.state.campaign!.dispatchIndex=stage;
  target.vehicle.pose={x:0,z:0,yaw:0};target.vehicle.velocity={x:0,z:0,yawRate:0};target.vehicle.protectedUntilTick=0;
@@ -15,9 +15,9 @@ function fixture(stage=0,map=arena()){
 }
 const ticks=(sim:Simulation,count:number)=>{for(let i=0;i<count;i++)sim.step(new Map());};
 beforeAll(initPhysics);afterEach(()=>sims.splice(0).forEach(sim=>sim.dispose()));
-it('the opening campaign target fires a bounded forward burst and actually damages a connected officer',()=>{
+it('the second campaign target fires a bounded forward burst and actually damages a connected officer',()=>{
  const{sim,targetId,officerId}=fixture();ticks(sim,180);const events=sim.drainEvents();expect(events.filter(e=>e.kind==='shot'&&e.payload.shooterId===targetId).length).toBeGreaterThan(0);
- const officer=sim.snapshot().vehicles.find(v=>v.entityId===officerId)!;expect(officer.health).toBeLessThan(100);expect(officer.health).toBeGreaterThanOrEqual(90);expect(sim.snapshot().scores[0]!.score).toBe(0);expect(sim.snapshot().phase).toBe('playing');expect(sim.snapshot().campaign!.outcomes).toEqual([]);
+ const officer=sim.snapshot().vehicles.find(v=>v.entityId===officerId)!;expect(officer.health).toBeLessThan(100);expect(officer.health).toBe(86);expect(sim.snapshot().scores[0]!.score).toBe(0);expect(sim.snapshot().phase).toBe('playing');expect(sim.snapshot().campaign!.outcomes).toEqual([]);
 });
 it('the grenade ringleader visibly throws a fixed landing target, then detonates once with real damage',()=>{
  const{sim,targetId,officerId}=fixture(4);ticks(sim,100);const grenade=sim.snapshot().grenades?.[0];expect(grenade,'Hector must throw an authoritative visible grenade').toBeDefined();
