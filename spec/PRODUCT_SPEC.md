@@ -10,7 +10,7 @@ Build an original browser game carrying the fast, comic police-driving spirit of
 
 The project is Fender Offenders. The working name has not received trademark clearance.
 
-The confirmed progression epic is [a ten-dispatch campaign](CAMPAIGN.md), with four connected ringleaders and six crew encounters. Every target has an assigned car and original mugshot, presented in the dispatch briefing beside the player's motor-pool choices. Arrests and wrecks both advance the campaign; only arrests earn green tracker checks. Successes gradually reveal the connecting story in a shared casefile. This supersedes the original single-round/rematch loop for production games.
+The story follows [a ten-dispatch campaign](CAMPAIGN.md), with four connected ringleaders and six crew encounters. Every target has an assigned car and original mugshot, presented in the dispatch briefing beside the player's motor-pool choices. Arrests and wrecks both advance the campaign. Each success reveals the next story beat. Players see concise briefings and results, without campaign trackers, accumulated case histories or statistics dashboards. This supersedes the original single-round/rematch loop for production games.
 
 Targets now [fight back with distinct driving and weapon tactics](BOSS_COMBAT.md), including grenades, with difficulty increasing across the campaign. Attacks must remain readable and avoidable, preserve arrest opportunities and use server-owned damage. Players receive a random comic callsign, can reroll or type one, and retain their choice between runs.
 
@@ -20,7 +20,7 @@ Targets now [fight back with distinct driving and weapon tactics](BOSS_COMBAT.md
 2. **Action stays readable.** Players can see upcoming turns, incoming attacks, damaged cars, and escape routes from the elevated camera.
 3. **Joining friends is easy.** A room link and nickname lead quickly to a match.
 4. **The city looks deliberately made.** Keep the cutesy Minecraft/Lego-like miniature forms. Consistent scale, materials, lighting, silhouettes, and sound take priority over raw asset count. [Graphics polish](GRAPHICS_POLISH.md) adds noon/dusk/night dispatch atmospheres, then subtle water, flares and surface/shadow finish with readable low-quality fallbacks.
-5. **Comedy comes from the situation.** Sirens, traffic violations, bureaucratic score messages, and spectacular vehicle mishaps provide the tone.
+5. **Comedy comes from the situation.** Sirens, traffic violations, short dispatch quips, and spectacular vehicle mishaps provide the tone.
 
 ## 3. Intended audience and platform
 
@@ -44,7 +44,7 @@ Targets now [fight back with distinct driving and weapon tactics](BOSS_COMBAT.md
 
 1. Open the game and activate audio/input with an intentional start action.
 2. Receive a random room URL on opening the bare URL, then keep, reroll or type a callsign and choose Hit the streets. Share the address bar or use the single Invite URL button, available before and throughout play. There is no separate room creation/join form. The title screen allocates no server simulation. Callsigns and the assigned garage car persist in this browser.
-3. Read the target dossier, tactics, assigned car and earned casefile. Reassign the player's car if desired, then start the dispatch; any connected officer can start, including a lone player.
+3. See the suspect, a short story briefing and both car previews. Reassign the player's car if desired, then start the dispatch; any connected officer can start, including a lone player.
 4. Drive, drift, dodge traffic and marked grenades, and arrest or wreck the shared target. Multiplayer rivals can also shoot one another; the first target resolution wins the dispatch.
 5. Respawn quickly after an officer's wreck and rejoin the action. Arrests earn three points and green checks; credited target wrecks earn one point and amber marks. Both advance the story.
 6. Read results and the earned clue. Any connected officer opens the next briefing in the same room; timeouts retry, and the tenth success offers a fresh campaign.
@@ -101,7 +101,7 @@ Settings expose persisted Automatic, Touch, Controller and Keyboard schemes. Aut
 - Three-second countdown, up to five minutes of pursuit, then results on arrest, credited target wreck or timeout. Next briefing advances after success, retries after timeout, and resets after the completed campaign.
 - Mid-round joins enter as a spawned participant if capacity permits. Late joins receive a full authoritative state and current round timer.
 - Departure never resets the campaign. Empty rooms freeze for up to 15 minutes, with earlier oldest-empty reclamation at capacity. Reconnect reservations remain protected; connected idle tabs warn at 14 minutes and disconnect at 15.
-- Drivers compete to resolve one shared AI target first. The unarmed first dispatch teaches arrests; gun combat becomes available to everyone in dispatch 2. The room shares the ten-step tracker and earned clues; scores carry between dispatches. Teams and cooperative missions are deferred.
+- Drivers compete to resolve one shared AI target first. The unarmed first dispatch teaches arrests; police guns unlock in dispatch 3 after suspect guns appear in dispatch 2. The room retains outcomes, credited callsigns and earned clues; scores carry internally between dispatches. The interface shows only the current objective and story beat. Teams and cooperative missions are deferred.
 
 ### Weapon and damage
 

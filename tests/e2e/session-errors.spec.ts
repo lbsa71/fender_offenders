@@ -17,7 +17,7 @@ test('the reported eight-character invite lazily opens and remains reusable afte
     await expect(page.locator('.fo-invite')).toBeVisible();
     await expect(page.getByRole('button',{name:'INVITE URL',exact:true})).toHaveCount(1);
     expect(new URL(page.url()).searchParams.get('room')).toBe('z__fyegL');
-    await expect(page.locator('[data-scores] li')).toHaveCount(1);
+    await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.snapshot?.scores.length)).toBe(1);
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'END PATROL' }).click();
     await expect(page.getByRole('heading', { name: "You're on duty." })).toBeVisible();

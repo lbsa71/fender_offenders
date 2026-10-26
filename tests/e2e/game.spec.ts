@@ -35,7 +35,7 @@ async function practice(page: Page, armed=false) {
   if(armed)await dispatchFixture(page,2);
   await page.getByRole('button', { name: 'START DISPATCH' }).click();
   await expect.poll(async () => (await snapshot(page))?.phase).toBe('playing');
-  await expect(page.locator('[data-text="phase"]')).toHaveText('COMPETING PURSUIT');
+  await expect(page.locator('[data-text="phase"]')).toHaveText('TIME LEFT');
   await expect(page.locator('.fo-hud')).toBeVisible();
   await expect.poll(async () => (await snapshot(page))?.local?.vehicle.status).toBe('active');
 }
@@ -128,14 +128,16 @@ test('a standard controller can start, drive, pause, navigate and safely disconn
   }, index);
   await page.goto('/'); await expect(page.getByRole('heading', { name: "You're on duty." })).toBeVisible();
   await tap(0);
-  await expect(page.locator('.fo-hud')).toBeVisible();
+  await expect(page.getByRole('region',{name:'Campaign dispatch briefing'})).toBeVisible();
+  await expect(page.locator('.fo-hud')).toBeHidden();
   await expect(page.getByRole('button', { name: 'START DISPATCH' })).toBeVisible();
   await dispatchFixture(page,2);
   await tap(0);
   await expect.poll(async () => (await snapshot(page))?.phase).toBe('playing');
+  await expect(page.locator('.fo-hud')).toBeVisible();
   await expect(page.locator('[data-tutorial-controls]').getByRole('img', { name: 'Left stick' })).toBeVisible();
   await expect(page.locator('[data-tutorial-controls]').getByRole('img', { name: 'Right trigger' })).toBeVisible();
-  await expect(page.locator('[data-text="phase"]')).toHaveText('COMPETING PURSUIT');
+  await expect(page.locator('[data-text="phase"]')).toHaveText('TIME LEFT');
   await stickY(0); // Let the newly enabled controller observe a neutral frame before a fresh press.
   await stickY(-1);
   await expect.poll(async () => { const car = (await snapshot(page))?.local?.vehicle; return car ? Math.hypot(car.velocity.x, car.velocity.z) : 0; }).toBeGreaterThan(3);
@@ -174,7 +176,7 @@ test('blur drops held fire and requires a fresh keyboard press on return', async
   await page.keyboard.up('Space');
 });
 
-test('two browser clients create, join, start a live round and share confirmed standings', async ({ browser, baseURL }) => {
+test('two browser clients create, join, start a live round and share confirmed authority without a statistics dashboard', async ({ browser, baseURL }) => {
   test.setTimeout(90000);
   const hostContext = await createGameContext(browser); const guestContext = await createGameContext(browser);
   const host = await hostContext.newPage(); const guest = await guestContext.newPage();
@@ -187,12 +189,13 @@ test('two browser clients create, join, start a live round and share confirmed s
     await guest.goto(`${baseURL}/?room=${encodeURIComponent(roomId)}`);
     await guest.getByRole('textbox', { name: 'YOUR CALLSIGN' }).fill('Backup Unit');
     await guest.getByRole('button', { name: 'HIT THE STREETS' }).click();
-    await expect(host.locator('[data-scores] li')).toHaveCount(2); await expect(guest.locator('[data-scores] li')).toHaveCount(2);
+    for(const viewer of [host,guest])await expect.poll(async()=>(await snapshot(viewer))?.scores.length).toBe(2);
     for (const viewer of [host, guest]) {
-      await expect(viewer.locator('.fo-campaign-roster').getByText('PING / ms', { exact: true })).toBeVisible();
+      await expect(viewer.locator('.fo-campaign-roster,.fo-scoreboard')).toHaveCount(0);
       await expect.poll(() => viewer.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.renderer.environmentDispatchId)).toBe('loose-change');
       for (const nickname of ['Dispatch Host', 'Backup Unit']) {
-        await expect(viewer.locator('.fo-campaign-roster').getByLabel(new RegExp(`^${nickname} ping: \\d+ milliseconds$`))).toHaveText(/^\d+ ms$/);
+        await expect.poll(async()=>Number.isFinite((await snapshot(viewer))?.scores.find(s=>s.nickname===nickname)?.pingMs??NaN)).toBe(true);
+        expect((await snapshot(viewer))!.scores.find(s=>s.nickname===nickname)!.pingMs).toBeGreaterThanOrEqual(0);
       }
     }
     console.log('Both clients joined the same room');
@@ -206,14 +209,17 @@ test('two browser clients create, join, start a live round and share confirmed s
       await expect(viewer.locator('.fo-pursuit')).toContainText('APPREHEND NICO');
       await expect.poll(() => viewer.evaluate(() => (window as any).__FENDER_DEBUG__?.stats.renderer.environmentTheme)).toBe('noon');
       await expect(viewer.getByRole('img', { name: /^Wanted suspect,/ })).toBeVisible();
-      await expect(viewer.locator('.fo-scoreboard').getByText('PING / ms', { exact: true })).toBeVisible();
-      for (const nickname of ['Dispatch Host', 'Backup Unit']) await expect(viewer.locator('[data-scores]').getByLabel(new RegExp(`^${nickname} ping: \\d+ milliseconds$`))).toHaveText(/^\d+ ms$/);
+      await expect(viewer.locator('.fo-scoreboard')).toHaveCount(0);
+      for (const nickname of ['Dispatch Host', 'Backup Unit']) {
+        const ping=(await snapshot(viewer))!.scores.find(s=>s.nickname===nickname)!.pingMs;
+        expect(Number.isFinite(ping)).toBe(true);expect(ping).toBeGreaterThanOrEqual(0);
+      }
     }
     await host.keyboard.press('Escape');
     await expect(host.getByText('THE DISPATCH IS LIVE.', { exact: false })).toBeVisible();
     const tick = (await snapshot(host))!.serverTick;
     await expect.poll(async () => (await snapshot(host))!.serverTick).toBeGreaterThan(tick + 10);
-    await expect(host.locator('[data-scores]')).toContainText('Backup Unit');
+    expect((await snapshot(host))!.scores.some(s=>s.nickname==='Backup Unit')).toBe(true);
     expect((await snapshot(host))!.scores.map(score => score.score)).toEqual((await snapshot(guest))!.scores.map(score => score.score));
   } finally { await Promise.allSettled([hostContext.close(), guestContext.close()]); }
 });
