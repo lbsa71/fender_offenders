@@ -18,6 +18,8 @@ Fresh source verification passes **788 headless tests across 84 files**, **16 af
 
 The first pre-push attempt was stopped after older gameplay checks still required `COMPETING PURSUIT` and the HUD behind the briefing. They now assert `TIME LEFT`, a hidden briefing HUD and a visible live-play HUD. The focused game run passed its other five scenarios, and the corrected controller scenario passes separately, retaining movement, shooting, pause, disconnect and shared-authority assertions. The interrupted gate is not counted as passing; the complete gate runs again before publication.
 
+The next complete browser run passed **51 of 54** scenarios and blocked the push on three more removed presentation selectors: two tactics dossiers and the new-campaign counter. Equipment checks now require the compact oil/blade tip and avoidance instruction, while preserving the real warning/active-phase and full-help assertions. Room creation checks require the opening story, target and empty authoritative case state. All **three** corrected scenarios pass in the focused rerun; the complete browser/UI/water/audio gate is rerun before pushing.
+
 ## 2026-10-26 · Full sound bank integrated with current main
 
 Audio commit `74e351c` is merged with current main `75578bf` in `cf87e71`, retaining gadget and splash lifecycle cleanup, all water/browser gates, credits and both dated ledgers. The final bank contains **41 clips / 1,869,484 bytes** under the 2 MB budget. Three original spray/wash/droplet variants replace the incoming splash synthesis after loading; fallback coverage remains. No network, handling, damage or protocol behavior changes.
