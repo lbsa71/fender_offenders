@@ -1,4 +1,4 @@
-import {CAMPAIGN_TARGETS,getCampaignTarget} from './campaign';
+import {CAMPAIGN_TARGETS,ALL_CAMPAIGN_TARGETS,STORYLINES,getCampaignTarget} from './campaign';
 interface Portrait{
  background:string;skin:string;coat:string;shirt:string;head:string;
  hairBack:string;hairFront:string;accessory:string;detail:string;mouth?:string;
@@ -74,12 +74,30 @@ const portraits:Readonly<Record<string,Portrait>>={
   accessory:'chairman-cap-key',detail:'<path d="M40 39Q80 12 120 39L114 50H46Z" fill="#384960" stroke="#26383d" stroke-width="3"/><path d="M45 45H115L108 58H52Z" fill="#d9b45d" stroke="#26383d" stroke-width="2.5"/><path d="M50 57Q80 69 112 56L103 69H59Z" fill="#293b4e"/><path d="M80 26L85 34L80 42L75 34Z" fill="#e8ca72"/><path d="M55 75H74V85H55ZM86 75H105V85H86Z" fill="#d2dfcb" fill-opacity=".8" stroke="#26383d" stroke-width="3"/><path d="M74 78H86" stroke="#26383d" stroke-width="3"/><path d="M80 99Q66 86 57 98Q52 98 52 93Q46 111 66 110L80 104L94 110Q113 113 109 94Q104 103 101 96Q92 88 80 99Z" fill="#eee5c9" stroke="#a49678" stroke-width="1.5"/><path d="M65 121L80 131L95 121L90 151H71Z" fill="#d0a14e"/><circle cx="113" cy="127" r="6" fill="none" stroke="#e9c969" stroke-width="4"/><path d="M109 132L97 146M103 139L107 143M99 143L103 147" stroke="#e9c969" stroke-width="4"/>',
  },
 };
+const palettes=[
+ {background:'#7d5854',coats:['#527a69','#a96042','#a98638'],shirt:'#f6e2a6',badge:'supper'},
+ {background:'#567c82',coats:['#ad7850','#4b677d','#8a654e'],shirt:'#e5d4a5',badge:'compass'},
+ {background:'#655f87',coats:['#705467','#59796f','#9a7142'],shirt:'#e9dba9',badge:'clock'},
+ {background:'#4f8593',coats:['#438176','#a17742','#5e698f'],shirt:'#f3e6bb',badge:'duck'},
+];
+const skins=['#945c45','#e3bc91','#bc8056','#edbc8e','#d8a57b','#8c563e'];
+const originalRecipes=Object.values(portraits);
+const extraPortraits=new Map(STORYLINES.slice(1).flatMap((story,series)=>story.targets.map((target,i)=>{
+ const palette=palettes[series]!,source=originalRecipes[(i+series*3)%originalRecipes.length]!;
+ const symbols=[
+  '<path d="M49 45Q35 28 52 23Q54 7 70 16Q82 4 94 18Q113 10 116 29Q128 34 111 47Z" fill="#f3e8c8" stroke="#26383d" stroke-width="3"/><path d="M52 42H109V54H52Z" fill="#f6e2a6" stroke="#26383d" stroke-width="3"/><path d="M125 109V149M118 110V123H132V110" fill="none" stroke="#edcf83" stroke-width="4"/>',
+  '<path d="M45 42Q80 13 115 42L110 52H49Z" fill="#cdaf68" stroke="#26383d" stroke-width="3"/><path d="M38 48H120L113 57H47Z" fill="#f0d796" stroke="#26383d" stroke-width="3"/><circle cx="127" cy="132" r="14" fill="#e9dec0" stroke="#26383d" stroke-width="3"/><path d="M127 120L132 136L121 136Z" fill="#af594b"/><path d="M127 144V136" stroke="#557275" stroke-width="3"/>',
+  '<path d="M96 118Q112 124 122 114" fill="none" stroke="#edc767" stroke-width="3"/><circle cx="128" cy="132" r="16" fill="#dcb55e" stroke="#26383d" stroke-width="3"/><circle cx="128" cy="132" r="12" fill="#f3e5ba"/><path d="M128 123V132L136 136" fill="none" stroke="#26383d" stroke-width="3"/><path d="M122 112H134V118H122Z" fill="#edcf83"/>',
+  '<path d="M46 40Q80 18 113 40L108 50H51Z" fill="#f1e7ca" stroke="#26383d" stroke-width="3"/><path d="M48 46H112V57H48Z" fill="#395d78" stroke="#26383d" stroke-width="3"/><path d="M112 140Q107 129 119 127Q116 114 126 114Q136 115 133 125L145 127L135 132Q137 145 125 146Z" fill="#efd363" stroke="#26383d" stroke-width="2.5"/><circle cx="129" cy="120" r="2" fill="#26383d"/>',
+ ];
+ return [target.id,{...source,background:palette.background,skin:skins[(i+series)%skins.length]!,coat:palette.coats[i%3]!,shirt:palette.shirt,accessory:`${palette.badge}-${i}`,detail:symbols[series]!} satisfies Portrait] as const;
+})));
 const escape=(value:string)=>value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 function draw(id:string):string{
- const target=getCampaignTarget(id),p=portraits[target.id]!,label=escape(`${target.name} — ${target.alias}`);
+ const target=getCampaignTarget(id),p=(portraits[target.id]??extraPortraits.get(target.id))!,label=escape(`${target.name} — ${target.alias}`);
  const mouth=p.mouth??'<path d="M67 102Q80 109 94 101" fill="none" stroke="#26383d" stroke-width="2.5"/>';
  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="${label}" data-accessory="${p.accessory}"><title>${label}</title><rect width="160" height="160" rx="12" fill="${p.background}"/><path d="M8 32H152M8 64H152M8 96H152M8 128H152" stroke="#e8e0bd" stroke-opacity=".2" stroke-width="2"/><path d="M12 12H26M12 12V26M134 12H148V26" fill="none" stroke="#f0e3b5" stroke-width="3"/><path d="M23 160V140Q26 118 59 114H102Q135 118 139 141V160Z" fill="${p.coat}" stroke="#26383d" stroke-width="3"/><path d="M65 113L80 134L98 114L103 160H61Z" fill="${p.shirt}"/><path d="M67 100V118Q79 130 94 118V100Z" fill="${p.skin}" stroke="#26383d" stroke-width="2.5"/>${p.hairBack}<ellipse cx="49" cy="79" rx="8" ry="12" fill="${p.skin}" stroke="#26383d" stroke-width="2.5"/><ellipse cx="111" cy="79" rx="8" ry="12" fill="${p.skin}" stroke="#26383d" stroke-width="2.5"/><path d="${p.head}" fill="${p.skin}" stroke="#26383d" stroke-width="2.5"/><path d="M58 68L71 67M90 66L103 69" fill="none" stroke="#26383d" stroke-width="3" stroke-linecap="round"/><ellipse cx="65" cy="78" rx="3" ry="4" fill="#26383d"/><ellipse cx="96" cy="78" rx="3" ry="4" fill="#26383d"/><path d="M80 79L76 92H84" fill="none" stroke="#865b43" stroke-width="2.5" stroke-linecap="round"/>${mouth}${p.hairFront}${p.detail}${target.isBoss?'<path d="M22 133L28 141L22 149L16 141Z" fill="#f0cc73" stroke="#26383d" stroke-width="2"/>':''}<path d="M5 151V144M155 151V144" stroke="#f1e2b8" stroke-width="2"/></svg>`;
 }
-const byId=new Map(CAMPAIGN_TARGETS.map(target=>[target.id,draw(target.id)]));
+const byId=new Map(ALL_CAMPAIGN_TARGETS.map(target=>[target.id,draw(target.id)]));
 /** Returns cached trusted SVG only. Caller input is never interpolated into markup. */
 export function getCampaignMugshot(id:string):string{return byId.get(id)??byId.get(CAMPAIGN_TARGETS[0]!.id)!;}

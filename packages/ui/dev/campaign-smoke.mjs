@@ -58,7 +58,7 @@ try{
  await expect(lead).toHaveText(catalog.dispatches[9].reveal);
  await expect(results).not.toContainText(catalog.dispatches[0].reveal);
  await expect(page.locator('.fo-campaign-boss,.fo-campaign-tracker,[data-results]')).toHaveCount(0);
- await page.getByRole('button',{name:'NEW CAMPAIGN'}).click();
+ await page.getByRole('button',{name:'ANOTHER CASE'}).click();
  expect(await page.evaluate(()=>window.campaignFixture.options.stage)).toBe(0);
  for(const size of [{width:1440,height:900},{width:960,height:640},{width:740,height:740},{width:520,height:760},{width:390,height:844},{width:740,height:420}]){
   await page.setViewportSize(size);await set({stage:1,outcomes:[outcome(0)]});
@@ -68,7 +68,7 @@ try{
   expect(await page.evaluate(()=>{const a=document.querySelector('.fo-toast').getBoundingClientRect(),b=document.querySelector('.fo-campaign-briefing').getBoundingClientRect();return a.bottom<=b.top||a.top>=b.bottom||a.left>=b.right||a.right<=b.left;})).toBe(true);
   if(process.env.CAPTURE_UI){mkdirSync('work/quick-patrol',{recursive:true});await page.screenshot({path:`work/quick-patrol/briefing-fixture-${size.width}x${size.height}.png`});}
   await set({stage:9,phase:'results',complete:true,outcomes:complete});
-  await expect(page.getByRole('button',{name:'NEW CAMPAIGN'})).toBeInViewport();
+  await expect(page.getByRole('button',{name:'ANOTHER CASE'})).toBeInViewport();
   expect(await results.evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true);
  }
  for(let stage=0;stage<10;stage++){

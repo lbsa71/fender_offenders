@@ -1,5 +1,7 @@
 # Armed campaign targets and player callsigns
 
+The five ten-dispatch storylines reuse the ten stage-indexed tactics profiles below, with **fifty authored suspects** and their own short briefings/reveals. The names in this table identify the original Green Light cast; matching stages in the other four cases use the same difficulty, readable warnings, equipment and counterplay. This is twenty ringleader characters and thirty crew encounters across five stories, rather than fifty different combat systems. Procurement still buys in bulk.
+
 Status: implemented locally; human difficulty and audiovisual approval remain open. Reviewed: 2026-10-26. Gameplay revision: `arcade-v17`, protocol 5. This extends the [ten-dispatch campaign](CAMPAIGN.md).
 
 *The suspects have read the equipment budget. Regrettably, they found the grenade column.*

@@ -1,4 +1,4 @@
-import { getDispatchFeatures, CAMPAIGN_DISPATCHES, CAMPAIGN_TITLE, getCampaignMugshot, getCampaignTarget, getVehicleProfile, isInviteCode, isVehicleBodyId, randomCallsign, sanitizeNickname, VEHICLE_BODIES, type CampaignTarget, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
+import { getDispatchFeatures, getStoryline, getCampaignDispatch, getCampaignMugshot, getCampaignTarget, getVehicleProfile, isInviteCode, isVehicleBodyId, randomCallsign, sanitizeNickname, VEHICLE_BODIES, type CampaignTarget, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
 import './style.css';
 import { controlGraphics, gamepadControls, keyboardBindings, keyboardControls } from './controls';
 import { controlHints, placeControlCard } from './tutorial';
@@ -259,14 +259,14 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if (!campaign) { campaignViewKey = ''; campaignWait.hidden = true; one<HTMLButtonElement>('[data-action="rematch"]').disabled = false; delete resultOutcome.dataset.outcome; return; }
     const key = JSON.stringify([campaign, model.snapshot?.phase, model.mode, model.canStart, statusName(model.status), pending, model.snapshot?.scores.map(score => [score.playerId, score.nickname])]);
     if (key === campaignViewKey) return; campaignViewKey = key;
-    const dispatch = CAMPAIGN_DISPATCHES[campaign.dispatchIndex] ?? CAMPAIGN_DISPATCHES[0]!;
+    const story=getStoryline(campaign.campaignId),dispatch=getCampaignDispatch(campaign);
     const target = getCampaignTarget(dispatch.targetId), resolution = campaign.outcomes.find(outcome => outcome.dispatchIndex === campaign.dispatchIndex);
     const features=getDispatchFeatures(campaign.dispatchIndex),tip=briefLesson(campaign.dispatchIndex);
     const nextLesson=features.lessonTitle+tip;
     if(lessonKey!==nextLesson){lessonKey=nextLesson;lesson.querySelector('strong')!.textContent=features.lessonTitle;lesson.querySelector('p')!.textContent=tip;}
     lesson.hidden=!tip;
     const complete = campaign.status === 'complete';
-    briefing.querySelector<HTMLElement>('[data-campaign-series]')!.textContent = CAMPAIGN_TITLE;
+    briefing.querySelector<HTMLElement>('[data-campaign-series]')!.textContent = story.title;
     briefing.querySelector<HTMLElement>('[data-campaign-title]')!.textContent = dispatch.title.replace(/^\d+\s*·\s*/, '');
     portrait(briefing.querySelector<HTMLElement>('.fo-campaign-portrait')!,target);
     briefing.querySelector<HTMLElement>('[data-campaign-name]')!.textContent=target.name;
@@ -284,11 +284,11 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     stamp.hidden=!stamp.textContent;
     if (hasResult()) {
       write('result-title', complete ? 'The racket is exposed.' : resolution?.outcome==='arrested' ? 'Suspect apprehended.' : resolution ? 'Getaway stopped.' : 'Suspect escaped.');
-      one('.fo-results>.fo-kicker').textContent = complete ? CAMPAIGN_TITLE : 'CASE CLOSED';
+      one('.fo-results>.fo-kicker').textContent = complete ? story.title : 'CASE CLOSED';
       resultOutcome.hidden = false; resultOutcome.dataset.outcome = resolution?.outcome ?? 'pending';
       resultOutcome.textContent = complete ? 'CASE CLOSED. NICE WORK.' : resolution ? `${resolution.outcome === 'arrested' ? '✓ ARRESTED' : '✕ WRECKED'} · ${target.alias.toUpperCase()} · ${(resolution.callsign ?? officer(resolution.playerId)).toUpperCase()}` : 'TIME UP · SUSPECT ESCAPED';
       const next = one<HTMLButtonElement>('[data-action="rematch"]'); next.disabled = !canDispatch();
-      next.textContent = !canDispatch() ? 'RECONNECT TO CONTINUE' : complete ? 'NEW CAMPAIGN →' : resolution ? 'NEXT BRIEFING →' : 'RETRY DISPATCH →';
+      next.textContent = !canDispatch() ? 'RECONNECT TO CONTINUE' : complete ? 'ANOTHER CASE →' : resolution ? 'NEXT BRIEFING →' : 'RETRY DISPATCH →';
       campaignWait.hidden = canDispatch();
     }
   }
@@ -327,7 +327,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     const campaign=model.snapshot?.campaign,suspectCard=one('[data-vehicle-comparison="suspect"]');
     suspectCard.hidden=!campaign;
     if(campaign){
-      const target=getCampaignTarget(CAMPAIGN_DISPATCHES[campaign.dispatchIndex]!.targetId),suspect=getVehicleProfile(target.vehicleBodyId);
+      const target=getCampaignTarget(getCampaignDispatch(campaign).targetId),suspect=getVehicleProfile(target.vehicleBodyId);
       write('suspect-vehicle-name',suspect.name);write('suspect-vehicle-role',suspect.role);
     }
     one<HTMLButtonElement>('[data-action="reassign"]').disabled = !canReassign();
@@ -490,7 +490,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if (pursuit) {
       const own = authorityPursuit?.contenders?.find(contender => contender.playerId === model.localPlayerId)?.progress;
       const progress = Math.max(0, Math.min(1, number(own ?? (model.mode === 'practice' || authorityPursuit?.arrestingPlayerId === model.localPlayerId ? pursuit.progress : 0))));
-      const chapter=snapshot?.campaign?CAMPAIGN_DISPATCHES[snapshot.campaign.dispatchIndex]:null;
+      const chapter=snapshot?.campaign?getCampaignDispatch(snapshot.campaign):null;
       const name=chapter?getCampaignTarget(chapter.targetId).name.split(' ')[0]!.toUpperCase():'THE SUSPECT';
       write('pursuit', `APPREHEND ${name}`);
       arrestHelp.textContent = 'Catch up → match speed → stay close for 3 seconds.';

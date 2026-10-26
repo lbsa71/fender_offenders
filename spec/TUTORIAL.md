@@ -1,6 +1,8 @@
 # Rookie patrol: learn the job, keep the keys
 
-Status: implemented locally in `arcade-v17`, protocol 5, map `sunset-borough-3`. Reviewed: 2026-10-26. Human difficulty, physical-controller and sustained performance acceptance remain open. [Execution status](EXECUTION_STATUS.md) records observed checks.
+This same ten-stage curriculum applies independently to **all five storylines**. The named dispatches below describe the original Green Light case; other cases supply their own suspect, mission title, briefing and reveal at each stage. Feature availability, arrest-only opener, weapons, wet roads and controller hints derive from the authoritative room stage. A new case begins unarmed again; joining or reconnecting does not change the lesson. The objective uses the selected target’s name, such as APPREHEND CORA or APPREHEND DELLA. Five filing cabinets, one driving licence.
+
+Status: implemented locally in `arcade-v18`, protocol 5, map `sunset-borough-3`. Reviewed: 2026-10-26. Human difficulty, physical-controller and sustained performance acceptance remain open. [Execution status](EXECUTION_STATUS.md) records observed checks.
 
 *Dispatch supplies the lesson. Procurement supplies the noisy accessories one case later.*
 

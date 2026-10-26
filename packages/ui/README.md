@@ -1,5 +1,7 @@
 # Dispatch interface
 
+Five ten-dispatch cases use the authoritative `campaignId` for the series title, target, portrait, current story and suspect car. New rooms receive a case automatically. The ending offers **ANOTHER CASE**, continuing in the same room with a different case and no new selection screen. `tests/e2e/storylines.spec.ts` checks all fifty concise briefings and all five endings, plus native room objectives, both car fittings and lighting. Main screens retain the current story/result and omit campaign dashboards.
+
 Reviewed: 2026-10-26 for `arcade-v13` / protocol 3. *The dispatch desk supplies clues, car keys and a suspiciously cheerful damage report.*
 
 `mountGameUi(root, callbacks)` mounts the responsive game shell, menus, settings, HUD, room invites, and results. The UI consumes `UiModel`; its snapshot and scores are read-only projections. Nicknames, errors, room codes, and score rows are written as text, never HTML.

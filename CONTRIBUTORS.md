@@ -1,5 +1,7 @@
 # Contributors
 
+The five-storyline expansion includes OpenAI Codex assistance for four additional original clue chains, forty new suspects and SVG portraits, shared case selection and retention, case-aware UI/lighting, and observed catalog, simulation, real-client and local browser regression checks. Existing human and Claude Code credits remain below.
+
 *The motor pool runs on shared effort and an alarming number of incident reports.*
 
 Updated: 2026-10-26. Thank you to everyone helping Fender Offenders reach the next intersection.

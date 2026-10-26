@@ -6,7 +6,7 @@ Status: original procedural art and the sampled gameplay audio pass are implemen
 
 ## Current shipping baseline
 
-The city, six player bodies, civilian traffic, rigid street props, cosmetic pedestrians and visual effects are generated from TypeScript source. Campaign dossiers and ten inline SVG mugshots live in `packages/contracts`. Audio combines a small local bank of CC0 recordings/original arrangements with synthesized fallback. No external audio service, downloaded models, textures or web fonts are required at runtime. See [the original asset record](../packages/content/manifests/licenses/ORIGINAL_ASSETS.md) and [audio provenance](../packages/content/manifests/licenses/audio/README.md).
+The city, six player bodies, civilian traffic, rigid street props, cosmetic pedestrians and visual effects are generated from TypeScript source. Five campaign storylines and fifty inline SVG mugshots live in `packages/contracts`. Audio combines a small local bank of CC0 recordings/original arrangements with synthesized fallback. No external audio service, downloaded models, textures or web fonts are required at runtime. See [the original asset record](../packages/content/manifests/licenses/ORIGINAL_ASSETS.md) and [audio provenance](../packages/content/manifests/licenses/audio/README.md).
 
 This is the selected art family. GLB/Blender conversion, external texture packs and binary-source storage below are future options. Asset budgets and approved in-engine references still need measured acceptance; procedural generation does not make rendering free.
 

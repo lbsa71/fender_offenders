@@ -1,8 +1,10 @@
 # Every campaign has a room
 
-Status: implemented for `arcade-v15`, protocol 5. Updated: 2026-10-26. Evidence is recorded in [execution status](EXECUTION_STATUS.md#unified-room-sessions). Named-hardware capacity and public deployment acceptance remain separate gates.
+Status: implemented for `arcade-v18`, protocol 5. Updated: 2026-10-26. Evidence is recorded in [execution status](EXECUTION_STATUS.md#unified-room-sessions). Named-hardware capacity and public deployment acceptance remain separate gates.
 
 *One officer is a task force. Two officers are a task force with witnesses.*
+
+Each new room receives one of five ten-dispatch storylines automatically. Its existing campaign ID preserves that selection for live joins, reconnects and empty-room returns. **Another case** after the ending selects a different storyline in the same room; there is no case-selection screen or per-player story unlock.
 
 ## Entering and sharing
 

@@ -1,6 +1,6 @@
 # Product specification
 
-Status: product baseline for the integrated `arcade-v17` alpha and remaining release acceptance. Updated: 2026-10-26 for longer avenues and suspect road gadgets. [Execution status](EXECUTION_STATUS.md) records dated evidence; requirements below do not imply completed acceptance.
+Status: product baseline for the integrated `arcade-v18` alpha and remaining release acceptance. Updated: 2026-10-26 for longer avenues and suspect road gadgets. [Execution status](EXECUTION_STATUS.md) records dated evidence; requirements below do not imply completed acceptance.
 
 *Ten dispatches. Six cars. One district with a very relaxed attitude toward insurance premiums.*
 
@@ -10,7 +10,7 @@ Build an original browser game carrying the fast, comic police-driving spirit of
 
 The project is Fender Offenders. The working name has not received trademark clearance.
 
-The story follows [a ten-dispatch campaign](CAMPAIGN.md), with four connected ringleaders and six crew encounters. Every target has an assigned car and original mugshot, presented in the dispatch briefing beside the player's motor-pool choices. Arrests and wrecks both advance the campaign. Each success reveals the next story beat. Players see concise briefings and results, without campaign trackers, accumulated case histories or statistics dashboards. This supersedes the original single-round/rematch loop for production games.
+The story follows [five separate ten-dispatch cases](CAMPAIGN.md), each with four connected ringleaders and six crew encounters: fifty authored dispatches in total. New rooms receive one case automatically; the final **Another case** action selects a different storyline in the same room. Every target has an assigned car and original mugshot, presented in the dispatch briefing beside the player's motor-pool choices. Arrests and wrecks both advance the campaign. Each success reveals the next story beat. Players see concise briefings and results, without campaign trackers, accumulated case histories or statistics dashboards. This supersedes the original single-round/rematch loop for production games.
 
 Targets now [fight back with distinct driving and weapon tactics](BOSS_COMBAT.md), including grenades, with difficulty increasing across the campaign. Attacks must remain readable and avoidable, preserve arrest opportunities and use server-owned damage. Players receive a random comic callsign, can reroll or type one, and retain their choice between runs.
 
@@ -37,7 +37,7 @@ Targets now [fight back with distinct driving and weapon tactics](BOSS_COMBAT.md
 | --- | --- | --- |
 | M1 visual/driving slice | One finished intersection, one car, keyboard/gamepad, collisions, camera, placeholder-to-finished comparison | Prove handling and achievable visual quality |
 | M2 network/combat slice | Two players, one weapon, damage, respawn, reconciliation, room join | Prove fast action over a real network |
-| M3 feature-complete alpha | 1–8 players, complete district, six vehicle profiles, traffic/props/crowds, ten-dispatch solo/competitive campaign, armed targets and saved callsigns | Accept the integrated repeatable game; human/device gates remain open |
+| M3 feature-complete alpha | 1–8 players, complete district, six vehicle profiles, traffic/props/crowds, five ten-dispatch solo/competitive storylines, armed targets and saved callsigns | Accept the integrated repeatable game; human/device gates remain open |
 | M4 release candidate | Performance budgets, compatibility, onboarding, resilience, license audit, staging run | Prove the build is usable and shippable |
 
 ## 5. Core loop
@@ -47,7 +47,7 @@ Targets now [fight back with distinct driving and weapon tactics](BOSS_COMBAT.md
 3. See the suspect, a short story briefing and both car previews. Reassign the player's car if desired, then start the dispatch; any connected officer can start, including a lone player.
 4. Drive, drift, dodge traffic and marked grenades, and arrest or wreck the shared target. Multiplayer rivals can also shoot one another; the first target resolution wins the dispatch.
 5. Respawn quickly after an officer's wreck and rejoin the action. Arrests earn three points and green checks; credited target wrecks earn one point and amber marks. Both advance the story.
-6. Read results and the earned clue. Any connected officer opens the next briefing in the same room; timeouts retry, and the tenth success offers a fresh campaign.
+6. Read results and the earned clue. Any connected officer opens the next briefing in the same room; timeouts retry, and the tenth success offers a different ten-dispatch case.
 
 First release has no account gate, persistent economy, paid items, skill matchmaking, or unlock grind.
 
@@ -124,11 +124,11 @@ Settings expose persisted Automatic, Touch, Controller and Keyboard schemes. Aut
 - Give two seconds of visible spawn protection; firing ends it early. Protected cars cannot deal damage until protection ends.
 - Wreck visuals are short-lived cosmetic effects. Disable the wrecked car's weapon and dynamic collision immediately; do not create permanent roadblocks.
 - Stuck-car recovery has a cooldown and cannot be used while taking damage or to teleport across the map. Server rules own eligibility and location.
-- The first completed arrest or credited destruction of the campaign target wins the dispatch. Arrest awards three points; target destruction retains one-point wreck credit. Combat standings do not override the resolving officer. Timeout has no winner or new clue. Results distinguish arrest/wreck outcomes and show standings, wrecks suffered and connection state.
+- The first completed arrest or credited destruction of the campaign target wins the dispatch. Arrest awards three points; target destruction retains one-point wreck credit. Combat standings do not override the resolving officer. Timeout has no winner or new clue. Results distinguish arrest/wreck outcomes, credit the officer and show only the current earned reveal. Scores and connection measurements remain in authority snapshots; the UI omits standings and statistics tables.
 
 ## 9. District, traffic, and pursuit challenge
 
-- Integrated `arcade-v17` district: 400 m by 400 m, extending the original 250 m town around the same centre. Long 400 m main streets and 312 m pursuit straights allow normal full-speed driving; cross streets and the original dirt shortcuts preserve cutoff choices. Human handling/camera acceptance remains open.
+- Integrated `arcade-v18` district: 400 m by 400 m, extending the original 250 m town around the same centre. Long 400 m main streets and 312 m pursuit straights allow normal full-speed driving; cross streets and the original dirt shortcuts preserve cutoff choices. Human handling/camera acceptance remains open.
 - Include at least one loop, multiple intersections, a commercial block, a residential edge, an industrial space, and two dirt shortcuts.
 - Roads must allow two cars to pass and must avoid repeated camera occlusion from tall buildings.
 - Buildings near the camera may fade visually; their physical blockers remain unchanged and readable.
@@ -169,4 +169,4 @@ Settings expose persisted Automatic, Touch, Controller and Keyboard schemes. Aut
 
 MMO infrastructure, realistic vehicle simulation, destructible buildings, humanoid combat, real vehicle branding, cross-session campaign saves, voice chat, public user-generated content, split screen, native mobile packages, and a custom rendering engine are outside scope. Generic browser touch controls, browser-local callsigns, garage and settings are implemented; campaign progress remains in memory. Changes to these assumptions require a product/architecture decision and updated task dependencies. The city council has declined to fund an MMO this quarter.
 
-The [staged tutorial](TUTORIAL.md) specifies persistent device-aware control icons, authoritative arrest guidance, dual garage previews, the dispatch-2 gun unlock, dispatch-3 bomb warning and dispatch-4 slippery puddles. Tutorial state is shared by the room.
+The [staged tutorial](TUTORIAL.md) specifies persistent device-aware control icons, authoritative arrest guidance, dual garage previews, the dispatch-3 police gun unlock and bomb warning and dispatch-4 slippery puddles. Tutorial state is shared by the room.

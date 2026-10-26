@@ -1,4 +1,4 @@
-import { CAMPAIGN_DISPATCHES, CAMPAIGN_ID, getBossTactics, getCampaignTarget, getDispatchFeatures, DEFAULT_DRIVING_CONTEXT, PROTOCOL_VERSION, isDriverActions, isVehicleBodyId, sanitizeNickname, validateMap } from '@fender/contracts';
+import { CAMPAIGN_ID, getStoryline, isStorylineId, getCampaignDispatch, getBossTactics, getCampaignTarget, getDispatchFeatures, DEFAULT_DRIVING_CONTEXT, PROTOCOL_VERSION, isDriverActions, isVehicleBodyId, sanitizeNickname, validateMap } from '@fender/contracts';
 import type { AppliedDriverInput, VehicleContactDelta, ArrestGuidance, DispatchDrivingContext, BossTactics, CollisionMap, DriverActions, DriverRuntimeState, GameEvent, GameplayConfig, GrenadeState, LocalAuthorityState, PlanarPose, PlayerScore, ProjectileState, PropDefinition, VehicleState, WorldSnapshot } from '@fender/contracts';
 import { DEFAULT_GAMEPLAY_CONFIG, FIXED_DELTA, normalizeGameplay, type SimulationConfig } from './config.js';
 import { box, colliderPolygon, isPoseClear, overlap, segmentPolygon, type Point } from '../physics/geometry.js';
@@ -23,7 +23,7 @@ interface VehicleRecord {
 }
 export interface SimulationOptions {
   mode?: 'practice' | 'multiplayer'; seed?: number; matchId?: string;
-  trafficCount?: number; config?: GameplayConfig; pursuit?: boolean; campaign?: boolean;
+  trafficCount?: number; config?: GameplayConfig; pursuit?: boolean; campaign?: boolean; campaignId?: string;
   props?: readonly PropDefinition[];
 }
 export interface PlayerOptions { playerId: string; nickname: string; sessionEpoch?: string; bodyAssetId?: string }
@@ -38,7 +38,7 @@ export interface Simulation {
   setPlayerVehicle(playerId: string, bodyId: string): boolean;
   correctLocalMotion(playerId: string): boolean;
   startRound(requesterId?: string): boolean;
-  rematch(requesterId?: string): boolean;
+  rematch(requesterId?: string, nextCampaignId?: string): boolean;
   step(inputs: ReadonlyMap<string, AppliedDriverInput>): readonly VehicleContactDelta[];
   snapshot(forPlayerId?: string): WorldSnapshot;
   authority(playerId: string): LocalAuthorityState | null;
@@ -51,6 +51,7 @@ export interface Simulation {
 const clone = <T>(value: T): T => structuredClone(value);
 
 export function createSimulation(mapInput: CollisionMap, options: SimulationOptions = {}): Simulation {
+  if(options.campaignId!==undefined&&(!options.campaign||!isStorylineId(options.campaignId)))throw new Error('Invalid campaign storyline');
   const map = clone(mapInput), problems = validateMap(map);
   if (!Object.values(map.bounds).every(Number.isFinite) || map.bounds.minX >= map.bounds.maxX || map.bounds.minZ >= map.bounds.maxZ) problems.push('Invalid map bounds');
   for (const collider of map.colliders) if (collider.shape === 'convex' && (!collider.vertices || collider.vertices.length < 9 || collider.vertices.length % 3 !== 0 || !collider.vertices.every(Number.isFinite))) problems.push(`Invalid convex ${collider.id}`);
@@ -75,7 +76,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
   let phaseEnd: number | null = null, creator: string | null = null, events: GameEvent[] = [];
   let pursuit: WorldSnapshot['pursuit'], arrestTicks = 0;
   let contenderTicks = new Map<string, number>();
-  let campaign: WorldSnapshot['campaign'] = options.campaign ? { campaignId: CAMPAIGN_ID, dispatchIndex: 0, status: 'active', outcomes: [] } : undefined;
+  let campaign: WorldSnapshot['campaign'] = options.campaign ? { campaignId: options.campaignId ?? CAMPAIGN_ID, dispatchIndex: 0, status: 'active', outcomes: [] } : undefined;
   const check = () => { if (disposed) throw new Error('Simulation disposed'); };
   const random = () => { rng = (Math.imul(rng, 1664525) + 1013904223) >>> 0; return rng / 4294967296; };
   const emit = (event: { [K in GameEvent['kind']]: { kind: K; payload: Extract<GameEvent, { kind: K }>['payload'] } }[GameEvent['kind']]) => {
@@ -132,7 +133,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
     if (!campaign || !pursuit) return;
     const record = records.get(pursuit.suspectId);
     if (!record) return;
-    record.vehicle.bodyAssetId = getCampaignTarget(CAMPAIGN_DISPATCHES[campaign.dispatchIndex]!.targetId).vehicleBodyId;
+    record.vehicle.bodyAssetId = getCampaignTarget(getCampaignDispatch(campaign).targetId).vehicleBodyId;
     record.vehicle.maxHealth = maxHealthForVehicle(config, { playerId: 'campaign-target', bodyAssetId: record.vehicle.bodyAssetId });
     record.vehicle.health = record.vehicle.maxHealth;
   };
@@ -149,7 +150,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
     if (campaign) {
       if (campaign.outcomes.some(result => result.dispatchIndex === campaign!.dispatchIndex)) return;
       campaign.outcomes.push({ dispatchIndex: campaign.dispatchIndex, outcome, playerId: winner, callsign: scores.get(winner)!.nickname, elapsedTicks });
-      if (campaign.outcomes.length === CAMPAIGN_DISPATCHES.length) campaign.status = 'complete';
+      if (campaign.outcomes.length === getStoryline(campaign.campaignId).dispatches.length) campaign.status = 'complete';
     }
     pursuit.state = 'complete'; pursuit.winnerPlayerId = winner; pursuit.elapsedTicks = elapsedTicks;
     pursuit.arrestingPlayerId = outcome === 'arrested' ? winner : null;
@@ -387,11 +388,12 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
       resetPursuit();
       return true;
     },
-    rematch(requesterId) {
+    rematch(requesterId, nextCampaignId) {
       check(); if (mode !== 'multiplayer' && !campaign || phase !== 'results' || (campaign ? !requesterId || scores.get(requesterId)?.connection !== 'connected' : requesterId !== undefined && requesterId !== creator)) return false;
+      if(nextCampaignId!==undefined&&(!campaign||campaign.status!=='complete'||!isStorylineId(nextCampaignId)))return false;
       if (campaign) {
         if (campaign.status === 'complete') {
-          campaign = { campaignId: CAMPAIGN_ID, dispatchIndex: 0, status: 'active', outcomes: [] };
+          campaign = { campaignId: nextCampaignId ?? campaign.campaignId, dispatchIndex: 0, status: 'active', outcomes: [] };
           for (const score of scores.values()) { score.score = 0; score.wrecks = 0; }
         } else if (campaign.outcomes.some(outcome => outcome.dispatchIndex === campaign!.dispatchIndex)) campaign.dispatchIndex++;
       }
