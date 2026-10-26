@@ -16,6 +16,8 @@ All **five UI fixture suites** pass, including ten target stories, current-only 
 
 Fresh source verification passes **788 headless tests across 84 files**, **16 affected real-browser scenarios**, all five UI fixture suites, the standalone input/settings/connectivity smoke, type/document checks, asset validation and production build. The initial full headless run timed out in the existing 60 ms contact fixture; its unchanged focused latency cases and the full rerun pass, without widening a timeout or relaxing contact assertions. Warmed native captures confirm both actual car bodies remain visible above their name cards. The complete local browser/water/audio pre-push gate and matching main/CI deployment follow these source checks.
 
+The first pre-push attempt was stopped after older gameplay checks still required `COMPETING PURSUIT` and the HUD behind the briefing. They now assert `TIME LEFT`, a hidden briefing HUD and a visible live-play HUD. The focused game run passed its other five scenarios, and the corrected controller scenario passes separately, retaining movement, shooting, pause, disconnect and shared-authority assertions. The interrupted gate is not counted as passing; the complete gate runs again before publication.
+
 ## 2026-10-26 · Full sound bank integrated with current main
 
 Audio commit `74e351c` is merged with current main `75578bf` in `cf87e71`, retaining gadget and splash lifecycle cleanup, all water/browser gates, credits and both dated ledgers. The final bank contains **41 clips / 1,869,484 bytes** under the 2 MB budget. Three original spray/wash/droplet variants replace the incoming splash synthesis after loading; fallback coverage remains. No network, handling, damage or protocol behavior changes.

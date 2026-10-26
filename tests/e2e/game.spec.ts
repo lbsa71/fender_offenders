@@ -35,7 +35,7 @@ async function practice(page: Page, armed=false) {
   if(armed)await dispatchFixture(page,2);
   await page.getByRole('button', { name: 'START DISPATCH' }).click();
   await expect.poll(async () => (await snapshot(page))?.phase).toBe('playing');
-  await expect(page.locator('[data-text="phase"]')).toHaveText('COMPETING PURSUIT');
+  await expect(page.locator('[data-text="phase"]')).toHaveText('TIME LEFT');
   await expect(page.locator('.fo-hud')).toBeVisible();
   await expect.poll(async () => (await snapshot(page))?.local?.vehicle.status).toBe('active');
 }
@@ -128,14 +128,16 @@ test('a standard controller can start, drive, pause, navigate and safely disconn
   }, index);
   await page.goto('/'); await expect(page.getByRole('heading', { name: "You're on duty." })).toBeVisible();
   await tap(0);
-  await expect(page.locator('.fo-hud')).toBeVisible();
+  await expect(page.getByRole('region',{name:'Campaign dispatch briefing'})).toBeVisible();
+  await expect(page.locator('.fo-hud')).toBeHidden();
   await expect(page.getByRole('button', { name: 'START DISPATCH' })).toBeVisible();
   await dispatchFixture(page,2);
   await tap(0);
   await expect.poll(async () => (await snapshot(page))?.phase).toBe('playing');
+  await expect(page.locator('.fo-hud')).toBeVisible();
   await expect(page.locator('[data-tutorial-controls]').getByRole('img', { name: 'Left stick' })).toBeVisible();
   await expect(page.locator('[data-tutorial-controls]').getByRole('img', { name: 'Right trigger' })).toBeVisible();
-  await expect(page.locator('[data-text="phase"]')).toHaveText('COMPETING PURSUIT');
+  await expect(page.locator('[data-text="phase"]')).toHaveText('TIME LEFT');
   await stickY(0); // Let the newly enabled controller observe a neutral frame before a fresh press.
   await stickY(-1);
   await expect.poll(async () => { const car = (await snapshot(page))?.local?.vehicle; return car ? Math.hypot(car.velocity.x, car.velocity.z) : 0; }).toBeGreaterThan(3);
