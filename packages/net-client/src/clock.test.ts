@@ -91,6 +91,23 @@ it('predicts contact against the visible external car instead of an unseen extra
   }finally{await session.dispose();}
 });
 
+it.each([2.03, -2.03])('keeps between-tick presentation outside a visible bumper while permitting departure (%s m/s)',async speed=>{
+  vi.useFakeTimers({toFake:['setInterval','clearInterval','performance']});
+  const source=unpackSnapshot(snapshot(100)),remote=source.vehicles.find(v=>v.entityId==='remote')!;
+  source.local!.vehicle.velocity.z=speed;
+  remote.pose={x:100,z:104.35,yaw:Math.PI};remote.velocity={x:0,z:0,yawRate:0};
+  wire.initial=packSnapshot(source);const session=createOnlineSession('ws://clock-fixture',map);
+  try{
+    await session.connect({roomId:crypto.randomUUID(),nickname:'No projected bumper overlap'});
+    vi.advanceTimersByTime(50);
+    const car=session.sampleFrame()!.vehicles.find(v=>v.entityId==='local')!;
+    if(speed>0)expect(car.pose.z,'Presentation must stop at the visible bumper, before the next physics tick resolves contact').toBeLessThanOrEqual(100.05+1e-6);
+    else expect(car.pose.z,'Leaving contact must retain immediate between-tick movement').toBeCloseTo(100+speed*.05,6);
+    expect(car.velocity.z,'Presentation clipping must not change the local physics velocity').toBeCloseTo(speed,6);
+    expect(session.getSnapshot()!.local!.vehicle.pose.z).toBe(100);
+  }finally{await session.dispose();}
+});
+
 it('replicates the completed local physics step outward, without sending presentation extrapolation or health', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
   const source=unpackSnapshot(snapshot(100));source.local!.vehicle.velocity.z=20;

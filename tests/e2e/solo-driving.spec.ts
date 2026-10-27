@@ -3,6 +3,7 @@ import { createTcpProxy } from '../integration/tcp-proxy';
 import { predictVehicle } from '@fender/sim';
 import { districtMap } from '@fender/content';
 import { getDispatchFeatures, type InputCommand, type LocalAuthorityState } from '@fender/contracts';
+import { summarizeMotion, type MotionSample } from '../support/motion-trace';
 
 test('steering press and release follow direct local physics through jitter and a 650ms TCP stall', async ({page})=>{
   test.setTimeout(60000);
@@ -139,7 +140,7 @@ test('renders local driving between input ticks through jitter without waiting f
       api.sampleFrame = function(...args) {
         const frame = sample.apply(this, args), state = api.getSnapshot();
         const car = frame?.vehicles.find(car => car.entityId === frame.localEntityId);
-        if (car && state?.phase === 'playing') window.__FO_MOTION__.push({ at: performance.now(), z: car.pose.z, ack: state.local.lastConsumedSequence, pending: api.getStats().pendingInputs });
+        if (car && state?.phase === 'playing') window.__FO_MOTION__.push({ at: performance.now(), sampleAt: frame.sampleTimeSeconds * 1000, z: car.pose.z, ack: state.local.lastConsumedSequence, pending: api.getStats().pendingInputs });
         return frame;
       };
     } return api;`;
@@ -161,17 +162,24 @@ test('renders local driving between input ticks through jitter without waiting f
     await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
     await page.getByRole('button', { name: 'START DISPATCH' }).click();
     await page.waitForFunction(() => (window as any).__FENDER_DEBUG__?.snapshot?.phase === 'playing' && (window as any).__FENDER_DEBUG__.input.focused);
+    const room = new URL(page.url()).searchParams.get('room')!;
+    expect((await page.request.post(`http://127.0.0.1:${serverPort + 1000}/room/${room}/drive/0`)).status()).toBe(204);
+    await page.waitForFunction(() => {
+      const state = (window as any).__FENDER_DEBUG__?.snapshot;
+      return state?.local?.vehicle.pose.z < -150 && state.vehicles.length === 2;
+    });
     await page.keyboard.down('w'); await page.waitForTimeout(1000);
     const began = await page.evaluate(() => performance.now());
-    await page.waitForTimeout(2000); await page.keyboard.up('w');
-    const samples: { at: number; z: number; ack: number; pending: number }[] = await page.evaluate(began => (window as any).__FO_MOTION__.filter((sample: { at: number }) => sample.at >= began), began);
-    const steps = samples.slice(1).map((sample, index) => ({ dz: sample.z - samples[index]!.z, dt: (sample.at - samples[index]!.at) / 1000 })).filter(step => step.dt > 0 && step.dt < .05);
-    const stalledFraction = steps.filter(step => step.dz <= .001).length / steps.length;
-    const maxBackwards = Math.max(...steps.map(step => -step.dz));
-    const speeds = steps.map(step => step.dz / step.dt), meanSpeed = speeds.reduce((sum, speed) => sum + speed, 0) / speeds.length;
-    const speedVariation = Math.sqrt(speeds.reduce((sum, speed) => sum + (speed - meanSpeed) ** 2, 0) / speeds.length) / meanSpeed;
-    const speedJumps = speeds.slice(1).map((speed, index) => Math.abs(speed - speeds[index]!)).sort((a, b) => a - b);
-    const p95SpeedJump = speedJumps[Math.floor(speedJumps.length * .95)]!;
+    await page.waitForFunction(began => {
+      const samples = (window as any).__FO_MOTION__.filter((sample: { sampleAt: number }) => sample.sampleAt >= began);
+      const useful = samples.slice(1).filter((sample: { sampleAt: number }, index: number) => {
+        const dt = sample.sampleAt - samples[index].sampleAt; return dt > 0 && dt < 50;
+      });
+      return useful.length >= 90 && samples.at(-1).sampleAt - began >= 2000;
+    }, began, { timeout: 10000 });
+    await page.keyboard.up('w');
+    const samples: MotionSample[] = await page.evaluate(began => (window as any).__FO_MOTION__.filter((sample: { sampleAt: number }) => sample.sampleAt >= began), began);
+    const { steps, stalledFraction, maxBackwards, speedVariation, p95SpeedJump } = summarizeMotion(samples);
     await test.info().attach('Local render continuity through ordered jitter', { body: JSON.stringify({ samples, stalledFraction, maxBackwards, speedVariation, p95SpeedJump }), contentType: 'application/json' });
     expect(steps.length).toBeGreaterThan(60);
     expect(samples.at(-1)!.z - samples[0]!.z).toBeGreaterThan(25);

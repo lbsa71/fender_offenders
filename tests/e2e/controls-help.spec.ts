@@ -89,22 +89,27 @@ test('help renders remapped keycaps and recognizable controller graphics within 
   }
 });
 
-test('temporary keyboard and controller cards clear the instruments and invite at each screen size', async ({ page }) => {
+test('temporary cards clear the desktop HUD and leave small screens free', async ({ page }) => {
   await fixture(page); await enter(page);
   for (const device of ['keyboard', 'gamepad']) {
     await update(page, 'playing', device);
     for (const viewport of [{ width: 1440, height: 900 }, { width: 960, height: 640 }, { width: 520, height: 580 }]) {
       await page.setViewportSize(viewport);
-      const card = page.locator('.fo-prompts'); await expect(card).toBeInViewport();
-      expect(await card.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
-      const overlaps = await page.evaluate(() => {
-        const card = document.querySelector('.fo-prompts')!.getBoundingClientRect();
-        return ['.fo-instruments', '.fo-invite'].filter(selector => {
-          const box = document.querySelector(selector)!.getBoundingClientRect();
-          return box.left < card.right && box.right > card.left && box.top < card.bottom && box.bottom > card.top;
+      const card = page.locator('.fo-prompts');
+      if (viewport.width <= 740) {
+        await expect(card).toBeHidden();
+      } else {
+        await expect(card).toBeInViewport();
+        expect(await card.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
+        const overlaps = await page.evaluate(() => {
+          const card = document.querySelector('.fo-prompts')!.getBoundingClientRect();
+          return ['.fo-instruments', '.fo-invite'].filter(selector => {
+            const box = document.querySelector(selector)!.getBoundingClientRect();
+            return box.left < card.right && box.right > card.left && box.top < card.bottom && box.bottom > card.top;
+          });
         });
-      });
-      expect(overlaps).toEqual([]);
+        expect(overlaps).toEqual([]);
+      }
       const path = test.info().outputPath(`tutorial-${device}-${viewport.width}.png`);
       await page.screenshot({ path }); await test.info().attach(`Tutorial ${device} ${viewport.width}`, { path, contentType: 'image/png' });
     }

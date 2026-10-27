@@ -47,8 +47,13 @@ test('shares a chase preview and both cars on a narrow briefing without covering
  const start=page.getByRole('button',{name:'START DISPATCH'});await expect(start).toBeInViewport();
  await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.stats.renderer.garageSuspectBody)).toBe('roadster');
  await page.screenshot({path:testInfo.outputPath('rookie-briefing-mobile.png')});
- await start.click();await expect(page.locator('[data-tutorial-controls]')).toBeInViewport();
+ await start.click();await expect(page.locator('[data-tutorial-controls]')).toBeHidden();
  await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.snapshot?.serverTick >= (window as any).__FENDER_DEBUG__?.snapshot?.local?.vehicle.protectedUntilTick)).toBe(true);
- expect(await page.locator('[data-tutorial-controls]').evaluate(node=>{const r=node.getBoundingClientRect();return r.left>=0&&r.top>=0&&r.right<=innerWidth&&r.bottom<=innerHeight;})).toBe(true);
+ await expect(page.locator('.fo-target-indicator')).toBeVisible();
+ expect(await page.locator('.fo-target-indicator').evaluate(node=>{const r=node.getBoundingClientRect();return r.left>=0&&r.top>=0&&r.right<=innerWidth&&r.bottom<=innerHeight;})).toBe(true);
  await page.screenshot({path:testInfo.outputPath('rookie-controls-mobile.png')});
+ await page.getByRole('button',{name:'Open pause menu'}).click();
+ await page.getByRole('button',{name:'CONTROLS HELP',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Controls help.'})).toBeVisible();
+ await expect(page.locator('.fo-help-lesson')).toContainText('Arresting is automatic');
 });

@@ -21,7 +21,10 @@ export default defineConfig({
     viewport: { width: 960, height: 640 },
     actionTimeout: 12000,
     headless: true,
-    launchOptions: systemChrome && existsSync(systemChrome) ? { executablePath: systemChrome } : {},
+    launchOptions: {
+      ...(systemChrome && existsSync(systemChrome) ? { executablePath: systemChrome } : {}),
+      ...(process.env.FENDER_E2E_HIGH_PERFORMANCE_GPU === '1' ? { args: ['--force_high_performance_gpu'] } : {}),
+    },
     // Screencasts force WebGL ReadPixels every frame on software-rendered CI.
     // Keep DOM/action/network traces and an actual screenshot on failure.
     trace: { mode: 'retain-on-failure', screenshots: false, snapshots: true, sources: true },

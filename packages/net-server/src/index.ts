@@ -3,7 +3,7 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { districtMap, districtProps, districtSnowbanks, VEHICLE_BODIES } from '@fender/content';
 import { createSimulation, initPhysics, type Simulation } from '@fender/sim';
-import { GAMEPLAY_REVISION, PROTOCOL_VERSION, STORYLINES, getVehicleProfile, isInputCommand, isInviteCode, isRecord, isVehicleBodyId, neutralActions, packSnapshot, sanitizeNickname, type AppliedDriverInput, type InputCommand, type LocalVehicleMotion, type VehicleBodyId, type VehicleState, type WorldSnapshot } from '@fender/contracts';
+import { GAMEPLAY_REVISION, PROTOCOL_VERSION, STORYLINES, isStorylineId, getVehicleProfile, isInputCommand, isInviteCode, isRecord, isVehicleBodyId, neutralActions, packSnapshot, sanitizeNickname, type AppliedDriverInput, type InputCommand, type LocalVehicleMotion, type VehicleBodyId, type VehicleState, type WorldSnapshot } from '@fender/contracts';
 import { createPropPublisher } from './prop-publisher.js';
 import { ContactLedger } from './contact-ledger.js';
 import { roomRegistry, serverMetrics } from './room-registry.js';
@@ -35,6 +35,7 @@ function validLocalMotion(value: unknown, command: InputCommand, vehicle: Vehicl
 export class DrivingRoom extends Room {
   maxClients = 8;
   private sim!: Simulation;
+  private initialDebugDispatch:number|null=null;
   private drivers = new Map<string, DriverConnection>();
   private accumulator = 0;
   private tick = 0;
@@ -66,6 +67,11 @@ export class DrivingRoom extends Room {
   protected chooseCampaignId(excluding?:string):string{const choices=STORYLINES.filter(story=>story.id!==excluding);return choices[randomInt(choices.length)]!.id;}
   protected initialCampaignId():string{return this.chooseCampaignId();}
   async onCreate(options?: unknown) {
+    const launch=isRecord(options)?options:{};
+    if(launch.debugDispatch!==undefined&&(!Number.isInteger(launch.debugDispatch)||(launch.debugDispatch as number)<1||(launch.debugDispatch as number)>10))throw new ServerError(400,'invalid-debug-dispatch');
+    if(launch.debugCase!==undefined&&(launch.debugDispatch===undefined||!isStorylineId(launch.debugCase)))throw new ServerError(400,'invalid-debug-case');
+    this.initialDebugDispatch=typeof launch.debugDispatch==='number'?launch.debugDispatch:null;
+
     if (isRecord(options) && 'inviteCode' in options) {
       if (!isInviteCode(options.inviteCode)) throw new ServerError(400, 'Invalid invite code');
       this.roomId = options.inviteCode;
@@ -75,7 +81,7 @@ export class DrivingRoom extends Room {
       await initPhysics();
       if (this.disposed) throw new ServerError(503, 'Dispatch creation expired');
       this.setPrivate(true);
-      this.sim = createSimulation(districtMap, { mode: 'multiplayer', matchId: this.roomId, trafficCount: 8, pursuit: true, campaign: true, campaignId:this.initialCampaignId(), props: districtProps, snowbanks:districtSnowbanks });
+      this.sim = createSimulation(districtMap, { mode: 'multiplayer', matchId: this.roomId, trafficCount: 8, pursuit: true, campaign: true, campaignId:typeof launch.debugCase==='string'?launch.debugCase:this.initialCampaignId(), props: districtProps, snowbanks:districtSnowbanks });
       this.maxMessagesPerSecond = 100;
       this.onMessage('input', (client, message: unknown) => {
         const driver = this.drivers.get(client.sessionId);
@@ -174,6 +180,7 @@ export class DrivingRoom extends Room {
     this.autoDispose=false;this.emptySince=null;
     const epoch = randomUUID();
     const car = this.sim.addPlayer({ playerId: client.sessionId, nickname: auth.nickname, sessionEpoch: epoch, bodyAssetId: auth.vehicleBodyId ?? VEHICLE_BODIES[randomInt(VEHICLE_BODIES.length)] });
+    if(this.initialDebugDispatch!==null){this.sim.debugDispatch(this.initialDebugDispatch);this.initialDebugDispatch=null;}
     this.drivers.set(client.sessionId, { epoch, entityId: car.entityId, queue: [], last: null, ack: -1, received: -1, lastInputAt: 0, connected: true, windowStart: performance.now(), packets: 0, reset: 'join', client, latencyProbe: null, pingMs: null, latencyMeasuredAt: null, propPublisher:createPropPublisher(),menuOpen:false,hidden:false,lastActivityAt:this.wallNow(),activityNoticeAt:-Infinity,idleWarned:false,localDriving:false,motion:null,pendingMotion:null,motionAt:performance.now(),motionBudget:null,contacts:new ContactLedger(car.discontinuityId) });
     this.updatePause();
     this.publish(client);

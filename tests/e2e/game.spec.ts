@@ -135,8 +135,7 @@ test('a standard controller can start, drive, pause, navigate and safely disconn
   await tap(0);
   await expect.poll(async () => (await snapshot(page))?.phase).toBe('playing');
   await expect(page.locator('.fo-hud')).toBeVisible();
-  await expect(page.locator('[data-tutorial-controls]').getByRole('img', { name: 'Left stick' })).toBeVisible();
-  await expect(page.locator('[data-tutorial-controls]').getByRole('img', { name: 'Right trigger' })).toBeVisible();
+  await expect(page.locator('[data-tutorial-controls]')).toBeHidden();
   await expect(page.locator('[data-text="phase"]')).toHaveText('TIME LEFT');
   await stickY(0); // Let the newly enabled controller observe a neutral frame before a fresh press.
   await stickY(-1);
@@ -146,7 +145,16 @@ test('a standard controller can start, drive, pause, navigate and safely disconn
   await expect(page.getByRole('heading', { name: 'Taking a breather?' })).toBeVisible();
   await button(7, false); await tap(13); // Resume -> end patrol.
   await expect(page.getByRole('button', { name: 'END PATROL' })).toBeFocused();
-  await tap(12); await tap(0);
+  await tap(12); // Back to Resume, then reach help through the controller menu.
+  await tap(13); await tap(13); await tap(13);
+  await expect(page.getByRole('button', { name: 'CONTROLS HELP', exact: true })).toBeFocused();
+  await tap(0);
+  const help = page.getByRole('region', { name: 'Driving controls' });
+  await expect(help.getByRole('img', { name: 'Left stick' })).toBeVisible();
+  await expect(help.getByRole('img', { name: 'Right trigger' })).toBeVisible();
+  await tap(1);
+  await expect(page.getByRole('button', { name: 'BACK ON PATROL' })).toBeFocused();
+  await tap(0);
   await expect(page.locator('.fo-menu')).toBeHidden();
   await stickY(-1); await button(5, true);
   await expect.poll(async ()=>(await snapshot(page))?.local?.driver.shotOrdinal??0).toBeGreaterThan(0);

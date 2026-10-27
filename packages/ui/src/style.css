@@ -182,11 +182,92 @@
   .fo-touch-active .fo-scoreboard{max-height:92px;overflow:auto;pointer-events:auto;touch-action:pan-y}
 }
 @media(max-width:520px){
-  .fo-touch-active .fo-instruments{left:calc(50% - 11px);width:80px;flex-direction:column;align-items:center;bottom:max(70px,calc(env(safe-area-inset-bottom) + 62px));gap:6px;padding:7px}
+  .fo-touch-active .fo-instruments{left:calc(50% - 11px);width:min(80px,calc(100% - 303px));flex-direction:column;align-items:center;bottom:max(70px,calc(env(safe-area-inset-bottom) + 62px));gap:6px;padding:6px}
   .fo-touch-active .fo-car-state{width:60px}
   .fo-touch-active .fo-car-state .fo-label{font-size:5px;letter-spacing:0}
   .fo-touch-active .fo-speed strong{min-width:0;text-align:center}
   .fo-touch-active .fo-prompts{left:calc(50% - 11px)}
+  .fo-touch-active .fo-scoreboard{max-height:88px;overflow:auto;pointer-events:auto;touch-action:pan-y}
+  .fo-touch-active .fo-pursuit{top:185px}
+  .fo-touch-active .fo-campaign-live{top:292px}
+}
+/* Short phone windscreens: keep dispatch information above the driving controls. */
+@media(min-width:600px) and (max-height:420px){
+  .fo-touch-active .fo-top{top:max(8px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right))}
+  .fo-touch-active .fo-wordmark>span:last-child{display:none}
+  .fo-touch-active .fo-connection>[data-text]{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .fo-touch-active .fo-round{top:8px;left:68px;min-width:100px;padding:6px 8px}
+  .fo-touch-active .fo-round>span{font-size:6px;letter-spacing:.5px}
+  .fo-touch-active .fo-round strong{font-size:24px}
+  .fo-touch-active .fo-instruments{top:8px;bottom:auto;padding:6px 8px}
+  .fo-touch-active .fo-speed strong{font-size:24px}
+  .fo-touch-active .fo-campaign-live{top:auto;bottom:62px;left:50%;width:230px;transform:translateX(-50%)}
+  .fo-touch-active .fo-pursuit{top:64px;width:220px;min-width:0;padding:7px 10px}
+  .fo-touch-active .fo-pursuit>span{font-size:7px;margin-bottom:4px}
+  .fo-touch-active .fo-arrest-help{font-size:7px}
+  .fo-touch-active .fo-scoreboard{top:64px;right:max(12px,env(safe-area-inset-right));width:150px;max-height:40px;padding:0 8px}
+  .fo-touch-active .fo-scoreboard>.fo-label,.fo-touch-active .fo-scoreboard>.fo-score-head{display:none}
+  .fo-touch-active .fo-scoreboard ol{margin:0}
+  .fo-touch-active .fo-scoreboard li{padding:8px 0}
+  .fo-touch-active .fo-invite{top:auto;bottom:max(12px,env(safe-area-inset-bottom));left:50%;right:auto;transform:translateX(-50%);min-height:44px}
+}
+@media(any-pointer:coarse) and (max-width:740px){
+  .fo-campaign-briefing-open .fo-campaign-briefing>footer{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .fo-campaign-briefing-open .fo-campaign-briefing>footer .fo-primary,.fo-campaign-briefing-open .fo-campaign-wait{grid-column:1/-1}
+  .fo-campaign-briefing-open .fo-campaign-briefing>footer .fo-text-button{margin-top:0}
+}
+@media(any-pointer:coarse) and (max-width:520px) and (min-height:600px) and (max-height:740px){
+  .fo-campaign-briefing-open .fo-garage{height:245px}
+  .fo-campaign-briefing-open .fo-campaign-briefing{top:355px}
+}
+@media(any-pointer:coarse) and (min-width:600px) and (max-width:740px) and (max-height:420px){
+  .fo-campaign-briefing-open .fo-campaign-briefing{top:12px;bottom:12px}
+  .fo-campaign-briefing-open .fo-campaign-briefing>header>.fo-kicker{display:none}
+  .fo-campaign-briefing-open .fo-top{top:12px;left:12px;right:auto;width:calc(35% - 28px)}
+  .fo-campaign-briefing-open .fo-wordmark>span:last-child{display:none}
+  .fo-campaign-briefing-open .fo-connection{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .fo-campaign-briefing-open .fo-invite{top:12px;left:70px;right:auto;min-height:48px;max-width:80px}
+}
+.fo-pause-dispatch{display:none}
+.fo-volume-knob{position:relative;display:grid;place-items:center;width:44px;height:44px;min-width:44px;min-height:44px;border:2px solid #f4f0df80;border-radius:50%;background:radial-gradient(circle,#244442 0 57%,#10282a 59%);color:var(--cream);touch-action:none;user-select:none;-webkit-user-select:none}
+.fo-volume-knob:before{content:'';position:absolute;inset:3px;border-radius:50%;border:2px solid transparent;border-top-color:var(--yellow);transform:rotate(var(--volume-angle,48deg));pointer-events:none}
+.fo-volume-knob>span{font-size:17px;line-height:1;pointer-events:none}
+.fo-volume-knob.fo-audio-muted>span{opacity:.45}
+.fo-volume-knob.fo-audio-muted:after{content:'';position:absolute;width:23px;height:2px;background:var(--red);transform:rotate(-45deg);pointer-events:none}
+.fo-volume-knob:hover,.fo-volume-knob:active{transform:none!important}
+@media(max-width:740px){.fo-top-right{gap:8px}.fo-connection [data-text]{display:none}}
+/* Small windscreens: the road gets the space, dispatch paperwork stays in pause. */
+@media(max-width:740px),(max-height:420px){
+  .fo-ui .fo-scoreboard,.fo-ui .fo-pursuit,.fo-ui .fo-campaign-live,.fo-ui:not(.fo-is-playing) .fo-hud{display:none}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-wordmark,
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-connection:not(.fo-connection-reconnecting):not(.fo-connection-broken):not(.fo-connection-connecting),
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-speed,.fo-ui.fo-is-playing:not(.fo-in-garage) .fo-prompts,
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-invite,.fo-ui.fo-is-playing:not(.fo-in-garage) .fo-target-label{display:none}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-top{top:max(8px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));justify-content:flex-end}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-top-right{gap:0}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-icon{width:44px;height:44px;min-width:44px;min-height:44px}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-connection{position:absolute;top:48px;left:50%;transform:translateX(-50%);white-space:nowrap}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-round{top:max(12px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);min-width:64px;padding:5px 8px;border:0}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-round>span{display:none}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-round strong{font-size:20px}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-instruments{display:flex;top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));bottom:auto;transform:none;width:92px;padding:6px;border:0}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-car-state{display:block;width:100%;padding:0}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-car-state>.fo-label{font-size:0;line-height:10px;letter-spacing:0}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-car-state b{font-size:9px}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-car-state>span{display:none}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-health{height:5px;margin:4px 0 0}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-target-indicator{width:92px;left:clamp(60px,var(--target-x,50%),calc(100% - 60px));top:clamp(80px,var(--target-y,50%),calc(100% - 210px))}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-target-arrow{width:24px;height:24px;margin:0 auto 1px}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-target-distance{display:block;width:max-content;margin:0 auto;font-size:8px;padding:2px 4px}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-marker-guidance{font-size:8px;line-height:1.2;margin-top:1px}
+  .fo-ui.fo-is-playing:not(.fo-in-garage) .fo-target-indicator progress{display:block;width:72px;height:4px;margin:1px auto 0}
+  .fo-pause-dispatch{display:block;margin:18px 0 0;padding-top:10px;border-top:1px solid var(--line);font-size:9px;line-height:1.5}
+  .fo-pause-dispatch p{margin:0 0 8px}
+  .fo-pause-dispatch ol{list-style:none;margin:0;padding:0}
+  .fo-pause-dispatch .fo-pause-score-head,.fo-pause-dispatch li{display:grid;grid-template-columns:12px minmax(0,1fr) 42px 24px;gap:6px;align-items:center}
+  .fo-pause-dispatch li{padding:7px 0;border-top:1px solid var(--line)}
+  .fo-pause-dispatch .fo-score-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .fo-pause-dispatch strong{text-align:right}
 }
 
 .fo-touch-deploy{display:flex;gap:6px}.fo-touch-deploy button{flex:1;min-width:0;border-radius:10px;font-size:9px!important;padding:7px 3px}.fo-touch-deploy:has(button:not([hidden])){min-height:44px}

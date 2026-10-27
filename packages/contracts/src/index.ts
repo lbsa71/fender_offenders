@@ -161,6 +161,8 @@ export interface RenderFrame {
 }
 export interface SessionRequest {
   nickname: string; roomId: string;
+  /** Optional initial stage/case for a newly created debug room; existing rooms never change. */
+  debugDispatch?: number; debugCase?: string;
   protocolVersion?: number; mapRevision?: string; gameplayRevision?: string;
   vehicleBodyId?: import('./vehicle-profiles').VehicleBodyId;
 }
