@@ -1,6 +1,7 @@
 import {beforeEach,afterEach,describe,it,expect} from 'vitest';
 import {NullEngine} from '@babylonjs/core/Engines/nullEngine';
 import {Scene} from '@babylonjs/core/scene';
+import {Vector3} from '@babylonjs/core/Maths/math.vector';
 import {PBRMaterial} from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import {WreckEffects} from './wreck-effects';
 let engine:NullEngine,scene:Scene,effects:WreckEffects;
@@ -20,7 +21,7 @@ describe('original pooled spectacular wreck sequence',()=>{
  });
  it('tumbles and bounces above the road, then clears all parts and smoke before the3second respawn',()=>{
   effects.spawn(wreck);let bounced=false;const wheel=scene.transformNodes.find(n=>n.metadata?.wreckRole==='wheel'&&n.isEnabled())!;let oldY=wheel.position.y,wasFalling=false;
-  for(let i=0;i<156;i++){effects.update(1/60);if(!wheel.isEnabled())continue;const y=wheel.position.y;if(y<oldY)wasFalling=true;if(wasFalling&&y>oldY+.002)bounced=true;const mesh=wheel.getChildMeshes()[0]!;mesh.computeWorldMatrix(true);expect(mesh.getBoundingInfo().boundingBox.minimumWorld.y).toBeGreaterThan(-.08);oldY=y;}
+  for(let i=0;i<156;i++){effects.update(1/60);if(!wheel.isEnabled())continue;const y=wheel.position.y;if(y<oldY)wasFalling=true;if(wasFalling&&y>oldY+.002)bounced=true;const mesh=wheel.getChildMeshes()[0]!;mesh.computeWorldMatrix(true);const vertices=mesh.getVerticesData('position')!;let minimumY=Infinity;for(let j=0;j<vertices.length;j+=3)minimumY=Math.min(minimumY,Vector3.TransformCoordinates(Vector3.FromArray(vertices,j),mesh.getWorldMatrix()).y);expect(minimumY, `tire surface at tick ${i}, center ${wheel.position.y}`).toBeGreaterThan(-.08);oldY=y;}
   expect(bounced).toBe(true);expect(effects.getStats().wreckSequences).toBe(0);expect(effects.getStats().wreckWheels).toBe(0);expect(effects.getStats().wreckSmoke).toBe(0);
  });
  it('reuses bounded pools, rejects duplicate lives, clears leave/reset state and disposes native resources',()=>{
