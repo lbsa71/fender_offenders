@@ -6,6 +6,14 @@ Updated: 2026-10-26. Documentation/credits/GPL were pushed in `c5b1161`, car pre
 
 `Implemented` means the principal code path exists with the evidence cited here; it does not waive outstanding release gates. `Partial` means code exists but a named deliverable or acceptance check remains. `Open` means the deciding gate has not been demonstrated. The plan retains task IDs/dependencies and gates while reflecting the delivered campaign/profile/art choices.
 
+## 2026-10-27 · Adaptive soundtrack publication preparation
+
+At the owner's request, soundtrack integration `386b21f` is merged with main `b47eb05` as `3078ed8`, preserving all fifty suspects' outcome portraits and the short-screen next-action fix. Only adjacent evidence paragraphs conflicted; both historical records remain. No new behavior is authored in this merge, so no artificial behavioral RED phase is claimed. The original pause-row and music RED–GREEN evidence remains below.
+
+Fresh publication checks pass **319 unit tests / 33 files** and **623 integration tests / 61 files**, plus types/docs, assets and production build. The integration command uses `--maxWorkers=2` and completes in **79.40 seconds**, with every assertion and deadline unchanged. Default parallel combined and integration-only runs timed out in the existing 60 ms contact-driving case at its six-second completion wait; both contact profiles passed in isolation before the bounded full integration run passed. This is evidence of the tested execution conditions, not a changed contact acceptance limit. Logs are `work/music-publish-unit.log`, `work/music-publish-contact.log` and `work/music-publish-integration-bounded.log`.
+
+The existing pre-push hook remains required. The confirmed Render service `fender-offenders` follows `main` with `autoDeployTrigger: checksPass` and `/ready` health checks. Publication will use that CI-driven rollout, with no manual duplicate deploy or hosting configuration change. Hosted playback and the new commit's terminal deployment status must be checked after CI; this preparation entry does not claim those results in advance.
+
 ## 2026-10-26 · Supplied MP3 soundtrack integration
 
 The owner pushed `titles.mp3`, `slow.mp3` and `fast.mp3` in `bbe885c`. This worktree integrates that main, including its independent compact story UI, helicopter and five-case `arcade-v19` baseline, with the existing compact phone HUD and adaptive music implementation. No new gameplay revision, wire field or dependency is introduced. The supplied files remain byte-for-byte unchanged. Vite discovers the title/slow/fast names and copies all three into the production build; SHA256 comparisons verify those built copies. FFmpeg fully decodes all three stereo 48 kHz MP3 streams without errors. [The soundtrack inventory](../packages/content/manifests/licenses/music/README.md) records embedded credits, durations, sizes and hashes separately from the CC0 effects bank.
