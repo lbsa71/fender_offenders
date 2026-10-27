@@ -29,9 +29,8 @@ export class SnowCover {
   private falling=false;
   private texture:RawTexture;
   private flakes:ParticleSystem;
-  private scenery:WinterScenery;
-  constructor(private scene:Scene,shadows?:ShadowGenerator){
-    this.scenery=new WinterScenery(scene,shadows);
+  private scenery:WinterScenery|null=null;
+  constructor(private scene:Scene,private shadows?:ShadowGenerator){
     const attach=(material:Material)=>{if(!(material instanceof StandardMaterial||material instanceof PBRMaterial)||this.materials.has(material))return;this.materials.add(material);new SnowFinish(material,this);material.onDisposeObservable.addOnce(()=>this.materials.delete(material));};
     for(const material of scene.materials)attach(material);
     this.observer=scene.onNewMaterialAddedObservable.add(attach);
@@ -48,9 +47,9 @@ export class SnowCover {
     if(material instanceof StandardMaterial&&(material.disableLighting||Math.max(material.emissiveColor.r,material.emissiveColor.g,material.emissiveColor.b)>.1))return false;
     return material.name.startsWith('#')||material.name.startsWith('prop-')||material.name.startsWith('paint-')||['chrome','rubber','white','black','charred-chassis'].includes(material.name);
   }
-  setEnabled(enabled:boolean):void {if(this.disposed||this.enabled===enabled)return;this.enabled=enabled;this.scenery.setEnabled(enabled);if(!enabled)this.reset();}
+  setEnabled(enabled:boolean):void {if(this.disposed||this.enabled===enabled)return;this.enabled=enabled;if(enabled)this.scenery??=new WinterScenery(this.scene,this.shadows);this.scenery?.setEnabled(enabled);if(!enabled)this.reset();}
   update(dt:number,target:{x:number;z:number},quality:'low'|'medium'|'high',reducedMotion:boolean,broken:readonly string[]=[],props:readonly PropState[]=[]):void {
-    this.scenery.update(dt,broken,props,reducedMotion);
+    this.scenery?.update(dt,broken,props,reducedMotion);
     if(this.disposed)return;
     if(!this.enabled||reducedMotion){this.reset();return;}
     this.phase+=Number.isFinite(dt)?Math.max(0,Math.min(.1,dt)):0;this.limit=quality==='low'?64:128;this.center.set(target.x,0,target.z);
@@ -63,9 +62,9 @@ export class SnowCover {
       p.position.set(this.center.x+((v*52+this.phase*.6)%52)-26,1+((i*7.13-this.phase*(1.2+v)+100000)%18),this.center.z+((spread*52+this.phase*.2)%52)-26);
     }
   }
-  reset():void {this.scenery.resetEffects();if(this.falling){this.flakes.stop();this.flakes.reset();}this.falling=false;this.phase=0;}
-  getStats(){return{...this.scenery.getStats(),snowActive:this.enabled&&!this.disposed,snowCoveredMaterials:[...this.materials].filter(m=>this.covers(m)).length,snowflakes:this.falling&&!this.disposed?Math.min(this.limit,this.flakes.getActiveCount()):0,snowflakeCapacity:this.disposed?0:128};}
-  dispose():void {if(this.disposed)return;this.reset();this.enabled=false;this.disposed=true;this.scene.onNewMaterialAddedObservable.remove(this.observer);this.scenery.dispose();this.flakes.dispose(false);this.texture.dispose();this.materials.clear();}
+  reset():void {this.scenery?.resetEffects();if(this.falling){this.flakes.stop();this.flakes.reset();}this.falling=false;this.phase=0;}
+  getStats(){return{...(this.scenery?.getStats()??{snowCaps:0,snowbanks:0,snowChunks:0,snowChunkCapacity:0}),snowActive:this.enabled&&!this.disposed,snowCoveredMaterials:[...this.materials].filter(m=>this.covers(m)).length,snowflakes:this.falling&&!this.disposed?Math.min(this.limit,this.flakes.getActiveCount()):0,snowflakeCapacity:this.disposed?0:128};}
+  dispose():void {if(this.disposed)return;this.reset();this.enabled=false;this.disposed=true;this.scene.onNewMaterialAddedObservable.remove(this.observer);this.scenery?.dispose();this.flakes.dispose(false);this.texture.dispose();this.materials.clear();}
 }
 class SnowFinish extends MaterialPluginBase {
   constructor(private snowMaterial:StandardMaterial|PBRMaterial,private snow:SnowCover){super(snowMaterial,'FenderSnowCover',210,{FENDER_SNOW_COVER:true},true,true);}

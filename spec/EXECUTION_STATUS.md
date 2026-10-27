@@ -6,6 +6,16 @@ Updated: 2026-10-26. Documentation/credits/GPL were pushed in `c5b1161`, car pre
 
 `Implemented` means the principal code path exists with the evidence cited here; it does not waive outstanding release gates. `Partial` means code exists but a named deliverable or acceptance check remains. `Open` means the deciding gate has not been demonstrated. The plan retains task IDs/dependencies and gates while reflecting the delivered campaign/profile/art choices.
 
+## 2026-10-27 · Publication gate follow-up: deferred winter allocation and contact-fixture barrier
+
+The first complete pre-push browser run passes **66 of 67** scenarios but blocks publication on bumper-contact retreat **0.217 m** versus the unchanged **<0.20 m** requirement. Three unchanged focused repeats pass at 0.098–0.112 m. A second full attempt reproduces 0.241 m / 55 frames and is stopped early, before publication. The original failure artifacts remain under `work/publication-contact-red`; neither attempt is a successful push.
+
+A separate resource RED finds **11 winter meshes** allocated in a dry dispatch. `SnowCover` now creates the raised scenery/materials only when snow first activates, reusing them on later thaw cycles. All **192 renderer checks / 25 files** pass, including the new zero-allocation check. Native cold/warm snow coverage, bank destruction, quality/reduced motion, twelve thaw cycles and disposal pass under `work/publication-lazy-native`; visible snow coverage remains 718,659 → 855,577 pixels. No driving, collision, wire or arrest rule changes are introduced.
+
+Replaying the four preceding browser scenarios also exposes a fixture-only controller reset during the forced teleport's in-flight input reports. The contact test now waits for eight later acknowledged commands before starting its measurement, then uses a trusted `contact-ready` fixture endpoint to restart only the arrest counter. Its missing endpoint first fails the browser check; the added endpoint preserves settled vehicle poses, velocities, life IDs, physics and contact state. The complete three-second measured contact window remains. All original frame-count, health, life, reset, contact-revision and <0.20 m retreat assertions remain unchanged.
+
+Both five-scenario sequence repeats now pass (**10 scenarios in 1.5 min**): the contact runs capture **85 / 86 frames**, **176 / 170 contact revisions**, **zero controller resets**, and peak retreats **0.1645 / 0.1491 m**. This corrects preparation of an explicit test teleport; production contact admission and prediction remain unchanged. The earlier full 965-test result is preserved below; the fresh affected renderer/browser/native checks cover this later follow-up. The entire browser/UI/effects hook must still pass before the requested push. No assertion, threshold or release gate is waived.
+
 ## 2026-10-27 · Winter publication preparation and controlled test clock
 
 The owner requested merging the winter/debug worktree to main and pushing it. Both checkouts are clean, and fresh origin/main remains `b47eb05`; the winter history already contains that baseline. Current documentation now identifies integrated source `arcade-v20`, while the earlier local-only entries below remain historical. Hosted rollout is still a separate observation.

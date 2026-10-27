@@ -27,6 +27,11 @@ test('keeps both cars stable while bumper pressure completes an arrest through n
     const room=new URL(page.url()).searchParams.get('room')!;
     expect((await page.request.post(`http://127.0.0.1:${serverPort+1000}/room/${room}/contact/0`)).ok()).toBe(true);
     await page.waitForFunction(()=>Math.abs((window as any).__FO_CONTACT_API__?.getSnapshot()?.local?.vehicle.pose.z+30)<1);
+    // The forced teleport is a separate life. Drain its in-flight reports before
+    // measuring ordinary contact, then retain the full three-second arrest window.
+    const setupAck=await page.evaluate(()=>(window as any).__FO_CONTACT_API__.getSnapshot().local.lastConsumedSequence);
+    await page.waitForFunction(ack=>(window as any).__FO_CONTACT_API__.getSnapshot().local.lastConsumedSequence>=ack+8,setupAck);
+    expect((await page.request.post(`http://127.0.0.1:${serverPort+1000}/room/${room}/contact-ready/0`)).ok()).toBe(true);
     const initial=await page.evaluate(()=>{const api=(window as any).__FO_CONTACT_API__;(window as any).__FO_CONTACT__=[];return api.getStats().corrections;});
     await page.keyboard.down('w');await expect(page.getByText('ARREST CERTIFIED',{exact:true})).toBeVisible();await page.keyboard.up('w');
     const frames:{at:number;z:number;life:number;targetLife:number;health:number;contact:number;corrections:number}[]=await page.evaluate(()=>(window as any).__FO_CONTACT__);
