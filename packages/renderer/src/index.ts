@@ -70,7 +70,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
   for(const m of city)if(m.getBoundingInfo().boundingBox.maximumWorld.y>3)shadows.addShadowCaster(m);
   shadows.getShadowMap()!.refreshRate=1;
   const environment=new DispatchEnvironment(scene,sun,hemi);
-  const snow=new SnowCover(scene);
+  const snow=new SnowCover(scene,shadows);
   const water=new WetSurfaces(scene);
   const helicopter=new HelicopterVisual(scene);
   const splashes=new WaterSplashes(scene);
@@ -249,7 +249,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
       const wheel=cue.wheels[0]!,volume=combatVolume(wheel,cue.entityId===frame.localEntityId);
       if(volume>0)audio.splash(cue.strength,volume,cue.entityId===frame.localEntityId?0:combatPan(wheel));
     }
-    snow.update(dt,target,settings.quality,reducedMotion);
+    snow.update(dt,target,settings.quality,reducedMotion,frame.brokenSnowbanks??[],frame.props??[]);
     environment.update(frame.props??[]);water.update(dt,settings.quality,reducedMotion);
     lightDetail.update(frame,cars,environment.lighting.sources,environment.lampGlow,settings.quality,settings.reducedFlash);
     contacts.update(frame.vehicles);

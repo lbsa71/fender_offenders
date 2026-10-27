@@ -101,3 +101,10 @@ export const ROAD_BUMPS = [
   {id:'harbor-hump',x:40,z:-80,yaw:Math.PI/2,width:14,length:1.6,height:.18},
   {id:'park-hump',x:-40,z:80,yaw:Math.PI/2,width:14,length:1.6,height:.18},
 ] as const;
+
+/** Snowplough piles sit outside each 16 m carriageway; crossings stay open. */
+export const districtSnowbanks:import('@fender/contracts').SnowbankDefinition[]=[];
+for(const p of roadCenters)for(let q=-184;q<=184;q+=16){
+ if(roadCenters.some(r=>Math.abs(q-r)<16))continue;
+ for(const side of [-1,1])for(const axis of ['x','z'] as const)districtSnowbanks.push({id:`snowbank-${axis}-${p}-${q}-${side}`,x:axis==='x'?p+side*8.8:q,z:axis==='x'?q:p+side*8.8,yaw:axis==='x'?0:Math.PI/2,length:13,width:1.8,height:1.2+(Math.abs(q)%3)*.1});
+}

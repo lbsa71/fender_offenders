@@ -23,7 +23,7 @@ it('keeps all fifty briefings concise and gives each earned clue a coherent next
  for(const story of stories)for(const [i,d]of story.dispatches.entries()){
   expect(d.briefing.split(/\s+/).length).toBeLessThanOrEqual(55);expect(d.briefing.length).toBeGreaterThan(60);
   expect(d.reveal.split(/\s+/).length).toBeLessThanOrEqual(65);expect(d.reveal.length).toBeGreaterThan(60);
-  expect(['noon','dusk','night']).toContain(d.theme);
+  expect(d.theme).toBe(['noon','noon','dusk','dusk','night','noon','dusk','night','snow','night'][i]);
   if(i<9)expect(d.reveal).toContain(story.targets.find(t=>t.id===story.dispatches[i+1]!.targetId)!.alias);
   else for(const boss of story.targets.filter(t=>t.isBoss))expect(d.reveal).toContain(boss.alias);
  }

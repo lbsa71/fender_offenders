@@ -27,11 +27,12 @@ export interface SimulationOptions {
   mode?: 'practice' | 'multiplayer'; seed?: number; matchId?: string;
   trafficCount?: number; config?: GameplayConfig; pursuit?: boolean; campaign?: boolean; campaignId?: string;
   props?: readonly PropDefinition[];
+  snowbanks?: readonly import('@fender/contracts').SnowbankDefinition[];
 }
 export interface PlayerOptions { playerId: string; nickname: string; sessionEpoch?: string; bodyAssetId?: string }
 export interface SimulationCheckpoint {
   version: 1; mapRevision: string; gameplayRevision: string; tick: number; matchId: string;
-  state: { records: VehicleRecord[]; projectiles: ProjectileState[]; grenades?: GrenadeState[]; helicopter?: HelicopterRuntime; gadgets?: RoadGadgetRuntime[]; scores: PlayerScore[]; phase: WorldSnapshot['phase']; phaseEnd: number | null; counter: number; eventCounter: number; rng: number; creator: string | null; pursuit: WorldSnapshot['pursuit']; arrestTicks: number; contenderTicks?: [string, number][]; campaign?: WorldSnapshot['campaign']; physicsProps?: PropPhysicsCheckpoint };
+  state: { records: VehicleRecord[]; projectiles: ProjectileState[]; grenades?: GrenadeState[]; helicopter?: HelicopterRuntime; gadgets?: RoadGadgetRuntime[]; scores: PlayerScore[]; phase: WorldSnapshot['phase']; phaseEnd: number | null; counter: number; eventCounter: number; rng: number; creator: string | null; pursuit: WorldSnapshot['pursuit']; arrestTicks: number; contenderTicks?: [string, number][]; campaign?: WorldSnapshot['campaign']; brokenSnowbanks?:string[]; physicsProps?: PropPhysicsCheckpoint };
 }
 export interface Simulation {
   addPlayer(options: PlayerOptions): VehicleState;
@@ -41,6 +42,7 @@ export interface Simulation {
   correctLocalMotion(playerId: string): boolean;
   startRound(requesterId?: string): boolean;
   rematch(requesterId?: string, nextCampaignId?: string): boolean;
+  debugDispatch(dispatch:number,campaignId?:string):boolean;
   step(inputs: ReadonlyMap<string, AppliedDriverInput>): readonly VehicleContactDelta[];
   snapshot(forPlayerId?: string): WorldSnapshot;
   authority(playerId: string): LocalAuthorityState | null;
@@ -66,12 +68,16 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
   const solids = map.colliders.filter(c => c.layer === 'world-solid').map(colliderPolygon);
   for (const spawn of map.spawns) if (![spawn.pose.x, spawn.pose.z, spawn.pose.yaw, spawn.clearanceRadius].every(Number.isFinite) || !isPoseClear(map, solids, spawn.pose)) throw new Error(`Blocked or invalid spawn ${spawn.id}`);
   const config = normalizeGameplay(options.config), mode = options.mode ?? 'practice';
+  const bankDefinitions=options.snowbanks??[];
+  if(bankDefinitions.length>320||new Set(bankDefinitions.map(b=>b.id)).size!==bankDefinitions.length||bankDefinitions.some(b=>!b.id||![b.x,b.z,b.yaw,b.width,b.length,b.height].every(Number.isFinite)||b.width<=0||b.length<=0||b.height<=0))throw new Error('Invalid snowbank definitions');
   const queries: StaticQueries = createStaticQueries(map);
   const matchId = options.matchId ?? 'local-match';
   let records = new Map<string, VehicleRecord>(), scores = new Map<string, PlayerScore>(), projectiles = new Map<string, ProjectileState>();
   let grenades = new Map<string, GrenadeState>();
   let roadGadgets = new Map<string, RoadGadgetRuntime>();
   let helicopter:HelicopterRuntime|null=null;
+  let brokenSnowbanks=new Set<string>();
+  const snowbanks=structuredClone(options.snowbanks??[]).map(bank=>({...bank,polygon:box({x:bank.x,z:bank.z,yaw:bank.yaw},bank.width/2,bank.length/2),sweep:box({x:bank.x,z:bank.z,yaw:bank.yaw},bank.width/2+1,bank.length/2+2)}));
   // Every launch sweep is consumed after all cars have acted in this same synchronous fixed step.
   const launchStarts = new Map<string, PlanarPose>();
   let tick = 0, counter = 0, eventCounter = 0, rng = options.seed ?? 12345, disposed = false;
@@ -153,7 +159,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
     if (campaign) {
       if (campaign.outcomes.some(result => result.dispatchIndex === campaign!.dispatchIndex)) return;
       campaign.outcomes.push({ dispatchIndex: campaign.dispatchIndex, outcome, playerId: winner, callsign: scores.get(winner)!.nickname, elapsedTicks });
-      if (campaign.outcomes.length === getStoryline(campaign.campaignId).dispatches.length) campaign.status = 'complete';
+      if (campaign.dispatchIndex === getStoryline(campaign.campaignId).dispatches.length - 1) campaign.status = 'complete';
     }
     pursuit.state = 'complete'; pursuit.winnerPlayerId = winner; pursuit.elapsedTicks = elapsedTicks;
     pursuit.arrestingPlayerId = outcome === 'arrested' ? winner : null;
@@ -202,22 +208,26 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
   };
   const collideProjectile = (p:ProjectileState,start:PlanarPose,end:Point,previous?:Map<string,PlanarPose>):boolean => {
       let fraction = queries.segmentHit(start, end) ?? Infinity, target: VehicleRecord | null = null;
-      let airHit=false;
+      let airHit=false,bankHit:string|null=null;
+      if(campaign&&getDispatchFeatures(campaign.dispatchIndex).winterRoads)for(const bank of snowbanks){
+        if(brokenSnowbanks.has(bank.id))continue;const hit=segmentPolygon(start,end,bank.polygon);
+        if(hit!==null&&hit<fraction){fraction=hit;bankHit=bank.id;}
+      }
       const shooter=records.get(p.ownerEntityId);
       if(helicopter&&!['away','downed'].includes(helicopter.state.phase)&&shooter?.vehicle.playerId&&shooter.vehicle.protectedUntilTick<=tick){
         const pose=helicopterPoseAt(helicopter.state,tick),old=helicopterPoseAt(helicopter.state,tick-1),r=HELICOPTER_RULES.hitRadius;
         const hit=segmentPolygon(start,{x:end.x-(pose.x-old.x),z:end.z-(pose.z-old.z)},[{x:old.x-r,z:old.z-r},{x:old.x+r,z:old.z-r},{x:old.x+r,z:old.z+r},{x:old.x-r,z:old.z+r}]);
-        if(hit!==null&&hit<fraction){fraction=hit;airHit=true;}
+        if(hit!==null&&hit<fraction){fraction=hit;airHit=true;bankHit=null;}
       }
       for (const r of records.values()) {
         if (r.vehicle.entityId === p.ownerEntityId || r.vehicle.status !== 'active') continue;
         const old = previous?.get(r.vehicle.entityId) ?? r.vehicle.pose;
         const relativeEnd = { x: end.x - (r.vehicle.pose.x - old.x), z: end.z - (r.vehicle.pose.z - old.z) };
         const hit = segmentPolygon(start, relativeEnd, box(old));
-        if (hit !== null && hit < fraction) { fraction = hit; target = r; airHit=false; }
+        if (hit !== null && hit < fraction) { fraction = hit; target = r; airHit=false;bankHit=null; }
       }
       if (fraction !== Infinity) {
-        projectiles.delete(p.entityId);
+        projectiles.delete(p.entityId);if(bankHit)brokenSnowbanks.add(bankHit);
         if(airHit&&helicopter){const damage=p.damage??config.weapon.damage;damageHelicopter(helicopter,damage,tick);emit({kind:'hit',payload:{projectileId:p.entityId,targetId:helicopter.state.entityId,damage,position:helicopterPoseAt(helicopter.state,tick)}});return true;}
         if (!target) emit({ kind: 'projectile-impact', payload: { projectileId: p.entityId, ownerEntityId: p.ownerEntityId, position: { x: start.x + (end.x - start.x) * fraction, z: start.z + (end.z - start.z) * fraction, yaw: p.pose.yaw } } });
         if (target && target.vehicle.protectedUntilTick <= tick) {
@@ -260,6 +270,10 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
       const owner = records.get(grenade.ownerEntityId);
       const aerial=grenade.ownerEntityId===helicopter?.state.entityId;
       if (!aerial&&(!owner || owner.vehicle.status !== 'active' || owner.vehicle.protectedUntilTick > tick)) continue;
+      if(campaign&&getDispatchFeatures(campaign.dispatchIndex).winterRoads)for(const bank of snowbanks){
+        if(brokenSnowbanks.has(bank.id))continue;const dx=grenade.target.x-bank.x,dz=grenade.target.z-bank.z,c=Math.cos(bank.yaw),s=Math.sin(bank.yaw),x=Math.max(-bank.width/2,Math.min(bank.width/2,dx*c-dz*s)),z=Math.max(-bank.length/2,Math.min(bank.length/2,dx*s+dz*c)),nearest={x:bank.x+x*c+z*s,z:bank.z-x*s+z*c};
+        if(Math.hypot(grenade.target.x-nearest.x,grenade.target.z-nearest.z)<=grenade.blastRadius&&queries.segmentHit(grenade.target,nearest)===null)brokenSnowbanks.add(bank.id);
+      }
       for (const r of records.values()) {
         const v = r.vehicle;
         const hostile = aerial||owner!.vehicle.playerId === null ? v.playerId !== null && scores.get(v.playerId)?.connection === 'connected' : v.entityId === pursuit?.suspectId;
@@ -406,7 +420,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
       const connected = [...scores.values()].filter(score => score.connection === 'connected').length;
       if (phase !== 'lobby' || mode !== 'multiplayer' && !campaign || (campaign ? connected < 1 || !requesterId || scores.get(requesterId)?.connection !== 'connected' : scores.size < 2 || requesterId !== undefined && requesterId !== creator)) return false;
       phase = 'countdown'; phaseEnd = tick + config.rules.countdownTicks;
-      propPhysics?.reset();
+      brokenSnowbanks.clear();propPhysics?.reset();
       if (!campaign) for (const score of scores.values()) { score.score = 0; score.wrecks = 0; }
       projectiles.clear(); grenades.clear(); roadGadgets.clear(); helicopter=null; for (const r of records.values()) if (r.vehicle.playerId) respawn(r);
       resetPursuit();
@@ -421,7 +435,15 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
           for (const score of scores.values()) { score.score = 0; score.wrecks = 0; }
         } else if (campaign.outcomes.some(outcome => outcome.dispatchIndex === campaign!.dispatchIndex)) campaign.dispatchIndex++;
       }
-      phase = 'lobby'; phaseEnd = null; projectiles.clear(); grenades.clear(); roadGadgets.clear(); helicopter=null; propPhysics?.reset(); resetPursuit(); return true;
+      phase = 'lobby'; phaseEnd = null; projectiles.clear(); grenades.clear(); roadGadgets.clear(); helicopter=null; brokenSnowbanks.clear();propPhysics?.reset(); resetPursuit(); return true;
+    },
+    debugDispatch(dispatch,campaignId=campaign?.campaignId) {
+      check();if(!campaign||!Number.isInteger(dispatch)||dispatch<1||dispatch>10||!campaignId||!isStorylineId(campaignId)||![...scores.values()].some(s=>s.connection==='connected'))return false;
+      campaign={campaignId,dispatchIndex:dispatch-1,status:'active',outcomes:[]};
+      for(const score of scores.values()){score.score=0;score.wrecks=0;}
+      phase='lobby';phaseEnd=null;events=[];projectiles.clear();grenades.clear();roadGadgets.clear();helicopter=null;brokenSnowbanks.clear();propPhysics?.reset();
+      for(const r of records.values())if(r.vehicle.playerId)respawn(r);
+      resetPursuit();return true;
     },
     step(inputs) {
       check(); tick++;
@@ -523,6 +545,16 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
         const velocity = {x:vehicle.velocity.x-before.velocity.x,z:vehicle.velocity.z-before.velocity.z,yawRate:vehicle.velocity.yawRate-before.velocity.yawRate};
         if (Math.hypot(pose.x,pose.z,velocity.x,velocity.z)> .00001) contactDeltas.push({entityId:id,pose,velocity});
       }
+      if(context.winterRoads)for(const bank of snowbanks){
+        if(brokenSnowbanks.has(bank.id))continue;
+        const bankBox=bank.polygon;
+        for(const r of records.values()){
+          const car=r.vehicle;if(car.status!=='active'||Math.hypot(car.velocity.x,car.velocity.z)<1.5)continue;
+          const from=previous.get(car.entityId)??car.pose;
+          // The pile crumbles instead of feeding an impulse back into the driver's ice handling.
+          if(overlap(box(car.pose),bankBox)||segmentPolygon(from,car.pose,bank.sweep)!==null){brokenSnowbanks.add(bank.id);break;}
+        }
+      }
       propPhysics?.step(allVehicles());
       if (phase === 'playing') for (const impact of impacts.values()) {
         const r = records.get(impact.vehicleId);
@@ -534,7 +566,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
       return contactDeltas;
     },
     snapshot(forPlayerId) {
-      check(); return clone({ protocolVersion: PROTOCOL_VERSION, mapRevision: map.revision, gameplayRevision: config.revision, sessionEpoch: forPlayerId ? recordForPlayer(forPlayerId)?.epoch ?? '' : '', serverTick: tick, matchId, phase, phaseEndsAtTick: phaseEnd, vehicles: allVehicles(), projectiles: [...projectiles.values()], grenades: [...grenades.values()], ...(helicopter?{helicopter:helicopter.state}:{}), gadgets: [...roadGadgets.values()].map(runtime => runtime.gadget), scores: [...scores.values()], props: propPhysics?.snapshot() ?? [], local: forPlayerId ? authority(forPlayerId) : null, ...(pursuit ? { pursuit } : {}), ...(campaign ? { campaign } : {}) });
+      check(); return clone({ protocolVersion: PROTOCOL_VERSION, mapRevision: map.revision, gameplayRevision: config.revision, sessionEpoch: forPlayerId ? recordForPlayer(forPlayerId)?.epoch ?? '' : '', serverTick: tick, matchId, phase, phaseEndsAtTick: phaseEnd, vehicles: allVehicles(), projectiles: [...projectiles.values()], grenades: [...grenades.values()], ...(helicopter?{helicopter:helicopter.state}:{}), gadgets: [...roadGadgets.values()].map(runtime => runtime.gadget), scores: [...scores.values()], ...(campaign&&getDispatchFeatures(campaign.dispatchIndex).winterRoads?{brokenSnowbanks:[...brokenSnowbanks]}:{}), props: propPhysics?.snapshot() ?? [], local: forPlayerId ? authority(forPlayerId) : null, ...(pursuit ? { pursuit } : {}), ...(campaign ? { campaign } : {}) });
     },
     authority,
     restoreAuthority(local, serverTick, proxies = []) {
@@ -547,7 +579,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
     },
     drainEvents() { check(); const output = events; events = []; return output; },
     checkpoint() {
-      check(); return clone({ version: 1, mapRevision: map.revision, gameplayRevision: config.revision, tick, matchId, state: { records: [...records.values()], projectiles: [...projectiles.values()], grenades: [...grenades.values()], ...(helicopter?{helicopter}:{}), gadgets: [...roadGadgets.values()], scores: [...scores.values()], phase, phaseEnd, counter, eventCounter, rng, creator, pursuit, arrestTicks, contenderTicks: [...contenderTicks], ...(campaign ? { campaign } : {}), ...(propPhysics ? {physicsProps:propPhysics.checkpoint()} : {}) } });
+      check(); return clone({ version: 1, mapRevision: map.revision, gameplayRevision: config.revision, tick, matchId, state: { brokenSnowbanks:[...brokenSnowbanks], records: [...records.values()], projectiles: [...projectiles.values()], grenades: [...grenades.values()], ...(helicopter?{helicopter}:{}), gadgets: [...roadGadgets.values()], scores: [...scores.values()], phase, phaseEnd, counter, eventCounter, rng, creator, pursuit, arrestTicks, contenderTicks: [...contenderTicks], ...(campaign ? { campaign } : {}), ...(propPhysics ? {physicsProps:propPhysics.checkpoint()} : {}) } });
     },
     restore(checkpoint) {
       check(); if (checkpoint.version !== 1 || checkpoint.mapRevision !== map.revision || checkpoint.gameplayRevision !== config.revision || checkpoint.matchId !== matchId) throw new Error('Incompatible simulation checkpoint');
@@ -555,6 +587,7 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
       const c = clone(checkpoint); tick = c.tick; records = new Map(c.state.records.map(r => [r.vehicle.entityId, r])); projectiles = new Map(c.state.projectiles.map(p => [p.entityId, p])); scores = new Map(c.state.scores.map(s => [s.playerId, s]));
       ({ phase, phaseEnd, counter, eventCounter, rng, creator, pursuit, arrestTicks } = c.state); events = [];
       contenderTicks = new Map(c.state.contenderTicks ?? []);
+      brokenSnowbanks=new Set(c.state.brokenSnowbanks??[]);
       campaign = c.state.campaign; helicopter=c.state.helicopter??null;
       grenades = new Map((c.state.grenades ?? []).map(grenade => [grenade.entityId, grenade]));
       roadGadgets = new Map((c.state.gadgets ?? []).map(runtime => [runtime.gadget.entityId, runtime]));

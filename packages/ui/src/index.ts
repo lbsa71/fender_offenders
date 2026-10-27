@@ -180,7 +180,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
       'Suspect oil: steer around marked patches.',
       'Amber hubcaps warn of blades. Give them room.',
       'Drop oil behind you after a cutoff.',
-      'Use side blades. A black chopper returns: shoot toward its amber ground marker to down it for this dispatch.',
+      'SNOW DISPATCH: Brake early; frozen puddles are even slicker. Use side blades. A black chopper returns: shoot toward its amber ground marker to down it for this dispatch.',
       'Dodge fast bombs. A black chopper returns: shoot toward its amber ground marker to down it for this dispatch.',
     ][index]??'';
   }

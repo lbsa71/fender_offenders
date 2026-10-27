@@ -34,6 +34,9 @@ try{
  },'/@fs/'+resolve('packages/renderer/src/primitives.ts').replaceAll('\\','/'));
  await writeFile(join(output,'road-contrast.json'),JSON.stringify(contrast,null,2));
  assert.ok(contrast.road[2]!>contrast.road[0]!+10&&contrast.ground.reduce((a,b)=>a+b,0)>contrast.road.reduce((a,b)=>a+b,0)+50,'Blue packed-snow roads must remain distinct from fresh white snow after all world materials compile');
+ const banks=await page.evaluate(async()=>{const f=(window as any).fixture;f.frame.brokenSnowbanks=[];f.step(.016);const before=f.renderer.getStats();f.frame.brokenSnowbanks=['snowbank-x-0--40-1'];f.step(.016);const after=f.renderer.getStats();return{before:before.snowbanks,after:after.snowbanks,chunks:after.snowChunks,caps:after.snowCaps};});
+ assert.equal(banks.before,280);assert.equal(banks.after,279);assert.ok(banks.chunks>0&&banks.chunks<=96);assert.equal(banks.caps,2);
+ await page.screenshot({path:join(output,'snowbank-burst.png')});
  assert.equal(snow.stats.snowActive,true);assert.ok(snow.stats.snowCoveredMaterials>=15);assert.equal(snow.stats.waterFrozen,true);
  const lifecycle=await page.evaluate(async()=>{
   const f=(window as any).fixture,s=f.gameScene;f.renderer.setDispatch('paper-trail');f.frame.cameraTarget={x:4,z:-40,yaw:0};const car=f.frame.vehicles[0];car.pose={x:4,z:-41,yaw:0};car.velocity={x:0,z:16,yawRate:0};car.discontinuityId++;f.audioLog.length=0;
@@ -48,7 +51,7 @@ try{
  await page.screenshot({path:join(output,'thawed-driving.png')});
  assert.equal(lifecycle.active.waterSplashDrops,0);assert.equal(lifecycle.splashSounds,0);assert.equal(lifecycle.frozenTime,lifecycle.time);assert.equal(lifecycle.active.waterRipples,false);assert.equal(lifecycle.active.waterReflectionPasses,0);
  assert.ok(lifecycle.active.snowflakes>0&&lifecycle.active.snowflakes<=128);assert.ok(lifecycle.low.snowflakes>0&&lifecycle.low.snowflakes<=64);assert.equal(lifecycle.reduced.snowflakes,0);assert.equal(lifecycle.garage.snowflakes,0);assert.deepEqual(lifecycle.after,lifecycle.before);assert.equal(lifecycle.thaw.snowActive,false);assert.equal(lifecycle.thaw.waterFrozen,false);assert.equal(lifecycle.thaw.snowflakes,0);assert.equal(lifecycle.thaw.waterRipples,true);
- await page.evaluate(()=>{const f=(window as any).fixture;f.gameScene.fogEnabled=true;f.renderer.setSettings({quality:'medium',reducedShake:false});f.renderer.setDispatch('paper-trail');for(let i=0;i<20;i++)f.step(.05);});await page.screenshot({path:join(output,'snow-driving.png')});
+ await page.evaluate(()=>{const f=(window as any).fixture;f.gameScene.fogEnabled=true;f.renderer.setSettings({quality:'medium',reducedShake:false});f.renderer.setDispatch('paper-trail');for(let i=0;i<20;i++)f.step(.05);});await page.screenshot({path:join(output,'snow-driving.png')});await page.evaluate(()=>{const f=(window as any).fixture;f.frame.brokenSnowbanks=[];f.step(.016);f.frame.brokenSnowbanks=['snowbank-x-0--40-1'];f.step(.016);});await page.screenshot({path:join(output,'snow-driving-burst.png')});
  const disposal=await page.evaluate(()=>{const f=(window as any).fixture;f.renderer.dispose();return{snow:f.renderer.getStats().snowflakes,meshes:f.gameScene.meshes.length,systems:f.gameScene.particleSystems.length};});assert.deepEqual(disposal,{snow:0,meshes:0,systems:0});assert.deepEqual(errors,[]);
  await writeFile(join(output,'report.json'),JSON.stringify({dry,snow,lifecycle,disposal,errors},null,2));console.log('Snow coverage, frozen water, bounded snowfall, accessibility, thaw and cleanup passed.');
 }finally{await browser.close();await server?.close();}

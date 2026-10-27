@@ -307,7 +307,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
         lastLocalFrame = { ...vehicle.pose };
         const index = vehicles.findIndex(v => v.entityId === vehicle.entityId); if (index >= 0) vehicles[index] = vehicle; else vehicles.push(vehicle);
       }
-      return { sampleTimeSeconds: now / 1000, vehicles, projectiles: projectilePresentation.sample(predicted?.vehicle.entityId??null,estimatedTick,playbackTick), props: propsAt(playbackTick), localEntityId: predicted?.vehicle.entityId ?? null, cameraTarget: vehicles.find(v => v.playerId === playerId)?.pose ?? null,
+      return { sampleTimeSeconds: now / 1000, vehicles, projectiles: projectilePresentation.sample(predicted?.vehicle.entityId??null,estimatedTick,playbackTick), props: propsAt(playbackTick), brokenSnowbanks:[...(snapshot.brokenSnowbanks??[])], localEntityId: predicted?.vehicle.entityId ?? null, cameraTarget: vehicles.find(v => v.playerId === playerId)?.pose ?? null,
         helicopter: snapshot.phase==='playing'&&snapshot.helicopter?clone(snapshot.helicopter):undefined,
         serverTick: hazardTick, grenades: snapshot.phase === 'playing' ? clone((snapshot.grenades ?? []).filter(grenade => grenade.detonatesAtTick > hazardTick)) : [],
         gadgets: snapshot.phase === 'playing' ? clone((snapshot.gadgets ?? []).filter(gadget => gadget.expiresTick > hazardTick)) : [],

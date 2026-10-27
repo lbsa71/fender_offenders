@@ -5,7 +5,7 @@ import { createGameServer } from '../../apps/server/src/index';
 import type { Simulation } from '@fender/sim';
 import { CAMPAIGN_ID, STORYLINES, neutralActions } from '@fender/contracts';
 
-const port=Number(process.env.PORT??2867),server=await createGameServer(port,'127.0.0.1',{campaignId:CAMPAIGN_ID});
+const port=Number(process.env.PORT??2867),server=await createGameServer(port,'127.0.0.1',{campaignId:CAMPAIGN_ID,debugDispatch:true});
 const fixtures=createServer((req,res)=>{
  const route=/^\/room\/([A-Za-z0-9_-]{8,64})\/(story|stage|arrest|gadget|contact)\/(\d)$/.exec(req.url??'');
  if(req.method!=='POST'||!route){res.writeHead(404).end();return;}

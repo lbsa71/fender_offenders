@@ -35,3 +35,5 @@ Human credits reflect authors in `git log --all`; AI credits include recorded co
 To update the roll call, inspect `git shortlog -sne --all` and `git log --all --format='%aN%n%(trailers:key=Co-authored-by,valueonly)'`, then add contributors whose work is not captured by commit authorship. Keep names accurate, describe actual contributions, and use the tool names above for AI assistance. Nobody needs to submit a parking receipt to receive credit.
 
 The 2026-10-26 snow-dispatch follow-up includes OpenAI Codex assistance for shared ice handling, snow/frozen-water presentation, bounded snowfall, tutorial copy and observed unit/native/browser regression work.
+
+OpenAI Codex (AI assistance), directed by the project owner: fluffy procedural winter caps, shared destructible snowbanks, local dispatch shortcuts, and regression/visual verification (2026-10-27).

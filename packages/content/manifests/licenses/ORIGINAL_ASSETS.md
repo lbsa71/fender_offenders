@@ -21,3 +21,5 @@ Pedestrian figures, routes, flying wreck pieces and the historical synthesized c
 The enlarged avenue layout, twelve additional buildings and outer street lamps in `packages/content/src/index.ts` / `packages/renderer/src/city.ts`, plus oil footprints, warning rings and hubcap blades in `packages/renderer/src/road-gadgets.ts`, are original project-authored geometry under the same GPL-3.0-or-later terms. No artwork, models, audio or other media were imported from Spy Hunter or another game.
 
 The dispatch-9 snow coating, static ice-crack shading and 16×16 snowflake alpha are original procedural source assets authored for this project. They add no downloaded media or third-party textures.
+
+The 2026-10-27 rounded roof/prop snow caps, eight-lobe bank mesh and snow-chunk geometry are original procedural source assets authored for this project with OpenAI Codex assistance, directed by the project owner. No external imagery or textures were imported; project licensing applies.

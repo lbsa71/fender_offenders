@@ -4,7 +4,7 @@ import { createSimulation, initPhysics, type Simulation } from '@fender/sim';
 import { createInputSource, type InputSettings } from '@fender/input';
 import { mountGameUi, type UiSettings } from '@fender/ui';
 import { createOnlineSession } from '@fender/net-client';
-import { getCampaignDispatch, isVehicleBodyId, neutralActions, type GameEvent, type RenderFrame, type SessionRequest, type SessionStatus, type WorldSnapshot } from '@fender/contracts';
+import { STORYLINES, getCampaignDispatch, isVehicleBodyId, neutralActions, type GameEvent, type RenderFrame, type SessionRequest, type SessionStatus, type WorldSnapshot } from '@fender/contracts';
 import { FIXED_STEP, planFrame } from './pacing';
 import './style.css';
 
@@ -43,12 +43,20 @@ async function boot() {
     local.addPlayer({ playerId: 'preview', nickname: 'Preview', bodyAssetId: 'police' });
     status = { state: 'idle' }; ui.update({ snapshot: null, status, roomId: null, error: null });
   }
+  const serverUrl = import.meta.env.VITE_SERVER_URL || `${location.protocol}//${location.hostname}:${location.port === '5173' || location.port === '4173' ? '2567' : location.port || (location.protocol === 'https:' ? '443' : '80')}`;
+  async function debugDispatch(dispatch:number,campaignId?:string){
+    if(!import.meta.env.DEV||!active||!roomId)throw new Error('Join a local debug room first.');
+    if(!Number.isInteger(dispatch)||dispatch<1||dispatch>10)throw new Error('Dispatch must be an integer from 1 to 10.');
+    input?.resetHeldState();online?.neutralize();
+    const response=await fetch(`${serverUrl.replace(/\/$/,'')}/debug/dispatch/${encodeURIComponent(roomId)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dispatch,campaignId})});
+    if(!response.ok)throw new Error(response.status===404?'Dispatch shortcut is unavailable. Start the local game with pnpm dev.':`Dispatch shortcut failed (${response.status}).`);
+    ui.showMenu(null);
+  }
   async function play(request: SessionRequest) {
     await renderer.unlockAudio();
     await leave();
     sequence = 0; clientTick = 0; accumulator = 0; epoch = crypto.randomUUID();
     mode = 'online'; status = { state: 'connecting' }; ui.update({ status, error: null, snapshot: null });
-    const serverUrl = import.meta.env.VITE_SERVER_URL || `${location.protocol}//${location.hostname}:${location.port === '5173' || location.port === '4173' ? '2567' : location.port || (location.protocol === 'https:' ? '443' : '80')}`;
     const session = createOnlineSession(serverUrl, districtMap); online = session;
     session.onSnapshot(s => { snapshot = s; if (epoch !== s.sessionEpoch) { epoch = s.sessionEpoch; sequence = 0; input?.resetHeldState(); } });
     session.onEvents(present); session.onStatus(s => { status = s; });
@@ -56,6 +64,8 @@ async function boot() {
       const joined = await session.connect(request);
       playerId = joined.playerId; roomId = joined.roomId; epoch = joined.sessionEpoch; snapshot = joined.firstState; active = true;
       local?.dispose(); local = null;
+      if(import.meta.env.DEV){const url=new URL(location.href),dispatch=url.searchParams.get('debugDispatch');if(dispatch!==null){await debugDispatch(Number(dispatch),url.searchParams.get('debugCase')??undefined);url.searchParams.delete('debugDispatch');url.searchParams.delete('debugCase');history.replaceState(null,'',url);}}
+
     } catch (error) {
       const failedStatus: SessionStatus = { ...status, state: 'error', reason: status.reason ?? 'network-error', message: status.message ?? (error instanceof Error ? error.message : String(error)) };
       await session.dispose(); online = null; status = failedStatus;
@@ -145,6 +155,8 @@ async function boot() {
   animation = requestAnimationFrame(frame);
   if (import.meta.env.DEV) {
     Object.defineProperty(window, '__FENDER_DEBUG__', { configurable: true, value: Object.freeze({
+      dispatch:debugDispatch,
+      cases:STORYLINES.map(story=>({id:story.id,title:story.title,dispatches:story.dispatches.map((d,i)=>({number:i+1,title:d.title}))})),
       get snapshot() { return snapshot ? structuredClone(snapshot) : null; },
       get events() { return structuredClone(observedEvents); },
       get identity() { return { playerId, roomId, active, mode }; },

@@ -1,0 +1,9 @@
+import {test,expect,createGameContext} from './fixtures';
+import {STORYLINES} from '@fender/contracts';
+test('URL shortcut opens snow directly, supports another case, and shares the selected dispatch with backup',async({page,browser},info)=>{
+ await page.goto('/?debugDispatch=9&debugCase='+STORYLINES[2]!.id);await page.getByRole('button',{name:'HIT THE STREETS'}).click();await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.snapshot?.campaign?.dispatchIndex)).toBe(8);
+ await expect(page).not.toHaveURL(/debugDispatch/);expect(await page.evaluate(()=>(window as any).__FENDER_DEBUG__.snapshot.campaign.campaignId)).toBe(STORYLINES[2]!.id);await page.getByRole('button',{name:'START DISPATCH'}).click();await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.stats.renderer.snowbanks)).toBeGreaterThan(100);await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.snapshot?.phase)).toBe('playing');await page.screenshot({path:info.outputPath('fluffy-snow-dispatch.png')});
+ const context=await createGameContext(browser);try{const backup=await context.newPage(),url=new URL(page.url());url.searchParams.delete('debugDispatch');url.searchParams.delete('debugCase');await backup.goto(url.href);await backup.getByRole('button',{name:'HIT THE STREETS'}).click();await expect.poll(()=>backup.evaluate(()=>(window as any).__FENDER_DEBUG__?.snapshot?.campaign?.dispatchIndex)).toBe(8);
+ await page.evaluate(async()=>{await (window as any).__FENDER_DEBUG__.dispatch(3);});await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.snapshot?.campaign?.dispatchIndex)).toBe(2);await expect.poll(()=>backup.evaluate(()=>(window as any).__FENDER_DEBUG__?.snapshot?.campaign?.dispatchIndex)).toBe(2);await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.stats.renderer.snowbanks)).toBe(0);
+ }finally{await context.close();}
+});

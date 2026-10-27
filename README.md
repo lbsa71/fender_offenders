@@ -10,7 +10,7 @@ This is a playable alpha, not a release candidate. [Execution status](spec/EXECU
 
 Documentation reviewed: **2026-10-26**, for integrated source `arcade-v19`, protocol 5, map `sunset-borough-3`. The district now spans 400 metres with long avenues around its original centre. Otis drops marked oil slicks; Tess warns before extending short-lived hubcap blades. Suspects introduce every weapon first; police guns, bombs, oil and blades unlock in dispatches 3, 5, 8 and 9. Unlocked controls and reminders remain in later dispatches. Gadgets have generous cooldowns and preserve front-cutoff arrests. Suspects swerve and brake-check against closing officers, with a brief normal-speed breakaway after braking. Particle blasts, pedestrian threat filtering, the progressive tutorial, all control schemes and continuous local driving remain integrated. Civilian cars are unarmed, wrecks split into their original physical components, and dusk/night lamps stay illuminated at any camera distance. Hosted rollout is recorded separately in [execution status](spec/EXECUTION_STATUS.md). The paperwork now covers a few more city blocks.
 
-Dispatch 9 is snow-covered, with pronounced icy handling and even slicker frozen puddles. Winter changes remain local until publication.
+The local `arcade-v20` winter follow-up makes dispatch 9 of every case snow-covered, with pronounced icy handling and even slicker frozen puddles. Raised rounded roof caps, snowy furniture and 280 ploughed curb banks give the snow a fluffy cartoon silhouette. Cars, bullets and bombs break the banks into bounded snow chunks; peers and late joins share the cleared gaps. Winter changes remain local until publication.
 
 ## Run locally
 
@@ -22,6 +22,8 @@ pnpm dev
 ```
 
 Open [the game on port 5173](http://127.0.0.1:5173). Vite serves the client; the authoritative game server listens on `127.0.0.1:2567`. Exit the development command to stop its child processes. [Environment examples](.env.example) contain local defaults and no credentials.
+
+For local debugging, open [dispatch 9 directly](http://127.0.0.1:5173/?debugDispatch=9), choose **Hit the streets**, then **Start dispatch**. Replace `9` with any number from `1` to `10`. Add `&debugCase=green-light-racket-v1` to choose a case; omit it to keep the room's case. In the development browser console, use `__FENDER_DEBUG__.dispatch(9)` to jump again, or inspect `__FENDER_DEBUG__.cases` for case IDs and dispatch names. The jump returns the whole room to that briefing, clears scores and earned outcomes, and awards no skipped arrests. URL shortcut parameters are consumed once so the remaining invite resumes normally. `pnpm dev` enables the local debug route; the default server and production client omit it. Separate server runs can explicitly enable `FENDER_DEBUG_DISPATCH=1`.
 
 Opening the bare URL assigns a random room URL without allocating a server simulation. Choose **Hit the streets**, read the briefing, change your assigned car if desired, then choose **Start dispatch**. One officer can start; any connected officer can proceed. Copy the address bar or click **Invite URL** to bring friends into the same game. To open a fresh room, visit the bare URL again. Localhost links work on this machine; use the public preview to invite friends on other machines.
 

@@ -8,6 +8,9 @@ Status: acceptance plan for the integrated `arcade-v19` / protocol 5 alpha. Upda
 
 ## Next acceptance work
 
+The local `arcade-v20` winter follow-up integrates five-case main and adds volumetric cartoon snow and destructible curb banks to every ninth dispatch. A/R own shared bank placement, rounded frosting and bounded bursts; S/G/F/N own authoritative destruction, checkpoint/wire/prediction presentation and build compatibility; F/U/Q own local debug dispatch entry and real-browser verification. These responsibilities run sequentially in the existing worktree. Thick silhouettes, shared cleared gaps, accessible reduced motion, ordinary thaw and direct debug entry are the acceptance criteria. Human appearance/difficulty and sustained minimum-device performance remain open; the gritting truck is still in procurement.
+
+
 The local `arcade-v18` follow-up makes dispatch 9 (The Paper Chase) a snow dispatch, retaining the ten-stage story and all police unlocks. F/S/N own the shared winter flag, equal vehicle handling, prediction/authority parity and compatible build; R/A own reversible up-facing snow, frozen water, bounded accessible snowfall and shader/material reuse. U/Q retain current weapon controls with explicit ice/braking reminders and verify late joins, thaw, native pixels and lifecycle. The winter work remains local until publication.
 
 The `arcade-v19` follow-up adds faster, velocity-led enemy bombs and a shootable black helicopter in dispatches 5/9/10. G/S/F/N/R/Q ownership is sequential in the isolated graphics worktree: shared route/health wire, authoritative drops/hits and terminal dispatch state, normal-gun presentation, peer/late-join coverage and native resource/camera checks. Existing suspect, police equipment, audio and water behavior remain integrated. Human difficulty review and full performance acceptance stay open; this narrow gameplay follow-up does not resume or close the paused graphics goal.
