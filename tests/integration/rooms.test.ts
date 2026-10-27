@@ -77,10 +77,10 @@ describe('real Colyseus authority over local WebSockets', () => {
     expect(creator.state!.scores).toHaveLength(1);
   });
 
-  it('requires the armed campaign build instead of accepting deployed arcade-v7 clients', async () => {
+  it.each(['arcade-v7','arcade-v20'])('rejects %s clients with incompatible driving rules', async gameplayRevision => {
     const creator=await peer();let legacy:Room|undefined;
     try{
-      await expect(new Client(endpoint).joinById(creator.room.roomId,{...options,gameplayRevision:'arcade-v7'}).then(room=>{legacy=room;return 'accepted-legacy-client';})).rejects.toThrow('version-mismatch');
+      await expect(new Client(endpoint).joinById(creator.room.roomId,{...options,gameplayRevision}).then(room=>{legacy=room;return 'accepted-legacy-client';})).rejects.toThrow('version-mismatch');
     }finally{if(legacy){legacy.reconnection.enabled=false;await legacy.leave(true);}}
   });
 

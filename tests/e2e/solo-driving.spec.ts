@@ -5,7 +5,7 @@ import { districtMap } from '@fender/content';
 import { getDispatchFeatures, type InputCommand, type LocalAuthorityState } from '@fender/contracts';
 import { summarizeMotion, type MotionSample } from '../support/motion-trace';
 
-test('steering press and release follow direct local physics through jitter and a 650ms TCP stall', async ({page})=>{
+for(const dispatch of [1,9])test(`steering press and release in dispatch ${dispatch} follow direct local physics through jitter and a 650ms TCP stall`, async ({page})=>{
   test.setTimeout(60000);
   const serverPort=Number(process.env.FENDER_E2E_SERVER_PORT??2867),proxyPort=serverPort+4;
   const profile={oneWayLatencyMs:80,jitterMs:50,stallAtMs:undefined as number|undefined,stallDurationMs:650},began=performance.now();
@@ -28,7 +28,7 @@ test('steering press and release follow direct local physics through jitter and 
     window.WebSocket=class extends NativeWebSocket{constructor(url:string|URL,protocols?:string|string[]){const target=new URL(String(url));if(target.hostname==='127.0.0.1'&&target.port===String(serverPort))target.port=String(proxyPort);super(target,protocols);}};
   },{serverPort,proxyPort});
   try{
-    await page.goto('/');await page.getByRole('button',{name:'HIT THE STREETS'}).click();await page.getByRole('button',{name:'START DISPATCH'}).click();
+    await page.goto(`/?debugDispatch=${dispatch}`);await page.getByRole('button',{name:'HIT THE STREETS'}).click();await page.getByRole('button',{name:'START DISPATCH'}).click();
     await page.waitForFunction(()=>(window as any).__FENDER_DEBUG__?.snapshot?.phase==='playing'&&(window as any).__FENDER_DEBUG__.input.focused);
     await page.waitForTimeout(250);
     await page.evaluate(()=>{const driver=(window as any).__FO_DRIVER__;(window as any).__FO_STEERING__={initial:structuredClone(driver.getSnapshot().local),commands:[],frames:[]};});
@@ -38,7 +38,7 @@ test('steering press and release follow direct local physics through jitter and 
     const trace:{initial:LocalAuthorityState;commands:{at:number;logical:number;command:InputCommand}[];frames:{at:number;sampleAt:number;pose:{yaw:number};velocity:{yawRate:number};life:number;pending:number}[]}=await page.evaluate(()=>(window as any).__FO_STEERING__);
     let expected=structuredClone(trace.initial),cursor=0,lastLogical=0;
     const errors=trace.frames.map(frame=>{
-      while(cursor<trace.commands.length&&trace.commands[cursor]!.at<=frame.at){const item=trace.commands[cursor++]!;expected={...expected,...predictVehicle(districtMap,expected.vehicle,expected.driver,item.command.actions,[],undefined,(expected.driver.simulatedTick??0)+1,getDispatchFeatures(0))};lastLogical=item.logical;}
+      while(cursor<trace.commands.length&&trace.commands[cursor]!.at<=frame.at){const item=trace.commands[cursor++]!;expected={...expected,...predictVehicle(districtMap,expected.vehicle,expected.driver,item.command.actions,[],undefined,(expected.driver.simulatedTick??0)+1,getDispatchFeatures(dispatch-1))};lastLogical=item.logical;}
       const dt=Math.max(0,Math.min(.05,(frame.sampleAt-lastLogical)/1000));
       return {yaw:Math.abs(Math.atan2(Math.sin(frame.pose.yaw-expected.vehicle.pose.yaw-expected.vehicle.velocity.yawRate*dt),Math.cos(frame.pose.yaw-expected.vehicle.pose.yaw-expected.vehicle.velocity.yawRate*dt))),rate:Math.abs(frame.velocity.yawRate-expected.vehicle.velocity.yawRate)};
     });

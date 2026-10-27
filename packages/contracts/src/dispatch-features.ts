@@ -32,4 +32,4 @@ export function getDispatchFeatures(index: number): DispatchFeatures {
 export const DEFAULT_DRIVING_CONTEXT: Readonly<DispatchDrivingContext> = Object.freeze({ gunsEnabled: true, wetRoads: false });
 
 /** Winter affects every car; frozen authored water is the slickest surface. */
-export const WINTER_ROAD_RULES = Object.freeze({ snowGrip:.16, frozenGrip:.035, snowDrive:.65, frozenDrive:.28, snowBrake:.2, frozenBrake:.06 });
+export const WINTER_ROAD_RULES = Object.freeze({ snowGrip:.36, frozenGrip:.07, snowDrive:.65, frozenDrive:.28, snowBrake:.35, frozenBrake:.12 });
