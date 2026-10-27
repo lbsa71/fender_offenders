@@ -88,7 +88,7 @@ export class WreckEffects {
     for (const p of slot.pieces) {
       if (!p.source || p.body || slot.reducedMotion) continue;
       const local = p.root.position, origin = slot.root.position;
-      p.body = this.physics.create({ x: origin.x + local.x, y: local.y, z: origin.z + local.z }, p.root.rotationQuaternion!, p.source.getBoundingInfo().boundingBox.extendSize, p.velocity, p.spin);
+      p.body = this.physics.create({ x: origin.x + local.x, y: local.y, z: origin.z + local.z }, p.root.rotationQuaternion!, p.source.getBoundingInfo().boundingBox.extendSize, p.velocity, p.spin, p.source.metadata.componentName === 'tire' ? 'tire' : 'panel');
     }
   }
 
@@ -113,9 +113,11 @@ export class WreckEffects {
       p.root.position.set(-center.x * cos + center.z * sin, center.y + .03, center.x * sin + center.z * cos);
       p.root.rotationQuaternion = Quaternion.RotationYawPitchRoll(-wreck.pose.yaw, 0, 0); p.root.scaling.setAll(1);
       p.root.setEnabled(!slot.reducedMotion); p.mesh.isVisible = !slot.reducedMotion; p.shadow.isVisible = !slot.reducedMotion; p.partContacts = false;
-      const angle = Math.atan2(p.root.position.x, p.root.position.z) + (random() - .5) * .8, speed = 3 + random() * 3;
-      p.velocity.set(Math.sin(angle) * speed, 5 + random() * 4, Math.cos(angle) * speed);
-      p.spin.set((random() - .5) * 18, (random() - .5) * 15, (random() - .5) * 20);
+      const tire = part.metadata.componentName === 'tire';
+      const angle = Math.atan2(p.root.position.x, p.root.position.z) + (random() - .5) * .8, speed = tire ? 7 + random() * 6 : 3 + random() * 3;
+      p.velocity.set(Math.sin(angle) * speed, tire ? 4 + random() * 3.5 : 5 + random() * 4, Math.cos(angle) * speed);
+      const tumble = random() - .5;
+      p.spin.set(tire ? Math.sign(tumble) * (16 + Math.abs(tumble) * 32) : tumble * 18, (random() - .5) * 15, (random() - .5) * 20);
     }
     if (!slot.reducedMotion) this.createBodies(slot);
     this.sampleCloud(slot); return true;

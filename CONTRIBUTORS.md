@@ -30,6 +30,8 @@ The 2026-10-26 outcome-portrait follow-up includes OpenAI Codex assistance for o
 
 The faster predictive enemy bombs and black helicopter helper include OpenAI Codex assistance for authority, replication, original procedural geometry, effects and observed regression/native checks.
 
+The 2026-10-27 wreck-tire follow-up includes OpenAI Codex assistance for round tire colliders, varied physical launches/rebounds, contact stability, observed regression tests and native driving-camera checks.
+
 Human credits reflect authors in `git log --all`; AI credits include recorded co-authorship and the project owner's attribution. AI tools support the contributors' work; review and project decisions remain with people. Original project work is [GPL-3.0-or-later](LICENSE); acknowledgments do not change those terms or the separate licenses of dependencies.
 
 The adaptive streaming-music player, speed-dependent tempo, accessible mute/volume knob, actual-MP3 media/touch regression harnesses, explicit local GPU-backend verification, driving-trace sample-clock corrections, bounded input-backlog follow-up and visible-bumper presentation clipping also include OpenAI Codex assistance. Stefan supplied the three soundtrack MP3s in `bbe885c`; their embedded artist is `fastsongwriting397`, and their comments identify Suno generation. [The soundtrack inventory](packages/content/manifests/licenses/music/README.md) records those embedded credits separately from the CC0 effects bank and from verified license terms.

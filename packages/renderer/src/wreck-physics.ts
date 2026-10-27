@@ -19,6 +19,7 @@ export class WreckPhysics {
       if (this.disposed) return;
       this.world = new RAPIER.World({ x: 0, y: -18, z: 0 });
       this.world.timestep = STEP;
+      this.world.maxCcdSubsteps = 4;
       this.events = new RAPIER.EventQueue(true);
       this.world.createCollider(RAPIER.ColliderDesc.cuboid(1000, .1, 1000).setTranslation(0, -.1, 0).setFriction(.8).setCollisionGroups(ENVIRONMENT));
       for (const solid of map?.colliders ?? []) {
@@ -38,14 +39,20 @@ export class WreckPhysics {
   get initialized(): boolean { return this.world !== null; }
   get bodyCount(): number { return this.world?.bodies.len() ?? 0; }
 
-  create(position: RAPIER.Vector, rotation: RAPIER.Rotation, half: RAPIER.Vector, velocity: RAPIER.Vector, spin: RAPIER.Vector): RAPIER.RigidBody | null {
+  create(position: RAPIER.Vector, rotation: RAPIER.Rotation, half: RAPIER.Vector, velocity: RAPIER.Vector, spin: RAPIER.Vector, kind: 'panel' | 'tire' = 'panel'): RAPIER.RigidBody | null {
     if (!this.world) return null;
+    const tire = kind === 'tire';
     const body = this.world.createRigidBody(RAPIER.RigidBodyDesc.dynamic()
       .setTranslation(position.x, position.y, position.z).setRotation(rotation)
       .setLinvel(velocity.x, velocity.y, velocity.z).setAngvel(spin)
-      .setLinearDamping(.6).setAngularDamping(.45).setCcdEnabled(true).setCanSleep(true));
-    this.world.createCollider(RAPIER.ColliderDesc.cuboid(Math.max(.025, half.x), Math.max(.025, half.y), Math.max(.025, half.z))
-      .setFriction(.7).setRestitution(.35).setCollisionGroups(SEPARATING).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS), body);
+      .setLinearDamping(tire ? .12 : .6).setAngularDamping(tire ? .14 : .45).setCcdEnabled(true).setSoftCcdPrediction(tire ? .2 : 0).setCanSleep(true));
+    // Car tire geometry is baked with its axle along local X; Rapier cylinders use Y.
+    const collider = tire
+      ? RAPIER.ColliderDesc.cylinder(Math.max(.025, half.x), Math.max(half.y, half.z)).setRotation({ x: 0, y: 0, z: Math.SQRT1_2, w: Math.SQRT1_2 })
+      : RAPIER.ColliderDesc.cuboid(Math.max(.025, half.x), Math.max(.025, half.y), Math.max(.025, half.z));
+    collider.setFriction(tire ? .85 : .7).setRestitution(tire ? .72 : .35);
+    if (tire) collider.setContactSkin(.03).setRestitutionCombineRule(RAPIER.CoefficientCombineRule.Max);
+    this.world.createCollider(collider.setCollisionGroups(SEPARATING).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS), body);
     return body;
   }
 

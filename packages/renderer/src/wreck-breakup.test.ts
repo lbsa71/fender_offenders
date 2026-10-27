@@ -2,6 +2,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { initPhysics } from '@fender/physics';
 import { NullEngine } from '@babylonjs/core/Engines/nullEngine';
 import { Scene } from '@babylonjs/core/scene';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { CollisionMap } from '@fender/contracts';
 import { CarFactory } from './cars';
 import { WreckEffects } from './wreck-effects';
@@ -31,6 +32,38 @@ describe('actual car assembly breakup physics', () => {
     await effects.ready;
     expect(stats().wreckBodies).toBe(0);
   });
+  async function openStreetTires() {
+    effects.dispose(); effects = new WreckEffects(scene, factory, { ...arena, colliders: [] }); await effects.ready;
+    effects.spawn(wreck);
+    return scene.transformNodes.filter(node => node.metadata?.wreckRole === 'wheel' && node.isEnabled());
+  }
+  it('throws all four tires outward with visibly different forces and directions', async () => {
+    const tires = await openStreetTires(), start = tires.map(tire => tire.position.clone());
+    expect(tires).toHaveLength(4); effects.update(1 / 60);
+    const kicks = tires.map((tire, i) => tire.position.subtract(start[i]!).scale(60));
+    const speeds = kicks.map(kick => Math.hypot(kick.x, kick.z));
+    expect(Math.max(...speeds), 'rubber tires must kick clear of the slower panel cloud').toBeGreaterThan(7);
+    expect(Math.max(...speeds) - Math.min(...speeds), 'tires need individually varied launch force').toBeGreaterThan(2);
+    for (let i = 0; i < tires.length; i++) expect(kicks[i]!.x * start[i]!.x + kicks[i]!.z * start[i]!.z).toBeGreaterThan(0);
+    expect(kicks.some(kick => kick.x > 0) && kicks.some(kick => kick.x < 0)).toBe(true);
+    expect(kicks.some(kick => kick.z > 0) && kicks.some(kick => kick.z < 0)).toBe(true);
+  });
+  it('gives rubber tires a noticeable physical rebound after their first road contact', async () => {
+    const tires = await openStreetTires(), previous = tires.map(tire => tire.position.y);
+    const falling = tires.map(() => false), floor = tires.map(() => Infinity), rebound = tires.map(() => 0);
+    for (let tick = 0; tick < 135; tick++) {
+      effects.update(1 / 60);
+      tires.forEach((tire, i) => {
+        const y = tire.position.y, delta = y - previous[i]!;
+        if (delta < -.002) falling[i] = true;
+        if (falling[i] && previous[i]! < .8 && delta > .002 && !Number.isFinite(floor[i]!)) floor[i] = previous[i]!;
+        if (Number.isFinite(floor[i]!)) rebound[i] = Math.max(rebound[i]!, y - floor[i]!);
+        previous[i] = y;
+      });
+    }
+    expect(rebound.filter(height => height >= .18).length, `tire rebound heights: ${rebound.join(', ')}`).toBeGreaterThanOrEqual(3);
+  });
+
   it('gives every original car component its own physical fragment, including variant details and guns', () => {
     effects.spawn(wreck); effects.update(1 / 60);
     expect(stats().wreckPieces, 'a complete assembled car must break up, rather than ten generic replacement pieces').toBeGreaterThan(40);
@@ -51,8 +84,14 @@ describe('actual car assembly breakup physics', () => {
       for (const mesh of pieces()) {
         mesh.computeWorldMatrix(true);
         const box = mesh.getBoundingInfo().boundingBox;
-        expect(box.minimumWorld.y, 'rotating pieces must stay above the road').toBeGreaterThan(-.08);
-        expect(box.minimumWorld.x, 'pieces must not pass through the nearby wall').toBeGreaterThan(-2.95);
+        // Wheels, hubs and body hulls have empty bounding-box corners; measure the visible surfaces.
+        let minX = Infinity, minY = Infinity; const vertices = mesh.getVerticesData('position')!;
+        for (let i = 0; i < vertices.length; i += 3) {
+          const point = Vector3.TransformCoordinates(Vector3.FromArray(vertices, i), mesh.getWorldMatrix());
+          minX = Math.min(minX, point.x); minY = Math.min(minY, point.y);
+        }
+        expect(minY, `rotating ${mesh.metadata.componentName} must stay above the road at tick ${tick}`).toBeGreaterThan(-.08);
+        expect(minX, `${mesh.metadata.componentName} must not pass through the nearby wall at tick ${tick}`).toBeGreaterThan(-2.95);
         highest = Math.max(highest, box.maximumWorld.y);
         moved ||= Math.abs(mesh.getAbsolutePosition().z) > 3;
       }
