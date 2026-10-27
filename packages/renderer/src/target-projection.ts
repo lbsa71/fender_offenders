@@ -1,4 +1,12 @@
 import type {TargetIndicator} from '@fender/contracts';
+/** Invert the ground-plane projection at the car, including reflected X and pixel aspect. */
+export function screenDirectionToHeading(m:ArrayLike<number>,origin:{x:number;z:number},width:number,height:number,dx:number,dy:number):number{
+ const x=-origin.x,z=origin.z,cx=x*m[0]!+z*m[8]!+m[12]!,cy=x*m[1]!+z*m[9]!+m[13]!,w=x*m[3]!+z*m[11]!+m[15]!;
+ const a=-(m[0]!*w-cx*m[3]!)*width,b=(m[8]!*w-cx*m[11]!)*width;
+ const c=(m[1]!*w-cy*m[3]!)*height,d=-(m[9]!*w-cy*m[11]!)*height,det=a*d-b*c;
+ if(!Number.isFinite(det)||Math.abs(det)<1e-8)return Math.atan2(dx,-dy);
+ return Math.atan2((d*dx-b*dy)/det,(a*dy-c*dx)/det);
+}
 export interface HomogeneousTarget{x:number;y:number;z?:number;w:number}
 /** Babylon viewport coordinates: x from left, y from bottom. */
 export interface TargetViewport{x:number;y:number;width:number;height:number}

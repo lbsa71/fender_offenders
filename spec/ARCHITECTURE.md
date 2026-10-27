@@ -26,6 +26,8 @@ flowchart LR
   Map --> Local
 ```
 
+Touch and controller direction resolve locally: input combines a screen vector with the renderer's numeric screen-to-world heading mapping and the network adapter's current predicted yaw. App composition supplies those callbacks. No input/renderer dependency is introduced, no extra render sampling occurs on input ticks, and ordinary driving actions remain the wire contract.
+
 The authoritative server has no renderer, DOM, or Babylon dependency. Every playable campaign runs in a server room. The browser runs a local menu-preview simulation and runs its own continuous car controller from a server baseline. Presentation consumes an immutable render frame rather than reaching into room schemas or physics objects.
 
 Road-gadget snapshots carry fixed oil footprints and timed owner-relative blades. The same shared controller derives armed oil grip for the local driver and server-simulated cars; ordinary snapshots still do not replace the driver's pose or velocity. Blade damage, cooldowns, lifecycle and hit deduplication remain server-owned. Presentation reconstructs warnings from current snapshots through an eight-slot pool; no new player input action is introduced.

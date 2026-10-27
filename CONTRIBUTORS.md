@@ -34,6 +34,8 @@ Human credits reflect authors in `git log --all`; AI credits include recorded co
 
 The adaptive streaming-music player, speed-dependent tempo, accessible mute/volume knob, actual-MP3 media/touch regression harnesses, explicit local GPU-backend verification, driving-trace sample-clock corrections, bounded input-backlog follow-up and visible-bumper presentation clipping also include OpenAI Codex assistance. Stefan supplied the three soundtrack MP3s in `bbe885c`; their embedded artist is `fastsongwriting397`, and their comments identify Suno generation. [The soundtrack inventory](packages/content/manifests/licenses/music/README.md) records those embedded credits separately from the CC0 effects bank and from verified license terms.
 
+The 2026-10-27 directional-driving follow-up includes OpenAI Codex assistance for touch/controller heading requests, camera projection, continuous local feedback, accessible control instructions and observed input/physics/browser regressions.
+
 To update the roll call, inspect `git shortlog -sne --all` and `git log --all --format='%aN%n%(trailers:key=Co-authored-by,valueonly)'`, then add contributors whose work is not captured by commit authorship. Keep names accurate, describe actual contributions, and use the tool names above for AI assistance. Nobody needs to submit a parking receipt to receive credit.
 
 The 2026-10-26 snow-dispatch follow-up includes OpenAI Codex assistance for shared ice handling, snow/frozen-water presentation, bounded snowfall, tutorial copy and observed unit/native/browser regression work.

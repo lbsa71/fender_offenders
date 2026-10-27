@@ -10,6 +10,7 @@ Updated: 2026-10-25 following `0bde06a` and the persistent-lamp correction. Requ
 | --- | --- | --- |
 | D31 | Every campaign has a 1–8-player server room and URL; any connected officer can proceed from a briefing; friends may join live | Owner-approved [room model](ROOM_SESSIONS.md), 2026-10-25; supersedes production local-solo, two-player minimum and creator-only defaults |
 | D32 | Fifteen-minute empty retention and connected-idle timeout; oldest eligible empty-room reclamation; process memory initially | Owner choices, 2026-10-25; preserve ten-second reconnect and pending admissions, keep Render Free |
+| D34 | Touch and controller left stick point toward the desired screen direction; magnitude controls acceleration and release coasts, retaining car physics | Owner direction, 2026-10-27; [implementation decision](adr/002-directional-driving.md) supersedes stick-Y throttle/reverse defaults |
 | D33 | Generic touch interface on any touch-capable device, alongside standard controllers; persisted Automatic/Touch/Controller/Keyboard choice controls the driving source and overlay | Owner direction, 2026-10-25; supersedes browser touch deferral. Physical mobile/controller and performance acceptance remain open |
 | D01 | Original 1987 arcade APB is the inspiration | User clarification |
 | D02 | Web game with 3D graphics; fast fun action is the priority | User request |

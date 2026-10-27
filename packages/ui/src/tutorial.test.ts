@@ -1,8 +1,16 @@
 import { expect, it } from 'vitest';
 import { controlHints, placeControlCard } from './tutorial';
+it('explains screen-direction driving on touch and controller without teaching backward-stick reverse',()=>{
+ for(const device of ['touch','gamepad'] as const){
+  const hints=controlHints(device,{},false);
+  expect(hints.find(h=>h.action==='drive')?.label).toBe('PULL TOWARD WHERE YOU WANT TO GO');
+  expect(hints.some(h=>h.action==='steer')).toBe(false);
+  if(device==='touch')expect(hints.some(h=>h.action==='throttle'||h.action==='brakeReverse')).toBe(false);
+ }
+});
 it('uses touch gestures and button names while preserving the campaign gun unlock',()=>{
  const hints=controlHints('touch',{},false);
- expect(hints.find(h=>h.action==='throttle')!.glyph).toBe('DRAG ↑');
+ expect(hints.find(h=>h.action==='drive')!.glyph).toBe('DRAG');
  expect(hints.find(h=>h.action==='handbrake')!.glyph).toBe('DRIFT');
  expect(hints.some(h=>h.action==='fire')).toBe(false);
  expect(controlHints('touch',{},true).find(h=>h.action==='fire')!.glyph).toBe('FIRE');
@@ -12,7 +20,7 @@ it('shows actual remapped driving keys and only unlocked weapon controls',()=>{
  expect(hints.find(h=>h.action==='throttle')!.glyph).toBe('I');expect(hints.some(h=>h.action==='fire')).toBe(false);
  expect(controlHints('keyboard',{fire:['KeyF']},true).find(h=>h.action==='fire')!.glyph).toBe('F');
  expect(controlHints('gamepad',{},true).find(h=>h.action==='fire')!.glyph).toBe('RB');
- expect(controlHints('gamepad',{},false).find(h=>h.action==='throttle')!.glyph).toBe('RT / ↑');
+ expect(controlHints('gamepad',{},false).find(h=>h.action==='throttle')!.glyph).toBe('RT');
 });
 it('clamps the floating controls inside the viewport and chooses the other side of a nearby suspect marker',()=>{
  const result=placeControlCard({x:.5,y:.5},960,720,220,110,{x:.8,y:.5});

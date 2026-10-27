@@ -16,7 +16,8 @@ export const DEFAULT_INPUT_SETTINGS: InputSettings = {
   bindings: { throttle: ['KeyW', 'ArrowUp'], brakeReverse: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'], handbrake: ['ShiftLeft', 'ShiftRight'], fire: ['Space'], siren: ['KeyE'], recover: ['KeyR'], bomb: ['KeyB'], oil: ['KeyQ'], blades: ['KeyC'] },
 };
 const neutral = (): DriverActions => ({ steer: 0, throttle: 0, brakeReverse: 0, handbrake: false, fire: false, sirenToggle: false, recover: false });
-const neutralTouch = (): TouchControls => ({ steer: 0, throttle: 0, brakeReverse: 0, handbrake: false, fire: false, siren: false, recover: false });
+const neutralTouch = (): TouchControls => ({ driveX: 0, driveY: 0, handbrake: false, fire: false, siren: false, recover: false });
+const screenHeading = (x:number,y:number) => Math.atan2(x,-y);
 const clamp = (value: number, min: number, max: number) => Number.isFinite(value) ? Math.max(min, Math.min(max, value)) : min;
 export function applyDeadzone(value: number, deadzone: number): number {
   const bounded = clamp(value, -1, 1);
@@ -69,7 +70,7 @@ export class InputController {
     this.activate('touch');
     if (state.siren && !this.touchState.siren) this.touchSirenPending = true;
     if(state.deploy && state.deploy!==this.touchState.deploy)this.touchDeployPending=state.deploy;
-    this.touchState = { ...state, steer: Number.isFinite(state.steer) ? clamp(state.steer, -1, 1) : 0, throttle: clamp(state.throttle, 0, 1), brakeReverse: clamp(state.brakeReverse, 0, 1) };
+    this.touchState = { ...state, driveX: Number.isFinite(state.driveX) ? clamp(state.driveX, -1, 1) : 0, driveY: Number.isFinite(state.driveY) ? clamp(state.driveY, -1, 1) : 0 };
   }
   key(code: string, down: boolean): void {
     if (!down) { this.keys.delete(code); this.blockedKeys.delete(code); return; }
@@ -108,20 +109,30 @@ export class InputController {
     this.menuPrevious = held;
     return events;
   }
-  private padActive(pad: PadState): boolean { return pad.axes.some(axis => Math.abs(axis) > this.settings.stickDeadzone) || pad.buttons.some(button => button.pressed || button.value > this.settings.triggerDeadzone); }
-  sample(now: number): DriverActions {
+  private padActive(pad: PadState): boolean { return Math.hypot(pad.axes[0]??0,pad.axes[1]??0)>this.settings.stickDeadzone || pad.axes.slice(2).some(axis => Math.abs(axis) > this.settings.stickDeadzone) || pad.buttons.some(button => button.pressed || button.value > this.settings.triggerDeadzone); }
+  sample(now: number, yaw = 0, directionToYaw = screenHeading): DriverActions {
     const dt = this.lastTime === null ? 1 / 60 : clamp((now - this.lastTime) / 1000, 0, .05); this.lastTime = now;
     if (!this.enabled || !this.focused) return neutral();
     const held = (action: BoundAction) => this.accepts('keyboard') && this.device !== 'touch' && this.settings.bindings[action].some(key => this.keys.has(key));
-    const pad = this.accepts('gamepad') && this.device !== 'touch' && this.activePad && !this.padBlocked ? this.activePad : null;
+    const pad = this.accepts('gamepad') && this.device === 'gamepad' && this.activePad && !this.padBlocked ? this.activePad : null;
     const touch = this.device === 'touch' ? this.touchState : neutralTouch();
     const b = (index: number) => !!pad?.buttons[index]?.pressed;
     const trigger = (index: number) => Math.max(0, applyDeadzone(pad?.buttons[index]?.value ?? 0, this.settings.triggerDeadzone));
     const target = Number(held('right')) - Number(held('left'));
     const delta = this.settings.steeringRamp * dt;
     this.steering += clamp(target - this.steering, -delta, delta);
-    const analog = applyDeadzone(pad?.axes[0] ?? 0, this.settings.stickDeadzone) * this.settings.sensitivity;
-    const longitudinal = applyDeadzone(pad?.axes[1] ?? 0, this.settings.stickDeadzone);
+    const axis=(value:number)=>Number.isFinite(value)?clamp(value,-1,1):0;
+    const x=axis(this.device==='touch'?touch.driveX:pad?.axes[0]??0),y=axis(this.device==='touch'?touch.driveY:pad?.axes[1]??0);
+    const length=Math.hypot(x,y),strength=clamp((length-this.settings.stickDeadzone)/(1-this.settings.stickDeadzone),0,1);
+    let directionalSteer=0,directionalThrottle=0;
+    if(strength>0&&Number.isFinite(yaw)){
+      const desired=directionToYaw(x,y),error=Math.atan2(Math.sin(desired-yaw),Math.cos(desired-yaw));
+      if(Number.isFinite(error)){
+        directionalSteer=clamp(error/(Math.PI/4)*this.settings.sensitivity,-1,1);
+        // Keep enough drive to turn from rest; ease power through a tight turn.
+        directionalThrottle=strength*(.35+.65*Math.max(0,Math.cos(error)));
+      }
+    }
     const siren = held('siren') || b(2) || touch.siren;
     const recovering = held('recover') || b(3) || touch.recover;
     if (recovering && this.recoverStarted === null) this.recoverStarted = now;
@@ -130,7 +141,7 @@ export class InputController {
     const recover = this.recoverProgress === 1 && !this.recoverSent;
     if (recover) this.recoverSent = true;
     const deploy = this.touchDeployPending ?? touch.deploy ?? (held('bomb') || b(4) ? 'bomb' : held('oil') || b(10) ? 'oil' : held('blades') || b(11) ? 'blades' : undefined);
-    const actions: DriverActions = { ...(deploy ? {deploy} : {}), steer: this.device === 'touch' ? touch.steer : clamp(Math.abs(analog) > .001 ? analog : this.steering, -1, 1), throttle: Math.max(touch.throttle, Number(held('throttle')), trigger(7), -longitudinal), brakeReverse: Math.max(touch.brakeReverse, Number(held('brakeReverse')), trigger(6), longitudinal), handbrake: touch.handbrake || held('handbrake') || b(0), fire: touch.fire || held('fire') || b(5), sirenToggle: this.touchSirenPending || siren && !this.sirenWasDown, recover };
+    const actions: DriverActions = { ...(deploy ? {deploy} : {}), steer: this.device==='touch'||pad ? directionalSteer : this.steering, throttle: Math.max(directionalThrottle, Number(held('throttle')), trigger(7)), brakeReverse: Math.max(Number(held('brakeReverse')), trigger(6)), handbrake: touch.handbrake || held('handbrake') || b(0), fire: touch.fire || held('fire') || b(5), sirenToggle: this.touchSirenPending || siren && !this.sirenWasDown, recover };
     this.touchSirenPending = false; this.touchDeployPending=undefined;
     this.sirenWasDown = siren;
     return actions;
@@ -146,6 +157,8 @@ export interface InputSourceOptions {
   onReset?: () => void;
   onMenuAction?: (action: MenuAction) => void;
   settings?: Partial<InputSettings>;
+  drivingYaw?: () => number;
+  directionToYaw?: (x:number,y:number) => number;
 }
 export function createInputSource(options: InputSourceOptions = {}) {
   const target = options.target ?? window;
@@ -182,7 +195,7 @@ export function createInputSource(options: InputSourceOptions = {}) {
   const poll = () => { for (const action of controller.poll(readPads(), now())) if (!controller.enabled || action === 'pause') options.onMenuAction?.(action); };
   target.addEventListener('keydown', keydown); target.addEventListener('keyup', keyup); target.addEventListener('blur', blur); target.addEventListener('focus', focus); target.addEventListener('gamepaddisconnected', disconnect); target.addEventListener('pointerdown', pointer); target.addEventListener('resize', resize); doc.addEventListener('visibilitychange', visibility);
   return {
-    sample: () => { poll(); return controller.sample(now()); },
+    sample: () => { poll(); return controller.sample(now(),options.drivingYaw?.()??0,options.directionToYaw); },
     activeDevice: () => controller.device,
     resetHeldState: () => controller.reset(),
     setTouchState: (state: TouchControls) => controller.touch(state),

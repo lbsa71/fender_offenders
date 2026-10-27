@@ -82,9 +82,9 @@ The labeled touch controls replace the floating keyboard/controller card. Fire a
 
 | Action | Keyboard | Standard controller | Touch |
 | --- | --- | --- | --- |
-| Accelerate | W / Up | Left stick forward, or right trigger | Drag drive pad up |
-| Brake / reverse | S / Down | Left stick backward, or left trigger | Drag drive pad down |
-| Steer | A/D or Left/Right | Left stick left/right | Drag drive pad left/right |
+| Drive toward a screen direction | W/S and A/D remain vehicle-relative | Point left stick toward where you want to go | Pull drive pad toward where you want to go |
+| Accelerate | W / Up | Stick distance, or right trigger | Pull farther |
+| Brake / reverse | S / Down | Left trigger | Hold Drift to slow into a turn |
 | Handbrake | Shift | A / south button | Hold Drift |
 | Fire | Space | Right shoulder | Hold Fire; Drift + Fire holds both |
 | Siren | E | X / west button | Tap Siren |
@@ -92,7 +92,7 @@ The labeled touch controls replace the floating keyboard/controller card. Fire a
 | Pause / settings | Escape | Menu / Start | Pause button |
 | Menu navigation | Arrows, Enter, Escape; Tab for fields | D-pad / stick, A confirm, B back | Tap buttons and fields |
 
-Pulling the stick backward brakes a forward-moving car before reversing, just like the left trigger. Stick and trigger input combine without adding extra acceleration. The touch pad uses the same vehicle-relative steering and brake/reverse rules. Pointer cancellation, lost capture, viewport resize, focus loss, menus and control changes clear held touches; a fresh touch is required. Callsign text entry uses the device's keyboard. Unknown controller mappings direct players to touch or keyboard in settings rather than guessing button assignments. Browser touch/controller checks use Chromium touch emulation and injected standard gamepads; physical iPad, Android and controller acceptance and sustained mobile performance remain open.
+Touch and the left stick request a screen direction: right means head right on screen, and down means turn toward the bottom of the screen. The car steers through its ordinary physics, easing acceleration through tight turns. Pull farther for more acceleration; release to coast. A radial dead zone prevents center drift and diagonal input cannot boost acceleration. Keyboard remains vehicle-relative; controller triggers retain optional accelerate and brake/reverse controls. Pointer cancellation, lost capture, viewport resize, focus loss, menus and control changes clear held touches; a fresh touch is required. Callsign text entry uses the device's keyboard. Unknown controller mappings direct players to touch or keyboard in settings rather than guessing button assignments. Browser touch/controller checks use Chromium touch emulation and injected standard gamepads; physical iPad, Android and controller acceptance and sustained mobile performance remain open.
 
 Small screens (width at most 740 CSS pixels or height at most 420) keep health, time, pause, the audio knob and a compact suspect marker with distance, guidance and local arrest progress during driving. This applies to touch, keyboard and controller modes. Branding, healthy connection status, speed, standings, campaign tracker, floating tutorials, duplicate arrest instructions and the live Invite URL button leave the driving view. Pause retains current dispatch/target, speed/health, standings, help and sharing; connection trouble remains visible. [Compact HUD checks](tests/e2e/compact-hud.spec.ts) limit the status indicators to 10% of the tested phone viewports, excluding touch buttons.
 

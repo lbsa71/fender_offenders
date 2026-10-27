@@ -19,14 +19,14 @@ describe('normalized driver input', () => {
   });
   it('normalizes touch driving and consumes siren and recovery only once', () => {
     const input = new InputController({ controlScheme: 'touch' }); input.setEnabled(true);
-    input.touch({ steer: .4, throttle: 2, brakeReverse: -1, handbrake: true, fire: true, siren: true, recover: true });
-    expect(input.sample(0)).toEqual({ steer: .4, throttle: 1, brakeReverse: 0, handbrake: true, fire: true, sirenToggle: true, recover: false });
+    input.touch({ driveX: 0, driveY: -2, handbrake: true, fire: true, siren: true, recover: true });
+    expect(input.sample(0)).toEqual({ steer: 0, throttle: 1, brakeReverse: 0, handbrake: true, fire: true, sirenToggle: true, recover: false });
     expect(input.sample(999)).toMatchObject({ sirenToggle: false, recover: false });
     expect(input.sample(1000).recover).toBe(true); expect(input.sample(1017).recover).toBe(false);
   });
   it('touch cannot replay across focus loss, menus or controller takeover', () => {
     const input = new InputController(); input.setEnabled(true);
-    const held = { steer: .5, throttle: 1, brakeReverse: 0, handbrake: false, fire: true, siren: false, recover: false };
+    const held = { driveX: .5, driveY: -1, handbrake: false, fire: true, siren: false, recover: false };
     input.touch(held); expect(input.sample(0).fire).toBe(true);
     input.setFocused(false); input.touch(held); input.setFocused(true);
     expect(input.sample(16)).toMatchObject({ steer: 0, throttle: 0, fire: false });
@@ -39,42 +39,42 @@ describe('normalized driver input', () => {
   it('explicit controller and keyboard choices ignore touch driving', () => {
     for (const controlScheme of ['gamepad', 'keyboard'] as const) {
       const input = new InputController({ controlScheme }); input.setEnabled(true);
-      input.touch({ steer: 1, throttle: 1, brakeReverse: 0, handbrake: true, fire: true, siren: true, recover: true });
+      input.touch({ driveX: 1, driveY: -1, handbrake: true, fire: true, siren: true, recover: true });
       expect(input.sample(0)).toMatchObject({ steer: 0, throttle: 0, fire: false, sirenToggle: false });
       expect(input.device).toBe(controlScheme);
     }
   });
   it('invalid touch axes are neutral instead of becoming a steering request', () => {
     const input = new InputController({ controlScheme: 'touch' }); input.setEnabled(true);
-    input.touch({ steer: NaN, throttle: Infinity, brakeReverse: -Infinity, handbrake: false, fire: false, siren: false, recover: false });
+    input.touch({ driveX: NaN, driveY: Infinity, handbrake: false, fire: false, siren: false, recover: false });
     expect(input.sample(0)).toMatchObject({ steer: 0, throttle: 0, brakeReverse: 0 });
   });
   it('keeps a quick siren tap until one simulation tick consumes it', () => {
     const input = new InputController({ controlScheme: 'touch' }); input.setEnabled(true);
-    const released = { steer: 0, throttle: 0, brakeReverse: 0, handbrake: false, fire: false, siren: false, recover: false };
+    const released = { driveX: 0, driveY: 0, handbrake: false, fire: false, siren: false, recover: false };
     input.touch({ ...released, siren: true }); input.touch(released);
     expect(input.sample(0).sirenToggle).toBe(true);
     expect(input.sample(16).sirenToggle).toBe(false);
     input.touch({ ...released, siren: true }); input.reset();
     expect(input.sample(32).sirenToggle).toBe(false);
   });
-  it('uses forward left-stick Y as analog throttle while retaining independent steering', () => {
+  it('uses a diagonal stick as a direction with bounded analog acceleration', () => {
     const input = new InputController(); input.setEnabled(true); input.poll([pad()], 0);
-    input.poll([pad({ axes: [.58, -.58] })], 16);
-    const actions = input.sample(16);
-    expect(actions.steer).toBeCloseTo(.5); expect(actions.throttle).toBeCloseTo(.5); expect(actions.brakeReverse).toBe(0);
+    input.poll([pad({ axes: [.6, -.8] })], 16);
+    const actions = input.sample(16,Math.atan2(.6,.8));
+    expect(actions.steer).toBeCloseTo(0); expect(actions.throttle).toBeCloseTo(1); expect(actions.brakeReverse).toBe(0);
     input.poll([pad({ axes: [0, -1] })], 32);
     expect(input.sample(32).throttle).toBe(1);
     input.poll([pad()], 48);
     expect(input.sample(48)).toMatchObject({ throttle: 0, brakeReverse: 0 });
   });
-  it('uses backward left-stick Y as analog brakeReverse without resolving reverse locally', () => {
+  it('uses a downward stick to drive down without requesting reverse', () => {
     const input = new InputController(); input.setEnabled(true); input.poll([pad()], 0);
     input.poll([pad({ axes: [0, .58] })], 16);
-    const actions = input.sample(16);
-    expect(actions.throttle).toBe(0); expect(actions.brakeReverse).toBeCloseTo(.5);
+    const actions = input.sample(16,Math.PI);
+    expect(actions.throttle).toBeCloseTo(.5); expect(actions.brakeReverse).toBe(0);
     input.poll([pad({ axes: [0, 1] })], 32);
-    expect(input.sample(32)).toMatchObject({ throttle: 0, brakeReverse: 1 });
+    expect(input.sample(32,Math.PI)).toMatchObject({ throttle: 1, brakeReverse: 0 });
   });
   it('keeps both longitudinal actions neutral throughout the configured stick center dead zone', () => {
     const input = new InputController({ stickDeadzone: .25 }); input.setEnabled(true); input.poll([pad()], 0);
@@ -100,10 +100,10 @@ describe('normalized driver input', () => {
     input.poll([pad({ axes: [0, -1] })], 16); expect(input.sample(16).throttle).toBe(1);
     input.setFocused(false); expect(input.sample(32).throttle).toBe(0);
     input.setFocused(true); input.poll([pad({ axes: [0, -1] })], 48); expect(input.sample(48).throttle).toBe(0);
-    input.poll([pad()], 64); input.poll([pad({ axes: [0, 1] })], 80); expect(input.sample(80).brakeReverse).toBe(1);
+    input.poll([pad()], 64); input.poll([pad({ axes: [0, 1] })], 80); expect(input.sample(80,Math.PI).throttle).toBe(1);
     input.poll([], 96); expect(input.sample(96).brakeReverse).toBe(0);
     input.poll([pad({ axes: [0, 1] })], 112); expect(input.sample(112).brakeReverse).toBe(0);
-    input.poll([pad()], 128); input.poll([pad({ axes: [0, 1] })], 144); expect(input.sample(144).brakeReverse).toBe(1);
+    input.poll([pad()], 128); input.poll([pad({ axes: [0, 1] })], 144); expect(input.sample(144,Math.PI).throttle).toBe(1);
   });
   it('ramps vehicle-relative keyboard steering and preserves held fire', () => {
     const input = new InputController(); input.setEnabled(true); input.key('KeyD', true); input.key('Space', true);
@@ -132,7 +132,7 @@ describe('normalized driver input', () => {
   it('respects analog precision and remaps keys without allowing invalid ranges', () => {
     expect(applyDeadzone(.1, .16)).toBe(0); expect(applyDeadzone(.58, .16)).toBeCloseTo(.5);
     const input = new InputController(); input.setEnabled(true); input.poll([pad()], 0); input.poll([button(pad({ axes: [.58, 0] }), 7, .54)], 16);
-    expect(input.sample(16).steer).toBeCloseTo(.5); expect(input.sample(32).throttle).toBeCloseTo(.5);
+    expect(input.sample(16,Math.PI/2).steer).toBeCloseTo(0); expect(input.sample(32,Math.PI/2).throttle).toBeCloseTo(.5);
     const settings = sanitizeSettings({ stickDeadzone: 100, sensitivity: Number.NaN, bindings: { ...input.settings.bindings, fire: ['KeyF'] } });
     expect(settings.stickDeadzone).toBe(.5); expect(settings.sensitivity).toBe(.4);
     const remapped = new InputController(settings); remapped.setEnabled(true); remapped.key('KeyF', true); expect(remapped.sample(0).fire).toBe(true);
@@ -156,9 +156,9 @@ describe('normalized driver input', () => {
 it.each([['KeyB',4,'bomb'],['KeyQ',10,'oil'],['KeyC',11,'blades']] as const)('maps %s, standard pad and touch to the same deploy action and clears it on focus loss',(key,index,deploy)=>{
  const input=new InputController();input.setEnabled(true);input.key(key,true);expect(input.sample(0)).toMatchObject({deploy});input.setFocused(false);input.setFocused(true);expect(input.sample(16)).not.toHaveProperty('deploy');
  input.poll([pad()],32);input.poll([button(pad(),index)],48);expect(input.sample(48)).toMatchObject({deploy});
- const touch=new InputController({controlScheme:'touch'});touch.setEnabled(true);touch.touch({...{steer:0,throttle:0,brakeReverse:0,handbrake:false,fire:false,siren:false,recover:false},deploy} as never);expect(touch.sample(0)).toMatchObject({deploy});touch.reset();expect(touch.sample(16)).not.toHaveProperty('deploy');
+ const touch=new InputController({controlScheme:'touch'});touch.setEnabled(true);touch.touch({...{driveX:0,driveY:0,handbrake:false,fire:false,siren:false,recover:false},deploy} as never);expect(touch.sample(0)).toMatchObject({deploy});touch.reset();expect(touch.sample(16)).not.toHaveProperty('deploy');
 });
 
 it('retains a quick touch deployment until one simulation tick and cannot replay it after a menu',()=>{
- const input=new InputController({controlScheme:'touch'});input.setEnabled(true);const neutral={steer:0,throttle:0,brakeReverse:0,handbrake:false,fire:false,siren:false,recover:false};input.touch({...neutral,deploy:'bomb'});input.touch(neutral);expect(input.sample(0)).toMatchObject({deploy:'bomb'});expect(input.sample(16)).not.toHaveProperty('deploy');input.touch({...neutral,deploy:'oil'});input.reset();expect(input.sample(32)).not.toHaveProperty('deploy');
+ const input=new InputController({controlScheme:'touch'});input.setEnabled(true);const neutral={driveX:0,driveY:0,handbrake:false,fire:false,siren:false,recover:false};input.touch({...neutral,deploy:'bomb'});input.touch(neutral);expect(input.sample(0)).toMatchObject({deploy:'bomb'});expect(input.sample(16)).not.toHaveProperty('deploy');input.touch({...neutral,deploy:'oil'});input.reset();expect(input.sample(32)).not.toHaveProperty('deploy');
 });

@@ -8,6 +8,8 @@ Status: acceptance plan for the integrated `arcade-v20` / protocol 5 alpha. Upda
 
 ## Next acceptance work
 
+The owner-requested [directional driving follow-up](spec/adr/002-directional-driving.md) replaces touch/left-stick tank controls with a screen-direction request. U/F/R/N/Q own the local vector contract, camera conversion, continuous heading feedback, help and real-adapter/browser verification sequentially in `codex/directional-driving`. Keyboard, car physics and wire actions remain unchanged. Physical touch/controller feel and minimum-device acceptance remain open.
+
 The `arcade-v20` winter follow-up integrates five-case main and adds volumetric cartoon snow and destructible curb banks to every ninth dispatch. A/R own shared bank placement, rounded frosting and bounded bursts; S/G/F/N own authoritative destruction, checkpoint/wire/prediction presentation and build compatibility; F/U/Q own local debug dispatch entry and real-browser verification. These responsibilities run sequentially in the existing worktree. Thick silhouettes, shared cleared gaps, accessible reduced motion, ordinary thaw and direct debug entry are the acceptance criteria. Human appearance/difficulty and sustained minimum-device performance remain open; the gritting truck is still in procurement.
 
 

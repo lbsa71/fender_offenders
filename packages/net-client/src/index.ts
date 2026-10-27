@@ -161,7 +161,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
   }
   const flushTimer = setInterval(flush, 1000 / 30);
   const pingTimer = setInterval(() => { if (room && !disposed && state.state !== 'reconnecting') room.send('ping', performance.now()); }, 1000);
-  const api: GameSession & { sampleFrame(now?: number): RenderFrame | null; getSnapshot(): WorldSnapshot | null; getStats(): Record<string, number>; getIdentity(): { playerId: string; roomId: string }; } = {
+  const api: GameSession & { sampleFrame(now?: number): RenderFrame | null; getSnapshot(): WorldSnapshot | null; getDrivingYaw(): number | undefined; getStats(): Record<string, number>; getIdentity(): { playerId: string; roomId: string }; } = {
     async connect(request: SessionRequest): Promise<JoinResult> {
       status({ state: 'connecting' });
       try {
@@ -313,6 +313,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
         pursuit: snapshot.phase === 'playing' && snapshot.pursuit?.state !== 'complete' ? clone(snapshot.pursuit) : undefined };
     },
     getSnapshot: () => snapshot,
+    getDrivingYaw: () => predicted?.vehicle.pose.yaw,
     getIdentity: () => ({ playerId, roomId }),
     getStats: () => ({ rtt, corrections, maxCorrection, receivedBytes, sentBytes, pendingInputs: pending.length, snapshotAgeMs: performance.now() - lastSnapshotAt }),
   };

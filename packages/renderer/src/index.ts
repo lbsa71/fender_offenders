@@ -27,7 +27,7 @@ import {CombatEffects,type MuzzlePose} from './combat-effects';
 import {PropVisuals} from './props';
 import {PedestrianCrowd} from './pedestrians';
 import {WreckEffects} from './wreck-effects';
-import {targetIndicatorFromClip} from './target-projection';
+import {targetIndicatorFromClip,screenDirectionToHeading} from './target-projection';
 import {TargetObjective} from './target-objective';
 import {GrenadeEffects} from './grenade-effects';
 import {RoadGadgetEffects} from './road-gadgets';
@@ -324,7 +324,10 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
   function resize(width?:number,height?:number,pixelRatio?:number):void{if(disposed)return;if(width&&height){engine.setSize(Math.max(1,width*(pixelRatio??1)),Math.max(1,height*(pixelRatio??1)));}else engine.resize();}
   function dispose():void{if(disposed)return;disposed=true;document.removeEventListener('visibilitychange',syncAudioActivity);snow.dispose();roadGadgets.dispose();audio.dispose();for(const c of cars.values())removeCar(c);cars.clear();factory.dispose();seen.clear();garage?.dispose();combat.dispose();wrecks.dispose();props.dispose();pedestrians.dispose();objective.dispose();grenades.dispose();contacts.dispose();lightDetail.dispose();helicopter.dispose();splashes.dispose();water.dispose();environment.dispose();scene.dispose();engine.dispose();}
   void loadScene(districtScene);
-  return {render,present,resize,dispose,loadScene,setSettings,setGaragePreview,setAudioActive:(active:boolean)=>{audioActive=active;syncAudioActivity();},setDispatch:(id:string|null)=>{environment.setDispatch(id);activeDispatch=findCampaignDispatch(id);dispatchIndex=activeDispatch?.index??null;const winter=dispatchIndex!==null&&getDispatchFeatures(dispatchIndex).winterRoads===true;snow.setEnabled(winter);water.setFrozen(winter);},getTargetIndicator:()=>objective.getIndicator(),getControlAnchor:()=>{
+  return {render,present,resize,dispose,loadScene,setSettings,setGaragePreview,getDrivingHeading:(x:number,y:number)=>{
+    const origin=lastFrame?.vehicles.find(v=>v.entityId===lastFrame?.localEntityId)?.pose??{x:0,z:0};
+    return screenDirectionToHeading(scene.getTransformMatrix().m,origin,canvas.clientWidth,canvas.clientHeight,x,y);
+  },setAudioActive:(active:boolean)=>{audioActive=active;syncAudioActivity();},setDispatch:(id:string|null)=>{environment.setDispatch(id);activeDispatch=findCampaignDispatch(id);dispatchIndex=activeDispatch?.index??null;const winter=dispatchIndex!==null&&getDispatchFeatures(dispatchIndex).winterRoads===true;snow.setEnabled(winter);water.setFrozen(winter);},getTargetIndicator:()=>objective.getIndicator(),getControlAnchor:()=>{
     const local=lastFrame?.vehicles.find(v=>v.entityId===lastFrame?.localEntityId);if(!local||garageBody)return null;
     const m=scene.getTransformMatrix().m,x=-local.pose.x,z=local.pose.z,y=1;
     return targetIndicatorFromClip({x:x*m[0]!+y*m[4]!+z*m[8]!+m[12]!,y:x*m[1]!+y*m[5]!+z*m[9]!+m[13]!,w:x*m[3]!+y*m[7]!+z*m[11]!+m[15]!},canvas.clientWidth,canvas.clientHeight,0);

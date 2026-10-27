@@ -25,7 +25,7 @@ export type ControlScheme = 'auto' | DeviceKind;
 export type DeployWeapon = 'bomb' | 'oil' | 'blades';
 /** Held touch controls; the input adapter owns siren edges and recovery timing. */
 export interface TouchControls {
-  steer: number; throttle: number; brakeReverse: number;
+  driveX: number; driveY: number; // screen direction: right/down positive, local only
   handbrake: boolean; fire: boolean; siren: boolean; recover: boolean; deploy?: DeployWeapon;
 }
 export interface DriverActions {

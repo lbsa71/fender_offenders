@@ -95,7 +95,7 @@ async function boot() {
     onActivity: () => online?.activity(),
     onMenuVisibility: visible => { input?.setEnabled(active && !visible && snapshot?.phase !== 'lobby'); if(online)online.setPresence(ui.isMenuOpen(),document.hidden); },
   });
-  input = createInputSource({ onNeutralize: () => online?.neutralize(), onReset: () => ui.resetTouchControls(), onMenuAction: action => ui.navigate(action) });
+  input = createInputSource({ drivingYaw:()=>online?.getDrivingYaw()??0,directionToYaw:(x,y)=>renderer.getDrivingHeading(x,y),onNeutralize: () => online?.neutralize(), onReset: () => ui.resetTouchControls(), onMenuAction: action => ui.navigate(action) });
   applySettings(ui.getSettings());
   const resize = () => renderer.resize(); window.addEventListener('resize', resize);
   const visibility = () => { accumulator = inputAccumulator = 0; previousInputAt = previousTime = previousFrameAt = performance.now(); input?.resetHeldState(); online?.setPresence(ui.isMenuOpen(),document.hidden); music.update({ ...musicState, hidden: document.hidden }, 0); };

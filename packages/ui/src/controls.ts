@@ -48,9 +48,9 @@ function padGraphic(doc: Document, kind: string, text: string, name: string) {
 export function gamepadControls(doc: Document, compact = false) {
   const group = doc.createElement('div'); group.className = 'fo-control-list';
   const pad = (kind: string, text: string, name: string) => padGraphic(doc, kind, text, name);
-  if (compact) group.append(row(doc, [pad('stick', 'L', 'Left stick'), pad('trigger', 'RT', 'Right trigger'), pad('trigger', 'LT', 'Left trigger')], 'LEFT STICK DRIVE · RT/LT DRIVE/BRAKE'));
+  if (compact) group.append(row(doc, [pad('stick', 'L', 'Left stick'), pad('trigger', 'RT', 'Right trigger'), pad('trigger', 'LT', 'Left trigger')], 'POINT LEFT STICK TO DRIVE · RELEASE TO COAST'));
   else {
-    group.append(row(doc, [pad('stick', 'L', 'Left stick')], 'Steer / drive'));
+    group.append(row(doc, [pad('stick', 'L', 'Left stick')], 'Point toward where you want to go'));
     group.append(row(doc, [pad('trigger', 'RT', 'Right trigger')], 'Accelerate'));
     group.append(row(doc, [pad('trigger', 'LT', 'Left trigger')], 'Brake / reverse'));
   }
@@ -69,7 +69,7 @@ export function gamepadControls(doc: Document, compact = false) {
 export function controlGraphics(doc: Document, hints: readonly { action: string; label: string; glyph: string }[], device: DeviceKind) {
   const result = doc.createDocumentFragment();
   const buttons: Record<string, [string, string, string]> = {
-    throttle: ['trigger', 'RT', 'Right trigger'], brakeReverse: ['trigger', 'LT', 'Left trigger'], steer: ['stick', 'L', 'Left stick'],
+    drive: ['stick', 'L', 'Left stick'], throttle: ['trigger', 'RT', 'Right trigger'], brakeReverse: ['trigger', 'LT', 'Left trigger'], steer: ['stick', 'L', 'Left stick'],
     handbrake: ['a', 'A', 'A button'], siren: ['x', 'X', 'X button'], recover: ['y', 'Y', 'Y button'], fire: ['bumper', 'RB', 'Right bumper'], bomb:['bumper','LB','Left bumper'], oil:['stick','LS','Left stick button'], blades:['stick','RS','Right stick button'],
   };
   for (const hint of hints) {

@@ -1,12 +1,12 @@
 import type { TouchControls } from '@fender/contracts';
 
-const neutral = (): TouchControls => ({ steer: 0, throttle: 0, brakeReverse: 0, handbrake: false, fire: false, siren: false, recover: false });
+const neutral = (): TouchControls => ({ driveX: 0, driveY: 0, handbrake: false, fire: false, siren: false, recover: false });
 
 /** Pointer ownership stays local; only normalized held actions leave the UI. */
 export function mountTouchControls(parent: HTMLElement, onInput: (state: TouchControls) => void, onCancel: () => void) {
   const root = parent.ownerDocument.createElement('section');
   root.className = 'fo-touch-controls'; root.hidden = true; root.setAttribute('aria-label', 'Touch driving controls');
-  root.innerHTML = `<button type="button" class="fo-touch-drive" aria-label="Drive: drag up to accelerate, down to brake or reverse, left or right to steer"><span class="fo-touch-knob" aria-hidden="true"></span><span class="fo-touch-caption">DRIVE</span></button>
+  root.innerHTML = `<button type="button" class="fo-touch-drive" aria-label="Drive: drag toward where you want to go; release to coast"><span class="fo-touch-knob" aria-hidden="true"></span><span class="fo-touch-caption">DRIVE</span></button>
     <div class="fo-touch-actions"><div class="fo-touch-utility"><button type="button" data-touch="siren" aria-label="Toggle siren">SIREN</button><button type="button" data-touch="recover" aria-label="Hold to recover vehicle">HOLD<br>RECOVER</button></div><div class="fo-touch-deploy"><button type="button" data-touch="bomb" hidden>BOMB</button><button type="button" data-touch="oil" hidden>OIL</button><button type="button" data-touch="blades" hidden>BLADES</button></div><div class="fo-touch-primary"><button type="button" data-touch="handbrake">DRIFT</button><button type="button" data-touch="fire">FIRE</button></div><button type="button" data-touch="combo" aria-label="Drift and fire together">DRIFT + FIRE</button></div>`;
   parent.append(root);
   const drive = root.querySelector<HTMLButtonElement>('.fo-touch-drive')!;
@@ -26,9 +26,8 @@ export function mountTouchControls(parent: HTMLElement, onInput: (state: TouchCo
   const moveStick = (event: PointerEvent) => {
     const box = drive.getBoundingClientRect(), radius = Math.min(box.width, box.height) * .35;
     const x = (event.clientX - box.left - box.width / 2) / radius, y = (event.clientY - box.top - box.height / 2) / radius;
-    const axis = (value: number) => Math.abs(value) < .12 ? 0 : Math.sign(value) * Math.min(1, (Math.abs(value) - .12) / .88);
-    state.steer = axis(x); state.throttle = Math.max(0, -axis(y)); state.brakeReverse = Math.max(0, axis(y));
-    const length = Math.max(1, Math.hypot(x, y)); knob.style.transform = `translate(${x / length * radius}px, ${y / length * radius}px)`;
+    const length = Math.max(1, Math.hypot(x, y));state.driveX=x/length;state.driveY=y/length;
+    knob.style.transform = `translate(${x / length * radius}px, ${y / length * radius}px)`;
   };
   const buttons = () => {
     const active = new Set([...pointers.values()].map(node => node.dataset.touch));
@@ -49,7 +48,7 @@ export function mountTouchControls(parent: HTMLElement, onInput: (state: TouchCo
   const up = (event: PointerEvent) => {
     const button = pointers.get(event.pointerId); if (!button) return;
     event.preventDefault(); pointers.delete(event.pointerId); button.classList.remove('fo-touch-held');
-    if (button === drive) { state.steer = state.throttle = state.brakeReverse = 0; knob.style.transform = 'translate(0px, 0px)'; } else buttons();
+    if (button === drive) { state.driveX = state.driveY = 0; knob.style.transform = 'translate(0px, 0px)'; } else buttons();
     if (button.hasPointerCapture(event.pointerId)) button.releasePointerCapture(event.pointerId);
     emit();
   };

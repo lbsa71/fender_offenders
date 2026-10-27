@@ -69,7 +69,7 @@ Server rooms advance fixed 60 Hz ticks, with at most four catch-up steps; client
 
 All devices produce the same action structure. Gameplay never reads raw DOM events or gamepad objects.
 
-Settings expose persisted Automatic, Touch, Controller and Keyboard schemes. Automatic begins with touch on touch-capable hardware and follows actual driving-device use; tapping the play area returns to touch. Explicit schemes restrict driving to the selected source and keep the overlay stable. Touch uses a vehicle-relative drive pad (up throttle, down brake/reverse, horizontal steering), held Fire and Drift buttons, a combined Drift + Fire button for two-thumb play, Siren and one-second Recover. All menus remain tappable. The overlay hides in menus, briefings, results and interrupted connections. Pointer cancellation, capture loss, viewport resize and input resets clear pointer ownership and neutralize held controls. Landscape is recommended; compact landscape and portrait layouts retain visible health and touch targets of at least 44 CSS pixels.
+Settings expose persisted Automatic, Touch, Controller and Keyboard schemes. Automatic begins with touch on touch-capable hardware and follows actual driving-device use; tapping the play area returns to touch. Explicit schemes restrict driving to the selected source and keep the overlay stable. Touch uses a screen-direction drive pad (pull toward where you want to go, pull farther for more acceleration, release to coast), held Fire and Drift buttons, a combined Drift + Fire button for two-thumb play, Siren and one-second Recover. All menus remain tappable. The overlay hides in menus, briefings, results and interrupted connections. Pointer cancellation, capture loss, viewport resize and input resets clear pointer ownership and neutralize held controls. Landscape is recommended; compact landscape and portrait layouts retain visible health and touch targets of at least 44 CSS pixels.
 
 | Action | Keyboard default | Standard gamepad default |
 | --- | --- | --- |
@@ -83,7 +83,7 @@ Settings expose persisted Automatic, Touch, Controller and Keyboard schemes. Aut
 | Pause/settings | Escape | Menu/Start |
 | Confirm / back | Enter / Escape | South / East face buttons |
 
-- Steering is vehicle-relative. Keyboard steering uses a bounded response ramp; analog steering preserves useful precision. Left-stick Y also provides analog acceleration and brake/reverse through the configured stick dead zone. Trigger alternatives remain available; take the strongest request for each action rather than summing them. Pulling backward uses the same brake-to-reverse behavior as the left trigger.
+- Keyboard steering remains vehicle-relative with a bounded response ramp. Touch and the controller left stick request a screen direction through the actual camera projection; current predicted heading resolves the shortest turn every input tick. Radial stick distance controls acceleration without diagonal boost, tight turns ease power, and release coasts. Pulling down requests a turn toward screen bottom. Optional controller triggers retain accelerate/brake-reverse, combined by maximum strength.
 - Brake/reverse uses speed-aware behavior: brake while moving forward; reverse only near rest after a short deliberate hold. Do not instantly reverse velocity.
 - Trigger and stick dead zones, sensitivity, remapping, and keyboard-only menu navigation are required by M3.
 - Detect device activity and switch prompts without interrupting play. Do not assume that every gamepad uses the standard mapping.
