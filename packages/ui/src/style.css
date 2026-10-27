@@ -318,3 +318,9 @@
  .fo-ui .fo-campaign-briefing>footer{gap:8px}
  .fo-ui.fo-campaign-results .fo-menu{inset:80px 15px 16px}
 }
+
+/* Short results keep the next action above the portrait and scrollable story. */
+@media(max-height:599px){
+ .fo-ui.fo-campaign-results .fo-results>.fo-campaign-resolution{order:1}
+ .fo-ui.fo-campaign-results .fo-results>[data-action=leave]{order:2}
+}

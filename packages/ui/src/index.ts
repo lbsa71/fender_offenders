@@ -1,5 +1,6 @@
 import { getDispatchFeatures, getStoryline, getCampaignDispatch, getCampaignMugshot, getCampaignTarget, getVehicleProfile, isInviteCode, isVehicleBodyId, randomCallsign, sanitizeNickname, VEHICLE_BODIES, type CampaignTarget, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
 import './style.css';
+import type { CampaignMugshotVariant } from '@fender/contracts';
 import { controlGraphics, gamepadControls, keyboardBindings, keyboardControls } from './controls';
 import { controlHints, placeControlCard } from './tutorial';
 import type { ControlScheme, TouchControls } from '@fender/contracts';
@@ -215,7 +216,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   let lessonKey='';
   briefing.querySelector('[data-campaign-briefing]')!.after(lesson);
   const campaignResolution = doc.createElement('section'); campaignResolution.className = 'fo-campaign-resolution'; campaignResolution.hidden = true; campaignResolution.setAttribute('aria-label', 'Campaign dispatch resolution');
-  campaignResolution.innerHTML = '<h3 class="fo-campaign-resolution-label"></h3>';
+  campaignResolution.innerHTML = '<div class="fo-campaign-target"><div class="fo-campaign-portrait" role="img"></div><div><h3 data-campaign-result-name></h3><strong data-campaign-result-alias></strong></div></div><h3 class="fo-campaign-resolution-label"></h3>';
   resultOutcome.after(campaignResolution);
   const latestLead = doc.createElement('section'); latestLead.className = 'fo-campaign-new-lead'; latestLead.hidden = true; latestLead.innerHTML = '<span class="fo-kicker">NEW LEAD</span><p></p>'; campaignResolution.querySelector('.fo-campaign-resolution-label')!.after(latestLead);
   const pauseDetails = doc.createElement('section'); pauseDetails.className = 'fo-pause-dispatch'; pauseDetails.setAttribute('aria-label', 'Dispatch details');
@@ -260,9 +261,11 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     shell.classList.toggle('fo-campaign-briefing-open', !briefing.hidden);
     shell.classList.toggle('fo-campaign-results', Boolean(campaign && hasResult() && menu !== 'settings' && menu !== 'help'));
   }
-  function portrait(node: HTMLElement, target: CampaignTarget) {
-    if (node.dataset.target !== target.id) { node.innerHTML = getCampaignMugshot(target.id); node.dataset.target = target.id; }
-    node.setAttribute('aria-label', `${target.name}, “${target.alias}”, ${target.role}`);
+  function portrait(node: HTMLElement, target: CampaignTarget, variant: CampaignMugshotVariant = 'briefing') {
+    if (node.dataset.target !== target.id || node.dataset.variant !== variant) {
+      node.innerHTML = getCampaignMugshot(target.id, variant); node.dataset.target = target.id; node.dataset.variant = variant;
+    }
+    node.setAttribute('aria-label', variant === 'briefing' ? `${target.name}, “${target.alias}”, ${target.role}` : `${node.querySelector('svg')!.getAttribute('aria-label')}, ${target.role}`);
   }
   function officer(playerId: string) { return model.snapshot?.scores.find(score => score.playerId === playerId)?.nickname ?? 'Departed officer'; }
   function updateCampaign() {
@@ -281,6 +284,9 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     briefing.querySelector<HTMLElement>('[data-campaign-series]')!.textContent = story.title;
     briefing.querySelector<HTMLElement>('[data-campaign-title]')!.textContent = dispatch.title.replace(/^\d+\s*·\s*/, '');
     portrait(briefing.querySelector<HTMLElement>('.fo-campaign-portrait')!,target);
+    portrait(campaignResolution.querySelector<HTMLElement>('.fo-campaign-portrait')!, target, resolution?.outcome ?? 'escaped');
+    campaignResolution.querySelector<HTMLElement>('[data-campaign-result-name]')!.textContent = target.name;
+    campaignResolution.querySelector<HTMLElement>('[data-campaign-result-alias]')!.textContent = `“${target.alias}”`;
     briefing.querySelector<HTMLElement>('[data-campaign-name]')!.textContent=target.name;
     briefing.querySelector<HTMLElement>('[data-campaign-alias]')!.textContent=`“${target.alias}”`;
     briefing.querySelector<HTMLElement>('.fo-campaign-role')!.textContent=target.role;

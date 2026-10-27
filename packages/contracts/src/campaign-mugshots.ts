@@ -93,11 +93,37 @@ const extraPortraits=new Map(STORYLINES.slice(1).flatMap((story,series)=>story.t
  return [target.id,{...source,background:palette.background,skin:skins[(i+series)%skins.length]!,coat:palette.coats[i%3]!,shirt:palette.shirt,accessory:`${palette.badge}-${i}`,detail:symbols[series]!} satisfies Portrait] as const;
 })));
 const escape=(value:string)=>value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
-function draw(id:string):string{
- const target=getCampaignTarget(id),p=(portraits[target.id]??extraPortraits.get(target.id))!,label=escape(`${target.name} — ${target.alias}`);
- const mouth=p.mouth??'<path d="M67 102Q80 109 94 101" fill="none" stroke="#26383d" stroke-width="2.5"/>';
- return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="${label}" data-accessory="${p.accessory}"><title>${label}</title><rect width="160" height="160" rx="12" fill="${p.background}"/><path d="M8 32H152M8 64H152M8 96H152M8 128H152" stroke="#e8e0bd" stroke-opacity=".2" stroke-width="2"/><path d="M12 12H26M12 12V26M134 12H148V26" fill="none" stroke="#f0e3b5" stroke-width="3"/><path d="M23 160V140Q26 118 59 114H102Q135 118 139 141V160Z" fill="${p.coat}" stroke="#26383d" stroke-width="3"/><path d="M65 113L80 134L98 114L103 160H61Z" fill="${p.shirt}"/><path d="M67 100V118Q79 130 94 118V100Z" fill="${p.skin}" stroke="#26383d" stroke-width="2.5"/>${p.hairBack}<ellipse cx="49" cy="79" rx="8" ry="12" fill="${p.skin}" stroke="#26383d" stroke-width="2.5"/><ellipse cx="111" cy="79" rx="8" ry="12" fill="${p.skin}" stroke="#26383d" stroke-width="2.5"/><path d="${p.head}" fill="${p.skin}" stroke="#26383d" stroke-width="2.5"/><path d="M58 68L71 67M90 66L103 69" fill="none" stroke="#26383d" stroke-width="3" stroke-linecap="round"/><ellipse cx="65" cy="78" rx="3" ry="4" fill="#26383d"/><ellipse cx="96" cy="78" rx="3" ry="4" fill="#26383d"/><path d="M80 79L76 92H84" fill="none" stroke="#865b43" stroke-width="2.5" stroke-linecap="round"/>${mouth}${p.hairFront}${p.detail}${target.isBoss?'<path d="M22 133L28 141L22 149L16 141Z" fill="#f0cc73" stroke="#26383d" stroke-width="2"/>':''}<path d="M5 151V144M155 151V144" stroke="#f1e2b8" stroke-width="2"/></svg>`;
+export type CampaignMugshotVariant = 'briefing' | 'arrested' | 'wrecked' | 'escaped';
+const variants: readonly CampaignMugshotVariant[] = ['briefing', 'arrested', 'wrecked', 'escaped'];
+const descriptions = { briefing: '', arrested: 'behind bars after arrest', wrecked: 'bandaged after the getaway car was wrecked', escaped: 'gloating after escape' };
+
+function expression(p: Portrait, variant: CampaignMugshotVariant): string {
+ const brows = variant === 'escaped' ? 'M57 65Q64 59 72 64M90 69L104 66' : variant === 'wrecked' ? 'M58 69L71 73M90 73L103 69' : variant === 'arrested' ? 'M58 69L71 65M90 65L103 69' : 'M58 68L71 67M90 66L103 69';
+ const eyes = variant === 'wrecked' ? '<path d="M60 79L70 81M91 81L101 79" fill="none" stroke="#26383d" stroke-width="3" stroke-linecap="round"/>' : variant === 'escaped' ? '<path d="M60 79Q65 74 70 79" fill="none" stroke="#26383d" stroke-width="3" stroke-linecap="round"/><ellipse cx="96" cy="78" rx="3" ry="4" fill="#26383d"/>' : '<ellipse cx="65" cy="78" rx="3" ry="4" fill="#26383d"/><ellipse cx="96" cy="78" rx="3" ry="4" fill="#26383d"/>';
+ const mouth = variant === 'arrested' ? '<path d="M67 106Q80 96 94 106" fill="none" stroke="#26383d" stroke-width="2.5"/>' : variant === 'wrecked' ? '<path d="M68 104Q74 99 80 103T94 103" fill="none" stroke="#26383d" stroke-width="2.5"/>' : variant === 'escaped' ? '<path d="M64 97Q81 103 98 94Q94 112 80 111Q68 110 64 97Z" fill="#fff1cb" stroke="#26383d" stroke-width="2.5"/><path d="M68 102Q81 107 94 100" fill="none" stroke="#26383d" stroke-width="2"/>' + (p.accessory === 'coin-monocle' ? '<path d="M81 102V108" stroke="#ad7b2a" stroke-width="4"/>' : '') : p.mouth ?? '<path d="M67 102Q80 109 94 101" fill="none" stroke="#26383d" stroke-width="2.5"/>';
+ return `<path d="${brows}" fill="none" stroke="#26383d" stroke-width="3" stroke-linecap="round"/>${eyes}<path d="M80 79L76 92H84" fill="none" stroke="#865b43" stroke-width="2.5" stroke-linecap="round"/>${mouth}`;
 }
-const byId=new Map(ALL_CAMPAIGN_TARGETS.map(target=>[target.id,draw(target.id)]));
-/** Returns cached trusted SVG only. Caller input is never interpolated into markup. */
-export function getCampaignMugshot(id:string):string{return byId.get(id)??byId.get(CAMPAIGN_TARGETS[0]!.id)!;}
+
+function outcomeBack(p: Portrait, variant: CampaignMugshotVariant): string {
+ if (variant === 'wrecked') return '<path d="M51 58Q80 64 109 58V68Q80 74 51 68Z" fill="#f5edcf" stroke="#26383d" stroke-width="2.5"/><path d="M62 61L60 69M75 63L73 71M88 63L86 71M101 61L99 69" fill="none" stroke="#b7b39d" stroke-width="1.5"/><path d="m52 88 15 6-3 8-15-6Zm46 1 13 4-2 8-13-4Z" fill="#f5edcf" stroke="#26383d" stroke-width="2"/><path d="m56 93 6 2m39-1 5 2" stroke="#c5bba0" stroke-width="3"/><path d="M65 119L112 147M100 119L66 150" fill="none" stroke="#26383d" stroke-width="8"/><path d="M65 119L112 147M100 119L66 150" fill="none" stroke="#f5edcf" stroke-width="5"/><path d="M56 138L104 134L108 155H66Z" fill="#f5edcf" stroke="#26383d" stroke-width="2.5"/><path d="m67 142 29-3m-25 9 26-3" stroke="#b7b39d" stroke-width="2"/>';
+ if (variant === 'escaped') return `<path d="M25 136V120L30 111V101Q30 95 35 98L39 103V115H49Q55 116 53 123L48 136Z" fill="${p.skin}" stroke="#26383d" stroke-width="2.5" stroke-linejoin="round"/><path d="M39 121H49M38 127H47" stroke="#865b43" stroke-width="2" stroke-linecap="round"/><path d="M23 135H50V151H23Z" fill="${p.coat}" stroke="#26383d" stroke-width="2.5"/><path d="M26 139H47" stroke="${p.shirt}" stroke-width="3"/>`;
+ return '';
+}
+
+function outcomeFront(variant: CampaignMugshotVariant): string {
+ if (variant !== 'arrested') return '';
+ return '<rect x="12" y="14" width="136" height="7" rx="2" fill="#738b88" stroke="#26383d" stroke-width="2.5"/>' + [35, 77, 119].map(x => `<rect x="${x}" y="8" width="7" height="145" rx="2" fill="#738b88" stroke="#26383d" stroke-width="2.5"/><path d="M${x + 2} 12V148" stroke="#c5d0bd" stroke-width="1.5"/>`).join('') + '<rect x="12" y="143" width="136" height="7" rx="2" fill="#738b88" stroke="#26383d" stroke-width="2.5"/>';
+}
+
+function draw(id: string, variant: CampaignMugshotVariant): string {
+ const target = getCampaignTarget(id), p = (portraits[target.id] ?? extraPortraits.get(target.id))!;
+ const label = escape(`${target.name} — ${target.alias}${variant === 'briefing' ? '' : ` — ${descriptions[variant]}`}`);
+ // Every variant shares these exact identity/accessory paths and palette. Only the three named outcome/expression layers vary.
+ return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="${label}" data-accessory="${p.accessory}" data-portrait-variant="${variant}"><title>${label}</title><rect width="160" height="160" rx="12" fill="${p.background}"/><path d="M8 32H152M8 64H152M8 96H152M8 128H152" stroke="#e8e0bd" stroke-opacity=".2" stroke-width="2"/><path d="M12 12H26M12 12V26M134 12H148V26" fill="none" stroke="#f0e3b5" stroke-width="3"/><path d="M23 160V140Q26 118 59 114H102Q135 118 139 141V160Z" fill="${p.coat}" stroke="#26383d" stroke-width="3"/><path d="M65 113L80 134L98 114L103 160H61Z" fill="${p.shirt}"/><path d="M67 100V118Q79 130 94 118V100Z" fill="${p.skin}" stroke="#26383d" stroke-width="2.5"/>${p.hairBack}<ellipse cx="49" cy="79" rx="8" ry="12" fill="${p.skin}" stroke="#26383d" stroke-width="2.5"/><ellipse cx="111" cy="79" rx="8" ry="12" fill="${p.skin}" stroke="#26383d" stroke-width="2.5"/><path d="${p.head}" fill="${p.skin}" stroke="#26383d" stroke-width="2.5"/><g data-portrait-layer="outcome-back">${outcomeBack(p, variant)}</g><g data-portrait-layer="expression">${expression(p, variant)}</g>${p.hairFront}${p.detail}${target.isBoss?'<path d="M22 133L28 141L22 149L16 141Z" fill="#f0cc73" stroke="#26383d" stroke-width="2"/>':''}<path d="M5 151V144M155 151V144" stroke="#f1e2b8" stroke-width="2"/><g data-portrait-layer="outcome-front">${outcomeFront(variant)}</g></svg>`;
+}
+const byId = new Map(ALL_CAMPAIGN_TARGETS.map(target => [target.id, new Map(variants.map(variant => [variant, draw(target.id, variant)]))]));
+/** Returns cached trusted SVG only. Unknown IDs/variants cannot introduce markup. */
+export function getCampaignMugshot(id: string, variant: CampaignMugshotVariant = 'briefing'): string {
+ const portraits = byId.get(id) ?? byId.get(CAMPAIGN_TARGETS[0]!.id)!;
+ return portraits.get(variant) ?? portraits.get('briefing')!;
+}

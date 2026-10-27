@@ -26,6 +26,8 @@ The gameplay audio pass includes OpenAI Codex assistance for recording selection
 
 The 2026-10-26 avenue expansion and suspect oil/bladed-hubcap follow-up also include OpenAI Codex assistance, with observed regression tests and original procedural geometry. The subsequent suspect-first police procurement progression, device controls and retained weapon help also include OpenAI Codex assistance.
 
+The 2026-10-26 outcome-portrait follow-up includes OpenAI Codex assistance for original bandaged, jailed and gloating suspect variants, shared identity layers, accessible result/finale presentation and the regression/contact-sheet checks.
+
 The faster predictive enemy bombs and black helicopter helper include OpenAI Codex assistance for authority, replication, original procedural geometry, effects and observed regression/native checks.
 
 Human credits reflect authors in `git log --all`; AI credits include recorded co-authorship and the project owner's attribution. AI tools support the contributors' work; review and project decisions remain with people. Original project work is [GPL-3.0-or-later](LICENSE); acknowledgments do not change those terms or the separate licenses of dependencies.
