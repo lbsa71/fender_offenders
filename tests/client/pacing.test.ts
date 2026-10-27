@@ -19,6 +19,12 @@ describe('frame pacing', () => {
   it('bounds an online stall to four input ticks per frame so the command queue is never flooded', () => {
     expect(planFrame(0, .25, 'online').steps).toBe(4);
   });
+  it('does not repay whole online ticks discarded by a bounded stall on the next ordinary callback', () => {
+    const stalled = planFrame(.003, .1, 'online');
+    expect(stalled.steps).toBe(4);
+    expect(stalled.accumulator, 'Only the sub-tick phase may survive the input budget').toBeCloseTo(.003, 9);
+    expect(planFrame(stalled.accumulator, FIXED_STEP, 'online').steps, 'A normal callback must not replay the missed stall ticks').toBe(1);
+  });
   it('drops backlog beyond a quarter second instead of carrying debt into later frames', () => {
     expect(planFrame(.3, .25, 'online').accumulator).toBe(0);
   });

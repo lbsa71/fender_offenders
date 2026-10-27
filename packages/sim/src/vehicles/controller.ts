@@ -18,6 +18,30 @@ export function surfaceAt(map: CollisionMap, pose: Point): 'asphalt' | 'dirt' | 
   return 'asphalt';
 }
 
+/** Between-tick presentation must not project through an already visible car. */
+export function projectVehiclePose(vehicle: VehicleState, seconds: number, proxies: readonly VehicleState[]) {
+  const at = (fraction: number) => ({
+    x: vehicle.pose.x + vehicle.velocity.x * seconds * fraction,
+    z: vehicle.pose.z + vehicle.velocity.z * seconds * fraction,
+    yaw: vehicle.pose.yaw + vehicle.velocity.yawRate * seconds * fraction,
+  });
+  let fraction = 1;
+  for (const proxy of proxies) {
+    if (proxy.entityId === vehicle.entityId || proxy.status !== 'active') continue;
+    const end = at(fraction);
+    if (Math.hypot(end.x-proxy.pose.x,end.z-proxy.pose.z)>5) continue;
+    const solid = box(proxy.pose);
+    if (!overlap(box(end), solid)) continue;
+    let low = 0, high = fraction;
+    for (let i=0;i<12;i++) {
+      const middle=(low+high)/2;
+      if(overlap(box(at(middle)),solid))high=middle;else low=middle;
+    }
+    fraction=low;
+  }
+  return at(fraction);
+}
+
 export function driveVehicle(vehicle: VehicleState, driver: DriverRuntimeState, actions: DriverActions, map: CollisionMap, solids: Point[][], config: SimulationConfig = normalizeGameplay(), onImpact?: ImpactObserver, context?: DispatchDrivingContext): void {
   if (vehicle.status !== 'active') return;
   const tune = tuningForVehicle(config, vehicle), dt = FIXED_DELTA;

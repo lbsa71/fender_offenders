@@ -1,5 +1,6 @@
 import { loadAudioBank, type AudioBank, type LoopKind, type SampleKind } from './audio-bank';
 import { getVehicleProfile, type VehicleBodyId } from '@fender/contracts';
+export { MusicPlayer, discoverMusicTracks } from './music';
 
 export interface DrivingSound { load: number; slip: number; surface: 'asphalt' | 'dirt' | 'grass'; bodyAssetId?: string }
 // Shared recordings, individually tuned for the weight and rev range of each body.

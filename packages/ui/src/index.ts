@@ -5,6 +5,7 @@ import { controlGraphics, gamepadControls, keyboardBindings, keyboardControls } 
 import { controlHints, placeControlCard } from './tutorial';
 import type { ControlScheme, TouchControls } from '@fender/contracts';
 import { mountTouchControls } from './touch';
+import { mountVolumeKnob } from './volume';
 
 export type MenuAction = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back' | 'pause';
 export type Menu = 'home' | 'pause' | 'settings' | 'help' | null;
@@ -13,6 +14,7 @@ export interface UiSettings {
   masterVolume: number;
   musicVolume: number;
   effectsVolume: number;
+  muted: boolean;
   reducedShake: boolean;
   reducedFlash: boolean;
   vibration: boolean;
@@ -42,6 +44,7 @@ export interface UiCallbacks {
   onTouchCancel?: () => void;
   onPlay: (request: { nickname: string; roomId: string; vehicleBodyId?: VehicleBodyId }) => void | Promise<void>;
   onActivity?: () => void;
+  onAudioActivation?: () => void;
   onVehicleChange?: (vehicleBodyId: VehicleBodyId) => void;
   onResume?: () => void;
   onLeave?: () => void;
@@ -50,7 +53,7 @@ export interface UiCallbacks {
   onSettings?: (settings: UiSettings) => void;
   onMenuVisibility?: (visible: boolean) => void;
 }
-const defaults: UiSettings = { controlScheme: 'auto', masterVolume: .7, musicVolume: .3, effectsVolume: .8, reducedShake: false, reducedFlash: false, vibration: true, quality: 'medium', stickDeadzone: .16, triggerDeadzone: .08, sensitivity: 1, bindings: {} };
+const defaults: UiSettings = { controlScheme: 'auto', masterVolume: .7, musicVolume: .3, effectsVolume: .8, muted: false, reducedShake: false, reducedFlash: false, vibration: true, quality: 'medium', stickDeadzone: .16, triggerDeadzone: .08, sensitivity: 1, bindings: {} };
 const errorMessages: Record<string, string> = {
   'idle-timeout': 'Your unit was signed off after 15 minutes of inactivity. Enter the room again to continue if it is still available.',
   'invalid-vehicle': 'Choose a valid garage vehicle and try again.',
@@ -217,6 +220,9 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   campaignResolution.innerHTML = '<div class="fo-campaign-target"><div class="fo-campaign-portrait" role="img"></div><div><h3 data-campaign-result-name></h3><strong data-campaign-result-alias></strong></div></div><h3 class="fo-campaign-resolution-label"></h3>';
   resultOutcome.after(campaignResolution);
   const latestLead = doc.createElement('section'); latestLead.className = 'fo-campaign-new-lead'; latestLead.hidden = true; latestLead.innerHTML = '<span class="fo-kicker">NEW LEAD</span><p></p>'; campaignResolution.querySelector('.fo-campaign-resolution-label')!.after(latestLead);
+  const pauseDetails = doc.createElement('section'); pauseDetails.className = 'fo-pause-dispatch'; pauseDetails.setAttribute('aria-label', 'Dispatch details');
+  pauseDetails.innerHTML = '<p data-pause-case></p><p data-pause-unit></p><div class="fo-pause-score-head"><span aria-hidden="true">#</span><span>UNIT</span><span>PING / ms</span><span>PTS</span></div><ol></ol>';
+  one('.fo-pause').append(pauseDetails);
   const campaignWait = doc.createElement('p'); campaignWait.className = 'fo-campaign-wait'; campaignWait.hidden = true; campaignWait.textContent = 'RECONNECT TO CONTINUE'; one('[data-action="rematch"]').after(campaignWait);
   let campaignViewKey = '';
   const write = (key: string, value: string) => { const node = one(`[data-text="${key}"]`); if (node.textContent !== value) node.textContent = value; };
@@ -234,7 +240,12 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   persistCallsign();
   const reroll = doc.createElement('button'); reroll.type = 'button'; reroll.className = 'fo-reroll-callsign'; reroll.dataset.action = 'reroll-callsign'; reroll.textContent = 'REROLL CALLSIGN'; nickname.closest('.fo-field')!.after(reroll);
   const notify = (message: string) => { const node = one('.fo-notice'); node.textContent = message; node.hidden = !message; };
-  const persist = () => { shell.classList.toggle('fo-reduced-motion', settings.reducedShake); try { view?.localStorage.setItem('fender-settings-v1', JSON.stringify(settings)); } catch { /* Optional persistence. */ } callbacks.onSettings?.(structuredClone(settings)); };
+  const volumeKnob = mountVolumeKnob(doc, (masterVolume, muted) => {
+    settings = { ...settings, masterVolume, muted }; one<HTMLInputElement>('[data-setting="masterVolume"]').value = String(masterVolume); persist();
+  }, () => { callbacks.onAudioActivation?.(); callbacks.onActivity?.(); });
+  one('.fo-top-right').insertBefore(volumeKnob.element, one('[data-action="pause"]'));
+  volumeKnob.update(settings.masterVolume, settings.muted);
+  const persist = () => { volumeKnob.update(settings.masterVolume, settings.muted); shell.classList.toggle('fo-reduced-motion', settings.reducedShake); try { view?.localStorage.setItem('fender-settings-v1', JSON.stringify(settings)); } catch { /* Optional persistence. */ } callbacks.onSettings?.(structuredClone(settings)); };
   function focusFirst() { const focusable = visibleControls(); (focusable.find(node => node.matches('.fo-primary')) ?? focusable[0])?.focus({ preventScroll: true }); }
   const lobby = () => model.snapshot?.phase === 'lobby' && (model.mode === 'online' || Boolean(model.snapshot.campaign));
   const hasResult = (candidate = model) => candidate.snapshot?.phase === 'results' || !candidate.snapshot?.campaign && candidate.mode === 'practice' && candidate.snapshot?.pursuit?.state === 'complete';
@@ -311,7 +322,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     // The position is applied directly every frame. The former CSS left/top transition was retargeted on each
     // write, which made Blink's style recalculation grow for the whole dispatch and read as worsening frame drops.
     targetBadge.style.setProperty('--target-x', `${Math.max(0, Math.min(1, indicator.x)) * 100}%`);
-    const safeY=indicator.offscreen && indicator.x<.35 ? Math.max(indicator.y,Math.min(.65,(shellWidth<=740?390:340)/shellHeight)) : indicator.y;
+    const compact = shellWidth <= 740 || shellHeight <= 420;
+    const safeY=!compact && indicator.offscreen && indicator.x<.35 ? Math.max(indicator.y,Math.min(.65,340/shellHeight)) : indicator.y;
     targetBadge.style.setProperty('--target-y', `${Math.max(0, Math.min(1, safeY)) * 100}%`);badgeAnchor={x:indicator.x,y:safeY};
     targetAngle += Math.atan2(Math.sin(indicator.angle - targetAngle), Math.cos(indicator.angle - targetAngle));
     targetBadge.style.setProperty('--target-angle', `${targetAngle}rad`);
@@ -360,6 +372,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     updateTargetBadge();updateTutorial();
     updateControls();
     updateTouchVisibility();
+    updatePauseDetails();
     if (menu !== null) focusFirst();
   }
   async function play() {
@@ -392,7 +405,9 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     const key = input.dataset.setting as keyof UiSettings | undefined;
     if (!key) return;
     const value = input instanceof HTMLInputElement && input.type === 'checkbox' ? input.checked : input.type === 'range' ? Number(input.value) : input.value;
-    settings = { ...settings, [key]: value }; persist();
+    settings = { ...settings, [key]: value };
+    if (key === 'masterVolume') settings.muted = Number(value) === 0;
+    persist();
   };
   const click = (event: MouseEvent) => {
     const button = (event.target as HTMLElement).closest<HTMLElement>('[data-action],[data-binding]');
@@ -441,6 +456,35 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   };
   shell.addEventListener('click', click); shell.addEventListener('input', change); doc.addEventListener('keydown', remapKey, true);
   doc.addEventListener('visibilitychange', updateControls);
+  const pauseScoreRows = new Map<string, HTMLLIElement>();
+  function updatePauseDetails() {
+    if (menu !== 'pause' || hasResult()) {
+      pauseDetails.querySelector('ol')!.replaceChildren(); pauseScoreRows.clear(); return;
+    }
+    const campaign = model.snapshot?.campaign, hud = deriveHud(model);
+    const target = campaign ? getCampaignTarget(getCampaignDispatch(campaign).targetId) : null;
+    pauseDetails.querySelector('[data-pause-case]')!.textContent = campaign ? `DISPATCH ${campaign.dispatchIndex + 1} / 10 · ${target!.name}` : 'CURRENT PATROL';
+    pauseDetails.querySelector('[data-pause-unit]')!.textContent = `UNIT INTEGRITY ${Math.ceil(hud.health)}% · ${hud.speed} KM/H`;
+    updateScores(pauseDetails.querySelector('ol')!);
+  }
+  function updateScores(target: HTMLOListElement) {
+    const rows = pauseScoreRows;
+    const scores = [...(model.snapshot?.scores ?? [])].sort((a, b) => b.score - a.score || a.nickname.localeCompare(b.nickname));
+    const liveIds = new Set(scores.map(score => score.playerId));
+    for (const [id, row] of rows) if (!liveIds.has(id)) { row.remove(); rows.delete(id); }
+    scores.forEach((score, rank) => {
+      let row = rows.get(score.playerId);
+      if (!row) { row = doc.createElement('li'); row.innerHTML = '<span></span><span class="fo-score-name"></span><span class="fo-ping"></span><strong></strong>'; rows.set(score.playerId, row); }
+      row.dataset.playerId = score.playerId;
+      row.classList.toggle('fo-you', score.playerId === model.localPlayerId);
+      row.children[0]!.textContent = `${rank + 1}`;
+      row.children[1]!.textContent = `${score.nickname}${score.playerId === model.localPlayerId ? ' / YOU' : ''}${score.connection === 'reconnecting' ? ' …' : ''}`;
+      const ping = typeof score.pingMs === 'number' && Number.isFinite(score.pingMs) && score.pingMs >= 0 ? Math.round(score.pingMs) : null;
+      row.children[2]!.textContent = ping === null ? '—' : `${ping} ms`;
+      row.children[2]!.setAttribute('aria-label', `${score.nickname} ping: ${ping === null ? 'unavailable' : `${ping} milliseconds`}`);
+      row.children[3]!.textContent = String(score.score); target.append(row);
+    });
+  }
   function update(next: UiModel) {
     const previousReason=typeof model.status==='object'?model.status.reason:undefined;
     const previousPaused=model.snapshot?.paused; const previousEpoch = model.snapshot?.sessionEpoch, previousResult = hasResult(), previousDispatch = model.snapshot?.campaign?.dispatchIndex; const wasLobby = lobby(); model = { ...model, ...next };
@@ -509,6 +553,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     }
     const showCallout = snapshot?.phase === 'countdown' || hud.status !== 'active'; hide('.fo-center-callout', !showCallout);
     write('callout-label', snapshot?.phase === 'countdown' ? 'READY TO ROLL?' : 'UNIT OUT OF ACTION'); write('callout', snapshot?.phase === 'countdown' ? String(Math.max(1, Math.ceil(hud.seconds))) : `BACK IN ${Math.ceil(hud.respawn)}…`);
+    updatePauseDetails();
     if (hasResult() && !snapshot?.campaign) {
       const winnerId = authorityPursuit?.winnerPlayerId;
       const practiceClosed = model.mode === 'practice' && authorityPursuit?.state === 'complete';
@@ -558,5 +603,5 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     for (const input of all<HTMLInputElement | HTMLSelectElement>('[data-setting]')) { const key = input.dataset.setting as keyof UiSettings; if (input instanceof HTMLInputElement && input.type === 'checkbox') input.checked = Boolean(settings[key]); else input.value = String(settings[key]); }
     persist(); updateControls();
   }, isMenuVisible: () => menu !== null || lobby(), isMenuOpen: () => menu !== null,
-    dispose: () => { disposed = true; controlObserver?.disconnect(); clearTimeout(toastTimer); clearTimeout(tutorialTimer); touchControls.dispose(); shell.removeEventListener('click', click); shell.removeEventListener('input', change); doc.removeEventListener('keydown', remapKey, true); doc.removeEventListener('visibilitychange', updateControls); shell.remove(); } };
+    dispose: () => { disposed = true; controlObserver?.disconnect(); clearTimeout(toastTimer); clearTimeout(tutorialTimer); touchControls.dispose(); volumeKnob.dispose(); shell.removeEventListener('click', click); shell.removeEventListener('input', change); doc.removeEventListener('keydown', remapKey, true); doc.removeEventListener('visibilitychange', updateControls); shell.remove(); } };
 }

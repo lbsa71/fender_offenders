@@ -7,6 +7,7 @@ import type { Simulation } from '@fender/sim';
 import { createGameServer } from '../../apps/server/src/index';
 import { createTcpProxy } from './tcp-proxy';
 import { disposeTestRooms } from '../support/rooms';
+import { controlledCadence } from '../support/controlled-cadence';
 
 let server:Awaited<ReturnType<typeof createGameServer>>;
 const sessions:ReturnType<typeof createOnlineSession>[]=[];
@@ -39,7 +40,7 @@ it.each([{oneWayLatencyMs:60,jitterMs:20},{oneWayLatencyMs:160,jitterMs:40}])('f
     let sequence=0;
     inputTimer=setInterval(()=>session.submit({sessionEpoch:session.getSnapshot()!.sessionEpoch,sequence:sequence++,clientTick:sequence,actions:{...neutralActions(),throttle:.2}},performance.now()),1000/60);
     renderTimer=setInterval(()=>{const car=session.sampleFrame()!.vehicles.find(v=>v.playerId===session.getIdentity().playerId)!;frames.push({z:car.pose.z,life:car.discontinuityId,corrections:session.getStats().corrections,contact:session.getSnapshot()!.local!.contact?.revision??0,playing:session.getSnapshot()!.phase==='playing',at:performance.now(),velocity:car.velocity.z});},8);
-    const stepping=room as unknown as {step():void};room.setSimulationInterval(()=>stepping.step(),1000/60);
+    const stepping=room as unknown as {step():void};room.setSimulationInterval(controlledCadence(60,()=>stepping.step()),1000/60);
     await until(()=>session.getSnapshot()?.phase==='results');
     const live=frames.filter(f=>f.life===life&&f.playing),backsteps=live.slice(1).map((f,i)=>live[i]!.z-f.z);
     const worst=backsteps.indexOf(Math.max(...backsteps));console.log('Contact step',JSON.stringify({profile,maxBackstep:Math.max(...backsteps),before:live[worst],after:live[worst+1]}));

@@ -15,5 +15,6 @@ export function planFrame(accumulator: number, frameSeconds: number, mode: Pacin
   let backlog = accumulator + dt, steps = 0;
   while (backlog >= FIXED_STEP && steps < budget.maxSteps) { backlog -= FIXED_STEP; steps++; }
   if (backlog > .25) backlog = 0;
+  if (mode === 'online' && backlog >= FIXED_STEP) backlog %= FIXED_STEP;
   return { steps, accumulator: backlog };
 }

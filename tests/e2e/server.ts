@@ -7,7 +7,7 @@ import { CAMPAIGN_ID, STORYLINES, neutralActions } from '@fender/contracts';
 
 const port=Number(process.env.PORT??2867),server=await createGameServer(port,'127.0.0.1',{campaignId:CAMPAIGN_ID,debugDispatch:true});
 const fixtures=createServer((req,res)=>{
- const route=/^\/room\/([A-Za-z0-9_-]{8,64})\/(story|stage|arrest|gadget|contact|contact-ready)\/(\d)$/.exec(req.url??'');
+ const route=/^\/room\/([A-Za-z0-9_-]{8,64})\/(story|stage|arrest|gadget|contact|contact-ready|drive)\/(\d)$/.exec(req.url??'');
  if(req.method!=='POST'||!route){res.writeHead(404).end();return;}
  const room=matchMaker.getLocalRoomById(route[1]!) as unknown as {sim:Simulation}|undefined;
  if(!room){res.writeHead(404).end('Room missing');return;}
@@ -22,6 +22,14 @@ const fixtures=createServer((req,res)=>{
    const stage=Number(route[3]);c.state.phase='results';c.state.campaign.status='active';c.state.campaign.dispatchIndex=Math.max(0,stage-1);
    c.state.campaign.outcomes=Array.from({length:stage},(_,dispatchIndex)=>({dispatchIndex,outcome:'arrested',playerId:officer.vehicle.playerId!,callsign:'Fixture officer',elapsedTicks:180}));
    sim.restore(c);sim.rematch(officer.vehicle.playerId!);
+ }else if(route[2]==='drive'){
+   const suspect=c.state.records.find(r=>r.vehicle.entityId===c.state.pursuit?.suspectId)!;
+   c.state.records=[officer,suspect];c.state.projectiles=[];c.state.grenades=[];c.state.gadgets=[];
+   c.state.arrestTicks=0;c.state.contenderTicks=[];
+   officer.vehicle.pose={x:0,z:-160,yaw:0};officer.vehicle.velocity={x:0,z:0,yawRate:0};officer.vehicle.discontinuityId++;
+   suspect.vehicle.pose={x:76,z:160,yaw:0};suspect.vehicle.velocity={x:0,z:0,yawRate:0};suspect.vehicle.discontinuityId++;
+   suspect.traffic=undefined;suspect.bossAi=undefined;
+   sim.restore(c);
  }else if(route[2]==='contact-ready'){
    if(c.state.phase!=='playing'||!c.state.pursuit){res.writeHead(409).end();return;}
    // Preserve settled vehicle/contact state; measure a full arrest after fixture synchronization.
