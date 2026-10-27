@@ -18,7 +18,7 @@
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
-    "test:e2e": "playwright test && pnpm test:e2e:ui && pnpm test:water && pnpm test:audio && pnpm test:helicopter && pnpm test:snow",
+    "test:e2e": "pnpm build && playwright test && pnpm test:e2e:ui && pnpm test:water && pnpm test:audio && pnpm test:helicopter && pnpm test:snow",
     "test:audio": "node packages/renderer/dev/check-patrol-audio.mjs && node packages/renderer/dev/render-patrol-audio.mjs",
     "test:e2e:ui": "pnpm test:ui",
     "test:load": "tsx tools/load.ts",

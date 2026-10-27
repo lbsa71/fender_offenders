@@ -166,7 +166,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
     async connect(request: SessionRequest): Promise<JoinResult> {
       status({ state: 'connecting' });
       try {
-        const options = { nickname: request.nickname, protocolVersion: PROTOCOL_VERSION, mapRevision: map.revision, gameplayRevision: GAMEPLAY_REVISION, ...(request.vehicleBodyId ? { vehicleBodyId: request.vehicleBodyId } : {}) };
+        const options = { ...(request.debugDispatch!==undefined?{debugDispatch:request.debugDispatch}:{}), ...(request.debugCase!==undefined?{debugCase:request.debugCase}:{}), nickname: request.nickname, protocolVersion: PROTOCOL_VERSION, mapRevision: map.revision, gameplayRevision: GAMEPLAY_REVISION, ...(request.vehicleBodyId ? { vehicleBodyId: request.vehicleBodyId } : {}) };
           const invite = request.roomId.trim();
           if (isInviteCode(invite)) {
             for (let attempt = 0; attempt < 3; attempt++) {

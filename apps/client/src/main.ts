@@ -9,7 +9,7 @@ import { FIXED_STEP, planFrame } from './pacing';
 import './style.css';
 
 const initialUrl = new URL(location.href);
-if (!initialUrl.searchParams.has('room')) {
+if (initialUrl.searchParams.has('debugDispatch') || !initialUrl.searchParams.has('room')) {
   initialUrl.searchParams.set('room', crypto.randomUUID());
   history.replaceState(null, '', initialUrl);
 }
@@ -61,10 +61,12 @@ async function boot() {
     session.onSnapshot(s => { snapshot = s; if (epoch !== s.sessionEpoch) { epoch = s.sessionEpoch; sequence = 0; input?.resetHeldState(); } });
     session.onEvents(present); session.onStatus(s => { status = s; });
     try {
-      const joined = await session.connect(request);
+      const url=new URL(location.href),dispatch=url.searchParams.get('debugDispatch');
+      const launch=dispatch===null?request:{...request,debugDispatch:Number(dispatch),...(url.searchParams.has('debugCase')?{debugCase:url.searchParams.get('debugCase')!}:{})};
+      const joined = await session.connect(launch);
       playerId = joined.playerId; roomId = joined.roomId; epoch = joined.sessionEpoch; snapshot = joined.firstState; active = true;
       local?.dispose(); local = null;
-      if(import.meta.env.DEV){const url=new URL(location.href),dispatch=url.searchParams.get('debugDispatch');if(dispatch!==null){await debugDispatch(Number(dispatch),url.searchParams.get('debugCase')??undefined);url.searchParams.delete('debugDispatch');url.searchParams.delete('debugCase');history.replaceState(null,'',url);}}
+      if(dispatch!==null){url.searchParams.delete('debugDispatch');url.searchParams.delete('debugCase');history.replaceState(null,'',url);}
 
     } catch (error) {
       const failedStatus: SessionStatus = { ...status, state: 'error', reason: status.reason ?? 'network-error', message: status.message ?? (error instanceof Error ? error.message : String(error)) };
