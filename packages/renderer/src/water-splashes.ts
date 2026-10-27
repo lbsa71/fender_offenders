@@ -26,7 +26,8 @@ export class WaterSplashes {
       return { mesh, life: 0, duration: 0, vx: 0, vy: 0, vz: 0, floor: 0, size: 0, owner: '', generation: 0 };
     });
   }
-  update(vehicles: readonly VehicleState[], dt: number, quality: 'low' | 'medium' | 'high', reducedMotion: boolean): SplashCue[] {
+  update(vehicles: readonly VehicleState[], dt: number, quality: 'low' | 'medium' | 'high', reducedMotion: boolean, frozen = false): SplashCue[] {
+    if(frozen){this.reset();return [];}
     if (this.disposed) return [];
     const delta = Number.isFinite(dt) ? Math.max(0, Math.min(.1, dt)) : 0, limit = quality === 'low' ? 48 : 96;
     const generations = new Map(vehicles.filter(v => v.status === 'active').map(v => [v.entityId, v.discontinuityId]));

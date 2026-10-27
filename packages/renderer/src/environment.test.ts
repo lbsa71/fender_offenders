@@ -14,7 +14,7 @@ afterEach(() => { environment.dispose(); scene.dispose(); engine.dispose(); });
 
 describe('authored dispatch atmosphere', () => {
   it('assigns every existing dispatch explicitly, with safe noon fallback', () => {
-    expect(CAMPAIGN_DISPATCHES.map(d => themeForDispatch(d.id))).toEqual(['noon', 'noon', 'dusk', 'dusk', 'night', 'noon', 'dusk', 'night', 'dusk', 'night']);
+    expect(CAMPAIGN_DISPATCHES.map(d => themeForDispatch(d.id))).toEqual(['noon', 'noon', 'dusk', 'dusk', 'night', 'noon', 'dusk', 'night', 'snow', 'night']);
     expect(themeForDispatch(null)).toBe('noon'); expect(themeForDispatch('toString')).toBe('noon');
   });
   it('changes real fog, key direction and ambient illumination while keeping nearby roads clear', () => {

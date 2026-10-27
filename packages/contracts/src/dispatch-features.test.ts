@@ -1,3 +1,4 @@
+import {STORYLINES} from './campaign';
 import { expect, it } from 'vitest';
 import { getDispatchFeatures } from './dispatch-features';
 it('teaches the two new suspect gadgets with explicit avoidance and recovery cues',()=>{
@@ -21,6 +22,11 @@ it('unlocks every police weapon one or two dispatches after its suspect introduc
  for(let stage=8;stage<10;stage++)expect(getDispatchFeatures(stage).lesson).toContain('blades');
 });
 
+it('makes only dispatch nine snowy, explains ice and retains every police weapon reminder',()=>{
+ for(let stage=0;stage<10;stage++)expect(getDispatchFeatures(stage)).toHaveProperty('winterRoads',stage===8);
+ const winter=getDispatchFeatures(8);expect(winter.lesson).toMatch(/snow/i);expect(winter.lesson).toMatch(/puddles.*slicker/i);expect(winter.lesson).toMatch(/brake early/i);
+ for(const weapon of ['guns','bomb','oil','blades'])expect(winter.lesson).toContain(weapon);
+});
 it('keeps predictive bomb and helicopter counterplay in compact equipment lessons',()=>{
  for(const stage of [2,3,4,8,9])expect(getDispatchFeatures(stage).lesson).toContain('Enemy bombs predict your route');
  for(let stage=0;stage<10;stage++){
@@ -29,3 +35,5 @@ it('keeps predictive bomb and helicopter counterplay in compact equipment lesson
   else expect(lesson).not.toContain('black chopper');
  }
 });
+
+it('authors a snow theme for the ninth dispatch of every case',()=>{for(const story of STORYLINES)expect(story.dispatches[8]!.theme).toBe('snow');});

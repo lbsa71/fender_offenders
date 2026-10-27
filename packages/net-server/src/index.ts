@@ -1,7 +1,7 @@
 import { Room, ServerError, matchMaker, type Client } from '@colyseus/core';
 import { randomInt, randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
-import { districtMap, districtProps, VEHICLE_BODIES } from '@fender/content';
+import { districtMap, districtProps, districtSnowbanks, VEHICLE_BODIES } from '@fender/content';
 import { createSimulation, initPhysics, type Simulation } from '@fender/sim';
 import { GAMEPLAY_REVISION, PROTOCOL_VERSION, STORYLINES, getVehicleProfile, isInputCommand, isInviteCode, isRecord, isVehicleBodyId, neutralActions, packSnapshot, sanitizeNickname, type AppliedDriverInput, type InputCommand, type LocalVehicleMotion, type VehicleBodyId, type VehicleState, type WorldSnapshot } from '@fender/contracts';
 import { createPropPublisher } from './prop-publisher.js';
@@ -59,6 +59,7 @@ export class DrivingRoom extends Room {
       return true;
     } catch(error) { this.retiring=false; throw error; }
   }
+  debugDispatch(dispatch:number,campaignId?:string){return this.sim.debugDispatch(dispatch,campaignId);}
   private releaseAdmission() {
     roomRegistry.release(this);
   }
@@ -74,7 +75,7 @@ export class DrivingRoom extends Room {
       await initPhysics();
       if (this.disposed) throw new ServerError(503, 'Dispatch creation expired');
       this.setPrivate(true);
-      this.sim = createSimulation(districtMap, { mode: 'multiplayer', matchId: this.roomId, trafficCount: 8, pursuit: true, campaign: true, campaignId:this.initialCampaignId(), props: districtProps });
+      this.sim = createSimulation(districtMap, { mode: 'multiplayer', matchId: this.roomId, trafficCount: 8, pursuit: true, campaign: true, campaignId:this.initialCampaignId(), props: districtProps, snowbanks:districtSnowbanks });
       this.maxMessagesPerSecond = 100;
       this.onMessage('input', (client, message: unknown) => {
         const driver = this.drivers.get(client.sessionId);

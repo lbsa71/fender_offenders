@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 const executable = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
-const processes = ['dev:server', 'dev:client'].map(script => spawn(executable, [script], { stdio: 'inherit', shell: process.platform === 'win32' }));
+const processes = ['dev:server', 'dev:client'].map(script => spawn(executable, [script], { env:{...process.env,FENDER_DEBUG_DISPATCH:'1'}, stdio: 'inherit', shell: process.platform === 'win32' }));
 let closing = false;
 function shutdown(code = 0) {
   if (closing) return; closing = true;

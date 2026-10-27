@@ -324,3 +324,5 @@
  .fo-ui.fo-campaign-results .fo-results>.fo-campaign-resolution{order:1}
  .fo-ui.fo-campaign-results .fo-results>[data-action=leave]{order:2}
 }
+
+.fo-prompts[data-tutorial-controls].fo-snow-controls{width:330px;grid-template-columns:repeat(3,minmax(0,1fr))}

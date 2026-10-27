@@ -48,3 +48,8 @@ describe('cosmetic tire crossings of authored water', () => {
     }
   });
 });
+
+it('makes no liquid spray or splash cue on frozen water and resumes ordinary crossings after thaw',()=>{
+ const crossing=new WaterCrossings();crossing.update([car(-41)],.05,true);expect(crossing.update([car(-36)],.05,true)).toEqual([]);
+ crossing.update([car(-41)],.05,false);expect(crossing.update([car(-36)],.05,false)).toHaveLength(1);
+});

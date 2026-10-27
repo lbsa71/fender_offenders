@@ -1,3 +1,4 @@
+import {controlledCadence} from '../support/controlled-cadence';
 import { disposeTestRooms } from '../support/rooms';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { matchMaker, type Server } from '@colyseus/core';
@@ -53,7 +54,8 @@ describe('real online prediction facade baseline', () => {
     let authoritySteps = 0;
     // Use the room scheduler so its wall clock keeps connection health and
     // message-rate windows alive while physics runs at the chosen cadence.
-    room.setSimulationInterval(() => { controlled.step(); authoritySteps++; }, 1000 / tickRate);
+    // Count elapsed time: Windows can deliver a requested 16.7 ms timer every 31 ms.
+    room.setSimulationInterval(controlledCadence(tickRate,() => { controlled.step(); authoritySteps++; }), 1000 / tickRate);
     const inputTimer = setInterval(() => {
       submit(value, sequence++);
       const frame = value.sampleFrame()!, local = frame.vehicles.find(vehicle => vehicle.entityId === joined.localEntityId)!;

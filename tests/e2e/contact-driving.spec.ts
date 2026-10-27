@@ -37,9 +37,16 @@ test('keeps both cars stable while bumper pressure completes an arrest through n
     });
     expect((await page.request.post(`http://127.0.0.1:${serverPort+1000}/room/${room}/contact/0`)).ok()).toBe(true);
     await page.waitForFunction(()=>Math.abs((window as any).__FO_CONTACT_API__?.getSnapshot()?.local?.vehicle.pose.z+30)<1);
+    // The forced teleport is a separate life. Drain its in-flight reports before
+    // measuring ordinary contact, then retain the full three-second arrest window.
+    const setupAck=await page.evaluate(()=>(window as any).__FO_CONTACT_API__.getSnapshot().local.lastConsumedSequence);
+    await page.waitForFunction(ack=>(window as any).__FO_CONTACT_API__.getSnapshot().local.lastConsumedSequence>=ack+8,setupAck);
+    initial.corrections=await page.evaluate(()=>{(window as any).__FO_CONTACT__.frames=[];return (window as any).__FO_CONTACT_API__.getStats().corrections;});
+    expect((await page.request.post(`http://127.0.0.1:${serverPort+1000}/room/${room}/contact-ready/0`)).ok()).toBe(true);
     await page.keyboard.down('w');await expect(page.getByText('ARREST CERTIFIED',{exact:true})).toBeVisible();await page.keyboard.up('w');
     const frames:{at:number;z:number;velocity:number;contactZ:number;life:number;targetLife:number;health:number;contact:number;corrections:number}[]=await page.evaluate(()=>(window as any).__FO_CONTACT__.frames);
     const backsteps=frames.slice(1).map((f,i)=>frames[i]!.z-f.z),maxBackstep=Math.max(...backsteps);
+    const unadjustedBacksteps=frames.slice(1).flatMap((f,i)=>f.contact===frames[i]!.contact?[frames[i]!.z-f.z]:[]);
     const unexplainedBackstep=maxUnexplainedBackstep(frames);
     const separationPerRevision=frames.slice(1).flatMap((f,i)=>f.contact>frames[i]!.contact?[Math.abs(f.contactZ-frames[i]!.contactZ)/(f.contact-frames[i]!.contact)]:[]);
     await test.info().attach('Rendered bumper contact and arrest',{body:JSON.stringify({frames,maxBackstep,unexplainedBackstep}),contentType:'application/json'});
@@ -50,6 +57,8 @@ test('keeps both cars stable while bumper pressure completes an arrest through n
     expect(Math.max(...frames.map(f=>f.corrections)),'Contact must not restart local driving').toBe(initial.corrections);
     expect(new Set(frames.map(f=>f.life)).size).toBe(1);expect(new Set(frames.map(f=>f.targetLife)).size).toBe(1);
     expect(Math.min(...frames.map(f=>f.health))).toBe(100);
+    expect(unadjustedBacksteps.length).toBeGreaterThan(3);
+    expect(Math.max(...unadjustedBacksteps),'Without a new contact adjustment, settled contact must not jump back to older poses').toBeLessThan(.2);
     expect(separationPerRevision.length).toBeGreaterThan(3);
     expect(Math.max(...separationPerRevision),'The authority must not hide a large teleport in a contact revision').toBeLessThan(.2);
     expect(unexplainedBackstep,'Holding bumper contact must not add an unexplained jump to older poses').toBeLessThan(.2);

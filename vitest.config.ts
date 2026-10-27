@@ -10,7 +10,7 @@ const integration = [
   'packages/sim/**/*.test.ts',
   'packages/net-server/src/{latency,lifecycle,prop-publishing,unified-rooms}.test.ts',
   'packages/net-client/src/{clock,campaign-prediction}.test.ts',
-  'packages/renderer/src/{cars,combat-effects,contact-shading,environment,garage,grenade-effects,helicopter,light-detail,pedestrians,props,road-gadgets,target-objective,wet-surfaces,wreck-breakup,wreck-effects}.test.ts',
+  'packages/renderer/src/{cars,combat-effects,contact-shading,environment,garage,grenade-effects,helicopter,light-detail,pedestrians,props,road-gadgets,snow-cover,target-objective,wet-surfaces,wreck-breakup,wreck-effects}.test.ts',
 ];
 
 export default defineConfig({ test: { projects: [

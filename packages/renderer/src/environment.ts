@@ -6,10 +6,11 @@ import { Scene } from '@babylonjs/core/scene';
 import {findCampaignDispatch,type PropState,type SceneManifest} from '@fender/contracts';
 import { StreetLightField } from './street-light-field';
 
-type Theme = 'noon' | 'dusk' | 'night';
+type Theme = 'noon' | 'dusk' | 'night' | 'snow';
 export function themeForDispatch(id:string|null):Theme{return findCampaignDispatch(id)?.dispatch.theme??'noon';}
 
 const profiles = {
+  snow: { sky:'#c3d1dc',fog:'#cbd8df',start:90,end:215,direction:[-.5,-1,.3],key:'#e8f2ff',keyPower:1,fill:'#d3e2ed',ground:'#8facc0',fillPower:.8,exposure:1,lamp:.35 },
   noon: { sky: '#b8d1ce', fog: '#b8d1ce', start: 110, end: 235, direction: [-.55, -1, .35], key: '#ffe8c5', keyPower: 1.2, fill: '#d4e4df', ground: '#8c9c82', fillPower: .7, exposure: 1, lamp: 0 },
   dusk: { sky: '#c99c99', fog: '#c9a6a2', start: 95, end: 215, direction: [-.85, -.65, .5], key: '#ffbd82', keyPower: 1.25, fill: '#b6c8e3', ground: '#737e91', fillPower: .65, exposure: 1.04, lamp: .55 },
   night: { sky: '#263d58', fog: '#40546c', start: 85, end: 195, direction: [.45, -.9, -.6], key: '#b1ccec', keyPower: .8, fill: '#9eafcf', ground: '#687c8c', fillPower: .55, exposure: 1.12, lamp: 1 },

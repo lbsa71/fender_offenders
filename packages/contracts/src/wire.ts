@@ -21,6 +21,7 @@ export interface WireSnapshot {
   helicopter?: HelicopterWire;
   gadgets?: GadgetWire[];
   props?: PropWire[];
+  brokenSnowbanks?: string[];
   /** True: merge changed tuples with the previous prop roster; omitted props then means no change. */
   propsPatch?: boolean;
 }
@@ -28,6 +29,7 @@ export function packSnapshot(s: WorldSnapshot): WireSnapshot {
   return { v: [s.protocolVersion, s.mapRevision, s.gameplayRevision], e: s.sessionEpoch, t: s.serverTick, m: s.matchId, p: s.phase, end: s.phaseEndsAtTick,
     cars: s.vehicles.map(packCar), shots: s.projectiles.map(p => [p.entityId, p.ownerEntityId, q(p.pose.x), q(p.pose.z), q(p.pose.yaw), q(p.velocity.x), q(p.velocity.z), p.bornTick, p.expiresTick, p.sourceCommandSequence, p.sourceShotOrdinal,...(p.volleyId!==undefined?[p.volleyId,p.barrelIndex,p.damage]:[])] as ProjectileWire),
     scores: s.scores.map(score => ({ ...score, pingMs: score.pingMs ?? null })), local: s.local ? s.local.contact ? [s.local.vehicle.entityId,s.local.driver,s.local.lastConsumedSequence,structuredClone(s.local.contact)] : [s.local.vehicle.entityId,s.local.driver,s.local.lastConsumedSequence] : null, reset: s.resetReason, pursuit: s.pursuit,
+    ...(s.brokenSnowbanks ? {brokenSnowbanks:[...s.brokenSnowbanks]} : {}),
     ...(s.campaign ? { campaign: structuredClone(s.campaign) } : {}),
     ...(s.paused !== undefined ? { paused: s.paused } : {}),
     ...(s.helicopter?{helicopter:[s.helicopter.entityId,s.helicopter.dispatchIndex,s.helicopter.phase,s.helicopter.health,q(s.helicopter.from.x),q(s.helicopter.from.z),q(s.helicopter.to.x),q(s.helicopter.to.z),s.helicopter.yaw,s.helicopter.startedAtTick,s.helicopter.endsAtTick] as HelicopterWire}:{}),
@@ -44,6 +46,7 @@ export function unpackSnapshot(s: WireSnapshot, previousProps: readonly PropStat
   if(s.propsPatch){const merged=new Map(previousProps.map(p=>[p.entityId,{...p,position:{...p.position},rotation:{...p.rotation}}]));for(const prop of decodedProps)merged.set(prop.entityId,prop);props=[...merged.values()];}
   return { protocolVersion: s.v[0], mapRevision: s.v[1], gameplayRevision: s.v[2], sessionEpoch: s.e, serverTick: s.t, matchId: s.m, phase: s.p, phaseEndsAtTick: s.end, vehicles, projectiles, scores: s.scores.map(score => ({ ...score, pingMs: score.pingMs ?? null })),
     local: s.local && car ? { vehicle: car, driver: s.local[1], lastConsumedSequence: s.local[2],...(s.local[3]?{contact:structuredClone(s.local[3])}:{}) } : null, resetReason: s.reset, pursuit: s.pursuit,
+    ...(s.brokenSnowbanks ? {brokenSnowbanks:[...s.brokenSnowbanks]} : {}),
     ...(s.campaign ? { campaign: structuredClone(s.campaign) } : {}),
     ...(s.helicopter?{helicopter:{entityId:s.helicopter[0],dispatchIndex:s.helicopter[1],phase:s.helicopter[2],health:s.helicopter[3],from:{x:s.helicopter[4],z:s.helicopter[5]},to:{x:s.helicopter[6],z:s.helicopter[7]},yaw:s.helicopter[8],startedAtTick:s.helicopter[9],endsAtTick:s.helicopter[10]}}:{}),
     gadgets: (s.gadgets ?? []).map(g => ({ entityId:g[0],ownerEntityId:g[1],kind:g[2],pose:{x:g[3],z:g[4],yaw:g[5]},bornTick:g[6],activeAtTick:g[7],expiresTick:g[8] })),

@@ -5,9 +5,9 @@ import { createGameServer } from '../../apps/server/src/index';
 import type { Simulation } from '@fender/sim';
 import { CAMPAIGN_ID, STORYLINES, neutralActions } from '@fender/contracts';
 
-const port=Number(process.env.PORT??2867),server=await createGameServer(port,'127.0.0.1',{campaignId:CAMPAIGN_ID});
+const port=Number(process.env.PORT??2867),server=await createGameServer(port,'127.0.0.1',{campaignId:CAMPAIGN_ID,debugDispatch:true});
 const fixtures=createServer((req,res)=>{
- const route=/^\/room\/([A-Za-z0-9_-]{8,64})\/(story|stage|arrest|gadget|contact|drive)\/(\d)$/.exec(req.url??'');
+ const route=/^\/room\/([A-Za-z0-9_-]{8,64})\/(story|stage|arrest|gadget|contact|contact-ready|drive)\/(\d)$/.exec(req.url??'');
  if(req.method!=='POST'||!route){res.writeHead(404).end();return;}
  const room=matchMaker.getLocalRoomById(route[1]!) as unknown as {sim:Simulation}|undefined;
  if(!room){res.writeHead(404).end('Room missing');return;}
@@ -29,6 +29,11 @@ const fixtures=createServer((req,res)=>{
    officer.vehicle.pose={x:0,z:-160,yaw:0};officer.vehicle.velocity={x:0,z:0,yawRate:0};officer.vehicle.discontinuityId++;
    suspect.vehicle.pose={x:76,z:160,yaw:0};suspect.vehicle.velocity={x:0,z:0,yawRate:0};suspect.vehicle.discontinuityId++;
    suspect.traffic=undefined;suspect.bossAi=undefined;
+   sim.restore(c);
+ }else if(route[2]==='contact-ready'){
+   if(c.state.phase!=='playing'||!c.state.pursuit){res.writeHead(409).end();return;}
+   // Preserve settled vehicle/contact state; measure a full arrest after fixture synchronization.
+   c.state.arrestTicks=0;c.state.contenderTicks=[];c.state.pursuit.progress=0;c.state.pursuit.state='chasing';c.state.pursuit.arrestingPlayerId=null;c.state.pursuit.contenders=[];
    sim.restore(c);
  }else if(route[2]==='gadget'){
    const stage=Number(route[3]);if(stage!==5&&stage!==6){res.writeHead(400).end();return;}

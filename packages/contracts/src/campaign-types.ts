@@ -32,7 +32,7 @@ export interface CampaignDispatch {
   readonly briefing: string;
   /** Shown only after this dispatch succeeds, by either method. */
   readonly reveal: string;
-  readonly theme?: 'noon' | 'dusk' | 'night';
+  readonly theme?: 'noon' | 'dusk' | 'night' | 'snow';
 }
 export interface CampaignStoryline {
   readonly id: string;

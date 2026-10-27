@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import express from 'express';
 import { isStorylineId, isInviteCode, isRecord } from '@fender/contracts';
 import { warmServerRuntime } from './warmup.js';
-export async function createGameServer(port = Number(process.env.PORT || 2567), host = process.env.HOST || '127.0.0.1', options: {campaignId?:string} = {}) {
+export async function createGameServer(port = Number(process.env.PORT || 2567), host = process.env.HOST || '127.0.0.1', options: {campaignId?:string;debugDispatch?:boolean} = {}) {
   if(options.campaignId!==undefined&&!isStorylineId(options.campaignId))throw new Error('Invalid campaign storyline');
   const defaults = `http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:${port},http://127.0.0.1:${port},${process.env.RENDER_EXTERNAL_URL || ''}`;
   const allowed = new Set((process.env.ALLOWED_ORIGINS || defaults).split(',').map(origin => origin.trim()).filter(Boolean));
@@ -23,6 +23,16 @@ export async function createGameServer(port = Number(process.env.PORT || 2567), 
       res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
       if (req.method === 'OPTIONS') { res.sendStatus(204); return; } next();
     });
+    if(options.debugDispatch){
+      app.use('/debug',express.json({limit:'2kb'}));
+      app.post('/debug/dispatch/:invite',(req,res)=>{
+        const {dispatch,campaignId}=req.body??{};
+        if(!isInviteCode(req.params.invite)||!Number.isInteger(dispatch)||dispatch<1||dispatch>10||(campaignId!==undefined&&!isStorylineId(campaignId))){res.sendStatus(400);return;}
+        const room=matchMaker.getLocalRoomById(req.params.invite) as DrivingRoom|undefined;
+        if(!room){res.sendStatus(404);return;}
+        res.sendStatus(room.debugDispatch(dispatch,campaignId)?204:409);
+      });
+    }
     app.get('/health', (_req, res) => res.json({ status: 'ok', ...serverMetrics, ...getRoomMetrics() }));
     app.get('/ready', (_req, res) => res.status(serverMetrics.draining ? 503 : 200).json({ ready: !serverMetrics.draining }));
     app.use(express.static(resolve('dist/client')));
@@ -75,7 +85,7 @@ export async function createGameServer(port = Number(process.env.PORT || 2567), 
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   await warmServerRuntime();
-  const server = await createGameServer();
+  const server = await createGameServer(undefined,undefined,{debugDispatch:process.env.FENDER_DEBUG_DISPATCH==='1'});
   let shuttingDown = false;
   async function stop() { if (shuttingDown) return; shuttingDown = true; serverMetrics.draining = true; console.log('Dispatch closing; connected rooms will be notified.'); await server.gracefullyShutdown(false); process.exit(0); }
   process.on('SIGINT', stop); process.on('SIGTERM', stop);

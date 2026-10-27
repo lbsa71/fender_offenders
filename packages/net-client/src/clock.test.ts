@@ -91,6 +91,23 @@ it('predicts contact against the visible external car instead of an unseen extra
   }finally{await session.dispose();}
 });
 
+it.each([2.03, -2.03])('keeps between-tick presentation outside a visible bumper while permitting departure (%s m/s)',async speed=>{
+  vi.useFakeTimers({toFake:['setInterval','clearInterval','performance']});
+  const source=unpackSnapshot(snapshot(100)),remote=source.vehicles.find(v=>v.entityId==='remote')!;
+  source.local!.vehicle.velocity.z=speed;
+  remote.pose={x:100,z:104.35,yaw:Math.PI};remote.velocity={x:0,z:0,yawRate:0};
+  wire.initial=packSnapshot(source);const session=createOnlineSession('ws://clock-fixture',map);
+  try{
+    await session.connect({roomId:crypto.randomUUID(),nickname:'No projected bumper overlap'});
+    vi.advanceTimersByTime(50);
+    const car=session.sampleFrame()!.vehicles.find(v=>v.entityId==='local')!;
+    if(speed>0)expect(car.pose.z,'Presentation must stop at the visible bumper, before the next physics tick resolves contact').toBeLessThanOrEqual(100.05+1e-6);
+    else expect(car.pose.z,'Leaving contact must retain immediate between-tick movement').toBeCloseTo(100+speed*.05,6);
+    expect(car.velocity.z,'Presentation clipping must not change the local physics velocity').toBeCloseTo(speed,6);
+    expect(session.getSnapshot()!.local!.vehicle.pose.z).toBe(100);
+  }finally{await session.dispose();}
+});
+
 it('replicates the completed local physics step outward, without sending presentation extrapolation or health', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
   const source=unpackSnapshot(snapshot(100));source.local!.vehicle.velocity.z=20;
@@ -737,4 +754,12 @@ it.each([false, true].flatMap(timed => [0, 8, 16, 24, 32].flatMap(flushPhase => 
     session.submit({ sessionEpoch: source.sessionEpoch, sequence: sequence++, clientTick: sequence, actions: { ...actions, steer: 1 } });
     expect(session.sampleFrame()!.vehicles.find(car => car.entityId === 'local')!.velocity.yawRate).toBeGreaterThan(.01);
   } finally { clearInterval(authorityTimer); clearInterval(inputTimer); clearInterval(renderTimer); await session.dispose(); }
+});
+
+it('derives winter grip from a late-joined campaign snapshot without correcting the current local driver',async()=>{
+ vi.useFakeTimers({toFake:['setInterval','clearInterval','performance']});const source=unpackSnapshot(snapshot(100));source.campaign={campaignId:'green-light-racket-v1',dispatchIndex:8,status:'active',outcomes:[]};source.local!.vehicle.velocity={x:4,z:20,yawRate:0};source.vehicles=source.vehicles.map(v=>v.entityId==='local'?source.local!.vehicle:v);wire.initial=packSnapshot(source);const session=createOnlineSession('ws://clock-fixture',map);
+ try{await session.connect({roomId:crypto.randomUUID(),nickname:'Ice inspector'});let dry={vehicle:structuredClone(source.local!.vehicle),driver:structuredClone(source.local!.driver)};
+ for(let sequence=0;sequence<15;sequence++){vi.advanceTimersByTime(1000/60);session.submit({sessionEpoch:source.sessionEpoch,sequence,clientTick:sequence,actions:neutralActions()},performance.now());dry=predictVehicle(map,dry.vehicle,dry.driver,neutralActions(),[],undefined,101+sequence);}
+ expect(session.getStats().pendingInputs).toBe(15);expect(session.sampleFrame()!.vehicles.find(v=>v.entityId==='local')!.velocity.x).toBeGreaterThan(dry.vehicle.velocity.x+1.5);
+ }finally{await session.dispose();}
 });

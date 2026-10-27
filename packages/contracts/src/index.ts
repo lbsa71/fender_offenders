@@ -1,4 +1,4 @@
-export { getDispatchFeatures, DEFAULT_DRIVING_CONTEXT } from './dispatch-features';
+export { getDispatchFeatures, DEFAULT_DRIVING_CONTEXT, WINTER_ROAD_RULES } from './dispatch-features';
 export type { DispatchFeatures, DispatchDrivingContext } from './dispatch-features';
 export { ROAD_GADGET_RULES, withRoadGadgets } from './road-gadgets';
 export type { RoadGadgetState } from './road-gadgets';
@@ -10,7 +10,7 @@ export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v19';
+export const GAMEPLAY_REVISION = 'arcade-v20';
 export type { CampaignState, CampaignOutcome, DispatchOutcome, CampaignTarget, CampaignDispatch, CampaignStoryline } from './campaign-types';
 export { CAMPAIGN_ID, CAMPAIGN_TITLE, CAMPAIGN_TARGETS, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, STORYLINES, ALL_CAMPAIGN_TARGETS, ALL_CAMPAIGN_DISPATCHES, getStoryline, isStorylineId, getCampaignDispatch, findCampaignDispatch, getCampaignTarget } from './campaign';
 export { getCampaignMugshot, type CampaignMugshotVariant } from './campaign-mugshots';
@@ -92,12 +92,15 @@ export interface PursuitState {
 }
 /** Canvas-relative position; angle is clockwise from up. Presentation only. */
 export interface TargetIndicator { x: number; y: number; angle: number; offscreen: boolean; distanceMeters: number }
+export interface SnowbankDefinition { id:string; x:number; z:number; yaw:number; length:number; width:number; height:number }
 export interface WorldSnapshot {
   protocolVersion: number; mapRevision: string; gameplayRevision: string;
   sessionEpoch: string; serverTick: number; matchId: string;
   phase: 'lobby' | 'countdown' | 'playing' | 'results'; phaseEndsAtTick: number | null;
   vehicles: VehicleState[]; projectiles: ProjectileState[]; scores: PlayerScore[];
   props?: PropState[];
+  /** Authoritative broken bank IDs; intact geometry is shared static content. */
+  brokenSnowbanks?: string[];
   grenades?: GrenadeState[];
   helicopter?: HelicopterState;
   gadgets?: RoadGadgetState[];
@@ -147,6 +150,8 @@ export interface RenderFrame {
   sampleTimeSeconds: number; localEntityId: string | null;
   vehicles: VehicleState[]; projectiles: RenderProjectileState[]; cameraTarget: PlanarPose | null;
   props?: PropState[];
+  /** Authoritative broken bank IDs; intact geometry is shared static content. */
+  brokenSnowbanks?: string[];
   grenades?: GrenadeState[];
   helicopter?: HelicopterState;
   gadgets?: RoadGadgetState[];

@@ -1,5 +1,5 @@
 import { Client, ErrorCode, MatchMakeError, ServerError, type Room, type SeatReservation } from '@colyseus/sdk';
-import { predictVehicle } from '@fender/sim';
+import { predictVehicle, projectVehiclePose } from '@fender/sim';
 import { ProjectilePresentation } from './projectile-presentation';
 import { withRoadGadgets } from '@fender/contracts';
 import { GAMEPLAY_REVISION, PROTOCOL_VERSION, zeroContactAdjustment, getDispatchFeatures, DEFAULT_DRIVING_CONTEXT, isInviteCode, isRecord, unpackSnapshot, type CollisionMap, type GameEvent, type GameSession, type InputCommand, type JoinResult, type LocalAuthorityState, type LocalVehicleMotion, type PropState, type RenderFrame, type SessionRequest, type SessionStatus, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
@@ -45,8 +45,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
     const pose = { ...predicted.vehicle.pose };
     if (snapshot && !frozenCampaign(snapshot) && predicted.vehicle.status === 'active') {
       const dt = Math.max(0, Math.min(.05, (now - predictionAt) / 1000));
-      pose.x += predicted.vehicle.velocity.x * dt; pose.z += predicted.vehicle.velocity.z * dt;
-      pose.yaw += predicted.vehicle.velocity.yawRate * dt;
+      if(dt>0)return projectVehiclePose(predicted.vehicle, dt, visibleCollisionProxies(snapshot.serverTick));
     }
     return pose;
   }
@@ -307,7 +306,7 @@ export function createOnlineSession(endpoint: string, map: CollisionMap) {
         lastLocalFrame = { ...vehicle.pose };
         const index = vehicles.findIndex(v => v.entityId === vehicle.entityId); if (index >= 0) vehicles[index] = vehicle; else vehicles.push(vehicle);
       }
-      return { sampleTimeSeconds: now / 1000, vehicles, projectiles: projectilePresentation.sample(predicted?.vehicle.entityId??null,estimatedTick,playbackTick), props: propsAt(playbackTick), localEntityId: predicted?.vehicle.entityId ?? null, cameraTarget: vehicles.find(v => v.playerId === playerId)?.pose ?? null,
+      return { sampleTimeSeconds: now / 1000, vehicles, projectiles: projectilePresentation.sample(predicted?.vehicle.entityId??null,estimatedTick,playbackTick), props: propsAt(playbackTick), brokenSnowbanks:[...(snapshot.brokenSnowbanks??[])], localEntityId: predicted?.vehicle.entityId ?? null, cameraTarget: vehicles.find(v => v.playerId === playerId)?.pose ?? null,
         helicopter: snapshot.phase==='playing'&&snapshot.helicopter?clone(snapshot.helicopter):undefined,
         serverTick: hazardTick, grenades: snapshot.phase === 'playing' ? clone((snapshot.grenades ?? []).filter(grenade => grenade.detonatesAtTick > hazardTick)) : [],
         gadgets: snapshot.phase === 'playing' ? clone((snapshot.gadgets ?? []).filter(gadget => gadget.expiresTick > hazardTick)) : [],

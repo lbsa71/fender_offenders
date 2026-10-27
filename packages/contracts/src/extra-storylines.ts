@@ -5,7 +5,7 @@ type Cast=readonly [id:string,name:string,alias:string,role:string,description:s
 type Chapter=readonly [id:string,title:string,briefing:string,reveal:string];
 const fleet:readonly VehicleBodyId[]=['roadster','army','patrol','interceptor','fire-chief','fire-chief','army','ambulance','roadster','patrol'];
 const bosses=[1,1,4,4,4,7,7,7,9,9];
-const lighting:readonly NonNullable<CampaignDispatch['theme']>[]=['noon','noon','dusk','dusk','night','noon','dusk','night','dusk','night'];
+const lighting:readonly NonNullable<CampaignDispatch['theme']>[]=['noon','noon','dusk','dusk','night','noon','dusk','night','snow','night'];
 function story(id:string,title:string,cast:readonly Cast[],chapters:readonly Chapter[]):CampaignStoryline{
  const targets=Object.freeze(cast.map(([targetId,name,alias,role,description],i):CampaignTarget=>Object.freeze({id:targetId,name,alias,role,description:`${getVehicleProfile(fleet[i]!).name}: ${description}`,vehicleBodyId:fleet[i]!,isBoss:bosses[i]===i,bossId:cast[bosses[i]!]![0]})));
  const dispatches=Object.freeze(chapters.map(([slug,name,briefing,reveal],i):CampaignDispatch=>Object.freeze({id:`${id.replace(/-v1$/,'')}-${slug}`,title:`${String(i+1).padStart(2,'0')} · ${name}`,targetId:targets[i]!.id,briefing,reveal,theme:lighting[i]!})));

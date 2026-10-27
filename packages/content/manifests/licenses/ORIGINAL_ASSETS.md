@@ -19,3 +19,7 @@ Cars use Y-up, meter units, front +Z and centered pivots in shared coordinates; 
 Pedestrian figures, routes, flying wreck pieces and the historical synthesized cues are original source work too. Current sampled wreck sounds are documented separately in [audio provenance](audio/README.md). Cosmetic figures have no health or combat role. Source attribution and AI-assistance acknowledgments are in [CONTRIBUTORS.md](../../../../CONTRIBUTORS.md). The record establishes provenance and chosen terms; it does not certify the full dependency or release-package audit.
 
 The enlarged avenue layout, twelve additional buildings and outer street lamps in `packages/content/src/index.ts` / `packages/renderer/src/city.ts`, plus oil footprints, warning rings and hubcap blades in `packages/renderer/src/road-gadgets.ts`, are original project-authored geometry under the same GPL-3.0-or-later terms. No artwork, models, audio or other media were imported from Spy Hunter or another game.
+
+The dispatch-9 snow coating, static ice-crack shading and 16×16 snowflake alpha are original procedural source assets authored for this project. They add no downloaded media or third-party textures.
+
+The 2026-10-27 rounded roof/prop snow caps, eight-lobe bank mesh and snow-chunk geometry are original procedural source assets authored for this project with OpenAI Codex assistance, directed by the project owner. No external imagery or textures were imported; project licensing applies.

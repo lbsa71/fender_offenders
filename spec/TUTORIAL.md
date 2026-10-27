@@ -2,7 +2,7 @@
 
 This same ten-stage curriculum applies independently to **all five storylines**. The named dispatches below describe the original Green Light case; other cases supply their own suspect, mission title, briefing and reveal at each stage. Feature availability, arrest-only opener, weapons, wet roads and controller hints derive from the authoritative room stage. A new case begins unarmed again; joining or reconnecting does not change the lesson. The objective uses the selected target’s name, such as APPREHEND CORA or APPREHEND DELLA. Five filing cabinets, one driving licence.
 
-Status: implemented locally in `arcade-v19`, protocol 5, map `sunset-borough-3`. Reviewed: 2026-10-26. Human difficulty, physical-controller and sustained performance acceptance remain open. [Execution status](EXECUTION_STATUS.md) records observed checks.
+Status: implemented locally in `arcade-v20`, protocol 5, map `sunset-borough-3`. Reviewed: 2026-10-27. Human difficulty, physical-controller and sustained performance acceptance remain open. [Execution status](EXECUTION_STATUS.md) records observed checks.
 
 *Dispatch supplies the lesson. Procurement supplies the noisy accessories one case later.*
 
@@ -16,7 +16,7 @@ Status: implemented locally in `arcade-v19`, protocol 5, map `sunset-borough-3`.
 | 6 · False Alarm | Suspect oil briefly reduces grip; steer around it | Arrest or credited target wreck |
 | 7 · Cone of Silence | Amber hubcaps warn before suspect side blades; leave side clearance and use a front cutoff | Arrest or credited target wreck |
 | 8 · Premium Care | **UNLOCKED: OIL!** Drop behind after a cutoff | Arrest or credited target wreck |
-| 9 · The Paper Chase | **UNLOCKED: HUBCAP BLADES!** Warn, extend briefly and keep control; black chopper bombing passes return | Arrest or credited target wreck |
+| 9 · The Paper Chase | **SNOW DISPATCH** and **UNLOCKED: HUBCAP BLADES!** Brake early; snow is icy and frozen puddles are even slicker. All unlocked weapon controls remain available; black chopper bombing passes return | Arrest or credited target wreck |
 | 10 | All police weapons remain available, with their controls and reminders | Arrest or credited target wreck |
 
 The shared `getDispatchFeatures(dispatchIndex)` catalog derives equipment, accepted outcomes, road activation and lesson copy from authoritative campaign progress. Unlocks belong to the room, including late joins and reconnects. Retry keeps the dispatch; campaign restart returns to the unarmed opener. No account, player tutorial save or extra lobby is added. The three-second countdown and five-minute dispatch timer remain.
@@ -48,3 +48,11 @@ Use `pnpm test:unit` and `pnpm test:integration` for contracts, hints, authority
 `tests/e2e/solo-driving.spec.ts` also slows rendering to five frames per second while checking independent input delivery, movement and bounded corrections. Protection blinking uses room ticks rather than browser lifetime. These checks do not certify physical controllers, blocked-main-thread recovery or the full named-hardware performance matrix. Run browser E2E locally before every push; CI remains headless.
 
 Briefings show one short current lesson rather than the accumulated equipment prose. Full unlocked controls/reminders remain in Controls Help. The chase keeps health, time, the objective and local arrest progress, omitting leaderboards, speed readouts, campaign trackers and a duplicate numeric arrest percentage.
+
+## Snow dispatch
+
+Only dispatch 9 applies winter handling. All cars use 16% normal lateral grip on snow and 3.5% on frozen authored water, after the underlying surface/profile tuning. Service and handbrake deceleration use 20%/6%; drive and reverse acceleration use 65%/28%. Oil never improves winter grip. These are strong slides and long stops, with unchanged speed limits, collision shapes and automatic-arrest rules. Snow cover, fog and frozen water describe the same room-owned state for late joins/reconnects. Dispatch 10 restores normal handling and liquid water. Reduce camera shake/system reduced motion suppresses falling flakes while retaining snow cover, frozen water and gameplay. Human difficulty review remains open; the motor pool has ordered salt, not extra arrest paperwork.
+
+The winter floating card uses three columns and a short ice/braking reminder so it stays clear of the suspect marker. Persistent Controls Help keeps the complete snow and retained-weapon lesson. The eight-second active-play timer and device/remapping behavior are unchanged.
+
+The local winter follow-up adds fluffy raised scenery and destructible curb banks. Drive through a bank or hit it with a bullet/bomb to clear it; all officers see the same gaps. The briefing retains the snow warning, current blades and chopper counterplay; Controls Help retains all unlocked weapon controls.
