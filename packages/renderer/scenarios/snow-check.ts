@@ -34,6 +34,8 @@ try{
  },'/@fs/'+resolve('packages/renderer/src/primitives.ts').replaceAll('\\','/'));
  await writeFile(join(output,'road-contrast.json'),JSON.stringify(contrast,null,2));
  assert.ok(contrast.road[2]!>contrast.road[0]!+10&&contrast.ground.reduce((a,b)=>a+b,0)>contrast.road.reduce((a,b)=>a+b,0)+50,'Blue packed-snow roads must remain distinct from fresh white snow after all world materials compile');
+ const brightness=(rgb:number[])=>rgb[0]!*.2126+rgb[1]!*.7152+rgb[2]!*.0722;
+ assert.ok(brightness(contrast.ground)-brightness(contrast.road)>=65,'Packed-snow lanes must be at least 65 brightness levels darker than pavement snow at the native driving exposure');
  const banks=await page.evaluate(async()=>{const f=(window as any).fixture;f.frame.brokenSnowbanks=[];f.step(.016);const before=f.renderer.getStats();f.frame.brokenSnowbanks=['snowbank-x-0--40-1'];f.step(.016);const after=f.renderer.getStats();return{before:before.snowbanks,after:after.snowbanks,chunks:after.snowChunks,caps:after.snowCaps};});
  assert.equal(banks.before,280);assert.equal(banks.after,279);assert.ok(banks.chunks>0&&banks.chunks<=96);assert.equal(banks.caps,2);
  await page.screenshot({path:join(output,'snowbank-burst.png')});

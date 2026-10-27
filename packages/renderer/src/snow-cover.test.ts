@@ -1,7 +1,29 @@
 import {afterEach,beforeEach,expect,it} from 'vitest';
 import {NullEngine} from '@babylonjs/core/Engines/nullEngine';import {Scene} from '@babylonjs/core/scene';import {SnowCover} from './snow-cover';
+import {Mesh} from '@babylonjs/core/Meshes/mesh';
+import {StandardMaterial} from '@babylonjs/core/Materials/standardMaterial';
 let engine:NullEngine,scene:Scene,snow:SnowCover;beforeEach(()=>{engine=new NullEngine();scene=new Scene(engine);snow=new SnowCover(scene);});afterEach(()=>{snow.dispose();scene.dispose();engine.dispose();});
 it('adds thick rounded roof caps and curb banks instead of only recoloring surfaces',()=>{snow.setEnabled(true);snow.update(.016,{x:0,z:-40},'high',false);expect(scene.meshes.filter(m=>m.name.startsWith('snow-cap-')).length).toBeGreaterThan(0);expect((snow.getStats() as any).snowbanks).toBeGreaterThan(100);const cap=scene.meshes.find(m=>m.name.startsWith('snow-cap-'))!;cap.computeWorldMatrix(true);expect(cap.getBoundingInfo().boundingBox.extendSizeWorld.y).toBeGreaterThan(.4);});
 it('hides broken banks, bursts chunks once, avoids replay on late join, and reuses scenery through thaw cycles',()=>{snow.setEnabled(true);const bank='snowbank-x-0--40-1';(snow.update as any)(.016,{x:0,z:-40},'high',false,[],[]);const before=(snow.getStats() as any).snowbanks;expect(before).toBeGreaterThan(100);(snow.update as any)(.016,{x:0,z:-40},'high',false,[bank],[]);expect((snow.getStats() as any).snowbanks).toBe(before-1);expect((snow.getStats() as any).snowChunks).toBeGreaterThan(0);snow.reset();expect((snow.getStats() as any).snowChunks).toBe(0);(snow.update as any)(3,{x:0,z:-40},'high',true,[bank],[]);expect((snow.getStats() as any).snowChunks).toBe(0);const resources=[scene.meshes.length,scene.materials.length];for(let i=0;i<10;i++){snow.setEnabled(false);snow.setEnabled(true);(snow.update as any)(.016,{x:0,z:-40},'high',false,[bank],[]);expect((snow.getStats() as any).snowChunks).toBe(0);}expect([scene.meshes.length,scene.materials.length]).toEqual(resources);snow.setEnabled(false);expect((snow.getStats() as any).snowbanks).toBe(0);snow.dispose();expect(scene.meshes.length).toBe(0);});
 
 it('allocates no winter geometry or materials during an ordinary dispatch',()=>{expect(scene.meshes).toHaveLength(0);expect(scene.materials.filter(m=>m.name.startsWith('winter-'))).toHaveLength(0);});
+
+it('keeps road markings visible instead of bleaching every navigation cue into the snow',()=>{
+ snow.setEnabled(true);
+ for(const color of ['#e9c979','#c1ccbd','#dce0ca','#e0d8b5']){
+  const marking=new StandardMaterial(color+'false',scene);
+  expect(snow.covers(marking as any),`${color} road markings must retain their authored contrast`).toBe(false);
+ }
+ expect(snow.covers(new StandardMaterial('#4d6268false',scene))).toBe(true);
+});
+
+it('reuses snow chunk GPU buffers through animation, expiry and later bank impacts',()=>{
+ snow.setEnabled(true);snow.update(.016,{x:0,z:-40},'high',false);
+ const chunks=scene.getMeshByName('snowbank-chunks') as Mesh;
+ snow.update(.016,{x:0,z:-40},'high',false,['snowbank-x-0--40-1']);
+ const buffer=chunks.getVertexBuffer('world0');expect(buffer).toBeDefined();
+ for(let i=0;i<100;i++)snow.update(.016,{x:0,z:-40},'high',false,['snowbank-x-0--40-1']);
+ snow.update(.016,{x:0,z:-40},'high',false,['snowbank-x-0--40-1','snowbank-x-0--24-1']);
+ expect(snow.getStats().snowChunks).toBeGreaterThan(0);
+ expect(chunks.getVertexBuffer('world0')?.uniqueId,'Snow bursts must update a persistent buffer instead of destroying and recreating it each frame').toBe(buffer?.uniqueId);
+});

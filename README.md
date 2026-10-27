@@ -12,6 +12,8 @@ Documentation reviewed: **2026-10-27**, for integrated source `arcade-v20`, prot
 
 The `arcade-v20` winter follow-up makes dispatch 9 of every case snow-covered, with pronounced icy handling and even slicker frozen puddles. Raised rounded roof caps, snowy furniture and 280 ploughed curb banks give the snow a fluffy cartoon silhouette. Cars, bullets and bombs break the banks into bounded snow chunks; peers and late joins share the cleared gaps.
 
+Packed-snow roads use a darker blue surface and retain the authored lane, crossing and stop markings so turns remain readable against the fluffy pavement snow. Bank collisions reject distant piles before exact polygon checks, and burst animation updates a persistent GPU buffer. The gritting truck has finally learned to budget its paperwork.
+
 ## Run locally
 
 Use Node.js **22.12 or newer** and **pnpm 11.25.0**. Dependency versions are recorded in [package.json](package.json) and locked in [pnpm-lock.yaml](pnpm-lock.yaml). The implementation session used Node.js 25.8.1 on Windows 11.

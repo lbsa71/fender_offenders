@@ -17,6 +17,8 @@ export class WinterScenery {
  private enabled=false;private disposed=false;private synced=false;private seen=new Set<string>();
  private caps:Mesh[]=[];private bankMesh:Mesh;private chunkMesh:Mesh;private intact=0;
  private chunks:Array<{x:number;y:number;z:number;vx:number;vy:number;vz:number;life:number;size:number}>=[];
+ private chunkMatrices=new Float32Array(96*16);
+ private chunkScale=Vector3.Zero();private chunkPosition=Vector3.Zero();private chunkRotation=Quaternion.Identity();private chunkMatrix=Matrix.Identity();
  private hats=new Map<string,TransformNode>();private templates=new Map<PropKind,Mesh>();
  private materials:StandardMaterial[]=[];
  constructor(private scene:Scene,shadows?:ShadowGenerator){
@@ -37,6 +39,7 @@ export class WinterScenery {
   for(let i=0;i<8;i++){const m=MeshBuilder.CreateIcoSphere('pile-lobe',{radius:1,subdivisions:2,flat:false},scene);m.position.set(Math.sin(i*4)*.16,.45+(i%3)*.11,-5.6+i*1.6);m.scaling.set(.85+(i%2)*.13,.7+(i%3)*.09,1.35);m.material=fresh;lobes.push(m);}
   this.bankMesh=Mesh.MergeMeshes(lobes,true,true)!;this.bankMesh.name='snowbanks-fluffy';this.bankMesh.material=fresh;this.bankMesh.receiveShadows=true;this.bankMesh.setEnabled(false);shadows?.addShadowCaster(this.bankMesh);
   this.chunkMesh=MeshBuilder.CreateIcoSphere('snowbank-chunks',{radius:1,subdivisions:1,flat:false},scene);this.chunkMesh.material=fresh;this.chunkMesh.setEnabled(false);
+  this.chunkMesh.thinInstanceSetBuffer('matrix',this.chunkMatrices,16,false);this.chunkMesh.thinInstanceCount=0;
   for(let i=0;i<96;i++)this.chunks.push({x:0,y:0,z:0,vx:0,vy:0,vz:0,life:0,size:.1});
   // Per-kind caps follow the same full transform as authoritative tumbling furniture.
   const shapes:Partial<Record<PropKind,number[][]>>={tree:[[-.5,2.55,0,3.9,1.25,3.6],[.3,3.4,.3,3.5,1.2,3.1]],bench:[[0,.19,0,2.65,.38,.9],[0,.9,.28,2.7,.4,.5]],crate:[[0,.6,0,1.2,.38,1.2]],barrel:[[0,.72,0,1,.35,1]],bin:[[0,.65,0,1,.35,1]],sign:[[0,1.42,0,1.4,.25,.4]],lamp:[[-1.1,2.6,0,1.5,.35,.75]]};
@@ -64,8 +67,9 @@ export class WinterScenery {
   }
   const ids=new Set<string>();for(const p of props.slice(0,192)){ids.add(p.entityId);let root=this.hats.get(p.entityId);if(!root){root=new TransformNode(`snow-prop-${p.entityId}`,this.scene);const source=this.templates.get(p.kind);if(source)source.createInstance(`snow-hat-${p.entityId}`).parent=root;this.hats.set(p.entityId,root);}root.setEnabled(true);root.position.set(-p.position.x,p.position.y,p.position.z);const q=p.rotation;root.rotationQuaternion=new Quaternion(q.x,-q.y,-q.z,q.w);root.scaling.set(-p.scale,p.scale,p.scale);}
   for(const [id,h] of this.hats)if(!ids.has(id)){h.dispose();this.hats.delete(id);}
-  const matrices:number[]=[];for(const c of this.chunks){if(reduced)c.life=0;if(c.life<=0)continue;c.life-=Math.max(0,Math.min(.1,dt));if(c.life<=0)continue;c.x+=c.vx*dt;c.y+=c.vy*dt;c.z+=c.vz*dt;c.vy-=9*dt;const size=c.size*Math.min(1,c.life*2);Matrix.Compose(new Vector3(size,size,size),Quaternion.Identity(),new Vector3(c.x,Math.max(.08,c.y),c.z)).copyToArray(matrices,matrices.length);}
-  this.chunkMesh.thinInstanceSetBuffer('matrix',new Float32Array(matrices),16,true);this.chunkMesh.setEnabled(matrices.length>0);
+  let count=0;for(const c of this.chunks){if(reduced)c.life=0;if(c.life<=0)continue;c.life-=Math.max(0,Math.min(.1,dt));if(c.life<=0)continue;c.x+=c.vx*dt;c.y+=c.vy*dt;c.z+=c.vz*dt;c.vy-=9*dt;const size=c.size*Math.min(1,c.life*2);this.chunkScale.setAll(size);this.chunkPosition.set(c.x,Math.max(.08,c.y),c.z);Matrix.ComposeToRef(this.chunkScale,this.chunkRotation,this.chunkPosition,this.chunkMatrix);this.chunkMatrix.copyToArray(this.chunkMatrices,count++*16);}
+  this.chunkMesh.thinInstanceCount=count;this.chunkMesh.setEnabled(count>0);
+  if(count){this.chunkMesh.thinInstanceBufferUpdated('matrix');this.chunkMesh.thinInstanceRefreshBoundingInfo(false);}
  }
  private burst(x:number,z:number){let emitted=0;for(const c of this.chunks){if(c.life>0)continue;const angle=emitted*2.39996;c.x=-x;c.y=.7;c.z=z;c.vx=Math.sin(angle)*(2+emitted%4);c.vz=Math.cos(angle)*(2+emitted%3);c.vy=2.5+(emitted%4)*.8;c.life=.7+(emitted%3)*.2;c.size=.16+(emitted%4)*.09;if(++emitted===16)break;}}
  resetEffects(){for(const c of this.chunks)c.life=0;this.chunkMesh.setEnabled(false);this.synced=false;this.seen.clear();}

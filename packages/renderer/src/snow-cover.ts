@@ -44,6 +44,7 @@ export class SnowCover {
   covers(material:StandardMaterial|PBRMaterial):boolean {
     if(this.disposed||!this.enabled||material.alpha<1)return false;
     if(material.name==='glass'||material.name==='shallow-water')return false;
+    if(['#e9c979false','#c1ccbdfalse','#dce0cafalse','#e0d8b5false'].includes(material.name))return false;
     if(material instanceof StandardMaterial&&(material.disableLighting||Math.max(material.emissiveColor.r,material.emissiveColor.g,material.emissiveColor.b)>.1))return false;
     return material.name.startsWith('#')||material.name.startsWith('prop-')||material.name.startsWith('paint-')||['chrome','rubber','white','black','charred-chassis'].includes(material.name);
   }
@@ -75,7 +76,7 @@ class SnowFinish extends MaterialPluginBase {
     return{CUSTOM_FRAGMENT_DEFINITIONS:'uniform float fenderSnowAmount;uniform float fenderSnowRoad;',CUSTOM_FRAGMENT_BEFORE_LIGHTS:`
       float fenderSnowCoat=fenderSnowAmount*smoothstep(0.3,0.75,normalW.y);
       float fenderSnowGrain=fract(sin(dot(floor(vPositionW.xz*5.0),vec2(12.9898,78.233)))*43758.5453)*0.025;
-      vec3 fenderSnowColor=mix(vec3(0.91,0.95,1.0),vec3(0.36,0.52,0.66),fenderSnowRoad)-vec3(fenderSnowGrain);
+      vec3 fenderSnowColor=mix(vec3(0.91,0.95,1.0),vec3(0.16,0.24,0.32),fenderSnowRoad)-vec3(fenderSnowGrain);
       ${this._material instanceof PBRMaterial?'surfaceAlbedo=mix(surfaceAlbedo,fenderSnowColor,fenderSnowCoat);':'diffuseColor=mix(diffuseColor,fenderSnowColor,fenderSnowCoat);baseColor.rgb=mix(baseColor.rgb,vec3(1.0),fenderSnowCoat);'}
     `};
   }

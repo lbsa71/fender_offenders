@@ -1,7 +1,7 @@
 import { CAMPAIGN_ID, getStoryline, isStorylineId, getCampaignDispatch, getBossTactics, getCampaignTarget, getDispatchFeatures, DEFAULT_DRIVING_CONTEXT, PROTOCOL_VERSION, isDriverActions, isVehicleBodyId, sanitizeNickname, validateMap } from '@fender/contracts';
 import type { AppliedDriverInput, VehicleContactDelta, ArrestGuidance, DispatchDrivingContext, BossTactics, CollisionMap, DriverActions, DriverRuntimeState, GameEvent, GameplayConfig, GrenadeState, LocalAuthorityState, PlanarPose, PlayerScore, ProjectileState, PropDefinition, VehicleState, WorldSnapshot } from '@fender/contracts';
 import { DEFAULT_GAMEPLAY_CONFIG, FIXED_DELTA, normalizeGameplay, type SimulationConfig } from './config.js';
-import { box, colliderPolygon, isPoseClear, overlap, segmentPolygon, type Point } from '../physics/geometry.js';
+import { box, colliderPolygon, isPoseClear, nearPolygon, overlap, segmentPolygon, type Point } from '../physics/geometry.js';
 import { driveVehicle, neutralActions, newDriver, resolveStatic, resolveVehicleContacts, surfaceAt, type ContactImpact } from '../vehicles/controller.js';
 import { trafficInput, type TrafficRuntime } from '../traffic/traffic.js';
 import { createStaticQueries, type StaticQueries } from '../physics/rapier.js';
@@ -209,8 +209,9 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
   const collideProjectile = (p:ProjectileState,start:PlanarPose,end:Point,previous?:Map<string,PlanarPose>):boolean => {
       let fraction = queries.segmentHit(start, end) ?? Infinity, target: VehicleRecord | null = null;
       let airHit=false,bankHit:string|null=null;
+      const segmentCenter={x:(start.x+end.x)/2,z:(start.z+end.z)/2},segmentRadius=Math.hypot(end.x-start.x,end.z-start.z)/2;
       if(campaign&&getDispatchFeatures(campaign.dispatchIndex).winterRoads)for(const bank of snowbanks){
-        if(brokenSnowbanks.has(bank.id))continue;const hit=segmentPolygon(start,end,bank.polygon);
+        if(brokenSnowbanks.has(bank.id)||!nearPolygon(segmentCenter,bank.polygon,segmentRadius))continue;const hit=segmentPolygon(start,end,bank.polygon);
         if(hit!==null&&hit<fraction){fraction=hit;bankHit=bank.id;}
       }
       const shooter=records.get(p.ownerEntityId);
@@ -551,6 +552,8 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
         for(const r of records.values()){
           const car=r.vehicle;if(car.status!=='active'||Math.hypot(car.velocity.x,car.velocity.z)<1.5)continue;
           const from=previous.get(car.entityId)??car.pose;
+          const radius=2.4+Math.hypot(car.pose.x-from.x,car.pose.z-from.z)/2;
+          if(!nearPolygon({x:(from.x+car.pose.x)/2,z:(from.z+car.pose.z)/2},bankBox,radius))continue;
           // The pile crumbles instead of feeding an impulse back into the driver's ice handling.
           if(overlap(box(car.pose),bankBox)||segmentPolygon(from,car.pose,bank.sweep)!==null){brokenSnowbanks.add(bank.id);break;}
         }
