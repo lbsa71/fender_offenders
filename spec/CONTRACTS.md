@@ -107,6 +107,8 @@ An `input-backlog` snapshot or `resync` prop patch retires acknowledgments witho
 
 The app calls `sampleFrame()` on the session's current monotonic clock, shared with input and snapshot handling. An older animation timestamp must not move the sample behind an already delivered input tick.
 
+After the four-step online input budget is exhausted, pacing discards remaining whole ticks and retains only the fractional tick phase. A later ordinary callback must not repay that dropped time as an extra movement burst. Local practice retains its separate fifteen-step catch-up policy.
+
 For callers that omit logical input times, a late one-tick callback must preserve already displayed forward travel after render correction is applied. It may restore only that last delivered position, never unshown extrapolation. Fresh yaw and velocity remain predicted immediately; explicit resync/pause/life resets clear the guard.
 
 ## 3. State, configuration, and checkpoints

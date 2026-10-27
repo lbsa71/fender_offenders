@@ -12,6 +12,8 @@ Test observable behavior, contract boundaries, and failure modes. Do not add tes
 
 A fixture passing does not prove a live integration. Milestone gates specify where real browser/server/device evidence is mandatory. Never mark a gate green because the harness exists but has not been run.
 
+Driving-continuity browser traces use the delivered frame's `sampleTimeSeconds`, not the later completion time of observer work. The straight-line scenario fixes the vehicle and traffic-free road, captures at least 90 useful intervals over at least two seconds with a bounded collection timeout, and retains its original displacement, pending-input, stall, variation and velocity-jump limits. Contact checks record from an explicit vehicle-life intervention across two real three-second arrests; the combined sample floor is coverage, not an implicit FPS requirement. Each arrest independently checks health, life, controller resets, sustained contact and unexpected backward movement. Its 0.2 m unexpected-jump tolerance excludes measured physical reverse movement and the authoritative separation applied once; per-revision separation is also bounded to 0.2 m. Controlled unit cases must still reject teleports and duplicate contact displacement. Raw and adjusted traces remain attached. Named-hardware frame-rate acceptance remains separate.
+
 ## 2. Available commands and gaps
 
 The root scripts below exist in [package.json](../package.json). `test:network` and `test:visual` remain proposed names; run the explicit harness/tools until corresponding scripts are added.
