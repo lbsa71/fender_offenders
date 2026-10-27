@@ -1,8 +1,8 @@
-import { getDispatchFeatures, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, CAMPAIGN_TITLE, getBossTactics, getCampaignMugshot, getCampaignTarget, getVehicleProfile, isInviteCode, isVehicleBodyId, randomCallsign, sanitizeNickname, VEHICLE_BODIES, type CampaignState, type CampaignTarget, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
+import { getDispatchFeatures, getStoryline, getCampaignDispatch, getCampaignMugshot, getCampaignTarget, getVehicleProfile, isInviteCode, isVehicleBodyId, randomCallsign, sanitizeNickname, VEHICLE_BODIES, type CampaignTarget, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
 import './style.css';
+import type { CampaignMugshotVariant } from '@fender/contracts';
 import { controlGraphics, gamepadControls, keyboardBindings, keyboardControls } from './controls';
 import { controlHints, placeControlCard } from './tutorial';
-import { vehicleStats } from './vehicle-stats';
 import type { ControlScheme, TouchControls } from '@fender/contracts';
 import { mountTouchControls } from './touch';
 
@@ -100,9 +100,9 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const shell = doc.createElement('div'); shell.className = 'fo-ui';
   shell.innerHTML = `
     <div class="fo-grain" aria-hidden="true"></div>
-    <header class="fo-top"><a class="fo-wordmark" href="#" aria-label="Fender Offenders home"><span class="fo-badge">FO</span><span>FENDER<br>OFFENDERS<span class="fo-edition">MOTOR DIVISION / 01</span></span></a><div class="fo-top-right"><span class="fo-connection"><i></i><span data-text="connection">LOCAL DISPATCH</span></span><button class="fo-icon" data-action="pause" aria-label="Open pause menu">Ⅱ</button></div></header>
-    <section class="fo-hud" hidden aria-label="Driving dashboard"><div class="fo-round"><span data-text="phase">FREE PATROL</span><strong data-text="timer">05:00</strong></div><aside class="fo-scoreboard"><div class="fo-label">DISPATCH LEADERBOARD</div><ol data-scores></ol></aside><div class="fo-instruments"><div class="fo-speed"><strong data-text="speed">0</strong><span>KM/H</span></div><div class="fo-car-state"><div class="fo-label">UNIT INTEGRITY <b data-text="health">100%</b></div><div class="fo-health"><i></i></div><span data-text="ammo">AUTO / UNLIMITED AMMO</span></div></div><div class="fo-prompts" data-text="prompts">WASD DRIVE · SHIFT DRIFT · SPACE FIRE</div><div class="fo-recover" hidden><span>RECOVERING UNIT</span><progress max="1" value="0"></progress></div><div class="fo-pursuit" hidden><span data-text="pursuit">INTERCEPT THE SUSPECT</span><progress max="1" value="0"></progress></div><div class="fo-center-callout" hidden><span data-text="callout-label">STAND BY</span><strong data-text="callout">3</strong></div><button class="fo-start" data-action="start" hidden>START ROUND →</button></section>
-    <div class="fo-menu-backdrop"></div><main class="fo-menu"><div class="fo-hero" aria-hidden="true"></div><section class="fo-panel" aria-label="Dispatch menu"><div class="fo-panel-heading"><span class="fo-kicker" data-text="panel-kicker">CITY MOTOR DIVISION</span><span class="fo-panel-no">FORM 01–FO</span></div><div class="fo-home"><h2>You're on duty.</h2><p class="fo-muted">Pick a callsign. Take the keys.</p><label class="fo-field">YOUR CALLSIGN<input name="nickname" maxlength="20" autocomplete="nickname" spellcheck="false" value="Officer Rookie" placeholder="Officer Rookie"></label><button class="fo-primary" data-action="practice"><span>HIT THE STREETS<small>Play. Share the URL anytime.</small></span><b>↗</b></button></div><div class="fo-pause" hidden><h2>Taking a breather?</h2><p class="fo-muted" data-text="pause-description">Your patrol is paused.</p><button class="fo-primary" data-action="resume">BACK ON PATROL →</button><button class="fo-secondary" data-action="leave">END PATROL <span>↗</span></button></div><div class="fo-settings" hidden><h2>Fine tuning.</h2><p class="fo-muted">Make this patrol yours.</p><div class="fo-settings-list"><label>Master volume<input type="range" data-setting="masterVolume" min="0" max="1" step=".05"></label><label>Music<input type="range" data-setting="musicVolume" min="0" max="1" step=".05"></label><label>Effects<input type="range" data-setting="effectsVolume" min="0" max="1" step=".05"></label><label>Graphics<select data-setting="quality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label><label>Reduce camera shake<input type="checkbox" data-setting="reducedShake"></label><label>Reduce flashes<input type="checkbox" data-setting="reducedFlash"></label><label>Controller vibration<input type="checkbox" data-setting="vibration"></label><label>Stick dead zone<input type="range" data-setting="stickDeadzone" min=".05" max=".5" step=".01"></label><label>Trigger dead zone<input type="range" data-setting="triggerDeadzone" min="0" max=".5" step=".01"></label><label>Steering sensitivity<input type="range" data-setting="sensitivity" min=".4" max="1.8" step=".05"></label></div><details class="fo-bindings"><summary>KEYBOARD BINDINGS</summary><div data-bindings></div></details><button class="fo-secondary" data-action="settings-back">SAVE & BACK <span>↩</span></button></div><div class="fo-results" hidden><span class="fo-kicker">CASE CLOSED</span><h2 data-text="result-title">Patrol complete.</h2><p class="fo-muted">Final standings / confirmed by dispatch</p><ol data-results></ol><button class="fo-primary" data-action="rematch">ANOTHER ROUND →</button><button class="fo-secondary" data-action="leave">BACK TO DISPATCH <span>↗</span></button></div><div class="fo-notice" role="status" aria-live="polite" hidden></div><footer class="fo-panel-footer"><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button><span class="fo-input-hint" data-text="input-hint">↑ ↓ SELECT · ENTER CONFIRM</span></footer></section></main><button class="fo-invite" data-action="invite">INVITE URL</button><footer class="fo-bottom"><span>MINOR INFRACTIONS. MAJOR COLLISIONS.</span><span>DRIVE FAST. FILE LATER.</span></footer><div class="fo-toast" role="status" aria-live="polite" hidden></div>`;
+    <header class="fo-top"><a class="fo-wordmark" href="#" aria-label="Fender Offenders home"><span class="fo-badge">FO</span><span>FENDER<br>OFFENDERS</span></a><div class="fo-top-right"><span class="fo-connection"><i></i><span data-text="connection">LOCAL DISPATCH</span></span><button class="fo-icon" data-action="pause" aria-label="Open pause menu">Ⅱ</button></div></header>
+    <section class="fo-hud" hidden aria-label="Driving dashboard"><div class="fo-round"><span data-text="phase">FREE PATROL</span><strong data-text="timer">05:00</strong></div><div class="fo-instruments"><div class="fo-car-state"><div class="fo-label">UNIT <b data-text="health">100%</b></div><div class="fo-health" role="progressbar" aria-label="Vehicle integrity" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><i></i></div><span data-text="ammo" hidden></span></div></div><div class="fo-prompts" data-text="prompts">WASD DRIVE · SHIFT DRIFT · SPACE FIRE</div><div class="fo-recover" hidden><span>RECOVERING UNIT</span><progress max="1" value="0"></progress></div><div class="fo-pursuit" hidden><span data-text="pursuit">INTERCEPT THE SUSPECT</span><progress max="1" value="0"></progress></div><div class="fo-center-callout" hidden><span data-text="callout-label">STAND BY</span><strong data-text="callout">3</strong></div><button class="fo-start" data-action="start" hidden>START ROUND →</button></section>
+    <div class="fo-menu-backdrop"></div><main class="fo-menu"><div class="fo-hero" aria-hidden="true"></div><section class="fo-panel" aria-label="Dispatch menu"><div class="fo-home"><h2>You're on duty.</h2><p class="fo-muted">Pick a callsign. Take the keys.</p><label class="fo-field">YOUR CALLSIGN<input name="nickname" maxlength="20" autocomplete="nickname" spellcheck="false" value="Officer Rookie" placeholder="Officer Rookie"></label><button class="fo-primary" data-action="practice"><span>HIT THE STREETS<small>Play. Share the URL anytime.</small></span><b>↗</b></button></div><div class="fo-pause" hidden><h2>Taking a breather?</h2><p class="fo-muted" data-text="pause-description">Your patrol is paused.</p><button class="fo-primary" data-action="resume">BACK ON PATROL →</button><button class="fo-secondary" data-action="leave">END PATROL <span>↗</span></button></div><div class="fo-settings" hidden><h2>Fine tuning.</h2><p class="fo-muted">Make this patrol yours.</p><div class="fo-settings-list"><label>Master volume<input type="range" data-setting="masterVolume" min="0" max="1" step=".05"></label><label>Music<input type="range" data-setting="musicVolume" min="0" max="1" step=".05"></label><label>Effects<input type="range" data-setting="effectsVolume" min="0" max="1" step=".05"></label><label>Graphics<select data-setting="quality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label><label>Reduce camera shake<input type="checkbox" data-setting="reducedShake"></label><label>Reduce flashes<input type="checkbox" data-setting="reducedFlash"></label><label>Controller vibration<input type="checkbox" data-setting="vibration"></label><label>Stick dead zone<input type="range" data-setting="stickDeadzone" min=".05" max=".5" step=".01"></label><label>Trigger dead zone<input type="range" data-setting="triggerDeadzone" min="0" max=".5" step=".01"></label><label>Steering sensitivity<input type="range" data-setting="sensitivity" min=".4" max="1.8" step=".05"></label></div><details class="fo-bindings"><summary>KEYBOARD BINDINGS</summary><div data-bindings></div></details><button class="fo-secondary" data-action="settings-back">SAVE & BACK <span>↩</span></button></div><div class="fo-results" hidden><span class="fo-kicker">CASE CLOSED</span><h2 data-text="result-title">Patrol complete.</h2><button class="fo-primary" data-action="rematch">ANOTHER ROUND →</button><button class="fo-secondary" data-action="leave">BACK TO DISPATCH <span>↗</span></button></div><div class="fo-notice" role="status" aria-live="polite" hidden></div><footer class="fo-panel-footer"><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button><span class="fo-input-hint" data-text="input-hint">↑ ↓ SELECT · ENTER CONFIRM</span></footer></section></main><button class="fo-invite" data-action="invite">INVITE URL</button><footer class="fo-bottom"><span>MINOR INFRACTIONS. MAJOR COLLISIONS.</span><span>DRIVE FAST. FILE LATER.</span></footer><div class="fo-toast" role="status" aria-live="polite" hidden></div>`;
   root.append(shell);
   const touchControls = mountTouchControls(shell, state => callbacks.onTouchInput?.(state), () => callbacks.onTouchCancel?.());
   const scheme = doc.createElement('label'); scheme.textContent = 'Control scheme';
@@ -159,8 +159,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   shell.append(targetBadge);
   const targetLabel = targetBadge.querySelector<HTMLElement>('.fo-target-label')!;
   const targetDistance = targetBadge.querySelector<HTMLElement>('.fo-target-distance')!;
-  const arrestLabel = doc.createElement('span'); arrestLabel.className = 'fo-arrest-label';
-  const arrestProgress = one<HTMLProgressElement>('.fo-pursuit progress'); arrestProgress.setAttribute('aria-label', 'Your arrest progress'); arrestProgress.before(arrestLabel);
+  const arrestProgress = one<HTMLProgressElement>('.fo-pursuit progress'); arrestProgress.setAttribute('aria-label', 'Your arrest progress');
   const arrestHelp = doc.createElement('small'); arrestHelp.className = 'fo-arrest-help'; arrestHelp.textContent = 'Stay close & match speed · 3s'; one('.fo-pursuit').append(arrestHelp);
   const controls=one<HTMLElement>('.fo-prompts');controls.dataset.tutorialControls='';controls.setAttribute('aria-label','Driving controls');controls.setAttribute('role','group');controls.replaceChildren();
   const objectiveTitle=one<HTMLElement>('[data-text="pursuit"]');objectiveTitle.dataset.objectiveTitle='';arrestHelp.dataset.objectiveInstruction='';
@@ -171,6 +170,20 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   controlObserver?.observe(shell);controlObserver?.observe(controls);
   function positionControls(){if(controls.hidden)return;const p=placeControlCard(controlAnchor??{x:.5,y:.55},shellWidth,shellHeight,controlWidth,controlHeight,targetBadge.hidden?null:badgeAnchor);controls.style.transform=`translate(${Math.round(p.x)}px,${Math.round(p.y)}px)`;}
   function setControlAnchor(anchor:{x:number;y:number}|null){controlAnchor=anchor;positionControls();}
+  function briefLesson(index:number):string {
+    return [
+      'Catch up → match speed → stay close for 3 seconds. Arresting is automatic.',
+      'Approach from behind or a flank. Police guns arrive next dispatch.',
+      'Fire forward in short bursts. Bombs predict your route: leave the marked circle within 1 second.',
+      'Puddles reduce grip. Steer gently; enemy bombs lead your route and explode after 0.8 seconds.',
+      'Bomb ahead. A black chopper bombs your route: shoot toward its amber ground marker to down it for this dispatch.',
+      'Suspect oil: steer around marked patches.',
+      'Amber hubcaps warn of blades. Give them room.',
+      'Drop oil behind you after a cutoff.',
+      'Use side blades. A black chopper returns: shoot toward its amber ground marker to down it for this dispatch.',
+      'Dodge fast bombs. A black chopper returns: shoot toward its amber ground marker to down it for this dispatch.',
+    ][index]??'';
+  }
   function currentReminder() {
     const index = model.snapshot?.campaign?.dispatchIndex;
     if(index!==undefined&&index>=4)return getDispatchFeatures(index).lesson;
@@ -180,36 +193,30 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     const campaign=model.snapshot?.campaign,features=campaign?getDispatchFeatures(campaign.dispatchIndex):null,guns=features?.gunsEnabled??Boolean(model.snapshot);
     touchControls.setGunsEnabled(guns);touchControls.setWeaponsEnabled(features??{});
     controls.classList.toggle('fo-snow-controls',features?.winterRoads===true);
-    const reminder=features?.winterRoads?'SNOW + ICE: brake early. Frozen puddles are even slicker. Steer gently.':currentReminder(),device=controlDevice(),hints=controlHints(device,settings.bindings,guns,features??{}),key=JSON.stringify({device,hints,reminder});
-    if(key!==controlKey){controlKey=key;controls.replaceChildren(controlGraphics(doc,hints,device));if(reminder){const tip=doc.createElement('p');tip.dataset.controlLesson='';tip.textContent=reminder;controls.append(tip);}const tip=doc.createElement('small');tip.className='fo-tutorial-dismiss';tip.textContent=(device==='gamepad'?'MENU':'ESC')+' → CONTROLS HELP · HIDES AFTER 8 SECONDS';controls.append(tip);}
+    const reminder=features?.winterRoads?'SNOW + ICE: brake early. Frozen puddles are even slicker. Steer gently.':campaign&&campaign.dispatchIndex>0?briefLesson(campaign.dispatchIndex):'',device=controlDevice(),hints=controlHints(device,settings.bindings,guns,features??{}),key=JSON.stringify({device,hints,reminder});
+    if(key!==controlKey){controlKey=key;controls.replaceChildren(controlGraphics(doc,hints,device));if(reminder){const tip=doc.createElement('p');tip.dataset.controlLesson='';tip.textContent=reminder;controls.append(tip);}const tip=doc.createElement('small');tip.className='fo-tutorial-dismiss';tip.textContent=(device==='gamepad'?'MENU':'ESC')+' · CONTROLS';controls.append(tip);}
     for(const [action,enabled] of [['fire',guns],['bomb',features?.bombsEnabled],['oil',features?.oilEnabled],['blades',features?.bladesEnabled]]){const button=one(`[data-binding="${action}"]`);if(button.parentElement)button.parentElement.hidden=!enabled;}
     const cooldown=Math.max(0,Math.ceil(((model.snapshot?.local?.driver.nextDeployTick??0)-(model.snapshot?.serverTick??0))/60));
-    write('ammo',(guns?'AUTO / UNLIMITED AMMO':'TRAINING / UNARMED')+(features?.bombsEnabled?` · GEAR ${cooldown?cooldown+'s':'READY'}`:''));positionControls();
+    write('ammo',cooldown?`GEAR ${cooldown}s`:'');hide('[data-text="ammo"]',!features?.bombsEnabled||cooldown===0);positionControls();
   }
   const resultOutcome = doc.createElement('p'); resultOutcome.className = 'fo-result-outcome'; resultOutcome.hidden = true; one('.fo-results h2').after(resultOutcome);
-  one('.fo-home .fo-muted').textContent = 'Ten connected dispatches. Arrest suspects or stop their getaway cars.';
+  one('.fo-home .fo-muted').textContent = 'Take the keys. Cause a little paperwork.';
   one('.fo-home [data-action="practice"] small').textContent = 'Play. Share the URL anytime.';
   const garage = doc.createElement('section'); garage.className = 'fo-garage'; garage.setAttribute('aria-label', 'Vehicle comparison');
-  garage.innerHTML = `<header class="fo-garage-heading"><span class="fo-kicker">DISPATCH LINEUP / PURSUIT PREVIEW</span><h1>ON THEIR TAIL.</h1></header><div class="fo-vehicle-comparison"><article class="fo-garage-card" data-vehicle-comparison="unit"><span class="fo-kicker">YOUR UNIT</span><h2 data-text="vehicle-name"></h2><span class="fo-vehicle-role" data-text="vehicle-role"></span><div class="fo-garage-stats"><div><span>ARMOR</span><strong data-text="vehicle-armor"></strong></div><div><span>TOP SPEED</span><strong data-text="vehicle-speed"></strong></div><div><span>ACCELERATION</span><meter aria-label="Vehicle acceleration" min="0" max="1" value="0"></meter></div><div><span>HANDLING</span><meter aria-label="Vehicle handling" min="0" max="1" value="0"></meter></div></div><p data-text="vehicle-description"></p><button type="button" data-action="reassign">REASSIGN VEHICLE</button></article><article class="fo-garage-card fo-suspect-card" data-vehicle-comparison="suspect"><span class="fo-kicker">SUSPECT CAR</span><h2 data-text="suspect-vehicle-name"></h2><span class="fo-vehicle-role" data-text="suspect-vehicle-role"></span><div class="fo-garage-stats"><div><span>ARMOR</span><strong data-text="suspect-vehicle-armor"></strong></div><div><span>TOP SPEED</span><strong data-text="suspect-vehicle-speed"></strong></div><div><span>ACCELERATION</span><meter aria-label="Suspect acceleration" min="0" max="1" value="0"></meter></div><div><span>HANDLING</span><meter aria-label="Suspect handling" min="0" max="1" value="0"></meter></div></div><p data-text="suspect-vehicle-description"></p><span class="fo-garage-note">MATCH THEIR SPEED. MAKE THE ARREST.</span></article></div>`;
+  garage.innerHTML = '<header class="fo-garage-heading"><h1>ON THEIR TAIL.</h1></header><div class="fo-vehicle-comparison"><article class="fo-garage-card" data-vehicle-comparison="unit"><span class="fo-kicker">YOUR UNIT</span><h2 data-text="vehicle-name"></h2><span class="fo-vehicle-role" data-text="vehicle-role"></span><button type="button" data-action="reassign">REASSIGN VEHICLE</button></article><article class="fo-garage-card fo-suspect-card" data-vehicle-comparison="suspect"><span class="fo-kicker">SUSPECT CAR</span><h2 data-text="suspect-vehicle-name"></h2><span class="fo-vehicle-role" data-text="suspect-vehicle-role"></span></article></div>';
   shell.append(garage);
+  one('[data-text="vehicle-name"]').setAttribute('aria-live','polite');
   const briefing = doc.createElement('section'); briefing.className = 'fo-campaign-briefing'; briefing.hidden = true; briefing.setAttribute('aria-label', 'Campaign dispatch briefing');
-  briefing.innerHTML = '<header><span class="fo-kicker">MAJOR CASE / MOTOR DIVISION</span><h2 data-campaign-title></h2><span class="fo-campaign-number"></span></header><div class="fo-campaign-scroll"><div class="fo-campaign-target"><div class="fo-campaign-portrait" role="img"></div><div><span class="fo-campaign-role"></span><h3 data-campaign-name></h3><strong data-campaign-alias></strong><span data-campaign-target-car></span></div></div><h3 class="fo-campaign-dispatch-title"></h3><p data-campaign-briefing></p><section class="fo-campaign-progress"><h3>DISPATCH TRACKER / 10 FILES</h3><ol class="fo-campaign-tracker"></ol></section><details class="fo-campaign-evidence"><summary>CASE FILE / EARNED LEADS</summary><ol class="fo-campaign-casefile"></ol><p class="fo-campaign-no-evidence">No leads filed yet. Resolve this dispatch to unseal the next clue.</p></details></div><footer><button class="fo-primary" data-action="campaign-start">START DISPATCH →</button><span class="fo-campaign-wait" hidden>RECONNECT TO CONTINUE</span><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button></footer>';
+  briefing.innerHTML = '<header><span class="fo-kicker" data-campaign-series></span><h2 data-campaign-title></h2></header><div class="fo-campaign-scroll"><div class="fo-campaign-target"><div class="fo-campaign-portrait" role="img"></div><div><span class="fo-campaign-role"></span><h3 data-campaign-name></h3><strong data-campaign-alias></strong><span data-campaign-target-car></span></div></div><p data-campaign-briefing></p></div><footer><button class="fo-primary" data-action="campaign-start">START DISPATCH →</button><span class="fo-campaign-wait" hidden>RECONNECT TO CONTINUE</span><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button></footer>';
   shell.append(briefing);
   addHelpButton(briefing.querySelector('footer')!);
   const lesson=doc.createElement('section');lesson.className='fo-tutorial-lesson';lesson.dataset.tutorialLesson='';lesson.setAttribute('role','status');lesson.setAttribute('aria-live','polite');lesson.innerHTML='<strong></strong><p></p>';
   let lessonKey='';
-  const campaignRoster = doc.createElement('section'); campaignRoster.className = 'fo-campaign-roster'; campaignRoster.hidden = true;
-  campaignRoster.innerHTML = '<h3>UNITS ON THIS CASE</h3><div class="fo-score-head"><span aria-hidden="true">#</span><span>UNIT</span><span>PING / ms</span><span>PTS</span></div><ol></ol>';
-  briefing.querySelector('.fo-campaign-target')!.after(campaignRoster);
-  const tacticsCard = doc.createElement('section'); tacticsCard.className = 'fo-campaign-tactics'; tacticsCard.dataset.campaignTactics = ''; tacticsCard.setAttribute('aria-label', 'Target tactics and counterplay');
-  tacticsCard.innerHTML = '<span class="fo-kicker" data-tactics-rank></span><h4 data-tactics-label></h4><div class="fo-tactics-meta"><span data-tactics-style></span><span data-tactics-weapon></span></div><label class="fo-tactics-difficulty"><span></span><meter min="1" max="10" value="1" aria-label="Target difficulty"></meter></label><p data-tactics-description></p>';
-  briefing.querySelector('.fo-campaign-target')!.after(tacticsCard);
-  briefing.querySelector('.fo-campaign-target')!.after(lesson);
+  briefing.querySelector('[data-campaign-briefing]')!.after(lesson);
   const campaignResolution = doc.createElement('section'); campaignResolution.className = 'fo-campaign-resolution'; campaignResolution.hidden = true; campaignResolution.setAttribute('aria-label', 'Campaign dispatch resolution');
-  campaignResolution.innerHTML = '<h3 class="fo-campaign-resolution-label"></h3><div class="fo-campaign-target"><div class="fo-campaign-portrait" role="img"></div><div><span class="fo-campaign-role"></span><h3 data-campaign-name></h3><strong data-campaign-alias></strong></div></div><ol class="fo-campaign-tracker"></ol><section class="fo-campaign-connections" hidden><h3>FOUR RINGLEADERS. ONE RACKET.</h3><div class="fo-campaign-bosses"></div></section><section class="fo-campaign-evidence"><h3>CASE FILE / EARNED LEADS</h3><ol class="fo-campaign-casefile"></ol><p class="fo-campaign-no-evidence">No new evidence. The suspect escaped; retry this dispatch.</p></section>';
+  campaignResolution.innerHTML = '<div class="fo-campaign-target"><div class="fo-campaign-portrait" role="img"></div><div><h3 data-campaign-result-name></h3><strong data-campaign-result-alias></strong></div></div><h3 class="fo-campaign-resolution-label"></h3>';
   resultOutcome.after(campaignResolution);
   const latestLead = doc.createElement('section'); latestLead.className = 'fo-campaign-new-lead'; latestLead.hidden = true; latestLead.innerHTML = '<span class="fo-kicker">NEW LEAD</span><p></p>'; campaignResolution.querySelector('.fo-campaign-resolution-label')!.after(latestLead);
-  const campaignLive = doc.createElement('aside'); campaignLive.className = 'fo-campaign-live'; campaignLive.hidden = true; campaignLive.setAttribute('aria-label', 'Campaign progress'); campaignLive.innerHTML = '<span></span><ol class="fo-campaign-tracker"></ol>'; shell.append(campaignLive);
   const campaignWait = doc.createElement('p'); campaignWait.className = 'fo-campaign-wait'; campaignWait.hidden = true; campaignWait.textContent = 'RECONNECT TO CONTINUE'; one('[data-action="rematch"]').after(campaignWait);
   let campaignViewKey = '';
   const write = (key: string, value: string) => { const node = one(`[data-text="${key}"]`); if (node.textContent !== value) node.textContent = value; };
@@ -218,11 +225,6 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   connectivityIcon.setAttribute('role', 'img'); connectivityIcon.setAttribute('aria-live', 'polite');
   connectivityIcon.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 8a15 15 0 0 1 18 0M6 11.5a10 10 0 0 1 12 0M9 15a5 5 0 0 1 6 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="19" r="1.3" fill="currentColor"/><path class="fo-wifi-slash" d="m3 3 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
   one('.fo-connection i').replaceWith(connectivityIcon);
-  for (const selector of ['[data-scores]', '[data-results]']) {
-    const heading = doc.createElement('div'); heading.className = 'fo-score-head';
-    heading.innerHTML = '<span aria-hidden="true">#</span><span>UNIT</span><span class="fo-ping-label">PING / ms</span><span>PTS</span>';
-    one(selector).before(heading);
-  }
   const nickname = one<HTMLInputElement>('[name="nickname"]');
   const normalizeCallsign = (value: unknown) => { try { return sanitizeNickname(value); } catch { return ''; } };
   let savedCallsign = '';
@@ -246,93 +248,55 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     const campaign = model.snapshot?.campaign;
     briefing.hidden = !campaign || !lobby() || menu !== null;
     campaignResolution.hidden = !campaign || !hasResult();
-    campaignLive.hidden = !campaign || model.snapshot?.phase !== 'playing' || menu !== null;
     shell.classList.toggle('fo-campaign-briefing-open', !briefing.hidden);
     shell.classList.toggle('fo-campaign-results', Boolean(campaign && hasResult() && menu !== 'settings' && menu !== 'help'));
   }
-  function portrait(node: HTMLElement, target: CampaignTarget) {
-    if (node.dataset.target !== target.id) { node.innerHTML = getCampaignMugshot(target.id); node.dataset.target = target.id; }
-    node.setAttribute('aria-label', `${target.name}, “${target.alias}”, ${target.role}`);
+  function portrait(node: HTMLElement, target: CampaignTarget, variant: CampaignMugshotVariant = 'briefing') {
+    if (node.dataset.target !== target.id || node.dataset.variant !== variant) {
+      node.innerHTML = getCampaignMugshot(target.id, variant); node.dataset.target = target.id; node.dataset.variant = variant;
+    }
+    node.setAttribute('aria-label', variant === 'briefing' ? `${target.name}, “${target.alias}”, ${target.role}` : `${node.querySelector('svg')!.getAttribute('aria-label')}, ${target.role}`);
   }
   function officer(playerId: string) { return model.snapshot?.scores.find(score => score.playerId === playerId)?.nickname ?? 'Departed officer'; }
-  function tracker(node: HTMLOListElement, campaign: CampaignState) {
-    const rows = CAMPAIGN_DISPATCHES.map((dispatch, index) => {
-      const outcome = campaign.outcomes.find(entry => entry.dispatchIndex === index), current = index === campaign.dispatchIndex && !outcome;
-      const row = doc.createElement('li'); row.dataset.dispatchIndex = String(index); row.dataset.outcome = outcome?.outcome ?? 'pending'; row.classList.toggle('fo-current-dispatch', current);
-      const mark = doc.createElement('b'), label = doc.createElement('span'), credit = doc.createElement('small');
-      mark.textContent = outcome ? outcome.outcome === 'arrested' ? '✓' : '✕' : String(index + 1).padStart(2, '0');
-      label.textContent = outcome ? getCampaignTarget(dispatch.targetId).alias : current ? 'CURRENT' : 'SEALED';
-      credit.textContent = outcome ? (outcome.callsign ?? officer(outcome.playerId)) : current ? 'OPEN FILE' : 'PENDING';
-      row.setAttribute('aria-label', `Dispatch ${index + 1}: ${outcome ? `${outcome.outcome} by ${(outcome.callsign ?? officer(outcome.playerId))}` : current ? 'current assignment' : 'pending'}`);
-      if (current) row.setAttribute('aria-current', 'step'); row.append(mark, label, credit); return row;
-    });
-    node.replaceChildren(...rows);
-  }
   function updateCampaign() {
     updateCampaignVisibility();
     const campaign = model.snapshot?.campaign;
     if (!campaign) { campaignViewKey = ''; campaignWait.hidden = true; one<HTMLButtonElement>('[data-action="rematch"]').disabled = false; delete resultOutcome.dataset.outcome; return; }
-    campaignRoster.hidden = model.mode !== 'online';
-    if (!campaignRoster.hidden) updateScores(campaignRoster.querySelector('ol')!, false, campaignRosterRows);
     const key = JSON.stringify([campaign, model.snapshot?.phase, model.mode, model.canStart, statusName(model.status), pending, model.snapshot?.scores.map(score => [score.playerId, score.nickname])]);
     if (key === campaignViewKey) return; campaignViewKey = key;
-    const dispatch = CAMPAIGN_DISPATCHES[campaign.dispatchIndex] ?? CAMPAIGN_DISPATCHES[0]!;
+    const story=getStoryline(campaign.campaignId),dispatch=getCampaignDispatch(campaign);
     const target = getCampaignTarget(dispatch.targetId), resolution = campaign.outcomes.find(outcome => outcome.dispatchIndex === campaign.dispatchIndex);
-    const tactics = getBossTactics(campaign.dispatchIndex),features=getDispatchFeatures(campaign.dispatchIndex);
-    const nextLesson=features.lessonTitle+features.lesson;if(lessonKey!==nextLesson){lessonKey=nextLesson;lesson.querySelector('strong')!.textContent=features.lessonTitle;lesson.querySelector('p')!.textContent=features.lesson;}
-    tacticsCard.classList.toggle('fo-boss-tactics', target.isBoss); tacticsCard.dataset.drivingStyle = tactics.drivingStyle;
-    tacticsCard.querySelector('[data-tactics-rank]')!.textContent = target.isBoss ? 'RINGLEADER TACTICS' : 'TARGET TACTICS';
-    tacticsCard.querySelector('[data-tactics-label]')!.textContent = tactics.label;
-    tacticsCard.querySelector('[data-tactics-style]')!.textContent = tactics.drivingStyle.replaceAll('-', ' ').toUpperCase();
-    tacticsCard.querySelector('[data-tactics-weapon]')!.textContent = tactics.weapon === 'none' ? 'UNARMED' : tactics.weapon === 'burst' ? 'FORWARD BURSTS' : tactics.weapon === 'grenades' ? 'MARKED GRENADES' : 'BURSTS + GRENADES';
-    tacticsCard.querySelector('.fo-tactics-difficulty>span')!.textContent = `DIFFICULTY ${tactics.difficulty} / 10`;
-    tacticsCard.querySelector<HTMLMeterElement>('meter')!.value = tactics.difficulty;
-    tacticsCard.querySelector('[data-tactics-description]')!.textContent = tactics.description;
+    const features=getDispatchFeatures(campaign.dispatchIndex),tip=briefLesson(campaign.dispatchIndex);
+    const nextLesson=features.lessonTitle+tip;
+    if(lessonKey!==nextLesson){lessonKey=nextLesson;lesson.querySelector('strong')!.textContent=features.lessonTitle;lesson.querySelector('p')!.textContent=tip;}
+    lesson.hidden=!tip;
     const complete = campaign.status === 'complete';
-    const allOutcomes = [...campaign.outcomes].filter(outcome => CAMPAIGN_DISPATCHES[outcome.dispatchIndex]).sort((a, b) => a.dispatchIndex - b.dispatchIndex);
-    briefing.querySelector<HTMLElement>('[data-campaign-title]')!.textContent = CAMPAIGN_TITLE;
-    briefing.querySelector<HTMLElement>('.fo-campaign-number')!.textContent = `${campaign.dispatchIndex === 0 && campaign.outcomes.length === 0 && model.snapshot?.phase === 'lobby' ? 'NEW CAMPAIGN · ' : ''}DISPATCH ${String(campaign.dispatchIndex + 1).padStart(2, '0')} / 10 · ${target.isBoss ? 'RINGLEADER' : 'CREW FILE'}`;
-    for (const scope of [briefing, campaignResolution]) {
-      portrait(scope.querySelector<HTMLElement>('.fo-campaign-portrait')!, target);
-      scope.querySelector<HTMLElement>('[data-campaign-name]')!.textContent = target.name;
-      scope.querySelector<HTMLElement>('[data-campaign-alias]')!.textContent = `“${target.alias}”`;
-      scope.querySelector<HTMLElement>('.fo-campaign-role')!.textContent = target.role;
-    }
+    briefing.querySelector<HTMLElement>('[data-campaign-series]')!.textContent = story.title;
+    briefing.querySelector<HTMLElement>('[data-campaign-title]')!.textContent = dispatch.title.replace(/^\d+\s*·\s*/, '');
+    portrait(briefing.querySelector<HTMLElement>('.fo-campaign-portrait')!,target);
+    portrait(campaignResolution.querySelector<HTMLElement>('.fo-campaign-portrait')!, target, resolution?.outcome ?? 'escaped');
+    campaignResolution.querySelector<HTMLElement>('[data-campaign-result-name]')!.textContent = target.name;
+    campaignResolution.querySelector<HTMLElement>('[data-campaign-result-alias]')!.textContent = `“${target.alias}”`;
+    briefing.querySelector<HTMLElement>('[data-campaign-name]')!.textContent=target.name;
+    briefing.querySelector<HTMLElement>('[data-campaign-alias]')!.textContent=`“${target.alias}”`;
+    briefing.querySelector<HTMLElement>('.fo-campaign-role')!.textContent=target.role;
     briefing.querySelector<HTMLElement>('[data-campaign-target-car]')!.textContent = `SUSPECT VEHICLE / ${getVehicleProfile(target.vehicleBodyId).name}`;
-    briefing.querySelector<HTMLElement>('.fo-campaign-dispatch-title')!.textContent = dispatch.title;
-    briefing.querySelector<HTMLElement>('[data-campaign-briefing]')!.textContent = dispatch.briefing;
-    for (const node of all<HTMLOListElement>('.fo-campaign-tracker')) tracker(node, campaign);
-    campaignLive.querySelector('span')!.textContent = `CASE FILE / DISPATCH ${campaign.dispatchIndex + 1} OF 10`;
-    for (const list of all<HTMLOListElement>('.fo-campaign-casefile')) {
-      list.replaceChildren(...[...allOutcomes].reverse().map(outcome => {
-        const chapter = CAMPAIGN_DISPATCHES[outcome.dispatchIndex]!, row = doc.createElement('li'), heading = doc.createElement('h4'), method = doc.createElement('span'), clue = doc.createElement('p');
-        row.dataset.outcome = outcome.outcome; heading.textContent = chapter.title;
-        method.className = 'fo-case-method'; method.textContent = `${outcome.outcome === 'arrested' ? '✓ ARRESTED' : '✕ WRECKED'} / ${(outcome.callsign ?? officer(outcome.playerId))}`;
-        clue.textContent = chapter.reveal; row.append(heading, method, clue); return row;
-      }));
-    }
-    for (const node of all('.fo-campaign-no-evidence')) node.hidden = allOutcomes.length > 0;
+    briefing.querySelector<HTMLElement>('[data-campaign-briefing]')!.textContent=features.arrestOnly?dispatch.briefing.replace(' Arrest him or wreck the getaway car.',''):dispatch.briefing;
     latestLead.hidden = !resolution;
-    latestLead.querySelector('.fo-kicker')!.textContent = complete ? 'CASE FILE CLOSED' : 'NEW LEAD / EVIDENCE UNSEALED';
+    latestLead.querySelector('.fo-kicker')!.textContent = complete ? 'STREETS REOPENED' : 'NEXT LEAD';
     latestLead.querySelector('p')!.textContent = resolution ? dispatch.reveal : '';
     const start = one<HTMLButtonElement>('[data-action="campaign-start"]'); start.disabled = pending || !canDispatch();
     briefing.querySelector<HTMLElement>('.fo-campaign-wait')!.hidden = canDispatch();
-    campaignResolution.querySelector<HTMLElement>('.fo-campaign-resolution-label')!.textContent = complete ? 'CAMPAIGN COMPLETE' : resolution && campaign.dispatchIndex===0 && resolution.outcome==='arrested' ? 'ARREST CERTIFIED' : resolution ? `${resolution.outcome.toUpperCase()} / DISPATCH ${campaign.dispatchIndex + 1}` : 'DISPATCH UNRESOLVED / SUSPECT ESCAPED';
-    campaignResolution.querySelector<HTMLElement>('.fo-campaign-target')!.hidden = complete;
-    const connections = campaignResolution.querySelector<HTMLElement>('.fo-campaign-connections')!; connections.hidden = !complete;
-    const bosses = campaignResolution.querySelector<HTMLElement>('.fo-campaign-bosses')!;
-    bosses.replaceChildren(...(complete ? CAMPAIGN_BOSSES.filter(boss => allOutcomes.some(outcome => CAMPAIGN_DISPATCHES[outcome.dispatchIndex]!.targetId === boss.id)).map(boss => {
-      const node = doc.createElement('article'); node.className = 'fo-campaign-boss'; const image = doc.createElement('div'); image.className = 'fo-campaign-portrait'; image.setAttribute('role', 'img'); portrait(image, boss);
-      const name = doc.createElement('strong'), role = doc.createElement('span'); name.textContent = boss.name; role.textContent = `“${boss.alias}” · ${boss.role}`; node.append(image, name, role); return node;
-    }) : []));
+    const stamp=campaignResolution.querySelector<HTMLElement>('.fo-campaign-resolution-label')!;
+    stamp.textContent=resolution&&campaign.dispatchIndex===0&&resolution.outcome==='arrested'?'ARREST CERTIFIED':'';
+    stamp.hidden=!stamp.textContent;
     if (hasResult()) {
-      write('result-title', complete ? 'The racket is exposed.' : resolution ? 'Dispatch resolved.' : 'Suspect escaped.');
-      one('.fo-results>.fo-kicker').textContent = complete ? CAMPAIGN_TITLE : `DISPATCH ${String(campaign.dispatchIndex + 1).padStart(2, '0')} / 10`;
+      write('result-title', complete ? 'The racket is exposed.' : resolution?.outcome==='arrested' ? 'Suspect apprehended.' : resolution ? 'Getaway stopped.' : 'Suspect escaped.');
+      one('.fo-results>.fo-kicker').textContent = complete ? story.title : 'CASE CLOSED';
       resultOutcome.hidden = false; resultOutcome.dataset.outcome = resolution?.outcome ?? 'pending';
-      resultOutcome.textContent = complete ? 'CAMPAIGN COMPLETE · TEN FILES RESOLVED' : resolution ? `${resolution.outcome === 'arrested' ? '✓ ARRESTED' : '✕ WRECKED'} · ${target.alias.toUpperCase()} · ${(resolution.callsign ?? officer(resolution.playerId)).toUpperCase()}` : 'TIME UP · NO RESOLUTION RECORDED';
-      one('.fo-results .fo-muted').textContent = 'Shared case progress above / combat points below';
+      resultOutcome.textContent = complete ? 'CASE CLOSED. NICE WORK.' : resolution ? `${resolution.outcome === 'arrested' ? '✓ ARRESTED' : '✕ WRECKED'} · ${target.alias.toUpperCase()} · ${(resolution.callsign ?? officer(resolution.playerId)).toUpperCase()}` : 'TIME UP · SUSPECT ESCAPED';
       const next = one<HTMLButtonElement>('[data-action="rematch"]'); next.disabled = !canDispatch();
-      next.textContent = !canDispatch() ? 'RECONNECT TO CONTINUE' : complete ? 'NEW CAMPAIGN →' : resolution ? 'NEXT BRIEFING →' : 'RETRY DISPATCH →';
+      next.textContent = !canDispatch() ? 'RECONNECT TO CONTINUE' : complete ? 'ANOTHER CASE →' : resolution ? 'NEXT BRIEFING →' : 'RETRY DISPATCH →';
       campaignWait.hidden = canDispatch();
     }
   }
@@ -366,24 +330,13 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     shell.classList.toggle('fo-in-garage', visible);
     shell.classList.toggle('fo-lobby', visible && lobby());
     garage.dataset.vehicle = vehicle;
-    const profile = vehicleStats(vehicle, model.snapshot?.local?.vehicle);
-    write('vehicle-name', profile.name); write('vehicle-role', profile.role);
-    write('vehicle-armor', `${profile.maxHealth} HP`); write('vehicle-speed', `${profile.speedKmh} KM/H`);
-    write('vehicle-description', profile.description);
-    one<HTMLMeterElement>('[aria-label="Vehicle acceleration"]').value = profile.accelerationMeter;
-    one<HTMLMeterElement>('[aria-label="Vehicle handling"]').value = profile.handlingMeter;
-    const campaign = model.snapshot?.campaign, suspectCard = one('[data-vehicle-comparison="suspect"]');
-    suspectCard.hidden = !campaign;
-    if (campaign) {
-      const target = getCampaignTarget(CAMPAIGN_DISPATCHES[campaign.dispatchIndex]!.targetId);
-      const suspect = model.snapshot?.vehicles.find(car => car.entityId === model.snapshot?.pursuit?.suspectId);
-      const suspectProfile = vehicleStats(target.vehicleBodyId, suspect);
-      write('suspect-vehicle-name', suspectProfile.name); write('suspect-vehicle-role', suspectProfile.role);
-      write('suspect-vehicle-armor', `${suspectProfile.maxHealth} HP`);
-      write('suspect-vehicle-speed', `${suspectProfile.speedKmh} KM/H`);
-      write('suspect-vehicle-description', suspectProfile.description);
-      one<HTMLMeterElement>('[aria-label="Suspect acceleration"]').value = suspectProfile.accelerationMeter;
-      one<HTMLMeterElement>('[aria-label="Suspect handling"]').value = suspectProfile.handlingMeter;
+    const profile=getVehicleProfile(vehicle);
+    write('vehicle-name',profile.name);write('vehicle-role',profile.role);
+    const campaign=model.snapshot?.campaign,suspectCard=one('[data-vehicle-comparison="suspect"]');
+    suspectCard.hidden=!campaign;
+    if(campaign){
+      const target=getCampaignTarget(getCampaignDispatch(campaign).targetId),suspect=getVehicleProfile(target.vehicleBodyId);
+      write('suspect-vehicle-name',suspect.name);write('suspect-vehicle-role',suspect.role);
     }
     one<HTMLButtonElement>('[data-action="reassign"]').disabled = !canReassign();
   }
@@ -394,7 +347,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     shell.classList.toggle('fo-is-playing', menu === null);
     shell.classList.toggle('fo-is-settings', menu === 'settings');
     shell.classList.toggle('fo-is-help', menu === 'help');
-    hide('.fo-menu', menu === null); hide('.fo-menu-backdrop', menu === null); hide('.fo-hero', menu !== 'home'); hide('.fo-bottom', menu !== 'home');
+    hide('.fo-menu', menu === null); hide('.fo-menu-backdrop', menu === null); hide('.fo-hero', menu !== 'home'); hide('.fo-bottom', true); hide('.fo-hud', !model.snapshot || lobby() || menu !== null);
     const results = hasResult() && !resultDismissed && menu !== 'settings' && menu !== 'help';
     hide('.fo-home', menu !== 'home' || results); hide('.fo-pause', menu !== 'pause' || results); hide('.fo-settings', menu !== 'settings'); hide('.fo-results', !results);
     help.hidden = menu !== 'help';
@@ -455,7 +408,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
         if (next === current) { next = randomCallsign(() => 0); if (next === current) next = randomCallsign(() => 1); }
         nickname.value = next; persistCallsign(); break;
       }
-      case 'reassign': if (canReassign()) { vehicle = rollVehicle(vehicle); awaitingVehicle = lobby() ? vehicle : null; persistVehicle(); updateGarage(); callbacks.onVehicleChange?.(vehicle); toast('NEW KEYS. SAME QUESTIONABLE DEPARTMENT.'); } break;
+      case 'reassign': if (canReassign()) { vehicle = rollVehicle(vehicle); awaitingVehicle = lobby() ? vehicle : null; persistVehicle(); updateGarage(); callbacks.onVehicleChange?.(vehicle); } break;
       case 'pause': if (model.snapshot) showMenu(menu === null ? 'pause' : null); break;
       case 'resume': showMenu(null); callbacks.onResume?.(); break;
       case 'leave': resultDismissed = true; callbacks.onLeave?.(); model = {}; showMenu('home'); hide('.fo-hud', true); notify(''); break;
@@ -488,26 +441,6 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   };
   shell.addEventListener('click', click); shell.addEventListener('input', change); doc.addEventListener('keydown', remapKey, true);
   doc.addEventListener('visibilitychange', updateControls);
-  const scoreRows = new Map<string, HTMLLIElement>();
-  const resultRows = new Map<string, HTMLLIElement>();
-  const campaignRosterRows = new Map<string, HTMLLIElement>();
-  function updateScores(target: HTMLOListElement, results: boolean, rows = results ? resultRows : scoreRows) {
-    const scores = [...(model.snapshot?.scores ?? [])].sort((a, b) => b.score - a.score || a.nickname.localeCompare(b.nickname));
-    const liveIds = new Set(scores.map(score => score.playerId));
-    for (const [id, row] of rows) if (!liveIds.has(id)) { row.remove(); rows.delete(id); }
-    scores.forEach((score, rank) => {
-      let row = rows.get(score.playerId);
-      if (!row) { row = doc.createElement('li'); row.innerHTML = '<span></span><span class="fo-score-name"></span><span class="fo-ping"></span><strong></strong>'; rows.set(score.playerId, row); }
-      row.dataset.playerId = score.playerId;
-      row.classList.toggle('fo-you', score.playerId === model.localPlayerId);
-      row.children[0]!.textContent = `${rank + 1}`;
-      row.children[1]!.textContent = `${score.nickname}${score.playerId === model.localPlayerId ? ' / YOU' : ''}${score.connection === 'reconnecting' ? ' …' : ''}${results ? ` · ${score.wrecks} WRECKS` : ''}`;
-      const ping = typeof score.pingMs === 'number' && Number.isFinite(score.pingMs) && score.pingMs >= 0 ? Math.round(score.pingMs) : null;
-      row.children[2]!.textContent = ping === null ? '—' : `${ping} ms`;
-      row.children[2]!.setAttribute('aria-label', `${score.nickname} ping: ${ping === null ? 'unavailable' : `${ping} milliseconds`}`);
-      row.children[3]!.textContent = String(score.score); target.append(row);
-    });
-  }
   function update(next: UiModel) {
     const previousReason=typeof model.status==='object'?model.status.reason:undefined;
     const previousPaused=model.snapshot?.paused; const previousEpoch = model.snapshot?.sessionEpoch, previousResult = hasResult(), previousDispatch = model.snapshot?.campaign?.dispatchIndex; const wasLobby = lobby(); model = { ...model, ...next };
@@ -527,9 +460,10 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if(previousPaused===false && model.snapshot?.paused && persistentToast)clearToast();
     const snapshot = model.snapshot; const hud = deriveHud(model); const status = statusName(model.status);
     if (snapshot && menu === 'home' && status !== 'error') { resultDismissed = false; showMenu(null); notify(''); }
-    if (hasResult() && !previousResult) { resultDismissed = false; updateScores(one('[data-results]'), true); showMenu('pause'); }
+    if (hasResult() && !previousResult) { resultDismissed = false; showMenu('pause'); }
     if (previousResult && !hasResult() && menu === 'pause') showMenu(null);
-    hide('.fo-hud', !snapshot); write('speed', String(hud.speed)); write('health', `${Math.ceil(hud.health)}%`);
+    hide('.fo-hud', !snapshot || lobby() || menu !== null); write('health', `${Math.ceil(hud.health)}%`);
+    one('.fo-health').setAttribute('aria-valuenow',String(Math.ceil(hud.health)));
     one<HTMLElement>('.fo-health i').style.width = `${Math.max(0, Math.min(100, hud.health))}%`; one('.fo-health').classList.toggle('fo-low-health', hud.health < 30);
     write('pause-description', snapshot?.paused ? 'Your patrol is paused while you are alone. Backup joining resumes the dispatch.' : 'THE DISPATCH IS LIVE. Your unit has its controls released.');
     const sessionStatus=typeof model.status==='object'?model.status:undefined;
@@ -538,7 +472,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     else if(notice.id!==lastNoticeId){lastNoticeId=notice.id;if(!snapshot?.paused && (snapshot?.scores.filter(score=>score.connection==='connected').length??0)>1)toast(notice.message,menu!==null);}
     idleWarning.hidden=!sessionStatus?.idleRemainingMs;
     if(sessionStatus?.reason==='idle-timeout' && previousReason!=='idle-timeout' && menu!== 'home'){showMenu('pause');notify(errorMessages['idle-timeout']);}
-    write('phase', model.mode === 'practice' ? 'SOLO PURSUIT' : hud.phase === 'lobby' ? 'DISPATCH BRIEFING' : hud.phase === 'countdown' ? 'PURSUIT STARTING' : hud.phase === 'results' ? 'PURSUIT COMPLETE' : 'COMPETING PURSUIT');
+    write('phase',hud.phase==='countdown'?'GET READY':'TIME LEFT');
     write('timer', hud.phase === 'lobby' ? 'STAND BY' : model.mode === 'practice' && !snapshot?.campaign ? 'ON DUTY' : time(hud.seconds));
     const remoteConnection = model.mode === 'online' && status !== 'idle';
     const reconnecting = remoteConnection && status === 'reconnecting';
@@ -551,7 +485,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     connection.classList.toggle('fo-connection-reconnecting', reconnecting);
     connection.classList.toggle('fo-connection-broken', connectionLost);
     connection.classList.toggle('fo-connection-connecting', connecting);
-    write('connection', !remoteConnection ? 'LOCAL DISPATCH' : reconnecting ? 'Reconnecting…' : connectionLost ? 'Connection lost' : connecting ? 'Connecting…' : `CONNECTED${model.pingMs === undefined ? '' : ` / ${Math.round(model.pingMs)} MS`}`);
+    write('connection', connectionLabel);one('[data-text="connection"]').hidden=!reconnecting&&!connectionLost&&!connecting;
     shell.classList.toggle('fo-reconnecting', reconnecting);
 
     hide('.fo-start', !snapshot || snapshot.phase !== 'lobby' || model.mode !== 'online' || model.canStart === false || Boolean(snapshot.campaign));
@@ -564,19 +498,17 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if (pursuit) {
       const own = authorityPursuit?.contenders?.find(contender => contender.playerId === model.localPlayerId)?.progress;
       const progress = Math.max(0, Math.min(1, number(own ?? (model.mode === 'practice' || authorityPursuit?.arrestingPlayerId === model.localPlayerId ? pursuit.progress : 0))));
-      const chapter=snapshot?.campaign?CAMPAIGN_DISPATCHES[snapshot.campaign.dispatchIndex]:null;
+      const chapter=snapshot?.campaign?getCampaignDispatch(snapshot.campaign):null;
       const name=chapter?getCampaignTarget(chapter.targetId).name.split(' ')[0]!.toUpperCase():'THE SUSPECT';
       write('pursuit', `APPREHEND ${name}`);
       arrestHelp.textContent = 'Catch up → match speed → stay close for 3 seconds.';
       const guidance=authorityPursuit?.contenders?.find(c=>c.playerId===model.localPlayerId)?.guidance;
       const labels={'get-closer':'Get closer','match-speed':'Match speed','clear-obstruction':'Clear the obstruction','hold-steady':'Hold steady','unavailable':'Return to your unit'};
       markerGuidance.textContent=guidance?labels[guidance]:'Get closer';markerProgress.value=progress;
-      arrestLabel.textContent = `YOUR ARREST / ${Math.round(progress * 100)}%`; arrestProgress.value = progress;
+      arrestProgress.value = progress;
     }
     const showCallout = snapshot?.phase === 'countdown' || hud.status !== 'active'; hide('.fo-center-callout', !showCallout);
     write('callout-label', snapshot?.phase === 'countdown' ? 'READY TO ROLL?' : 'UNIT OUT OF ACTION'); write('callout', snapshot?.phase === 'countdown' ? String(Math.max(1, Math.ceil(hud.seconds))) : `BACK IN ${Math.ceil(hud.respawn)}…`);
-    updateScores(one('[data-scores]'), false);
-    if (hasResult()) updateScores(one('[data-results]'), true);
     if (hasResult() && !snapshot?.campaign) {
       const winnerId = authorityPursuit?.winnerPlayerId;
       const practiceClosed = model.mode === 'practice' && authorityPursuit?.state === 'complete';
@@ -585,7 +517,6 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
       one('.fo-results>.fo-kicker').textContent = authorityPursuit && !winnerId && !practiceClosed ? 'TIME UP' : 'CASE CLOSED';
       resultOutcome.hidden = !authorityPursuit;
       resultOutcome.textContent = winnerId ? `APPREHENDED BY ${winner.toUpperCase()}${winnerId === model.localPlayerId ? ' / YOU' : ''}` : practiceClosed ? 'SUSPECT IN CUSTODY. GOOD WORK, OFFICER.' : 'TIME UP · SUSPECT ESCAPED';
-      one('.fo-results .fo-muted').textContent = authorityPursuit ? 'Combat points below / pursuit result confirmed by dispatch' : 'Final standings / confirmed by dispatch';
       one('[data-action="rematch"]').textContent = model.mode === 'practice' ? 'NEW DISPATCH →' : 'ANOTHER ROUND →';
     }
     const reason = typeof model.status === 'object' ? model.status.reason ?? model.status.message : undefined;

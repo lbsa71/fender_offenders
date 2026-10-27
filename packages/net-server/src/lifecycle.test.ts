@@ -3,7 +3,7 @@ import {Client,type Room as ClientRoom} from '@colyseus/sdk';
 import {Server,matchMaker,type Client as ServerClient} from '@colyseus/core';
 import {WebSocketTransport} from '@colyseus/ws-transport';
 import {districtMap,VEHICLE_BODIES} from '@fender/content';
-import {GAMEPLAY_REVISION,PROTOCOL_VERSION,unpackSnapshot,type WireSnapshot,type WorldSnapshot} from '@fender/contracts';
+import {GAMEPLAY_REVISION,PROTOCOL_VERSION,STORYLINES,unpackSnapshot,type WireSnapshot,type WorldSnapshot} from '@fender/contracts';
 import type {Simulation} from '@fender/sim';
 import * as netServer from './index';
 
@@ -51,13 +51,14 @@ afterAll(async()=>{await server?.gracefullyShutdown(false);});
 
 describe('room admission accounting and lifecycle diagnostics',()=>{
   it('assigns every multiplayer body from the shared catalog using the full random index range',async()=>{
-    chooseBody.mockImplementationOnce(()=>0).mockImplementationOnce((max)=>max-1);
+    chooseBody.mockImplementationOnce(()=>0).mockImplementationOnce(()=>0).mockImplementationOnce((max)=>max-1);
     const a=await create(),b=await create('district',{},a.roomId);
     await until(()=>snapshots.get(a.sessionId)!.scores.length===2,'both players published');
     for(const snapshot of [snapshots.get(a.sessionId)!,snapshots.get(b.sessionId)!])for(const car of snapshot.vehicles.filter((v)=>v.playerId!==null))expect(VEHICLE_BODIES).toContain(car.bodyAssetId);
     expect(snapshots.get(a.sessionId)!.local!.vehicle.bodyAssetId).toBe(VEHICLE_BODIES[0]);
     expect(snapshots.get(b.sessionId)!.local!.vehicle.bodyAssetId).toBe(VEHICLE_BODIES.at(-1));
-    expect(chooseBody.mock.calls).toEqual([[VEHICLE_BODIES.length],[VEHICLE_BODIES.length]]);
+    expect(snapshots.get(a.sessionId)!.campaign!.campaignId).toBe(STORYLINES[0]!.id);
+    expect(chooseBody.mock.calls).toEqual([[STORYLINES.length],[VEHICLE_BODIES.length],[VEHICLE_BODIES.length]]);
   });
   it('uses a validated persistent invite code as the SDK room ID',async()=>{
     const room=await create('district',{inviteCode:'KeepLink1'});expect(room.roomId).toBe('KeepLink1');
@@ -123,7 +124,9 @@ describe('room admission accounting and lifecycle diagnostics',()=>{
     peer.reconnection.enabled=true;peer.reconnection.minUptime=0;peer.reconnection.minDelay=10;peer.reconnection.maxDelay=10;
     const epoch=snapshots.get(peer.sessionId)!.sessionEpoch;(room.clients[0]!.ref as unknown as {terminate():void}).terminate();
     await until(()=>snapshots.get(peer.sessionId)!.sessionEpoch!==epoch,'reconnected input epoch');
-    expect(snapshots.get(peer.sessionId)!.local!.vehicle.bodyAssetId).toBe(body);expect(chooseBody).toHaveBeenCalledTimes(1);
+    expect(snapshots.get(peer.sessionId)!.local!.vehicle.bodyAssetId).toBe(body);
+    expect(snapshots.get(peer.sessionId)!.campaign!.campaignId).toBe(before.campaign!.campaignId);
+    expect(chooseBody.mock.calls).toEqual([[STORYLINES.length],[VEHICLE_BODIES.length]]);
   });
   it('releases capacity and lets SDK cleanup finish even when simulation disposal throws',async()=>{
     process.env.MAX_ROOMS='1';const peer=await create();

@@ -4,9 +4,10 @@ import { DrivingRoom, serverMetrics, getRoomMetrics, roomRegistry } from '@fende
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import express from 'express';
-import { isInviteCode, isRecord } from '@fender/contracts';
+import { isStorylineId, isInviteCode, isRecord } from '@fender/contracts';
 import { warmServerRuntime } from './warmup.js';
-export async function createGameServer(port = Number(process.env.PORT || 2567), host = process.env.HOST || '127.0.0.1') {
+export async function createGameServer(port = Number(process.env.PORT || 2567), host = process.env.HOST || '127.0.0.1', options: {campaignId?:string} = {}) {
+  if(options.campaignId!==undefined&&!isStorylineId(options.campaignId))throw new Error('Invalid campaign storyline');
   const defaults = `http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:${port},http://127.0.0.1:${port},${process.env.RENDER_EXTERNAL_URL || ''}`;
   const allowed = new Set((process.env.ALLOWED_ORIGINS || defaults).split(',').map(origin => origin.trim()).filter(Boolean));
   const transport = new WebSocketTransport({ maxPayload: 16 * 1024, beforeUpgrade: context => {
@@ -66,7 +67,8 @@ export async function createGameServer(port = Number(process.env.PORT || 2567), 
     if (body?.code !== response.status) return;
     return new Response(response.body, { status, headers: response.headers });
   } });
-  server.define('district', DrivingRoom);
+  const RoomType=options.campaignId?class extends DrivingRoom{protected override initialCampaignId(){return options.campaignId!;}}:DrivingRoom;
+  server.define('district', RoomType);
   await server.listen(port, host);
   console.log(`Fender Offenders game server http://${host}:${port}`);
   return server;

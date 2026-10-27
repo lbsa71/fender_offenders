@@ -28,8 +28,8 @@ it('reports the same eligibility reason that awards local arrest progress, inclu
  expect(sim.snapshot().pursuit!.contenders![0]).toMatchObject({guidance:'get-closer',progress:0});
  sim.restore(saved);expect(sim.snapshot().pursuit).toEqual(wire.pursuit);
 });
-it('starts with an unarmed suspect and introduces an extended bomb fuse only in dispatch three',()=>{
- expect(getBossTactics(0).weapon).toBe('none');expect(getBossTactics(2).grenadeFuseTicks).toBe(150);expect(getBossTactics(3).grenadeFuseTicks).toBe(90);
+it('starts with an unarmed suspect and introduces a one-second bomb fuse in dispatch three before faster later bombs',()=>{
+ expect(getBossTactics(0).weapon).toBe('none');expect(getBossTactics(2).grenadeFuseTicks).toBe(60);expect(getBossTactics(3).grenadeFuseTicks).toBe(48);
 });
 it('distinguishes relative speed and obstruction without awarding arrest progress',()=>{
  const fast=setup(),c=fast.checkpoint();c.state.records.find(r=>r.vehicle.playerId==='a')!.vehicle.velocity.z=7;fast.restore(c);fast.step(new Map());
