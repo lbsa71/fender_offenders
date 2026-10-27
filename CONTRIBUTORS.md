@@ -45,3 +45,7 @@ The 2026-10-26 snow-dispatch follow-up includes OpenAI Codex assistance for shar
 OpenAI Codex (AI assistance), directed by the project owner: fluffy procedural winter caps, shared destructible snowbanks, local dispatch shortcuts, and regression/visual verification (2026-10-27).
 
 OpenAI Codex (AI assistance), directed by the project owner: production dispatch shortcuts with fresh-room isolation and compiled-client regression coverage (2026-10-27).
+
+OpenAI Codex (AI assistance), directed by the project owner: winter road readability, snowbank collision-work limits, persistent burst buffers and observed regression/render checks (2026-10-27).
+
+OpenAI Codex (AI assistance), directed by the project owner: controllable winter cornering, shared ice/braking tuning, paired-build compatibility and snowy networked steering verification (2026-10-27).

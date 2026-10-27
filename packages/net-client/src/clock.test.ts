@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { packSnapshot, unpackSnapshot, neutralActions, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
+import { packSnapshot, unpackSnapshot, neutralActions, getDispatchFeatures, type VehicleState, type WireSnapshot, type WorldSnapshot } from '@fender/contracts';
 import { createOnlineSession } from './index.js';
 import { predictVehicle } from '@fender/sim';
 import type { CollisionMap } from '@fender/contracts';
@@ -758,8 +758,9 @@ it.each([false, true].flatMap(timed => [0, 8, 16, 24, 32].flatMap(flushPhase => 
 
 it('derives winter grip from a late-joined campaign snapshot without correcting the current local driver',async()=>{
  vi.useFakeTimers({toFake:['setInterval','clearInterval','performance']});const source=unpackSnapshot(snapshot(100));source.campaign={campaignId:'green-light-racket-v1',dispatchIndex:8,status:'active',outcomes:[]};source.local!.vehicle.velocity={x:4,z:20,yawRate:0};source.vehicles=source.vehicles.map(v=>v.entityId==='local'?source.local!.vehicle:v);wire.initial=packSnapshot(source);const session=createOnlineSession('ws://clock-fixture',map);
- try{await session.connect({roomId:crypto.randomUUID(),nickname:'Ice inspector'});let dry={vehicle:structuredClone(source.local!.vehicle),driver:structuredClone(source.local!.driver)};
- for(let sequence=0;sequence<15;sequence++){vi.advanceTimersByTime(1000/60);session.submit({sessionEpoch:source.sessionEpoch,sequence,clientTick:sequence,actions:neutralActions()},performance.now());dry=predictVehicle(map,dry.vehicle,dry.driver,neutralActions(),[],undefined,101+sequence);}
- expect(session.getStats().pendingInputs).toBe(15);expect(session.sampleFrame()!.vehicles.find(v=>v.entityId==='local')!.velocity.x).toBeGreaterThan(dry.vehicle.velocity.x+1.5);
+ try{await session.connect({roomId:crypto.randomUUID(),nickname:'Ice inspector'});let dry={vehicle:structuredClone(source.local!.vehicle),driver:structuredClone(source.local!.driver)},snow=structuredClone(dry);
+ for(let sequence=0;sequence<15;sequence++){vi.advanceTimersByTime(1000/60);session.submit({sessionEpoch:source.sessionEpoch,sequence,clientTick:sequence,actions:neutralActions()},performance.now());dry=predictVehicle(map,dry.vehicle,dry.driver,neutralActions(),[],undefined,101+sequence);snow=predictVehicle(map,snow.vehicle,snow.driver,neutralActions(),[],undefined,101+sequence,getDispatchFeatures(8));}
+ const velocity=session.sampleFrame()!.vehicles.find(v=>v.entityId==='local')!.velocity;
+ expect(session.getStats().pendingInputs).toBe(15);expect(velocity).toEqual(snow.vehicle.velocity);expect(velocity.x).toBeGreaterThan(dry.vehicle.velocity.x);
  }finally{await session.dispose();}
 });

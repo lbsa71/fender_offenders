@@ -10,7 +10,7 @@ Keeping tank controls was rejected because a rightward pull must not keep turnin
 
 ## Contracts, ownership and migration
 
-U owns raw touch vectors, radial normalization and help; R owns numeric camera projection; N exposes current predicted yaw; F composes the callbacks and updates the local `TouchControls` shape; Q verifies outcomes. These lanes run sequentially in the attached worktree. `DriverActions`, wire DTOs, protocol 5, `arcade-v20` and simulation rules remain compatible. Persisted device selection, bindings and settings require no migration. No dependency is added.
+U owns raw touch vectors, radial normalization and help; R owns numeric camera projection; N exposes current predicted yaw; F composes the callbacks and updates the local `TouchControls` shape; Q verifies outcomes. These lanes run sequentially in the attached worktree. The input mapping does not change `DriverActions`, wire DTOs, protocol or simulation rules. The combined build follows main's `arcade-v21` winter handling, which requires matching client/server gameplay versions; protocol remains 5. Persisted device selection, bindings and settings require no migration. No dependency is added.
 
 ## Validation
 
