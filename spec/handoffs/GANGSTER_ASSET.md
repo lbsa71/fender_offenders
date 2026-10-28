@@ -2,6 +2,8 @@
 
 ## Game integration follow-up · 2026-10-28
 
+Publication regression: all 90 browser tests passed before the mocked garage fixture rejected a repaired valid assignment using its obsolete six-car list. Replacing that duplicate list with the actual shared catalog made all five UI fixtures pass, with existing assertions preserved and explicit DB5/Night Courier coverage. The full push gate is rerun; the production car implementation required no change.
+
 The graphics worktree integrates the pushed art package `1ec7229` as **Night Courier**, shared body ID `gangster`, the eighth selectable car in `arcade-v24` / protocol 5. This current integration supersedes the branch-local preparation status below; historical Blender evidence remains intact. The existing **Your vehicle** picker persists and broadcasts the selection, and countdown locks remain unchanged.
 
 The briefing lazily loads the 22,808-triangle GLB; driving lazily loads the 9,904-triangle GLB. The DB5 importer is now a shared modeled-car adapter with independent per-body caches, source-local node lookup and model-specific wheel radius/road lift. Both cars can load concurrently without sharing their identically named axle or muzzle nodes. Source geometry batches by body/material, gun and individual wheel, with at most twenty visible batches and shared instances across officers. Night Courier's tires and wire hubs share their authored axle, roll using radius 0.425 m and steer at the front. Geometry lifts 0.426 m above the road. The distant LOD remains reserved.
