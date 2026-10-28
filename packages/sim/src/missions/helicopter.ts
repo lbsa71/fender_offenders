@@ -1,4 +1,4 @@
-import { HELICOPTER_RULES, helicopterPoseAt, type HelicopterState, type VehicleState, type PlanarPose, type CollisionMap } from '@fender/contracts';
+import { HELICOPTER_RULES, helicopterPoseAt, getDispatchFeatures, type HelicopterState, type VehicleState, type PlanarPose, type CollisionMap } from '@fender/contracts';
 import { predictedBombTarget } from './boss-ai';
 export interface HelicopterRuntime { state:HelicopterState;nextBombTick:number;targetId:string|null }
 export interface HelicopterDrop {origin:PlanarPose;target:PlanarPose;originHeight:number}
@@ -15,16 +15,25 @@ export function stepHelicopter(runtime:HelicopterRuntime,officers:readonly Vehic
   state.phase=phase;state.from=inside(from);state.to=inside(to);state.yaw=Math.atan2(state.to.x-state.from.x,state.to.z-state.from.z);state.startedAtTick=tick;state.endsAtTick=tick+duration;
  };
  if(tick>=state.endsAtTick){
+  const winter=getDispatchFeatures(state.dispatchIndex).winterRoads;
+  const approachTicks=winter?HELICOPTER_RULES.snowApproachTicks:HELICOPTER_RULES.approachTicks;
+  const attackTicks=winter?HELICOPTER_RULES.snowAttackTicks:HELICOPTER_RULES.attackTicks;
+  const departTicks=winter?HELICOPTER_RULES.snowDepartTicks:HELICOPTER_RULES.departTicks;
+  const yaw=target?.pose.yaw??state.yaw,forward={x:Math.sin(yaw),z:Math.cos(yaw)},right={x:Math.cos(yaw),z:-Math.sin(yaw)};
+  const offset=(p:{x:number;z:number},side:number,ahead:number)=>({x:p.x+right.x*side+forward.x*ahead,z:p.z+right.z*side+forward.z*ahead});
   const current=helicopterPoseAt(state,tick);
   if(state.phase==='away'){
    if(!target)return null;runtime.targetId=target.entityId;
-   fly('approach',{x:target.pose.x-55,z:target.pose.z+28},{x:target.pose.x-8,z:target.pose.z-8},HELICOPTER_RULES.approachTicks);
+   // Sample the officer's course for this immutable pass, including the approach time.
+   const lead={x:target.pose.x+target.velocity.x*approachTicks/60,z:target.pose.z+target.velocity.z*approachTicks/60};
+   fly('approach',offset(lead,-50,26),offset(lead,-10,24),approachTicks);
   }else if(state.phase==='approach'){
-   fly('attack',current,{x:(target?.pose.x??current.x)+12,z:(target?.pose.z??current.z)-8},HELICOPTER_RULES.attackTicks);runtime.nextBombTick=tick;
-  }else if(state.phase==='attack')fly('depart',current,{x:current.x+65,z:current.z+45},HELICOPTER_RULES.departTicks);
+   const end=offset(current,20,0);end.x+=(target?.velocity.x??0)*attackTicks/60;end.z+=(target?.velocity.z??0)*attackTicks/60;
+   fly('attack',current,end,attackTicks);runtime.nextBombTick=tick;
+  }else if(state.phase==='attack')fly('depart',current,offset(current,50,25),departTicks);
   else fly('away',current,current,HELICOPTER_RULES.returnTicks);
  }
- if(state.phase!=='attack'||!target||tick<runtime.nextBombTick)return null;
+ if(state.phase!=='attack'||!target||tick<runtime.nextBombTick||tick>=state.startedAtTick+HELICOPTER_RULES.bombsPerPass*HELICOPTER_RULES.bombIntervalTicks)return null;
  runtime.nextBombTick=tick+HELICOPTER_RULES.bombIntervalTicks;
  const targetPose=predictedBombTarget(target,48);Object.assign(targetPose,inside(targetPose));
  return {origin:helicopterPoseAt(state,tick),target:targetPose,originHeight:HELICOPTER_RULES.altitude};

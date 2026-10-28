@@ -19,7 +19,7 @@ export function getDispatchFeatures(index: number): DispatchFeatures {
   const reminders: string[] = [];
   if(stage>=2)reminders.push('Fire guns forward in short bursts.');
   if([3,4,8,9].includes(stage))reminders.push('Enemy bombs predict your route: change speed or direction before the fixed 0.8-second blast.');
-  if([4,8,9].includes(stage))reminders.push('A black chopper returns: shoot toward its amber ground marker to down it for this dispatch.');
+  if([4,8,9].includes(stage))reminders.push('A black chopper makes slow passes ahead: shoot toward its amber ground marker to down it for this dispatch.');
   if(stage>=4)reminders.push('Throw a bomb ahead; leave its marked circle. Bombs and gadgets share a 12-second cooldown.');
   if(stage>=7)reminders.push('Drop oil behind after a cutoff. Oil briefly reduces grip; steer around marked patches.');
   if(stage>=8)reminders.push('Extend side blades after their amber warning; front cutoffs still work.');

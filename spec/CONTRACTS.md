@@ -2,13 +2,15 @@
 
 `arcade-v19` adds five room-owned ten-dispatch storylines through the existing `CampaignState.campaignId`. Wire shape, protocol 5 and map `sunset-borough-3` are unchanged; matching gameplay revisions remain mandatory. The server chooses initial and subsequent case IDs; production join requests still contain only room ID, callsign and vehicle. `createGameServer(..., {campaignId})` is a server-owned fixture configuration, never a client-supplied selection. `CampaignDispatch.theme` supplies shared presentation metadata. Fifty authored dispatch IDs resolve to their case, local stage and lighting; no portrait or story payload is added to snapshots.
 
-Status: semantic contract reference for the integrated alpha (`arcade-v21` gameplay, protocol 5, map `sunset-borough-3`). Updated: 2026-10-27. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+Status: semantic contract reference for the integrated alpha (`arcade-v22` gameplay, protocol 5, map `sunset-borough-3`). Updated: 2026-10-28. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
 
 *The contracts are the traffic lights. Please resist interpreting red as an optional decoration.*
 
 This document defines cross-lane semantics and remaining acceptance expectations. Examples describe semantic TypeScript types, not the compact snapshot wire encoding or installed SDK API. Consumers use the package's public exports; additional validators and the complete proposed fixture catalog remain unfinished rather than implied by these examples.
 
 ## Campaign extension
+
+`arcade-v22` slows the black helicopter and opens a forward shooting window. Approaches last 4 seconds and departures 5 seconds; the snowy ninth dispatch uses 6/7 seconds. Attack passes last 6 seconds, or 9 on snow, crossing 20 metres laterally while following the officer velocity sampled when attack begins. The approach leads the sampled course to place the marker ahead. At most three 54-tick-spaced bombs are released at the start of each pass; the extra shooting time adds no drops. Routes remain immutable phase endpoints, health/hits stay unchanged, and downed state remains terminal. Protocol 5, snapshot/checkpoint shapes and map revision remain unchanged; paired gameplay builds are required.
 
 `arcade-v21` makes snowy intersections controllable after the owner's handling review. Shared snow/frozen-puddle grip is 0.36/0.07 and braking is 0.35/0.12; acceleration remains 0.65/0.28. All six cars, suspects, traffic and local prediction use the same values. Ordinary snow still extends braking beyond twice the dry-road distance, while frozen puddles remain much slicker. Paired `arcade-v21` builds are required and the previous `arcade-v20` handling client is rejected. Protocol 5, map `sunset-borough-3` and snapshot shapes remain unchanged.
 
