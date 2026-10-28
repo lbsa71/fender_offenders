@@ -6,6 +6,10 @@ Updated: 2026-10-26. Documentation/credits/GPL were pushed in `c5b1161`, car pre
 
 `Implemented` means the principal code path exists with the evidence cited here; it does not waive outstanding release gates. `Partial` means code exists but a named deliverable or acceptance check remains. `Open` means the deciding gate has not been demonstrated. The plan retains task IDs/dependencies and gates while reflecting the delivered campaign/profile/art choices.
 
+## 2026-10-28 · Owner requests helicopter publication for inspection
+
+After reviewing the integration and its measured performance block, the owner explicitly requested a push to main to inspect the model in the hosted game. Publish the integrated `72c85ea` source through the normal pre-push/CI/deployment checks. The 25 ms versus 16.7 ms short-trace result remains unresolved and does not become a graphics-performance acceptance. The paused-publication checkpoint below is historical; this subsequent instruction authorizes an inspection release. No broader graphics goal or human visual gate is closed.
+
 ## 2026-10-28 · Authored helicopter integrated in worktree; publication paused on performance
 
 FENDER Graphics incorporated the Blender lane's pushed `c569eb2` delivery on current `ef7a739` main, preserving the unrelated directional/winter work. The same local 105,416-byte / 1,800-triangle CC0 GLB now replaces the primitive helicopter. Babylon's matching 9.32.0 glTF loader is pinned; Vite bundles the asset. Main +Y and tail +X rotors use the presentation clock. The existing terminal downed flight/blast releases ten exact components into a map-aware cosmetic Rapier world, capped at ten bodies for 3.2 seconds. No hit, bomb, route, authority or wire rules change. Renderer integration is local and **not published or deployed** at this checkpoint; the broader graphics goal stays paused.

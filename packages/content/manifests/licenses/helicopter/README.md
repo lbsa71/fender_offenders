@@ -1,6 +1,6 @@
 # Helicopter source and trial provenance
 
-Acquired and inspected: **2026-10-28**. Status: prepared and integrated in the graphics worktree; publication paused on performance. **Not shipping**. See the [integration handoff](../../../../../spec/handoffs/HELICOPTER_ASSET.md).
+Acquired and inspected: **2026-10-28**. Status: integrated; owner requested publication for hosted inspection. Human appearance and performance acceptance remain open. See the [integration handoff](../../../../../spec/handoffs/HELICOPTER_ASSET.md).
 
 Original work: **Low Poly Helicopter with animations**, by **KumaSousa**. [Creator's asset page](https://kumasousa.itch.io/low-poly-helicopter-with-animations). The page identifies Blender authorship, FBX delivery and no generative AI. It also credits an [Imphenzia tutorial](https://www.youtube.com/watch?v=_hr3SwtL7ZU) as inspiration. The actual ZIP contains `helicopter.fbx` (178,684 bytes) and `blend 32.png` (471 bytes), with no bundled license file or README.
 
