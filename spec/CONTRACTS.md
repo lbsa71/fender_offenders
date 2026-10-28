@@ -55,6 +55,8 @@ The 2026-10-28 helicopter GLB integration is presentation-only: imported root us
 
 ## 1. Conventions and invariants
 
+The `arcade-v23` / protocol 5 DB5 follow-up adds `db5` to `VehicleBodyId` and the shared selection catalog. Both builds must match because older peers reject the new body ID. Its shared profile is 90 health, 26 m/s top speed, 19 m/s² acceleration, 1.95 rad/s steering and grip 9. No chassis dimensions, hit rules, weapon progression or wire fields change. The renderer uses the detailed GLB in briefings and the driving GLB on patrol, with separate axle-pivot wheels and normal gun unlocks. Authored muzzle points affect cosmetic flashes; authority retains shared projectile rules. Fourteen unarmed/sixteen armed cosmetic components use the existing bounded wreck pool. Source rights remain separate from GPL code; see [DB5 handoff](handoffs/DB5_ASSET.md).
+
 - Distances: meters. Time: integer server ticks at 60 Hz; seconds only for configuration/display.
 - World: right-handed, X right, Y up, Z forward at yaw zero. Configure Babylon's right-handed mode and verify import orientation with an asymmetric fixture.
 - Current Babylon adapters reflect shared X once at the presentation boundary; use the existing conversion consistently for cars, scenery, pedestrians and target projection.

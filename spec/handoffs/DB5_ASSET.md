@@ -1,5 +1,17 @@
 # DB5 asset trial
 
+## Game integration follow-up · 2026-10-28
+
+The graphics worktree integrates this delivery as the seventh selectable vehicle in `arcade-v23` / protocol 5. The briefing's **Your vehicle** dropdown selects it directly and persists/broadcasts the choice; reassignment remains available and both controls lock with the ordinary countdown. Current game integration supersedes the branch-local status below; historical asset evidence is preserved.
+
+The runtime imports the 59,316-triangle briefing GLB only when a DB5 preview is requested, and the 14,879-triangle driving GLB only when a room contains a DB5. PBR materials and clearcoat come from the source. Intact geometry is batched by material/body, optional gun and individual wheel, with at most twenty batches and instancing across officers. Wire hubs and tires rotate about the same authored axle. Source axle-plane geometry is lifted 0.312 m above the road; the usual reflected-X boundary remains. Front wheels steer and all four roll; reduced-motion briefings freeze decorative wheel motion.
+
+Normal dispatch equipment rules control the two grille guns. Cosmetic muzzle flashes use authored points, while shared authority, projectile rules and chassis collision stay unchanged. Real source components form fourteen unarmed or sixteen armed physical fragments, including exactly four tires. The wreck adapter now copies material submesh regions as well as geometry, preserving silver, chrome, rubber and glazing on detached components. Imported assets are disposed with their owning renderer, including closure during loading. The distant GLB remains reserved; gameplay uses the driving model throughout.
+
+Observed RED: missing DB5 profile/importer (four focused failures); missing wheel/muzzle behavior; tire/hub batches used two different pivots; wreck copies collapsed source material regions; browser could not find a direct vehicle selector; phone chase viewport extended to pixel 225 into the enlarged cards. Corresponding changes pass focused native/real-physics/browser checks. An initial lifecycle test incorrectly counted per-car HUD geometry as shared body geometry and omitted owner disposal; it was corrected to compare actual shared source geometry and remove the owning car first. A viewport assertion was rounded to physical pixels after 195 represented as 195.00000000000003; this is not a second behavioral RED.
+
+Reproducible appearance acceptance: `pnpm exec playwright test tests/e2e/garage.spec.ts` exercises a rookie DB5, armed dispatch five and snowy dispatch nine, including 390×844. Captures in ignored `work/db5-*.png` show the silver exterior, chase framing, phone controls and driving silhouette. Both cars fit above the phone cards. Current automated and publication results are recorded in the execution ledger. Human appearance/handling approval and sustained minimum-device performance remain open; this delivery does not close the paused graphics goal. The exact natman license and noncommercial restriction below remain unchanged.
+
 Updated: 2026-10-28. Owner: FENDER Handle Blender work (art lane A). Status: prepared branch-local trial with reproducible exports and offline previews; game integration and appearance acceptance pending. The classic GT has completed its garage inspection, with road approval still outstanding.
 
 Branch `codex/db5-asset`, based on fresh `origin/main` at `ef7a739c29a2da6fbacbf04bf38a0d223081144a`. The completed helicopter branch and commit `c569eb2` remain separate and unchanged. No merge or deployment is part of this task.

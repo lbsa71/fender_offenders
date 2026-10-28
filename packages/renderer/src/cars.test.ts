@@ -7,6 +7,55 @@ import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VEHICLE_BODIES } from '@fender/content';
 import { CarFactory, type CarVisual } from './cars';
 import * as CarPresentation from './cars';
+import {readFileSync} from 'node:fs';
+
+describe('selectable modeled DB5',()=>{
+  async function load(detail:'briefing'|'driving'='driving'){
+    scene.useRightHandedSystem=true;
+    const loader=Reflect.get(factory,'loadDb5');
+    expect(loader,'the car factory must load the shipped DB5').toBeTypeOf('function');
+    await loader.call(factory,new Uint8Array(readFileSync(new URL(`../../content/runtime/models/db5/db5-${detail}.glb`,import.meta.url))));
+  }
+  it('uses the real silver exterior, four separate wheels and only unlocked guns',async()=>{
+    await load();
+    const rookie=factory.create('db5-rookie','db5',false,false),armed=factory.create('db5-armed','db5',false,true);
+    expect(rookie.parts.some(p=>p.sourceMesh.material?.name==='silver_clearcoat')).toBe(true);
+    const parts=factory.breakupParts('db5',false,false);
+    expect(parts.filter(p=>p.metadata.componentName==='tire')).toHaveLength(4);
+    expect(parts.map(p=>p.metadata.componentId)).toEqual(expect.arrayContaining(['body','bonnet','boot','door_left','door_right']));
+    expect(parts.some(p=>p.metadata.componentId.startsWith('gun_'))).toBe(false);
+    expect(factory.breakupParts('db5',false,true).filter(p=>p.metadata.componentId.startsWith('gun_'))).toHaveLength(2);
+    expect(armed.parts.length).toBeGreaterThan(rookie.parts.length);
+    expect(Math.min(...parts.map(p=>p.getBoundingInfo().boundingBox.minimum.y+p.position.y))).toBeGreaterThanOrEqual(-.001);
+    expect(parts.every(p=>!p.isVisible)).toBe(true);
+  });
+  it('batches the driving model and reuses its geometry across eight officers',async()=>{
+    await load();const car=factory.create('db5-0','db5',false,true);
+    expect(car.parts.length).toBeLessThanOrEqual(20);
+    expect(car.parts.reduce((n,p)=>n+p.sourceMesh.getTotalIndices()/3,0)).toBeGreaterThan(10000);
+    for(let i=1;i<8;i++)expect(factory.create(`db5-${i}`,'db5',false,true).parts.map(p=>p.sourceMesh.geometry)).toEqual(car.parts.map(p=>p.sourceMesh.geometry));
+  });
+  it('disposes imported assets after the owning renderer removes the cars',async()=>{
+    await load();factory.create('db5','db5',false).root.dispose();factory.dispose();
+    expect(scene.meshes).toHaveLength(0);
+  });
+  it('disposes a completed load even when the owning renderer has already closed',async()=>{
+    const loader=Reflect.get(factory,'loadDb5');expect(loader).toBeTypeOf('function');
+    const pending=loader.call(factory,new Uint8Array(readFileSync(new URL('../../content/runtime/models/db5/db5-driving.glb',import.meta.url))));factory.dispose();await pending;
+    expect(scene.meshes).toHaveLength(0);
+  });
+  it('turns front wheels, rolls all wheels and uses the authored grille muzzle positions',async()=>{
+    await load();const car=factory.create('wheel-test','db5',false,true);
+    const animate=Reflect.get(factory,'animateWheels'),muzzles=Reflect.get(factory,'muzzlePoints');
+    expect(animate).toBeTypeOf('function');expect(muzzles).toBeTypeOf('function');
+    animate.call(factory,car,1,.3);
+    const wheels=car.parts.filter(p=>p.sourceMesh.metadata.wheel);
+    expect(new Set(wheels.map(p=>p.sourceMesh.metadata.wheel)).size).toBe(4);
+    for(const id of ['wheel_fl','wheel_fr','wheel_rl','wheel_rr'])expect(new Set(wheels.filter(p=>p.sourceMesh.metadata.wheel===id).map(p=>p.position.asArray().map(n=>n.toFixed(5)).join(','))).size,'tire and wire hub must rotate about the same axle').toBe(1);
+    for(const wheel of wheels){expect(Math.abs(wheel.rotation.x)).toBeGreaterThan(.5);expect(wheel.rotation.y).toBeCloseTo(wheel.sourceMesh.metadata.wheel.endsWith('fl')||wheel.sourceMesh.metadata.wheel.endsWith('fr')?.3:0);}
+    expect(muzzles.call(factory,'db5').map((p:Vector3)=>[p.x,p.y,p.z])).toEqual([expect.arrayContaining([expect.closeTo(-.43),expect.closeTo(.582),expect.closeTo(2.02)]),expect.arrayContaining([expect.closeTo(.43),expect.closeTo(.582),expect.closeTo(2.02)])]);
+  });
+});
 
 let engine: NullEngine, scene: Scene, factory: CarFactory;
 beforeEach(() => { engine = new NullEngine(); scene = new Scene(engine); factory = new CarFactory(scene); });
@@ -24,7 +73,7 @@ function paint(car: CarVisual, name: string) {
 
 describe('original procedural vehicle bodies', () => {
   it('removes only the gun fittings from each rookie car and its exact breakup assembly',()=>{
-    for(const body of VEHICLE_BODIES){
+    for(const body of VEHICLE_BODIES.filter(id=>id!=='db5')){
       const rookie=factory.create(`rookie-${body}`,body,false,false);
       expect(paint(rookie,body).color).toBe(paint(factory.create(`armed-${body}`,body,false),body).color);
       const armed=factory.create(`reference-${body}`,body,false);expect(Boolean(rookie.sirenRed)).toBe(Boolean(armed.sirenRed));expect(Boolean(rookie.sirenBlue)).toBe(Boolean(armed.sirenBlue));
@@ -39,7 +88,7 @@ describe('original procedural vehicle bodies', () => {
     expect(glass.metallic).toBe(0); expect(paint.metallic).toBeLessThan(.2); expect(chrome.metallic).toBeGreaterThan(.6);
     expect(paint.clearCoat.isEnabled).toBe(true); expect(glass.clearCoat.isEnabled).toBe(false);
   });
-  it.each([...VEHICLE_BODIES, 'traffic-sedan'])('retains every authored %s component for an exact physical breakup', body => {
+  it.each([...VEHICLE_BODIES.filter(id=>id!=='db5'), 'traffic-sedan'])('retains every authored %s component for an exact physical breakup', body => {
     const traffic = body === 'traffic-sedan';
     const intact = factory.create('assembly', body, traffic);
     const breakup = Reflect.get(factory, 'breakupParts') as (body: string, traffic: boolean) => readonly Mesh[];
@@ -73,7 +122,7 @@ describe('original procedural vehicle bodies', () => {
       return tips;
     });
     expect(barrelTips(factory.create('civilian', 'traffic-sedan', true)), 'spectator cars must have no gun-tip geometry').toHaveLength(0);
-    for (const body of VEHICLE_BODIES) {
+    for (const body of VEHICLE_BODIES.filter(id=>id!=='db5')) {
       const tips = barrelTips(factory.create(`officer-${body}`, body, false));
       expect(tips.some(x => x < 0), `${body} left barrel`).toBe(true);
       expect(tips.some(x => x > 0), `${body} right barrel`).toBe(true);
@@ -116,8 +165,8 @@ describe('original procedural vehicle bodies', () => {
     expect(car.health.getAbsolutePosition().y).toBeCloseTo(3.51,2);expect(car.marker.getAbsolutePosition().y).toBeCloseTo(.08,2);
     expect(car.root.scaling.y).toBe(1);expect(car.root.rotation.z).toBe(0);
   });
-  it('publishes all six selectable bodies in the shared authoritative catalog', () => {
-    expect(VEHICLE_BODIES).toEqual(['patrol', 'interceptor', 'roadster', 'army', 'ambulance', 'fire-chief']);
+  it('publishes all seven selectable bodies in the shared authoritative catalog', () => {
+    expect(VEHICLE_BODIES).toEqual(['patrol', 'interceptor', 'roadster', 'army', 'ambulance', 'fire-chief', 'db5']);
   });
 
   it.each(['patrol', 'interceptor', 'roadster'])('retains the existing %s body and instanced geometry', body => {

@@ -140,7 +140,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     if(car){car.root.computeWorldMatrix(true);car.suspension.computeWorldMatrix(true);car.body.computeWorldMatrix(true);}
     for(let i=0;i<count;i++){
       const origin=origins[i]!,point=request.points[i]??{x:0,z:0,yaw:0,height:1.2};request.points[i]=point;point.yaw=origin.yaw;
-      if(car){gunPoint.set(i===0?-.63:.63,1.17,2.45);Vector3.TransformCoordinatesToRef(gunPoint,car.body.getWorldMatrix(),worldGun);point.x=-worldGun.x;point.z=worldGun.z;point.height=worldGun.y;}
+      if(car){gunPoint.copyFrom(factory.muzzlePoints(car.bodyAssetId)[i]!);Vector3.TransformCoordinatesToRef(gunPoint,car.body.getWorldMatrix(),worldGun);point.x=-worldGun.x;point.z=worldGun.z;point.height=worldGun.y;}
       else{point.x=origin.x;point.z=origin.z;point.height=1.2;}
     }
     return true;
@@ -167,6 +167,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     for(const v of frame.vehicles){
       active.add(v.entityId);let car=cars.get(v.entityId);
       const traffic=v.playerId===null&&v.bodyAssetId.startsWith('traffic'),armed=!traffic&&gunsFor(v.playerId!==null);
+      if(v.bodyAssetId==='db5'&&factory.modelStatus==='idle')void factory.loadDb5().then(()=>{for(const [id,value]of cars)if(value.bodyAssetId==='db5'){removeCar(value);cars.delete(id);}}).catch(()=>undefined);
       if(car&&(car.bodyAssetId!==v.bodyAssetId||car.traffic!==traffic||car.armed!==armed)){removeCar(car);cars.delete(v.entityId);car=undefined;}
       if(!car){car=factory.create(v.entityId,v.bodyAssetId,traffic,armed);cars.set(v.entityId,car);for(const part of [...car.parts,...car.wreckParts])shadows.addShadowCaster(part);}
       const speed=Math.hypot(v.velocity.x,v.velocity.z),isLocal=v.entityId===frame.localEntityId;
@@ -179,6 +180,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
       }
       car.motion=stepCartoonMotion(car.motion,{speed:v.status==='active'?speed:0,yawRate:v.velocity.yawRate,bump,reducedMotion},dt);
       car.root.position.set(-v.pose.x,.03,v.pose.z);car.root.rotation.set(0,-v.pose.yaw,0);car.root.scaling.x=-1;
+      factory.animateWheels(car,(v.velocity.x*Math.sin(v.pose.yaw)+v.velocity.z*Math.cos(v.pose.yaw))*dt,Math.max(-.5,Math.min(.5,v.velocity.yawRate/Math.max(2,speed)*2.6)));
       car.suspension.position.y=car.motion.heave;car.suspension.rotation.x=car.motion.pitch;
       car.feedback=stepVehicleFeedback(car.feedback,dt,reducedMotion);
       car.body.position.set(car.feedback.offsetX,0,car.feedback.offsetZ);car.body.rotation.set(car.feedback.pitch,0,car.motion.lean+car.feedback.roll);
@@ -331,6 +333,6 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     const local=lastFrame?.vehicles.find(v=>v.entityId===lastFrame?.localEntityId);if(!local||garageBody)return null;
     const m=scene.getTransformMatrix().m,x=-local.pose.x,z=local.pose.z,y=1;
     return targetIndicatorFromClip({x:x*m[0]!+y*m[4]!+z*m[8]!+m[12]!,y:x*m[1]!+y*m[5]!+z*m[9]!+m[13]!,w:x*m[3]!+y*m[7]!+z*m[11]!+m[15]!},canvas.clientWidth,canvas.clientHeight,0);
-  },unlockAudio:()=>audio.unlock(),getStats:()=>({fps:engine.getFps(),frameCpuMs,drawCalls:frameDrawCalls,activeMeshes:(garageBody&&garage?garage.scene:scene).getActiveMeshes().length,totalMeshes:scene.meshes.length+(garage?.scene.meshes.length??0),particles:particles.filter((p)=>p.life>0).length,garageBody,garageAngle:garage?.getStats().angle??0,garageReady:garage?.scene.isReady()??false,garageSuspectBody:garage?.getStats().suspectBody??null,garageArmed:garage?.getStats().armed??false,garageSuspectArmed:garage?.getStats().suspectArmed??false,...environment.getStats(),...snow.getStats(),...water.getStats(),...helicopter.getStats(),...splashes.getStats(),...lightDetail.getStats(),...contacts.getStats(),...combat.getStats(),...wrecks.getStats(),...grenades.getStats(),...roadGadgets.getStats(),...props.getStats(),pedestrians:pedestrians.getStats().total,pedestriansRunning:pedestrians.getStats().running,pedestriansVisible:pedestrians.getStats().visible,pedestriansWaiting:pedestrians.getStats().waiting,pedestriansHiddenSafety:pedestrians.getStats().hiddenSafety})};
+  },unlockAudio:()=>audio.unlock(),getStats:()=>({fps:engine.getFps(),frameCpuMs,drawCalls:frameDrawCalls,activeMeshes:(garageBody&&garage?garage.scene:scene).getActiveMeshes().length,totalMeshes:scene.meshes.length+(garage?.scene.meshes.length??0),particles:particles.filter((p)=>p.life>0).length,db5ModelStatus:factory.modelStatus,garageModelStatus:garage?.getStats().modelStatus,garageBody,garageAngle:garage?.getStats().angle??0,garageReady:garage?.scene.isReady()??false,garageSuspectBody:garage?.getStats().suspectBody??null,garageArmed:garage?.getStats().armed??false,garageSuspectArmed:garage?.getStats().suspectArmed??false,...environment.getStats(),...snow.getStats(),...water.getStats(),...helicopter.getStats(),...splashes.getStats(),...lightDetail.getStats(),...contacts.getStats(),...combat.getStats(),...wrecks.getStats(),...grenades.getStats(),...roadGadgets.getStats(),...props.getStats(),pedestrians:pedestrians.getStats().total,pedestriansRunning:pedestrians.getStats().running,pedestriansVisible:pedestrians.getStats().visible,pedestriansWaiting:pedestrians.getStats().waiting,pedestriansHiddenSafety:pedestrians.getStats().hiddenSafety})};
 }
 export type FenderRenderer=ReturnType<typeof createGameRenderer>;

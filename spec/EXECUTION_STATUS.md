@@ -6,7 +6,18 @@ Updated: 2026-10-26. Documentation/credits/GPL were pushed in `c5b1161`, car pre
 
 `Implemented` means the principal code path exists with the evidence cited here; it does not waive outstanding release gates. `Partial` means code exists but a named deliverable or acceptance check remains. `Open` means the deciding gate has not been demonstrated. The plan retains task IDs/dependencies and gates while reflecting the delivered campaign/profile/art choices.
 
+## 2026-10-28 · Selectable modeled DB5 integration
+
+The seventh shared car is `db5`, named **Aston Martin DB5**. The briefing now has a direct **Your vehicle** picker alongside the existing random reassignment; server selection, saved choice, respawn, prediction and countdown locks use the ordinary shared catalog. Matching `arcade-v23` / protocol 5 clients are required. The 90-health GT runs at 26 m/s with acceleration 19, steering 1.95 and grip 9; its slightly gentler acceleration trades against interceptor steering, and the existing no-dominance/balance guardrails pass.
+
+The detailed briefing GLB and driving GLB load lazily. Shared PBR/clearcoat material batches, axle-pivot wheel animation, authored muzzle flashes and ordinary gun unlocks accompany fourteen/sixteen actual breakup parts. All four tires use the real cosmetic physics. Material regions now survive the wreck geometry copy. Phone chase framing and the long DB5 name keep the cars above the expanded vehicle cards. The exact source license and explicit noncommercial fan-art restriction remain preserved separately from GPL code; see [provenance](../packages/content/manifests/licenses/db5/README.md) and [integration handoff](handoffs/DB5_ASSET.md).
+
+Observed RED before the corresponding changes: four profile/import tests found no selectable DB5/importer; wheel/muzzle behavior was absent; tire/hub batches had two different pivots; wreck submeshes collapsed material regions; native phone viewport ended at pixel 225 inside the cards; browser could not find the direct vehicle picker. These checks now pass. Two test setup corrections (owner HUD disposal/shared-body geometry counting, and physical-pixel float rounding) are explicitly recorded in the handoff and are not extra behavioral REDs.
+
+Current checks: **1,044 headless tests / 103 files passed** (25.42 s), type/documentation checks passed, **14 DB5 export/validator tests passed**, asset audit and production build passed. Three focused browser cases passed: rookie selection/dispatch, armed dispatch five at 1440×900, and snowy dispatch nine at 390×844. Native captures in ignored `work/db5-*.png` were inspected for silver silhouette, chase framing and clear phone controls. Full pre-push and hosted publication results remain pending at this commit. Human driving/appearance approval and sustained minimum-device performance remain open; the separate graphics goal remains paused.
+
 ## 2026-10-28 · Owner retires timing-sensitive contact-patrol integration cases
+
 
 After the two repeated contact-gate failures below and the scheduler/replay proposal, the owner explicitly chose to stop running those flaky tests. Removed `tests/integration/contact-driving.test.ts` and its two 60/160 ms wall-clock scenarios. This is a scoped test-policy decision, not a contact-physics fix or a claim that the former 0.15 m presentation limit has been satisfied. Historical RED evidence and measured results below remain intact. The owner instruction authorizes retirement despite the repository's default preference to retain regression assertions.
 

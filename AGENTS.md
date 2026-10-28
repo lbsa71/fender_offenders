@@ -4,7 +4,7 @@
 
 ## Current repository map
 
-Updated: 2026-10-28. The integrated baseline is the `arcade-v22` / protocol 5 playable alpha: six vehicle profiles, five storylines of ten dispatches each, armed targets, and one shared 1–8-player room model. Read [the implementation plan](IMPLEMENTATION_PLAN.md) for the next acceptance work and [the execution ledger](spec/EXECUTION_STATUS.md) for dated evidence. Release gates remain open; an impressive siren does not count as a sign-off.
+Updated: 2026-10-28. The integrated baseline is the `arcade-v23` / protocol 5 playable alpha: seven vehicle profiles, five storylines of ten dispatches each, armed targets, and one shared 1–8-player room model. Read [the implementation plan](IMPLEMENTATION_PLAN.md) for the next acceptance work and [the execution ledger](spec/EXECUTION_STATUS.md) for dated evidence. Release gates remain open; an impressive siren does not count as a sign-off.
 
 ## Strict test-driven development
 

@@ -209,6 +209,9 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   garage.innerHTML = '<header class="fo-garage-heading"><h1>ON THEIR TAIL.</h1></header><div class="fo-vehicle-comparison"><article class="fo-garage-card" data-vehicle-comparison="unit"><span class="fo-kicker">YOUR UNIT</span><h2 data-text="vehicle-name"></h2><span class="fo-vehicle-role" data-text="vehicle-role"></span><button type="button" data-action="reassign">REASSIGN VEHICLE</button></article><article class="fo-garage-card fo-suspect-card" data-vehicle-comparison="suspect"><span class="fo-kicker">SUSPECT CAR</span><h2 data-text="suspect-vehicle-name"></h2><span class="fo-vehicle-role" data-text="suspect-vehicle-role"></span></article></div>';
   shell.append(garage);
   one('[data-text="vehicle-name"]').setAttribute('aria-live','polite');
+  const vehicleChoice=doc.createElement('select');vehicleChoice.setAttribute('aria-label','Your vehicle');vehicleChoice.className='fo-vehicle-choice';
+  for(const id of VEHICLE_BODIES){const option=doc.createElement('option');option.value=id;option.textContent=getVehicleProfile(id).name;vehicleChoice.append(option);}
+  one('[data-vehicle-comparison="unit"]').append(vehicleChoice);
   const briefing = doc.createElement('section'); briefing.className = 'fo-campaign-briefing'; briefing.hidden = true; briefing.setAttribute('aria-label', 'Campaign dispatch briefing');
   briefing.innerHTML = '<header><span class="fo-kicker" data-campaign-series></span><h2 data-campaign-title></h2></header><div class="fo-campaign-scroll"><div class="fo-campaign-target"><div class="fo-campaign-portrait" role="img"></div><div><span class="fo-campaign-role"></span><h3 data-campaign-name></h3><strong data-campaign-alias></strong><span data-campaign-target-car></span></div></div><p data-campaign-briefing></p></div><footer><button class="fo-primary" data-action="campaign-start">START DISPATCH →</button><span class="fo-campaign-wait" hidden>RECONNECT TO CONTINUE</span><button class="fo-text-button" data-action="settings">SETTINGS & CONTROLS <span>⚙</span></button></footer>';
   shell.append(briefing);
@@ -351,6 +354,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
       write('suspect-vehicle-name',suspect.name);write('suspect-vehicle-role',suspect.role);
     }
     one<HTMLButtonElement>('[data-action="reassign"]').disabled = !canReassign();
+    vehicleChoice.value=vehicle;vehicleChoice.disabled=!canReassign();
   }
   function showMenu(next: Menu = 'pause') {
     if(persistentToast && (next===null || next==='home'))clearToast();
@@ -402,6 +406,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const change = (event: Event) => {
     const input = event.target as HTMLInputElement | HTMLSelectElement;
     if (input === nickname) { persistCallsign(); return; }
+    if(input===vehicleChoice){if(canReassign()&&isVehicleBodyId(input.value)){vehicle=input.value;awaitingVehicle=lobby()?vehicle:null;persistVehicle();updateGarage();callbacks.onVehicleChange?.(vehicle);}return;}
     const key = input.dataset.setting as keyof UiSettings | undefined;
     if (!key) return;
     const value = input instanceof HTMLInputElement && input.type === 'checkbox' ? input.checked : input.type === 'range' ? Number(input.value) : input.value;
