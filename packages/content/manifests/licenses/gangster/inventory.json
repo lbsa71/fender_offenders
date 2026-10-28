@@ -1,0 +1,126 @@
+{
+  "recorded": "2026-10-28",
+  "name": "Night Courier",
+  "license": "GPL-3.0-or-later",
+  "creation": "Original unbranded Blender geometry, OpenAI Codex assistance directed by Stefan Andersson",
+  "externalSourceUsed": false,
+  "sourceSelection": {
+    "researched": "https://blendswap.com/blend/19487",
+    "result": "Download required sign-in; exact archive license not verified. Authorized original-model fallback used. No archive downloaded."
+  },
+  "licenseFile": {
+    "path": "packages/content/manifests/licenses/gangster/LICENSE.txt",
+    "bytes": 35149,
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  },
+  "editableSource": {
+    "path": "asset-source/gangster/gangster-prepared.blend",
+    "bytes": 420202,
+    "sha256": "c6eb7a98fe2c062203ff96d447eed2b9e9842f6b098eb0180b969bf031a63634"
+  },
+  "canonicalRecipe": {
+    "path": "tools/assets/gangster/prepare.py",
+    "bytes": 12031,
+    "sha256": "9ca269d01500b7014088a74a3e79a08e7cb909e899aa3399fcfb2bc17f9b9347"
+  },
+  "runtime": {
+    "briefing": {
+      "path": "packages/content/runtime/models/gangster/gangster-briefing.glb",
+      "bytes": 512692,
+      "sha256": "d535769b6eaa40bebf74d699c0de1c942ae7b36f578ac78c3dafed16d5208147",
+      "triangles": 22808,
+      "meshes": 20,
+      "primitives": 37,
+      "materials": 6,
+      "images": 0,
+      "gzipBytes": 159627,
+      "extensionsUsed": [
+        "KHR_materials_clearcoat"
+      ],
+      "unarmedBounds": {
+        "min": [
+          -0.9899999499320984,
+          -0.42500001192092896,
+          -2.3999998569488525
+        ],
+        "max": [
+          0.9899999499320984,
+          1.5700000524520874,
+          2.2200000286102295
+        ]
+      }
+    },
+    "driving": {
+      "path": "packages/content/runtime/models/gangster/gangster-driving.glb",
+      "bytes": 240196,
+      "sha256": "d4c3eeea1f617a95dbb8aaf85b69fbc3eac9cec9fbf2cbad69f070537682b58e",
+      "triangles": 9904,
+      "meshes": 20,
+      "primitives": 37,
+      "materials": 6,
+      "images": 0,
+      "gzipBytes": 61622,
+      "extensionsUsed": [
+        "KHR_materials_clearcoat"
+      ],
+      "unarmedBounds": {
+        "min": [
+          -0.9899999499320984,
+          -0.42500001192092896,
+          -2.3999998569488525
+        ],
+        "max": [
+          0.9899999499320984,
+          1.5700000524520874,
+          2.2200000286102295
+        ]
+      }
+    },
+    "distant": {
+      "path": "packages/content/runtime/models/gangster/gangster-distant.glb",
+      "bytes": 106508,
+      "sha256": "1e6bbce68628b680fb3efb2711c3d69977d477f8b1d2166f9f27d5a511f74073",
+      "triangles": 3976,
+      "meshes": 20,
+      "primitives": 36,
+      "materials": 6,
+      "images": 0,
+      "gzipBytes": 24067,
+      "extensionsUsed": [
+        "KHR_materials_clearcoat"
+      ],
+      "unarmedBounds": {
+        "min": [
+          -0.9899999499320984,
+          -0.42500001192092896,
+          -2.3999998569488525
+        ],
+        "max": [
+          0.9899999499320984,
+          1.5700000524520874,
+          2.2200000286102295
+        ]
+      }
+    }
+  },
+  "toolchain": "Blender 5.2.2 LTS, Python bpy, Node GLB tests",
+  "runtimeTextureDependencies": [],
+  "repeatability": "All three GLB SHA-256 hashes matched across a complete repeated export on 2026-10-28. Blender container bytes can vary on save.",
+  "validation": {
+    "assetTestsPassed": 18,
+    "previewCount": 18,
+    "triangleBudgets": [
+      25000,
+      10000,
+      4000
+    ],
+    "maxPrimitivesPerLod": 40
+  },
+  "limits": [
+    "Offline visual review only; game importer/camera, LOD transition, physics and sustained performance remain pending.",
+    "Material primitive counts are structural bounds, not whole-game draw-call measurements.",
+    "Opaque glazing; no modeled engine or interior.",
+    "Renderer must hide optional gun meshes until normal equipment rules permit them.",
+    "Far LOD is intentionally coarse; human appearance acceptance remains open."
+  ]
+}
