@@ -1,0 +1,39 @@
+{
+  "blender": "5.2.2 LTS",
+  "engine": "Cycles CPU",
+  "samples": 40,
+  "seed": 17,
+  "viewTransform": "AgX",
+  "resolution": [
+    1000,
+    700
+  ],
+  "briefingCamera": {
+    "position": [
+      6,
+      -8,
+      4.2
+    ],
+    "target": [
+      0,
+      0.05,
+      0.3
+    ],
+    "orthographicSpan": 6.6
+  },
+  "drivingCamera": {
+    "position": [
+      6,
+      -8,
+      7
+    ],
+    "target": [
+      0,
+      0,
+      0.2
+    ],
+    "orthographicSpan": 8.8
+  },
+  "steeringDegrees": 28,
+  "note": "Offline reimported GLB. No actual game camera, shader, physics or performance acceptance is claimed."
+}

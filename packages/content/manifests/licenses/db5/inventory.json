@@ -1,0 +1,130 @@
+{
+  "recorded": "2026-10-28",
+  "creator": "natman",
+  "rights": "Original archive declares CC-BY 3.0 and explicitly prohibits commercial use as fan art. Preserved unchanged; not relabeled GPL.",
+  "source": {
+    "path": "asset-source/db5/natman-db5-original.zip",
+    "bytes": 3223420,
+    "sha256": "24cafbc2a778132a3d7645a0362bf39ebf075ddefe47157e984c506155327238",
+    "members": [
+      {
+        "name": "BLENDSWAP_LICENSE.txt",
+        "bytes": 3286,
+        "sha256": "6809e732624306466a8dc9294e4d2ec2cfeac34a25e9039a5cefa8d1b51f76da"
+      },
+      {
+        "name": "db5 BS.blend",
+        "bytes": 8736732,
+        "sha256": "7cd48821681455a66a1dc9853386bb9a2739074606f818ff1ec9dd2792b647ae"
+      }
+    ]
+  },
+  "license": {
+    "path": "packages/content/manifests/licenses/db5/BLENDSWAP_LICENSE.txt",
+    "bytes": 3286,
+    "sha256": "6809e732624306466a8dc9294e4d2ec2cfeac34a25e9039a5cefa8d1b51f76da"
+  },
+  "editablePreparedSource": {
+    "path": "asset-source/db5/db5-prepared.blend",
+    "bytes": 1727228,
+    "sha256": "f4ee69b07201ad14b220fa77d805e233c467712d31fadab66fc1d38f789faa43"
+  },
+  "runtime": {
+    "briefing": {
+      "path": "packages/content/runtime/models/db5/db5-briefing.glb",
+      "bytes": 1356168,
+      "sha256": "1c2a327a02fe5833c9a8ca68232d6603323e5d36720e8475326522b0a514912b",
+      "triangles": 59316,
+      "meshes": 16,
+      "primitives": 37,
+      "materials": 6,
+      "images": 0,
+      "extensionsUsed": [
+        "KHR_materials_clearcoat"
+      ],
+      "gzipBytes": 898421,
+      "unarmedBounds": {
+        "min": [
+          -0.8199001550674438,
+          -0.3105541467666626,
+          -2.4838449954986572
+        ],
+        "max": [
+          0.8178485631942749,
+          0.9987939596176147,
+          2.0490097999572754
+        ]
+      }
+    },
+    "driving": {
+      "path": "packages/content/runtime/models/db5/db5-driving.glb",
+      "bytes": 390572,
+      "sha256": "8aca5a4c26e0bc7a39ac11b77df5ce3094d0089ab45d90813f3144abb6cc8bde",
+      "triangles": 14879,
+      "meshes": 16,
+      "primitives": 37,
+      "materials": 6,
+      "images": 0,
+      "extensionsUsed": [
+        "KHR_materials_clearcoat"
+      ],
+      "gzipBytes": 247310,
+      "unarmedBounds": {
+        "min": [
+          -0.8196461200714111,
+          -0.31272250413894653,
+          -2.4837119579315186
+        ],
+        "max": [
+          0.8178009986877441,
+          0.9989272356033325,
+          2.0474367141723633
+        ]
+      }
+    },
+    "distant": {
+      "path": "packages/content/runtime/models/db5/db5-distant.glb",
+      "bytes": 145616,
+      "sha256": "633cf785ad3570c38ebdb0263c9a84ffa9f31f8b6bf4514d33c43369c9893c15",
+      "triangles": 3983,
+      "meshes": 16,
+      "primitives": 37,
+      "materials": 6,
+      "images": 0,
+      "extensionsUsed": [
+        "KHR_materials_clearcoat"
+      ],
+      "gzipBytes": 76127,
+      "unarmedBounds": {
+        "min": [
+          -0.8121023178100586,
+          -0.31247174739837646,
+          -2.4850780963897705
+        ],
+        "max": [
+          0.8134196996688843,
+          1.0005642175674438,
+          2.023733615875244
+        ]
+      }
+    }
+  },
+  "toolchain": "Blender 5.2.2 LTS; Python preparation; Node GLB validation",
+  "runtimeTextureDependencies": [],
+  "materials": [
+    "silver_clearcoat",
+    "chrome",
+    "rubber_and_recesses",
+    "tinted_glazing",
+    "warm_lamp",
+    "red_lamp"
+  ],
+  "repeatability": "All three GLB SHA-256 hashes matched before and after a complete repeated export on 2026-10-28. Blender container bytes may vary.",
+  "limits": [
+    "Offline previews only; game importer, camera, collision and sustained performance acceptance pending.",
+    "37 material primitives per LOD; render draw cost is not measured.",
+    "Driving LOD shows surface faceting in close reflective views; distant LOD is for small screen coverage.",
+    "Renderer must hide optional gun meshes on import until normal equipment rules permit them.",
+    "Opaque glazing; source engine, interior, studio image and all original texture maps omitted from runtime."
+  ]
+}

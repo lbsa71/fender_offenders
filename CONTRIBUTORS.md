@@ -49,3 +49,5 @@ OpenAI Codex (AI assistance), directed by the project owner: production dispatch
 OpenAI Codex (AI assistance), directed by the project owner: winter road readability, snowbank collision-work limits, persistent burst buffers and observed regression/render checks (2026-10-27).
 
 OpenAI Codex (AI assistance), directed by the project owner: controllable winter cornering, shared ice/braking tuning, paired-build compatibility and snowy networked steering verification (2026-10-27).
+
+The 2026-10-28 DB5 asset trial uses natman's Aston Martin DB5 from BlendSwap, supplied by the project owner for noncommercial hobby use. The original archive declares CC-BY 3.0 and explicitly prohibits commercial use as fan art; this third-party model and its derivatives are not relabeled GPL. OpenAI Codex assistance prepared exterior LODs, PBR materials, wire-wheel simplification, optional grille guns, detachable components, provenance, validation and offline previews. [DB5 provenance and exact original license](packages/content/manifests/licenses/db5/README.md) retain natman's credit and the asset restrictions separately from repository code.
