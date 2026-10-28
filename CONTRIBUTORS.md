@@ -55,3 +55,5 @@ The 2026-10-28 helicopter asset trial uses KumaSousa's artist-made CC0 helicopte
 OpenAI Codex assistance, directed by Stefan Andersson, integrated KumaSousa's CC0 helicopter GLB into the driving renderer on 2026-10-28, with independent rotor control, bounded physical component breakup, lifecycle/road tests and native lighting captures. Original artist and Blender preparation credits remain in the [helicopter provenance](packages/content/manifests/licenses/helicopter/README.md).
 
 OpenAI Codex assistance, directed by Stefan Andersson, adjusted black-chopper balance on 2026-10-28 after owner playtesting: slower approaches/departures, longer forward passes on snow, preserved bomb limits, and observed test-first route/authority regressions.
+
+OpenAI Codex (AI assistance), directed by the project owner: bounded helicopter intercepts, smooth low attack passes, shared height/flight continuation, and observed route, peer, ordinary-fire and native-camera regression checks (2026-10-28).

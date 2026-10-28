@@ -2,13 +2,15 @@
 
 The `arcade-v19` content expansion provides **five separate ten-dispatch storylines** (50 dispatches, 50 portraits). New rooms receive a server-selected case automatically; finishing it offers **Another case**, selecting a different storyline in the same room. Case identity drives story, target, car and lighting through shared content, survives retained rooms and reconnects, and uses the existing bounded ten-stage campaign DTO. All five reuse the proven equipment/tactics progression and six vehicle bodies. F/S/N own catalog and authority; U/R own concise presentation; Q verifies all five through real peers and native browsers. This adds cases without adding a selection screen. Dispatch has acquired four more filing cabinets.
 
-Status: acceptance plan for the integrated `arcade-v22` / protocol 5 alpha. Updated: 2026-10-27 for longer avenues and bounded suspect road gadgets, integrated with continuous local driving, buffered remote presentation, closing-pursuit tactics, staged tutorial and touch controls. Current states and dated evidence for all 49 tasks are in [the execution ledger](spec/EXECUTION_STATUS.md). Task IDs, dependencies and milestone gates remain stable; delivery choices below reflect the current implementation.
+Status: acceptance plan for the integrated `arcade-v23` / protocol 5 alpha. Updated: 2026-10-28 for longer avenues and bounded suspect road gadgets, integrated with continuous local driving, buffered remote presentation, closing-pursuit tactics, staged tutorial and touch controls. Current states and dated evidence for all 49 tasks are in [the execution ledger](spec/EXECUTION_STATUS.md). Task IDs, dependencies and milestone gates remain stable; delivery choices below reflect the current implementation.
 
 *The city is playable. The release paperwork still has several outstanding warrants.*
 
 ## Next acceptance work
 
-The `arcade-v22` owner balance follow-up slows the helicopter, places its firing window ahead of the officer and extends it on snow. S/F/Q own sampled-course routes, three-drop limits, paired-build compatibility and deterministic real-authority shoot-down checks. R retains the owner-approved GLB appearance. Human difficulty review and the separate graphics performance issue remain open.
+The `arcade-v23` owner follow-up keeps the helicopter in a usable firing view. S/G/F/N/R/Q work runs sequentially in the existing winter worktree: bounded intercept corrections, low attack altitude and shared height metadata, continued motion through course handoffs, checkpoint/late-peer consistency, ordinary-gun shoot-downs and actual-camera opportunities in six views. Health, bomb pressure, the imported model and its bounded breakup remain. Human difficulty review and the separate graphics performance issue remain open.
+
+The earlier `arcade-v22` owner balance follow-up slowed the helicopter and extended its shooting time on snow. Its fixed phase routes are superseded by the bounded intercepts above. R retains the owner-approved GLB appearance. Human difficulty review and the separate graphics performance issue remain open.
 
 The owner-requested [directional driving follow-up](spec/adr/002-directional-driving.md) replaces touch/left-stick tank controls with a screen-direction request. U/F/R/N/Q own the local vector contract, camera conversion, continuous heading feedback, help and real-adapter/browser verification sequentially in `codex/directional-driving`. Keyboard, car physics and wire actions remain unchanged. Physical touch/controller feel and minimum-device acceptance remain open.
 

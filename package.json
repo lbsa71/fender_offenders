@@ -30,7 +30,7 @@
     "test:ui": "node packages/ui/dev/garage-smoke.mjs && node packages/ui/dev/pursuit-smoke.mjs && node packages/ui/dev/campaign-smoke.mjs && node packages/ui/dev/callsigns-smoke.mjs && node packages/ui/dev/briefing-smoke.mjs",
     "test:water": "tsx packages/renderer/scenarios/water-visibility-check.ts && tsx packages/renderer/scenarios/water-finish-check.ts && tsx packages/renderer/scenarios/water-splash-check.ts",
     "test:snow": "tsx packages/renderer/scenarios/snow-check.ts",
-    "test:helicopter": "tsx packages/renderer/scenarios/helicopter-check.ts",
+    "test:helicopter": "tsx packages/renderer/scenarios/helicopter-check.ts && tsx packages/renderer/scenarios/helicopter-opportunity-check.ts",
     "test:tires": "tsx packages/renderer/scenarios/tire-bounce-check.ts"
   },
   "dependencies": {

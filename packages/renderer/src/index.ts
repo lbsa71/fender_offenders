@@ -1,5 +1,5 @@
 import { HelicopterVisual } from './helicopter';
-import { HELICOPTER_RULES, helicopterPoseAt } from '@fender/contracts';
+import { HELICOPTER_RULES, helicopterPoseAt, helicopterHeightAt } from '@fender/contracts';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
@@ -208,12 +208,13 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     for(const [id,car]of cars)if(!active.has(id)){removeCar(car);cars.delete(id);}
     renderMuzzles();
     const air=frame.helicopter&&!['away','downed'].includes(frame.helicopter.phase)?helicopterPoseAt(frame.helicopter,frame.serverTick??grenadeTick):null;
+    const airHeight=frame.helicopter?helicopterHeightAt(frame.helicopter,frame.serverTick??grenadeTick):HELICOPTER_RULES.altitude;
     const tracers=air?frame.projectiles.map(p=>{
       if(!frame.vehicles.some(v=>v.entityId===p.ownerEntityId&&v.playerId!==null))return p;
       const dx=air.x-p.pose.x,dz=air.z-p.pose.z,sin=Math.sin(p.pose.yaw),cos=Math.cos(p.pose.yaw),along=dx*sin+dz*cos;
       if(along<0||along>40||Math.abs(dx*cos-dz*sin)>HELICOPTER_RULES.hitRadius)return p;
-      const age=p.presentationAgeSeconds??Math.max(0,((frame.serverTick??grenadeTick)-p.bornTick)/60),travel=age*Math.hypot(p.velocity.x,p.velocity.z),slope=(HELICOPTER_RULES.altitude-1.2)/Math.max(.1,travel+along);
-      return {...p,tracerHeight:Math.min(HELICOPTER_RULES.altitude,1.2+travel*slope),tracerSlope:slope};
+      const age=p.presentationAgeSeconds??Math.max(0,((frame.serverTick??grenadeTick)-p.bornTick)/60),travel=age*Math.hypot(p.velocity.x,p.velocity.z),slope=(airHeight-1.2)/Math.max(.1,travel+along);
+      return {...p,tracerHeight:Math.min(airHeight,1.2+travel*slope),tracerSlope:slope};
     }):frame.projectiles;
     combat.renderProjectiles(tracers,dt);combat.update(dt,settings.reducedFlash);wrecks.update(dt,{reducedMotion,reducedFlash:settings.reducedFlash});
     if(frame.serverTick!==undefined&&Number.isFinite(frame.serverTick))grenadeTick=frame.serverTick;
@@ -296,7 +297,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
         if(pendingMuzzles.length>=12)pendingMuzzles.shift();pendingMuzzles.push({key:volleyKey,payload,life:car?.discontinuity??null,points:[],expires:0});
         const ownShot=payload.shooterId===lastFrame?.localEntityId,volume=combatVolume(p,ownShot);if(volume>0)audio.effect('shot',volume,undefined,ownShot?0:combatPan(p));
       }else if(event.kind==='hit'){
-        const p=event.payload.position,height=event.payload.targetId===lastFrame?.helicopter?.entityId?HELICOPTER_RULES.altitude:undefined;combat.impact(p,.7,settings.reducedFlash,height);emit(-p.x,height??1,p.z,14,'spark');emit(-p.x,1,p.z,2,'smoke');const volume=combatVolume(p);if(volume>0)audio.effect('hit',volume,undefined,combatPan(p));if(event.payload.targetId===lastFrame?.localEntityId)shake=Math.max(shake,.3);
+        const p=event.payload.position,air=lastFrame?.helicopter,height=air&&event.payload.targetId===air.entityId?helicopterHeightAt(air,lastFrame?.serverTick??event.serverTick):undefined;combat.impact(p,.7,settings.reducedFlash,height);emit(-p.x,height??1,p.z,14,'spark');emit(-p.x,height??1,p.z,2,'smoke');const volume=combatVolume(p);if(volume>0)audio.effect('hit',volume,undefined,combatPan(p));if(event.payload.targetId===lastFrame?.localEntityId)shake=Math.max(shake,.3);
       }else if(event.kind==='projectile-impact'){
         const p=event.payload.position;combat.impact(p,.55,settings.reducedFlash);emit(-p.x,1,p.z,10,'spark');emit(-p.x,1,p.z,2,'smoke');const volume=combatVolume(p);if(volume>0)audio.effect('hit',volume,undefined,combatPan(p));
       }else if(event.kind==='wreck'){

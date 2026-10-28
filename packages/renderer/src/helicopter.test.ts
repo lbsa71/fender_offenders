@@ -22,6 +22,12 @@ it('shows a black aircraft on the shared flight path with readable health and bo
  for(let i=0;i<100;i++)visual.render(state,62+i,false);expect(scene.meshes).toHaveLength(count);expect(scene.materials).toHaveLength(materials);expect(scene.textures).toHaveLength(textures);expect(scene.lights).toHaveLength(0);
  visual.dispose();expect(scene.meshes).toHaveLength(0);
 });
+
+it('descends smoothly into the shared low firing pass instead of staying above the camera',async()=>{
+ const visual=await create(),descending={...state,fromHeight:18,toHeight:8};
+ visual.render(descending,60,false);expect(scene.getTransformNodeByName('black-chopper')!.position.y).toBeCloseTo(13);
+ visual.render(descending,120,false);expect(scene.getTransformNodeByName('black-chopper')!.position.y).toBeCloseTo(8);
+});
 it('falls once when downed, never resurrects the same dispatch helper and clears on garage/reset',async()=>{
  const visual=await create();const down={...state,phase:'downed' as const,health:0,startedAtTick:100,endsAtTick:190};
  visual.render(down,145,false);expect(scene.getTransformNodeByName('black-chopper')!.position.y).toBeLessThan(18);

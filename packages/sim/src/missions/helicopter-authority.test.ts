@@ -31,15 +31,32 @@ it('air-dropped bombs lead the officer, replicate their origin height and apply 
 });
 
 it.each([4,8])('ordinary forward fire can down a full-health natural first pass in dispatch index %i',stage=>{
- const {sim,playerId}=encounter(stage,true);let firstAttackEnds:number|null=null;
+ const {sim,playerId}=encounter(stage,true);let firstAttack=false;
  for(let i=0;i<1100;i++){
   const air=sim.snapshot().helicopter;
-  if(air?.phase==='attack'&&firstAttackEnds===null)firstAttackEnds=air.endsAtTick;
+  if(air?.phase==='attack')firstAttack=true;
   if(air?.phase==='downed')break;
-  if(firstAttackEnds!==null&&sim.snapshot().serverTick>=firstAttackEnds)break;
+  if(firstAttack&&air?.phase==='depart')break;
   sim.step(new Map([[playerId,{sessionEpoch:'e',sourceCommandSequence:i,actions:{...neutralActions(),fire:true}}]]));
  }
- expect(firstAttackEnds).not.toBeNull();
+ expect(firstAttack).toBe(true);
  expect(sim.snapshot().helicopter,'a player who lines up and shoots should finish the first pass').toMatchObject({health:0,phase:'downed'});
  expect(sim.snapshot().vehicles.find(v=>v.entityId===playerId)!.health).toBeGreaterThan(0);
+});
+
+it.each([4,8])('lets a moving officer shoot down the natural pass on every heading in dispatch %i',stage=>{
+ for(const yaw of [0,Math.PI/2,Math.PI,-Math.PI/2]){
+  const {sim,playerId}=encounter(stage,true),checkpoint=sim.checkpoint();
+  const player=checkpoint.state.records.find(r=>r.vehicle.entityId===playerId)!;
+  player.vehicle.pose.yaw=yaw;player.vehicle.velocity={x:Math.sin(yaw)*10,z:Math.cos(yaw)*10,yawRate:0};sim.restore(checkpoint);
+  let attacked=false;
+  for(let sequence=0;sequence<1300;sequence++){
+   const air=sim.snapshot().helicopter;if(air?.phase==='attack')attacked=true;
+   if(air?.phase==='downed'||attacked&&air?.phase==='depart')break;
+   sim.step(new Map([[playerId,{sessionEpoch:'e',sourceCommandSequence:sequence,actions:{...neutralActions(),throttle:1,fire:true}}]]));
+  }
+  expect(sim.snapshot().helicopter,`heading ${yaw}: sustained ordinary fire should finish the first natural pass`).toMatchObject({health:0,phase:'downed'});
+  expect(sim.snapshot().vehicles.find(v=>v.entityId===playerId)!.health).toBeGreaterThan(0);
+  expect(sim.snapshot().campaign!.outcomes).toEqual([]);
+ }
 });
