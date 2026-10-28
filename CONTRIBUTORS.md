@@ -49,3 +49,5 @@ OpenAI Codex (AI assistance), directed by the project owner: production dispatch
 OpenAI Codex (AI assistance), directed by the project owner: winter road readability, snowbank collision-work limits, persistent burst buffers and observed regression/render checks (2026-10-27).
 
 OpenAI Codex (AI assistance), directed by the project owner: controllable winter cornering, shared ice/braking tuning, paired-build compatibility and snowy networked steering verification (2026-10-27).
+
+The 2026-10-28 helicopter asset trial uses KumaSousa's artist-made CC0 helicopter as its base. OpenAI Codex assistance, directed by Stefan Andersson, prepared charcoal/glazing materials, original skids, capped detachable components, clean rotor clips, Blender reproduction tooling, provenance and observed validation/offline renders. This branch-local trial does not claim shipping renderer integration. [Helicopter provenance](packages/content/manifests/licenses/helicopter/README.md) records original authorship and modifications separately.

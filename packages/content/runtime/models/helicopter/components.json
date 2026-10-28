@@ -1,0 +1,259 @@
+{
+  "units": "meters",
+  "up": "+Y",
+  "nose": "+Z",
+  "handedness": "right-handed",
+  "rootOrigin": "source (0,-0.5,1.3), centered in cabin; not ground contact",
+  "sourceUniformScale": 0.72,
+  "blenderVersion": "5.2.2 LTS",
+  "sourceArchiveSha256": "a0541b65868bea461f8121907bb68006054a01079225e3573e3e8e0e496b5de3",
+  "bounds": {
+    "min": [
+      -4.39682149887085,
+      -1.1844000816345215,
+      -5.552041053771973
+    ],
+    "max": [
+      4.396822452545166,
+      1.5889627933502197,
+      4.395623683929443
+    ]
+  },
+  "components": [
+    {
+      "name": "cabin",
+      "pivot": [
+        0.0,
+        -0.058451,
+        -0.594
+      ],
+      "collider": {
+        "shape": "box",
+        "localCenter": [
+          0.0,
+          0.0,
+          -0.0
+        ],
+        "halfExtents": [
+          1.34991,
+          0.787624,
+          1.206
+        ]
+      },
+      "rotationAxis": null
+    },
+    {
+      "name": "cockpit",
+      "pivot": [
+        0.0,
+        -0.12347,
+        1.575043
+      ],
+      "collider": {
+        "shape": "box",
+        "localCenter": [
+          0.0,
+          0.0,
+          -0.0
+        ],
+        "halfExtents": [
+          1.246883,
+          0.722604,
+          0.963043
+        ]
+      },
+      "rotationAxis": null
+    },
+    {
+      "name": "rotor_main",
+      "pivot": [
+        1e-06,
+        0.8568,
+        -0.001198
+      ],
+      "collider": {
+        "shape": "box",
+        "localCenter": [
+          0.0,
+          0.209618,
+          -0.0
+        ],
+        "halfExtents": [
+          4.396822,
+          0.522545,
+          4.396822
+        ]
+      },
+      "rotationAxis": [
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "name": "rotor_tail",
+      "pivot": [
+        0.11256,
+        0.734289,
+        -5.144867
+      ],
+      "collider": {
+        "shape": "box",
+        "localCenter": [
+          0.0,
+          0.0,
+          -0.0
+        ],
+        "halfExtents": [
+          0.082861,
+          0.407174,
+          0.407174
+        ]
+      },
+      "rotationAxis": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "skid_left",
+      "pivot": [
+        -0.803372,
+        -0.793782,
+        0.198126
+      ],
+      "collider": {
+        "shape": "box",
+        "localCenter": [
+          0.0,
+          0.0,
+          -0.0
+        ],
+        "halfExtents": [
+          0.273028,
+          0.390618,
+          1.638126
+        ]
+      },
+      "rotationAxis": null
+    },
+    {
+      "name": "skid_right",
+      "pivot": [
+        0.803372,
+        -0.793782,
+        0.198126
+      ],
+      "collider": {
+        "shape": "box",
+        "localCenter": [
+          0.0,
+          0.0,
+          -0.0
+        ],
+        "halfExtents": [
+          0.273028,
+          0.390618,
+          1.638126
+        ]
+      },
+      "rotationAxis": null
+    },
+    {
+      "name": "tail_boom",
+      "pivot": [
+        -0.0,
+        -0.144404,
+        -3.096
+      ],
+      "collider": {
+        "shape": "box",
+        "localCenter": [
+          0.0,
+          0.0,
+          -0.0
+        ],
+        "halfExtents": [
+          0.950903,
+          0.619081,
+          1.296
+        ]
+      },
+      "rotationAxis": null
+    },
+    {
+      "name": "tail_fin",
+      "pivot": [
+        0.0,
+        0.412269,
+        -4.960965
+      ],
+      "collider": {
+        "shape": "box",
+        "localCenter": [
+          0.0,
+          0.0,
+          -0.0
+        ],
+        "halfExtents": [
+          0.826422,
+          0.702847,
+          0.568965
+        ]
+      },
+      "rotationAxis": null
+    },
+    {
+      "name": "wing_left",
+      "pivot": [
+        -1.601229,
+        -0.668364,
+        -0.379052
+      ],
+      "collider": {
+        "shape": "box",
+        "localCenter": [
+          0.0,
+          0.0,
+          -0.0
+        ],
+        "halfExtents": [
+          0.269229,
+          0.177265,
+          0.513715
+        ]
+      },
+      "rotationAxis": null
+    },
+    {
+      "name": "wing_right",
+      "pivot": [
+        1.601229,
+        -0.668364,
+        -0.379052
+      ],
+      "collider": {
+        "shape": "box",
+        "localCenter": [
+          0.0,
+          0.0,
+          -0.0
+        ],
+        "halfExtents": [
+          0.269229,
+          0.177265,
+          0.513715
+        ]
+      },
+      "rotationAxis": null
+    }
+  ],
+  "animations": "rotor_main and rotor_tail: separate 1-second clips, one revolution each; choose runtime speeds independently",
+  "limitations": [
+    "Simple boxes are suggestions for local cosmetic debris only, not gameplay hit shapes.",
+    "Skid boxes include empty space; use compounds of rails/struts if visual settling requires it.",
+    "Body seams are capped. Coplanar internal caps can touch until fragments separate.",
+    "Preview rendering is offline; Babylon camera, materials, disposal and performance remain unverified."
+  ]
+}

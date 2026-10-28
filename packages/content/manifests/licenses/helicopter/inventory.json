@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-28",
+  "status": "prepared-for-review",
+  "runtime": {
+    "path": "packages/content/runtime/models/helicopter/helicopter.glb",
+    "sha256": "c1c7de73e1606c7903bde0caa967837f4ab19c79073ace7861b684762e1cab12",
+    "bytes": 105416,
+    "gzipBytes": 28867,
+    "glTFVersion": "2.0",
+    "meshes": 10,
+    "primitives": 20,
+    "triangles": 1800,
+    "materials": [
+      "charcoal_paint",
+      "cockpit_glazing",
+      "graphite_hardware",
+      "rotor_tip_ochre"
+    ],
+    "images": [],
+    "animations": [
+      "rotor_main",
+      "rotor_tail"
+    ]
+  },
+  "editableSource": {
+    "path": "asset-source/helicopter/helicopter.blend",
+    "bytes": 141537,
+    "sha256": "8fa8df926d94705de69ae194468d22ee0de75bf17627efda22626cab09d7fb56"
+  },
+  "sourceLicense": {
+    "declared": "CC0",
+    "normalizedSpdx": "CC0-1.0",
+    "versionExplicitOnPage": false,
+    "licenseInArchive": false
+  },
+  "originalTexture": {
+    "width": 32,
+    "height": 1024,
+    "runtimeTextureCount": 0
+  }
+}
