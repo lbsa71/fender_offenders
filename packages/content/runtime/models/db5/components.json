@@ -1,0 +1,1276 @@
+{
+  "units": "meters",
+  "up": "+Y",
+  "nose": "+Z",
+  "handedness": "right-handed",
+  "root": "car",
+  "sourceScale": 0.168,
+  "sourceOrigin": [
+    0.0,
+    -1.225000023841858,
+    -1.815000057220459
+  ],
+  "rootMeaning": "mid-axle chassis plane; wheel centers near Y=0, tyres extend below root",
+  "wheelAxes": {
+    "steer": [
+      0,
+      1,
+      0
+    ],
+    "roll": [
+      1,
+      0,
+      0
+    ]
+  },
+  "leftRightConvention": "left nodes have negative X; right nodes positive X",
+  "optionalGuns": "GLB visibility is not portable; renderer MUST hide gun_left/right at import until equipment rules permit them. Muzzles face local +Z.",
+  "assetRights": "natman; CC-BY-3.0 with supplied noncommercial fan-art restriction; see BLENDSWAP_LICENSE.txt",
+  "lods": {
+    "briefing": {
+      "components": [
+        {
+          "name": "body",
+          "pivot": [
+            -0.0004008,
+            0.424397,
+            -0.2026738
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.7996414,
+              0.574397,
+              2.1641322
+            ]
+          }
+        },
+        {
+          "name": "bonnet",
+          "pivot": [
+            -0.0006463,
+            0.5291083,
+            1.1841934
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.5273911,
+              0.0928595,
+              0.6305944
+            ]
+          }
+        },
+        {
+          "name": "boot",
+          "pivot": [
+            -0.0004008,
+            0.3956817,
+            -2.0842834
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.5456688,
+              0.2799907,
+              0.3070086
+            ]
+          }
+        },
+        {
+          "name": "door_left",
+          "pivot": [
+            -0.7081033,
+            0.4261249,
+            -0.2254949
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.1117968,
+              0.4513205,
+              0.5911895
+            ]
+          }
+        },
+        {
+          "name": "door_right",
+          "pivot": [
+            0.7066767,
+            0.4261249,
+            -0.2254949
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.1111719,
+              0.4513205,
+              0.5911896
+            ]
+          }
+        },
+        {
+          "name": "bumper_front",
+          "pivot": [
+            -0.0004008,
+            0.1098675,
+            1.8553522
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.8042168,
+              0.1324885,
+              0.1936576
+            ]
+          }
+        },
+        {
+          "name": "bumper_rear",
+          "pivot": [
+            -0.0004008,
+            0.1334486,
+            -2.2180998
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.755531,
+              0.2075668,
+              0.2657452
+            ]
+          }
+        },
+        {
+          "name": "grille",
+          "pivot": [
+            -0.0004009,
+            0.2614714,
+            1.9200029
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.4923193,
+              0.1168458,
+              0.0285704
+            ]
+          }
+        },
+        {
+          "name": "lights_front",
+          "pivot": [
+            -0.0006844,
+            0.3005632,
+            1.8357542
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.7423873,
+              0.1442219,
+              0.1310044
+            ]
+          }
+        },
+        {
+          "name": "lights_rear",
+          "pivot": [
+            -0.0015223,
+            0.35097,
+            -2.3722382
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.676756,
+              0.1289005,
+              0.0177532
+            ]
+          }
+        },
+        {
+          "name": "wheel_fl",
+          "pivot": [
+            -0.6935425,
+            -7.76e-05,
+            1.2243263
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "cylinder",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "radius": 0.311,
+            "halfWidth": 0.095,
+            "localCenter": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "name": "wheel_fr",
+          "pivot": [
+            0.6944444,
+            -7.76e-05,
+            1.2223423
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "cylinder",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "radius": 0.311,
+            "halfWidth": 0.095,
+            "localCenter": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "name": "wheel_rl",
+          "pivot": [
+            -0.6935425,
+            -7.75e-05,
+            -1.2195352
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "cylinder",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "radius": 0.311,
+            "halfWidth": 0.095,
+            "localCenter": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "name": "wheel_rr",
+          "pivot": [
+            0.6929538,
+            0.0001239,
+            -1.2229289
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "cylinder",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "radius": 0.311,
+            "halfWidth": 0.095,
+            "localCenter": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "name": "gun_left",
+          "pivot": [
+            -0.43,
+            0.27,
+            1.79
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              0.115
+            ],
+            "halfExtents": [
+              0.037,
+              0.037,
+              0.115
+            ]
+          }
+        },
+        {
+          "name": "gun_right",
+          "pivot": [
+            0.43,
+            0.27,
+            1.79
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              0.115
+            ],
+            "halfExtents": [
+              0.037,
+              0.037,
+              0.115
+            ]
+          }
+        }
+      ],
+      "unarmedBounds": {
+        "min": [
+          -0.8199001550674438,
+          -0.3105541467666626,
+          -2.4838449954986572
+        ],
+        "max": [
+          0.8178485631942749,
+          0.9987939596176147,
+          2.0490097999572754
+        ]
+      },
+      "evaluatedSourceTrianglesBeforeReduction": {
+        "bodyshell": 23476,
+        "windscreen": 240,
+        "windscreen trim": 1584,
+        "Plane.018": 1056,
+        "Plane.019": 160,
+        "Plane.020": 1008,
+        "Plane.021": 1008,
+        "Plane.016": 108,
+        "Plane.017": 768,
+        "inner wings": 126,
+        "inner wings rear": 800,
+        "WING MIRROR": 1704,
+        "WING MIRROR.001": 1704,
+        "wiper.000": 464,
+        "wiper.001": 464,
+        "BONNET": 2684,
+        "Plane.007": 1280,
+        "boot handle": 736,
+        "boot lock": 216,
+        "Plane.014": 1872,
+        "Plane.015": 32,
+        "door handle.001": 1872,
+        "Plane.027": 464,
+        "Plane.030": 1872,
+        "Plane.013": 32,
+        "door handle": 1872,
+        "Plane.031": 464,
+        "Plane.008": 1712,
+        "number plate.jpg.000": 52,
+        "rear bumper": 560,
+        "Plane.022": 200,
+        "Plane.023": 200,
+        "rear plate": 52,
+        "exhaust tailpipe": 96,
+        "exhaust tailpipe.001": 96,
+        "Cylinder": 876,
+        "Plane.005": 1056,
+        "Sphere": 448,
+        "Torus": 1204,
+        "Torus.001": 1204,
+        "rev light lens.001": 1440,
+        "Circle": 32,
+        "Circle.001": 32,
+        "bezel": 1152,
+        "bezel.001": 1152,
+        "bezel.002": 1152,
+        "brake light lens": 1440,
+        "indicator rear": 1440,
+        "rev light lens": 1440,
+        "Plane.011": 19712,
+        "Plane.012": 19712,
+        "Plane.024": 19712,
+        "Plane.025": 19712
+      }
+    },
+    "driving": {
+      "components": [
+        {
+          "name": "body",
+          "pivot": [
+            -0.0004331,
+            0.4244636,
+            -0.2024945
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.7994267,
+              0.5744636,
+              2.1646274
+            ]
+          }
+        },
+        {
+          "name": "bonnet",
+          "pivot": [
+            -0.0006553,
+            0.529192,
+            1.1842057
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.5273845,
+              0.0927387,
+              0.630607
+            ]
+          }
+        },
+        {
+          "name": "boot",
+          "pivot": [
+            -0.0004009,
+            0.39551,
+            -2.0842941
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.545815,
+              0.2798607,
+              0.3069978
+            ]
+          }
+        },
+        {
+          "name": "door_left",
+          "pivot": [
+            -0.7079763,
+            0.4261227,
+            -0.2254917
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.1116698,
+              0.4513227,
+              0.5911927
+            ]
+          }
+        },
+        {
+          "name": "door_right",
+          "pivot": [
+            0.7066529,
+            0.4261227,
+            -0.2254918
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.1111481,
+              0.4513227,
+              0.5911928
+            ]
+          }
+        },
+        {
+          "name": "bumper_front",
+          "pivot": [
+            -0.0008826,
+            0.1111578,
+            1.8542119
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.8052701,
+              0.1287314,
+              0.1932248
+            ]
+          }
+        },
+        {
+          "name": "bumper_rear",
+          "pivot": [
+            -0.0001331,
+            0.1335865,
+            -2.2180333
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.7539401,
+              0.2074289,
+              0.2656786
+            ]
+          }
+        },
+        {
+          "name": "grille",
+          "pivot": [
+            -0.0017461,
+            0.2615052,
+            1.9194174
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.4899367,
+              0.1168477,
+              0.029292
+            ]
+          }
+        },
+        {
+          "name": "lights_front",
+          "pivot": [
+            -0.0010439,
+            0.3002657,
+            1.8355761
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.7425731,
+              0.1454048,
+              0.1314374
+            ]
+          }
+        },
+        {
+          "name": "lights_rear",
+          "pivot": [
+            -0.0015223,
+            0.35097,
+            -2.3727317
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.676756,
+              0.1289005,
+              0.018247
+            ]
+          }
+        },
+        {
+          "name": "wheel_fl",
+          "pivot": [
+            -0.6935425,
+            -7.76e-05,
+            1.2243263
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "cylinder",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "radius": 0.311,
+            "halfWidth": 0.095,
+            "localCenter": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "name": "wheel_fr",
+          "pivot": [
+            0.6944444,
+            -7.76e-05,
+            1.2223423
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "cylinder",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "radius": 0.311,
+            "halfWidth": 0.095,
+            "localCenter": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "name": "wheel_rl",
+          "pivot": [
+            -0.6935425,
+            -7.75e-05,
+            -1.2195352
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "cylinder",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "radius": 0.311,
+            "halfWidth": 0.095,
+            "localCenter": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "name": "wheel_rr",
+          "pivot": [
+            0.6929538,
+            0.0001239,
+            -1.2229289
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "cylinder",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "radius": 0.311,
+            "halfWidth": 0.095,
+            "localCenter": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "name": "gun_left",
+          "pivot": [
+            -0.43,
+            0.27,
+            1.79
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              0.115
+            ],
+            "halfExtents": [
+              0.037,
+              0.037,
+              0.115
+            ]
+          }
+        },
+        {
+          "name": "gun_right",
+          "pivot": [
+            0.43,
+            0.27,
+            1.79
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              0.115
+            ],
+            "halfExtents": [
+              0.037,
+              0.037,
+              0.115
+            ]
+          }
+        }
+      ],
+      "unarmedBounds": {
+        "min": [
+          -0.8196461200714111,
+          -0.31272250413894653,
+          -2.4837119579315186
+        ],
+        "max": [
+          0.8178009986877441,
+          0.9989272356033325,
+          2.0474367141723633
+        ]
+      },
+      "evaluatedSourceTrianglesBeforeReduction": {
+        "bodyshell": 23476,
+        "windscreen": 240,
+        "windscreen trim": 1584,
+        "Plane.018": 1056,
+        "Plane.019": 160,
+        "Plane.020": 1008,
+        "Plane.021": 1008,
+        "Plane.016": 108,
+        "Plane.017": 768,
+        "inner wings": 126,
+        "inner wings rear": 800,
+        "WING MIRROR": 1704,
+        "WING MIRROR.001": 1704,
+        "wiper.000": 464,
+        "wiper.001": 464,
+        "BONNET": 2684,
+        "Plane.007": 1280,
+        "boot handle": 736,
+        "boot lock": 216,
+        "Plane.014": 1872,
+        "Plane.015": 32,
+        "door handle.001": 1872,
+        "Plane.027": 464,
+        "Plane.030": 1872,
+        "Plane.013": 32,
+        "door handle": 1872,
+        "Plane.031": 464,
+        "Plane.008": 1712,
+        "number plate.jpg.000": 52,
+        "rear bumper": 560,
+        "Plane.022": 200,
+        "Plane.023": 200,
+        "rear plate": 52,
+        "exhaust tailpipe": 96,
+        "exhaust tailpipe.001": 96,
+        "Cylinder": 876,
+        "Plane.005": 1056,
+        "Sphere": 448,
+        "Torus": 1204,
+        "Torus.001": 1204,
+        "rev light lens.001": 1440,
+        "Circle": 32,
+        "Circle.001": 32,
+        "bezel": 1152,
+        "bezel.001": 1152,
+        "bezel.002": 1152,
+        "brake light lens": 1440,
+        "indicator rear": 1440,
+        "rev light lens": 1440,
+        "Plane.011": 19712,
+        "Plane.012": 19712,
+        "Plane.024": 19712,
+        "Plane.025": 19712
+      }
+    },
+    "distant": {
+      "components": [
+        {
+          "name": "body",
+          "pivot": [
+            -0.0004308,
+            0.4069805,
+            -0.203486
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.8002944,
+              0.5935837,
+              2.1643939
+            ]
+          }
+        },
+        {
+          "name": "bonnet",
+          "pivot": [
+            -0.0006575,
+            0.5296044,
+            1.1842258
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.5286504,
+              0.0926351,
+              0.6315711
+            ]
+          }
+        },
+        {
+          "name": "boot",
+          "pivot": [
+            -0.0010176,
+            0.3945972,
+            -2.0843534
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.5436572,
+              0.2795624,
+              0.3069385
+            ]
+          }
+        },
+        {
+          "name": "door_left",
+          "pivot": [
+            -0.7042234,
+            0.4267395,
+            -0.2253097
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.107879,
+              0.4518148,
+              0.5915571
+            ]
+          }
+        },
+        {
+          "name": "door_right",
+          "pivot": [
+            0.7044572,
+            0.4267395,
+            -0.2255966
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.1089625,
+              0.4518147,
+              0.5918441
+            ]
+          }
+        },
+        {
+          "name": "bumper_front",
+          "pivot": [
+            -7.57e-05,
+            0.1037298,
+            1.8328319
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.7920404,
+              0.1059302,
+              0.1909017
+            ]
+          }
+        },
+        {
+          "name": "bumper_rear",
+          "pivot": [
+            -0.0013358,
+            0.134905,
+            -2.2205589
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.7654955,
+              0.2061104,
+              0.2645192
+            ]
+          }
+        },
+        {
+          "name": "grille",
+          "pivot": [
+            -0.0017612,
+            0.257594,
+            1.92066
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.4899216,
+              0.113427,
+              0.0305346
+            ]
+          }
+        },
+        {
+          "name": "lights_front",
+          "pivot": [
+            -0.0040614,
+            0.2998976,
+            1.8323523
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.7388367,
+              0.1447879,
+              0.1397647
+            ]
+          }
+        },
+        {
+          "name": "lights_rear",
+          "pivot": [
+            -0.0015223,
+            0.35097,
+            -2.3749981
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "halfExtents": [
+              0.676756,
+              0.1289005,
+              0.0205132
+            ]
+          }
+        },
+        {
+          "name": "wheel_fl",
+          "pivot": [
+            -0.6935425,
+            -7.76e-05,
+            1.2243263
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "cylinder",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "radius": 0.311,
+            "halfWidth": 0.095,
+            "localCenter": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "name": "wheel_fr",
+          "pivot": [
+            0.6944444,
+            -7.76e-05,
+            1.2223423
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "cylinder",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "radius": 0.311,
+            "halfWidth": 0.095,
+            "localCenter": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "name": "wheel_rl",
+          "pivot": [
+            -0.6935425,
+            -7.75e-05,
+            -1.2195352
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "cylinder",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "radius": 0.311,
+            "halfWidth": 0.095,
+            "localCenter": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "name": "wheel_rr",
+          "pivot": [
+            0.6929538,
+            0.0001239,
+            -1.2229289
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "cylinder",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "radius": 0.311,
+            "halfWidth": 0.095,
+            "localCenter": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "name": "gun_left",
+          "pivot": [
+            -0.43,
+            0.27,
+            1.79
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              0.115
+            ],
+            "halfExtents": [
+              0.032043,
+              0.037,
+              0.115
+            ]
+          }
+        },
+        {
+          "name": "gun_right",
+          "pivot": [
+            0.43,
+            0.27,
+            1.79
+          ],
+          "suggestedCosmeticCollider": {
+            "shape": "box",
+            "localCenter": [
+              0.0,
+              0.0,
+              0.115
+            ],
+            "halfExtents": [
+              0.032043,
+              0.037,
+              0.115
+            ]
+          }
+        }
+      ],
+      "unarmedBounds": {
+        "min": [
+          -0.8121023178100586,
+          -0.31247174739837646,
+          -2.4850780963897705
+        ],
+        "max": [
+          0.8134196996688843,
+          1.0005642175674438,
+          2.023733615875244
+        ]
+      },
+      "evaluatedSourceTrianglesBeforeReduction": {
+        "bodyshell": 23476,
+        "windscreen": 240,
+        "windscreen trim": 1584,
+        "Plane.018": 1056,
+        "Plane.019": 160,
+        "Plane.020": 1008,
+        "Plane.021": 1008,
+        "Plane.016": 108,
+        "Plane.017": 768,
+        "inner wings": 126,
+        "inner wings rear": 800,
+        "WING MIRROR": 1704,
+        "WING MIRROR.001": 1704,
+        "wiper.000": 464,
+        "wiper.001": 464,
+        "BONNET": 2684,
+        "Plane.007": 1280,
+        "boot handle": 736,
+        "boot lock": 216,
+        "Plane.014": 1872,
+        "Plane.015": 32,
+        "door handle.001": 1872,
+        "Plane.027": 464,
+        "Plane.030": 1872,
+        "Plane.013": 32,
+        "door handle": 1872,
+        "Plane.031": 464,
+        "Plane.008": 1712,
+        "number plate.jpg.000": 52,
+        "rear bumper": 560,
+        "Plane.022": 200,
+        "Plane.023": 200,
+        "rear plate": 52,
+        "exhaust tailpipe": 96,
+        "exhaust tailpipe.001": 96,
+        "Cylinder": 876,
+        "Plane.005": 1056,
+        "Sphere": 448,
+        "Torus": 1204,
+        "Torus.001": 1204,
+        "rev light lens.001": 1440,
+        "Circle": 32,
+        "Circle.001": 32,
+        "bezel": 1152,
+        "bezel.001": 1152,
+        "bezel.002": 1152,
+        "brake light lens": 1440,
+        "indicator rear": 1440,
+        "rev light lens": 1440,
+        "Plane.011": 19712,
+        "Plane.012": 19712,
+        "Plane.024": 19712,
+        "Plane.025": 19712
+      }
+    }
+  }
+}
