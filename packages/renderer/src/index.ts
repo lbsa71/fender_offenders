@@ -20,6 +20,7 @@ export { MusicPlayer, discoverMusicTracks, type MusicTracks, type MusicState } f
 import { DrivingSoundTracker } from './driving-sound';
 import { buildCity } from './city';
 import { CarFactory, updateCarStatus, type CarVisual } from './cars';
+import {isModeledCar} from './modeled-car';
 import {crossedRoadBump,newCartoonMotion,stepCartoonMotion} from './deformation';
 import {createGaragePreview,type GaragePreview} from './garage';
 import {newVehicleFeedback,kickImpact,kickRecoil,stepVehicleFeedback} from './feedback';
@@ -167,7 +168,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     for(const v of frame.vehicles){
       active.add(v.entityId);let car=cars.get(v.entityId);
       const traffic=v.playerId===null&&v.bodyAssetId.startsWith('traffic'),armed=!traffic&&gunsFor(v.playerId!==null);
-      if(v.bodyAssetId==='db5'&&factory.modelStatus==='idle')void factory.loadDb5().then(()=>{for(const [id,value]of cars)if(value.bodyAssetId==='db5'){removeCar(value);cars.delete(id);}}).catch(()=>undefined);
+      if(isModeledCar(v.bodyAssetId)&&factory.modelStatusFor(v.bodyAssetId)==='idle')void factory.loadModel(v.bodyAssetId).then(()=>{for(const [id,value]of cars)if(value.bodyAssetId===v.bodyAssetId){removeCar(value);cars.delete(id);}}).catch(()=>undefined);
       if(car&&(car.bodyAssetId!==v.bodyAssetId||car.traffic!==traffic||car.armed!==armed)){removeCar(car);cars.delete(v.entityId);car=undefined;}
       if(!car){car=factory.create(v.entityId,v.bodyAssetId,traffic,armed);cars.set(v.entityId,car);for(const part of [...car.parts,...car.wreckParts])shadows.addShadowCaster(part);}
       const speed=Math.hypot(v.velocity.x,v.velocity.z),isLocal=v.entityId===frame.localEntityId;
@@ -333,6 +334,6 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     const local=lastFrame?.vehicles.find(v=>v.entityId===lastFrame?.localEntityId);if(!local||garageBody)return null;
     const m=scene.getTransformMatrix().m,x=-local.pose.x,z=local.pose.z,y=1;
     return targetIndicatorFromClip({x:x*m[0]!+y*m[4]!+z*m[8]!+m[12]!,y:x*m[1]!+y*m[5]!+z*m[9]!+m[13]!,w:x*m[3]!+y*m[7]!+z*m[11]!+m[15]!},canvas.clientWidth,canvas.clientHeight,0);
-  },unlockAudio:()=>audio.unlock(),getStats:()=>({fps:engine.getFps(),frameCpuMs,drawCalls:frameDrawCalls,activeMeshes:(garageBody&&garage?garage.scene:scene).getActiveMeshes().length,totalMeshes:scene.meshes.length+(garage?.scene.meshes.length??0),particles:particles.filter((p)=>p.life>0).length,db5ModelStatus:factory.modelStatus,garageModelStatus:garage?.getStats().modelStatus,garageBody,garageAngle:garage?.getStats().angle??0,garageReady:garage?.scene.isReady()??false,garageSuspectBody:garage?.getStats().suspectBody??null,garageArmed:garage?.getStats().armed??false,garageSuspectArmed:garage?.getStats().suspectArmed??false,...environment.getStats(),...snow.getStats(),...water.getStats(),...helicopter.getStats(),...splashes.getStats(),...lightDetail.getStats(),...contacts.getStats(),...combat.getStats(),...wrecks.getStats(),...grenades.getStats(),...roadGadgets.getStats(),...props.getStats(),pedestrians:pedestrians.getStats().total,pedestriansRunning:pedestrians.getStats().running,pedestriansVisible:pedestrians.getStats().visible,pedestriansWaiting:pedestrians.getStats().waiting,pedestriansHiddenSafety:pedestrians.getStats().hiddenSafety})};
+  },unlockAudio:()=>audio.unlock(),getStats:()=>({fps:engine.getFps(),frameCpuMs,drawCalls:frameDrawCalls,activeMeshes:(garageBody&&garage?garage.scene:scene).getActiveMeshes().length,totalMeshes:scene.meshes.length+(garage?.scene.meshes.length??0),particles:particles.filter((p)=>p.life>0).length,db5ModelStatus:factory.modelStatus,gangsterModelStatus:factory.modelStatusFor('gangster'),garageModelStatus:garage?.getStats().modelStatus,garageBody,garageAngle:garage?.getStats().angle??0,garageReady:garage?.scene.isReady()??false,garageSuspectBody:garage?.getStats().suspectBody??null,garageArmed:garage?.getStats().armed??false,garageSuspectArmed:garage?.getStats().suspectArmed??false,...environment.getStats(),...snow.getStats(),...water.getStats(),...helicopter.getStats(),...splashes.getStats(),...lightDetail.getStats(),...contacts.getStats(),...combat.getStats(),...wrecks.getStats(),...grenades.getStats(),...roadGadgets.getStats(),...props.getStats(),pedestrians:pedestrians.getStats().total,pedestriansRunning:pedestrians.getStats().running,pedestriansVisible:pedestrians.getStats().visible,pedestriansWaiting:pedestrians.getStats().waiting,pedestriansHiddenSafety:pedestrians.getStats().hiddenSafety})};
 }
 export type FenderRenderer=ReturnType<typeof createGameRenderer>;

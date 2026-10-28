@@ -1,4 +1,4 @@
-export const VEHICLE_BODIES = ['patrol', 'interceptor', 'roadster', 'army', 'ambulance', 'fire-chief', 'db5'] as const;
+export const VEHICLE_BODIES = ['patrol', 'interceptor', 'roadster', 'army', 'ambulance', 'fire-chief', 'db5', 'gangster'] as const;
 export type VehicleBodyId = typeof VEHICLE_BODIES[number];
 export interface VehicleProfile {
   readonly id: VehicleBodyId; readonly name: string; readonly role: string; readonly description: string;
@@ -8,6 +8,7 @@ export interface VehicleProfile {
 const profile = (value: VehicleProfile): Readonly<VehicleProfile> => Object.freeze(value);
 /** Shared baseline tuning in health points, metres/second and radians/second. */
 export const VEHICLE_PROFILES: Readonly<Record<VehicleBodyId, VehicleProfile>> = Object.freeze({
+  gangster: profile({id:'gangster',name:'Night Courier',role:'Armored classic',description:'Black 1920s sedan with sturdy armor, broad fenders and a deliberate turn of pace.',maxHealth:120,topSpeed:21,acceleration:15,steeringRate:1.85,grip:9.2}),
   db5: profile({id:'db5',name:'Aston Martin DB5',role:'Classic GT',description:'Silver style, balanced pursuit pace and discreet grille guns when unlocked.',maxHealth:90,topSpeed:26,acceleration:19,steeringRate:1.95,grip:9}),
   patrol: profile({ id: 'patrol', name: 'Patrol', role: 'All-rounder', description: 'Steady handling and dependable armor. Ready for anything.', maxHealth: 100, topSpeed: 24, acceleration: 18, steeringRate: 2.1, grip: 9 }),
   interceptor: profile({ id: 'interceptor', name: 'Interceptor', role: 'Pursuit specialist', description: 'Quick off the line and fast in pursuit. Wider turns and lighter armor.', maxHealth: 90, topSpeed: 26, acceleration: 20, steeringRate: 1.9, grip: 9 }),

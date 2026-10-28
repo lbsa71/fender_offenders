@@ -30,11 +30,11 @@ afterEach(async () => { await disposeTestRooms();
 });
 afterAll(async () => { await server?.gracefullyShutdown(false); });
 
-it.each(['army','db5'] as const)('dispatches the saved %s garage body through the real prediction facade', async body => {
+it.each(['army','db5','gangster'] as const)('dispatches the saved %s garage body through the real prediction facade', async body => {
   const session = createOnlineSession(endpoint, districtMap); sessions.push(session);
   const joined = await session.connect({ roomId: crypto.randomUUID(), nickname: 'Classic driver', vehicleBodyId: body });
   expect(joined.firstState.local!.vehicle.bodyAssetId).toBe(body);
-  expect(joined.firstState.local!.vehicle.health).toBe(body==='db5'?90:130);
+  expect(joined.firstState.local!.vehicle.health).toBe(body==='db5'?90:body==='gangster'?120:130);
 });
 it('allows lobby selection, publishes it to every player, and locks it at countdown', async () => {
   const a = await peer('army'), b = await peer('patrol', a.room.roomId);

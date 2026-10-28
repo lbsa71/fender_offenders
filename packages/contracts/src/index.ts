@@ -10,7 +10,7 @@ export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v23';
+export const GAMEPLAY_REVISION = 'arcade-v24';
 export type { CampaignState, CampaignOutcome, DispatchOutcome, CampaignTarget, CampaignDispatch, CampaignStoryline } from './campaign-types';
 export { CAMPAIGN_ID, CAMPAIGN_TITLE, CAMPAIGN_TARGETS, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, STORYLINES, ALL_CAMPAIGN_TARGETS, ALL_CAMPAIGN_DISPATCHES, getStoryline, isStorylineId, getCampaignDispatch, findCampaignDispatch, getCampaignTarget } from './campaign';
 export { getCampaignMugshot, type CampaignMugshotVariant } from './campaign-mugshots';

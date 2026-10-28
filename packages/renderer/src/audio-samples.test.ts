@@ -103,14 +103,14 @@ describe('recorded patrol sound bank', () => {
     audio.stopGrenades('other'); expect(blast.stopped).toBe(false);
     audio.stopGrenades('nearby'); expect(blast.stopped).toBe(true); audio.dispose();
   });
-  it('gives all seven bodies distinct engine tuning without creating more loops', async () => {
+  it('gives all eight bodies distinct engine tuning without creating more loops', async () => {
     const { audio, context, samples } = await setup();
     const engine = context.recordings.find(n => n.buffer === samples.loops.drive)!;
     const voices = VEHICLE_BODIES.map(bodyAssetId => {
       audio.update(20, false, 0, true, { load: .8, slip: 0, surface: 'asphalt', bodyAssetId });
       return engine.playbackRate.value;
     });
-    expect(new Set(voices).size).toBe(7);
+    expect(new Set(voices).size).toBe(8);
     expect(context.recordings.filter(n => n.loop)).toHaveLength(5); audio.dispose();
   });
   it('keeps repeated variant selection valid at the random upper bound', async () => {

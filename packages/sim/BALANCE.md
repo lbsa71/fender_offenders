@@ -107,3 +107,7 @@ For the follow-up tightening, tests first pinned actual hits-to-wreck to ambulan
 ## DB5 catalog follow-up · 2026-10-28
 
 The current seventh profile is the Aston Martin DB5: 90 health, 26 m/s, acceleration 19, steering rate 1.95 and grip 9. Its acceleration is lower than the interceptor while steering is slightly quicker, preserving the existing no-dominance guardrail. The parameterized real-adapter profile tests now cover its prediction/authority parity, armor, weapons and checkpoint replay. Earlier six-car measurements above remain historical; they are not new seven-car measurements. Human handling acceptance remains open.
+
+## Night Courier follow-up · 2026-10-28
+
+The eighth profile is Night Courier (`gangster`): 120 health, 21 m/s top speed, acceleration 15, steering rate 1.85 and grip 9.2. Its armor trades against cruise speed and cornering. Existing weighted-budget and no-dominance guardrails pass, as do parameterized real prediction/authority, armor, weapon and checkpoint tests. This records current automated checks; historical six-car measurements above are not fresh eight-car measurements. Human handling acceptance remains open.

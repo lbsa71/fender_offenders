@@ -8,18 +8,21 @@ import { CarFactory } from './cars';
 import { WreckEffects } from './wreck-effects';
 import {readFileSync} from 'node:fs';
 
-it('breaks the actual DB5 into fourteen unarmed parts with all material regions and four physical tires',async()=>{
+it.each([{id:'db5',parts:14},{id:'gangster',parts:18}])('breaks the actual $id into $parts unarmed parts with all material regions and four physical tires',async({id,parts})=>{
   scene.useRightHandedSystem=true;
-  await factory.loadDb5(new Uint8Array(readFileSync(new URL('../../content/runtime/models/db5/db5-driving.glb',import.meta.url))));
-  effects.spawn({...wreck,bodyAssetId:'db5',armed:false});
-  expect(pieces()).toHaveLength(14);expect(stats().wreckBodies).toBe(14);
+  await factory.loadModel(id,'driving',new Uint8Array(readFileSync(new URL(`../../content/runtime/models/${id}/${id}-driving.glb`,import.meta.url))));
+  effects.spawn({...wreck,bodyAssetId:id,armed:false});
+  expect(pieces()).toHaveLength(parts);expect(stats().wreckBodies).toBe(parts);
   expect(effects.getStats().wreckWheels).toBe(4);
   for(const mesh of pieces()){
-    const source=factory.breakupParts('db5',false,false).find(p=>p.metadata.componentId===mesh.metadata.componentId)!;
+    const source=factory.breakupParts(id,false,false).find(p=>p.metadata.componentId===mesh.metadata.componentId)!;
     expect(mesh.subMeshes.map(s=>[s.materialIndex,s.indexStart,s.indexCount])).toEqual(source.subMeshes.map(s=>[s.materialIndex,s.indexStart,s.indexCount]));
   }
   const wheel=scene.transformNodes.find(n=>n.metadata?.wreckRole==='wheel'&&n.isEnabled())!,start=wheel.position.y;
   effects.update(.1);expect(wheel.position.y).toBeGreaterThan(start);
+  let falling=false,bounced=false,previous=wheel.position.y;
+  for(let i=0;i<140&&wheel.isEnabled();i++){effects.update(1/60);const y=wheel.position.y;if(y<previous)falling=true;if(falling&&y>previous+.002)bounced=true;previous=y;}
+  expect(bounced,'the modeled tire should rebound from the real road').toBe(true);
   effects.reset();expect(stats().wreckBodies).toBe(0);
 });
 
