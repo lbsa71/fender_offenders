@@ -73,7 +73,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
   const environment=new DispatchEnvironment(scene,sun,hemi);
   const snow=new SnowCover(scene,shadows);
   const water=new WetSurfaces(scene);
-  const helicopter=new HelicopterVisual(scene);
+  const helicopter=new HelicopterVisual(scene,map);
   const splashes=new WaterSplashes(scene);
   const lightDetail=new LightDetail(scene,map);
   const contacts=new ContactShading(scene);
@@ -219,7 +219,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
     if(frame.serverTick!==undefined&&Number.isFinite(frame.serverTick))grenadeTick=frame.serverTick;
     else if(!frame.grenades?.length&&!frame.gadgets?.length&&!frame.helicopter)grenadeTick=0;
     else{grenadeTick+=dt*60;for(const g of [...frame.grenades??[],...frame.gadgets??[]])grenadeTick=Math.max(grenadeTick,g.bornTick);}
-    const airCrash=helicopter.render(frame.helicopter,grenadeTick,reducedMotion);if(airCrash)grenades.explode('air-crash-'+frame.helicopter!.entityId,airCrash,3,grenadeTick,{reducedMotion,reducedFlash:settings.reducedFlash});
+    const airCrash=helicopter.render(frame.helicopter,grenadeTick,reducedMotion,dt);if(airCrash)grenades.explode('air-crash-'+frame.helicopter!.entityId,airCrash,3,grenadeTick,{reducedMotion,reducedFlash:settings.reducedFlash});
     grenades.render(frame.grenades??[],grenadeTick,{reducedMotion,reducedFlash:settings.reducedFlash});grenades.update(dt,{reducedMotion,reducedFlash:settings.reducedFlash});
     grenades.drainCues(cue=>{const volume=combatVolume(cue.position);if(volume>0)audio.grenade(cue.kind,volume,cue.grenadeId,combatPan(cue.position));});
     props.render(frame.props??[],environment.lampGlow);pedestrians.update(frame.vehicles,dt,reducedMotion,frame.pursuit?.suspectId);

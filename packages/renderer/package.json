@@ -9,6 +9,7 @@
     "@dimforge/rapier3d-compat": "0.21.0",
     "@fender/contracts": "workspace:*",
     "@babylonjs/core": "9.32.0",
+    "@babylonjs/loaders": "9.32.0",
     "@fender/content": "workspace:*"
   },
   "exports": "./src/index.ts"

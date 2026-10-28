@@ -49,6 +49,8 @@ The armed-target extension exposes `getBossTactics(dispatchIndex)`, ten immutabl
 
 Production uses explicit campaign mode and retains existing lobby/countdown/playing/results phases. `start-round` and `rematch` retain their transport messages; campaign rematch means next briefing, timeout retry, or final reset. See [campaign semantics](CAMPAIGN.md). Old clients are rejected by the gameplay revision.
 
+The 2026-10-28 helicopter GLB integration is presentation-only: imported root uses the existing reflected-X boundary, rotors turn around local +Y/+X, and ten cosmetic Rapier parts separate once at the existing downed impact. Local debris uses map/road contacts, a ten-body cap and 3.2-second lifetime; accessibility, garage and disposal clear it. No route, hit footprint, damage, wire or gameplay-revision change accompanies the asset swap. [Renderer handoff](handoffs/HELICOPTER_ASSET.md) retains the source contract.
+
 ## 1. Conventions and invariants
 
 - Distances: meters. Time: integer server ticks at 60 Hz; seconds only for configuration/display.
