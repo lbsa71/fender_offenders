@@ -77,7 +77,7 @@ describe('real Colyseus authority over local WebSockets', () => {
     expect(creator.state!.scores).toHaveLength(1);
   });
 
-  it.each(['arcade-v7','arcade-v20'])('rejects %s clients with incompatible driving rules', async gameplayRevision => {
+  it.each(['arcade-v7','arcade-v20','arcade-v22','arcade-v23','arcade-v24'])('rejects %s clients with incompatible driving rules', async gameplayRevision => {
     const creator=await peer();let legacy:Room|undefined;
     try{
       await expect(new Client(endpoint).joinById(creator.room.roomId,{...options,gameplayRevision}).then(room=>{legacy=room;return 'accepted-legacy-client';})).rejects.toThrow('version-mismatch');

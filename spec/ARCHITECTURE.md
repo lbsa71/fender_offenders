@@ -1,6 +1,6 @@
 # Architecture
 
-Status: architecture and acceptance targets for the integrated `arcade-v21` / protocol 5 alpha. Updated: 2026-10-27 for continuous local driving, longer avenues and bounded road gadgets. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
+Status: architecture and acceptance targets for the integrated `arcade-v24` / protocol 5 alpha. Updated: 2026-10-28 for continuous local driving, longer avenues and bounded road gadgets. [Execution status](EXECUTION_STATUS.md) distinguishes delivered behavior from incomplete gates.
 
 *One authority drives the rules. Everyone else gets a dashboard, not a spare steering wheel.*
 

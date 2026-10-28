@@ -15,3 +15,9 @@ it('roundtrips flight, damage, terminal downed state and elevated bomb origins f
  state.helicopter={...helicopter,health:0,phase:'downed'};expect(unpackSnapshot(packSnapshot(state)).helicopter?.phase).toBe('downed');
  delete state.helicopter;expect(unpackSnapshot(packSnapshot(state)).helicopter).toBeUndefined();
 });
+
+it('retains descending and climbing flight heights for peers and late joiners',()=>{
+ const descending={...helicopter,fromHeight:18,toHeight:8};
+ const state:WorldSnapshot={protocolVersion:PROTOCOL_VERSION,mapRevision:'map',gameplayRevision:GAMEPLAY_REVISION,sessionEpoch:'e',serverTick:150,matchId:'m',phase:'playing',phaseEndsAtTick:1000,vehicles:[],projectiles:[],scores:[],local:null,helicopter:descending};
+ expect(unpackSnapshot(packSnapshot(state)).helicopter).toEqual(descending);
+});

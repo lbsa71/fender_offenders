@@ -2,7 +2,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import type { AssetContainer } from '@babylonjs/core/assetContainer';
 import { LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
 import '@babylonjs/loaders/glTF/2.0/glTFLoader';
-import { HELICOPTER_RULES, helicopterPoseAt, type CollisionMap, type HelicopterState, type PlanarPose } from '@fender/contracts';
+import { HELICOPTER_RULES, helicopterPoseAt, helicopterHeightAt, type CollisionMap, type HelicopterState, type PlanarPose } from '@fender/contracts';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
@@ -140,7 +140,7 @@ export class HelicopterVisual {
   }
   const pose = helicopterPoseAt(state, tick), down = state.phase === 'downed';
   const age = Math.max(0, (tick - state.startedAtTick) / Math.max(1, state.endsAtTick - state.startedAtTick));
-  this.root.position.set(-pose.x, down ? Math.max(GROUND_CLEARANCE, HELICOPTER_RULES.altitude * (1 - age * age)) : HELICOPTER_RULES.altitude, pose.z);
+  this.root.position.set(-pose.x, Math.max(GROUND_CLEARANCE,helicopterHeightAt(state,tick)), pose.z);
   if (down) { this.retired.add(state.entityId); if (this.retired.size > 32) this.retired.delete(this.retired.values().next().value!); }
   if (down && age >= 1) {
    this.keepAboveRoad();

@@ -1,6 +1,6 @@
 # Product specification
 
-Status: product baseline for the integrated `arcade-v21` alpha and remaining release acceptance. Updated: 2026-10-27 for longer avenues and suspect road gadgets. [Execution status](EXECUTION_STATUS.md) records dated evidence; requirements below do not imply completed acceptance.
+Status: product baseline for the integrated `arcade-v24` alpha and remaining release acceptance. Updated: 2026-10-28 for longer avenues and suspect road gadgets. [Execution status](EXECUTION_STATUS.md) records dated evidence; requirements below do not imply completed acceptance.
 
 *Ten dispatches. Six cars. One district with a very relaxed attitude toward insurance premiums.*
 
