@@ -108,6 +108,7 @@ export class WreckEffects {
     for (let i = 0; i < parts.length; i++) {
       const p = slot.pieces[i]!, part = parts[i]!, center = part.position;
       p.source = part; part.geometry!.applyToMesh(p.mesh); p.mesh.material = part.material;
+      p.mesh.releaseSubMeshes();for(const region of part.subMeshes)region.clone(p.mesh);
       p.mesh.metadata = { ...part.metadata, wreckComponent: true };
       p.root.metadata = { ...part.metadata, wreckRole: part.metadata.componentName === 'tire' ? 'wheel' : part.metadata.componentName };
       p.root.position.set(-center.x * cos + center.z * sin, center.y + .03, center.x * sin + center.z * cos);

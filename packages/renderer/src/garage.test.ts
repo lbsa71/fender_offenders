@@ -5,6 +5,12 @@ let engine:NullEngine,garage:ReturnType<typeof createGaragePreview>;
 beforeEach(()=>{engine=new NullEngine();garage=createGaragePreview(engine);});
 afterEach(()=>{garage.dispose();engine.dispose();});
 describe('native garage turntable',()=>{
+  it('keeps the phone chase viewport above the DB5 selection cards',()=>{
+    garage.dispose();engine.dispose();engine=new NullEngine({renderWidth:390,renderHeight:844,textureSize:512,deterministicLockstep:false,lockstepMaxSteps:4});garage=createGaragePreview(engine);
+    garage.setBody('db5',false,'roadster',false);garage.update(0,true);
+    const v=garage.scene.activeCamera!.viewport;
+    expect(Math.round((1-v.y)*844)).toBeLessThanOrEqual(195);
+  });
   it('moves the road behind the chase and freezes all decorative motion when reduced',()=>{
     garage.setBody('patrol',false,'roadster',false);garage.update(0,false);
     const dash=garage.scene.getMeshByName('garage-registration')!;

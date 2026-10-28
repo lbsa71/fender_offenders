@@ -1,13 +1,47 @@
 import type { Page } from '@playwright/test';
 import type { VehicleBodyId, WorldSnapshot } from '@fender/contracts';
 import { VEHICLE_BODIES } from '@fender/contracts';
-import { createGameContext, expect, test } from './fixtures';
+import { createGameContext, dispatchFixture, expect, test } from './fixtures';
 
 type DebugWindow = Window & { __FENDER_DEBUG__?: { snapshot: WorldSnapshot | null | (() => WorldSnapshot | null); stats?: { renderer?: { garageBody?: string; garageAngle?: number } } } };
 const state = (page: Page) => page.evaluate(() => { const value = (window as DebugWindow).__FENDER_DEBUG__?.snapshot; return typeof value === 'function' ? value() : value ?? null; });
 const selection = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('fender-garage-v1') ?? 'null')?.vehicleBodyId as VehicleBodyId | undefined);
 const renderer = (page: Page) => page.evaluate(() => (window as DebugWindow).__FENDER_DEBUG__?.stats?.renderer);
 const frames = (page: Page) => page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+
+test('chooses the DB5 directly, previews its GLB and drives the same car after dispatch',async({page})=>{
+  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('/');await page.getByRole('button',{name:'HIT THE STREETS'}).click();
+  await page.getByRole('combobox',{name:'Your vehicle'}).selectOption('db5');
+  await expect(page.locator('[data-text="vehicle-name"]')).toHaveText('Aston Martin DB5');
+  await expect.poll(async()=>(await state(page))?.local?.vehicle.bodyAssetId).toBe('db5');
+  await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.stats?.renderer?.garageModelStatus)).toBe('ready');
+  await page.screenshot({path:'work/db5-briefing.png'});
+  await page.getByRole('button',{name:'START DISPATCH'}).click();
+  await expect.poll(async()=>(await state(page))?.phase).toBe('playing');
+  await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.stats?.renderer?.db5ModelStatus)).toBe('ready');
+  await expect(page.getByRole('combobox',{name:'Your vehicle'})).toBeHidden();
+  await page.keyboard.down('ArrowUp');await page.waitForTimeout(500);await page.keyboard.up('ArrowUp');
+  await page.screenshot({path:'work/db5-driving.png'});
+  expect(await selection(page)).toBe('db5');expect(errors).toEqual([]);
+});
+
+for(const stage of [4,8])test(`modeled DB5 keeps its armed briefing and driving view readable in dispatch ${stage+1}`,async({page})=>{
+  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('/');await page.getByRole('button',{name:'HIT THE STREETS'}).click();await dispatchFixture(page,stage);
+  await page.getByRole('combobox',{name:'Your vehicle'}).selectOption('db5');
+  await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.stats?.renderer?.garageModelStatus)).toBe('ready');
+  await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.stats?.renderer?.garageArmed)).toBe(true);
+  await page.setViewportSize(stage===8?{width:390,height:844}:{width:1440,height:900});
+  await expect(page.getByRole('combobox',{name:'Your vehicle'})).toBeInViewport();
+  if(stage===8)expect((await page.locator('[data-vehicle-comparison="unit"]').boundingBox())!.y,'leave the mobile chase view clear above the cards').toBeGreaterThanOrEqual(195);
+  await page.screenshot({path:`work/db5-armed-briefing-${stage+1}.png`});
+  await page.getByRole('button',{name:'START DISPATCH'}).click();
+  await expect.poll(async()=>(await state(page))?.phase).toBe('playing');
+  await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.stats?.renderer?.db5ModelStatus)).toBe('ready');
+  await page.keyboard.down('ArrowUp');await page.waitForTimeout(800);await page.keyboard.up('ArrowUp');
+  await page.screenshot({path:`work/db5-armed-driving-${stage+1}.png`});expect(errors).toEqual([]);
+});
 
 test('garage persists its assignment, changes via keyboard and dispatches that body into practice', async ({ page }) => {
   test.setTimeout(120000);

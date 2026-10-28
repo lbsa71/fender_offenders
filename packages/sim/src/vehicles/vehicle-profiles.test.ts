@@ -117,7 +117,7 @@ it.each(VEHICLE_BODIES)('uses real %s armor for hits to wreck and restores it on
     step(sim, shooter.entityId, sequence, { fire: true });
     for (const event of sim.drainEvents()) if (event.kind === 'hit' && event.payload.targetId === victim.entityId) hits.push({ damage: event.payload.damage, tick: event.serverTick });
   }
-  const volleyBudgets = { patrol: 10, interceptor: 9, roadster: 8, army: 13, ambulance: 11, 'fire-chief': 10 };
+  const volleyBudgets = { patrol: 10, interceptor: 9, roadster: 8, army: 13, ambulance: 11, 'fire-chief': 10, db5:9 };
   const expectedVolleys = volleyBudgets[body];
   expect(hits).toHaveLength(expectedVolleys*2); expect(hits.every(hit => hit.damage === 5)).toBe(true);expect(hits.reduce((sum,hit)=>sum+hit.damage,0)).toBe(getVehicleProfile(body).maxHealth);
   expect(new Set(hits.map(hit=>hit.tick)).size).toBe(expectedVolleys);
