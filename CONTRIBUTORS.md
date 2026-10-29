@@ -1,5 +1,7 @@
 # Contributors
 
+OpenAI Codex assistance, directed by Stefan Andersson, investigated the 2026-10-29 disappearing-car report, reproduced native WebGL program/sampler errors, added the synchronous shader-compilation compatibility policy for Babylon 9.32, and verified coachwork pixels independently of shadows/markers across model, light, quality and scene transitions.
+
 The five-storyline expansion includes OpenAI Codex assistance for four additional original clue chains, forty new suspects and SVG portraits, shared case selection and retention, case-aware UI/lighting, and observed catalog, simulation, real-client and local browser regression checks. Existing human and Claude Code credits remain below.
 
 *The motor pool runs on shared effort and an alarming number of incident reports.*
@@ -34,7 +36,7 @@ The 2026-10-27 wreck-tire follow-up includes OpenAI Codex assistance for round t
 
 Human credits reflect authors in `git log --all`; AI credits include recorded co-authorship and the project owner's attribution. AI tools support the contributors' work; review and project decisions remain with people. Original project work is [GPL-3.0-or-later](LICENSE); acknowledgments do not change those terms or the separate licenses of dependencies.
 
-The adaptive streaming-music player, speed-dependent tempo, accessible mute/volume knob, actual-MP3 media/touch regression harnesses, explicit local GPU-backend verification, driving-trace sample-clock corrections, bounded input-backlog follow-up and visible-bumper presentation clipping also include OpenAI Codex assistance. Stefan supplied the three soundtrack MP3s in `bbe885c`; their embedded artist is `fastsongwriting397`, and their comments identify Suno generation. [The soundtrack inventory](packages/content/manifests/licenses/music/README.md) records those embedded credits separately from the CC0 effects bank and from verified license terms.
+The adaptive streaming-music player, speed-dependent tempo, accessible mute/volume knob, actual-MP3 media/touch regression harnesses, explicit local GPU-backend verification, driving-trace sample-clock corrections, bounded input-backlog follow-up and visible-bumper presentation clipping also include OpenAI Codex assistance. The 2026-10-29 soundtrack follow-up adds the owner-requested Slow pitch rise and later Fast tipping point with observed unit/native-browser regressions. Stefan supplied the three soundtrack MP3s in `bbe885c`; their embedded artist is `fastsongwriting397`, and their comments identify Suno generation. [The soundtrack inventory](packages/content/manifests/licenses/music/README.md) records those embedded credits separately from the CC0 effects bank and from verified license terms.
 
 The 2026-10-27 directional-driving follow-up includes OpenAI Codex assistance for touch/controller heading requests, camera projection, continuous local feedback, accessible control instructions and observed input/physics/browser regressions.
 
@@ -63,3 +65,7 @@ The 2026-10-28 DB5 asset trial uses natman's Aston Martin DB5 from BlendSwap, su
 OpenAI Codex assistance, directed by Stefan Andersson, integrated natman's DB5 on 2026-10-28: shared selectable profile, direct vehicle picker, imported PBR briefings/driving, animated axle-pivot wheels, progression-gated grille guns, authored cosmetic muzzles, material-preserving physical breakup, and observed test-first/native/browser verification. Original asset authorship and restrictions remain in the DB5 provenance above.
 
 OpenAI Codex (AI assistance), directed by the project owner: dispatch-difference control hovers, per-attempt active-play timing, retained equipment help, and observed test-first/browser oil-deployment verification (2026-10-29).
+
+The 2026-10-28 Night Courier gangster sedan is original project geometry under GPL-3.0-or-later, created with OpenAI Codex assistance under Stefan Andersson's direction: Blender modeling, materials, LODs, detachable components, optional gun attachments, provenance, export validation and offline previews. [Gangster asset provenance](packages/content/manifests/licenses/gangster/README.md) records authorship and the unused external-source research.
+
+OpenAI Codex assistance, directed by Stefan Andersson, integrated Night Courier on 2026-10-28: the eighth shared vehicle profile, independent imported-model caches, radius-correct axle animation, normal gun unlocks and authored muzzles, material-preserving physical breakup, and observed test-first/real-adapter/browser checks. The original model's GPL source and the DB5's separate asset terms remain preserved.

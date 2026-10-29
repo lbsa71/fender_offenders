@@ -6,6 +6,7 @@ export interface DrivingSound { load: number; slip: number; surface: 'asphalt' |
 // Shared recordings, individually tuned for the weight and rev range of each body.
 const ENGINE_TUNING: Record<VehicleBodyId, { pitch: number; brightness: number }> = {
   db5: {pitch:1.06,brightness:1.08},
+  gangster: {pitch:.79,brightness:.74},
   patrol: { pitch: 1, brightness: 1 }, interceptor: { pitch: 1.12, brightness: 1.15 },
   roadster: { pitch: 1.26, brightness: 1.3 }, army: { pitch: .72, brightness: .68 },
   ambulance: { pitch: .86, brightness: .82 }, 'fire-chief': { pitch: .94, brightness: .92 },

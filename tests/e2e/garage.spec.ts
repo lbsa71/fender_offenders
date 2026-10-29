@@ -9,6 +9,27 @@ const selection = (page: Page) => page.evaluate(() => JSON.parse(localStorage.ge
 const renderer = (page: Page) => page.evaluate(() => (window as DebugWindow).__FENDER_DEBUG__?.stats?.renderer);
 const frames = (page: Page) => page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
 
+for(const stage of [0,8])test(`chooses and drives the black Night Courier in dispatch ${stage+1}`,async({page})=>{
+  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('/');await page.getByRole('button',{name:'HIT THE STREETS'}).click();
+  if(stage)await dispatchFixture(page,stage);
+  const picker=page.getByRole('combobox',{name:'Your vehicle'});
+  await picker.selectOption('db5');await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.stats?.renderer?.garageModelStatus)).toBe('ready');
+  await picker.selectOption('gangster');
+  await expect(page.locator('[data-text="vehicle-name"]')).toHaveText('Night Courier');
+  await expect.poll(async()=>(await state(page))?.local?.vehicle.bodyAssetId).toBe('gangster');
+  await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.stats?.renderer?.garageModelStatus)).toBe('ready');
+  await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.stats?.renderer?.garageArmed)).toBe(stage>0);
+  await page.setViewportSize(stage?{width:390,height:844}:{width:1440,height:900});
+  await expect(picker).toBeInViewport();await page.screenshot({path:`work/gangster-briefing-${stage+1}.png`});
+  await page.getByRole('button',{name:'START DISPATCH'}).click();
+  await expect.poll(async()=>(await state(page))?.phase).toBe('playing');
+  await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.stats?.renderer?.gangsterModelStatus)).toBe('ready');
+  await page.keyboard.down('ArrowUp');await page.waitForTimeout(1000);await page.keyboard.up('ArrowUp');await page.waitForTimeout(3500);
+  await page.screenshot({path:`work/gangster-driving-${stage+1}.png`});
+  expect(await selection(page)).toBe('gangster');expect(errors).toEqual([]);
+});
+
 test('chooses the DB5 directly, previews its GLB and drives the same car after dispatch',async({page})=>{
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('/');await page.getByRole('button',{name:'HIT THE STREETS'}).click();

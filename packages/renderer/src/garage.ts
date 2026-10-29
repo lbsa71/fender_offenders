@@ -12,9 +12,11 @@ import {ImageProcessingConfiguration} from '@babylonjs/core/Materials/imageProce
 import {TransformNode} from '@babylonjs/core/Meshes/transformNode';
 import {CarFactory,type CarVisual} from './cars';
 import {MeshBuilder} from './primitives';
-import {DB5_BRIEFING_URL} from './db5';
+import {isModeledCar} from './modeled-car';
+import {requireMatchingMaterialShaders} from './material-readiness';
 export function createGaragePreview(engine:AbstractEngine,initialQuality:'low'|'medium'|'high'='high'){
   const scene=new Scene(engine);scene.metadata={kind:'garage-preview'};scene.useRightHandedSystem=true;
+  requireMatchingMaterialShaders(scene);
   scene.clearColor=Color4.FromHexString('#142b30ff');scene.ambientColor=Color3.FromHexString('#d9e0c7');
   scene.imageProcessingConfiguration.toneMappingEnabled=true;scene.imageProcessingConfiguration.toneMappingType=ImageProcessingConfiguration.TONEMAPPING_ACES;scene.imageProcessingConfiguration.exposure=1.05;
   const camera=new FreeCamera('garage-camera',new Vector3(5.6,3.8,-7),scene);camera.setTarget(new Vector3(0,1,0));camera.fov=.64;camera.minZ=.1;
@@ -36,7 +38,7 @@ export function createGaragePreview(engine:AbstractEngine,initialQuality:'low'|'
   function make(id:string,body:string,platform:TransformNode,guns:boolean){const value=factory.create(id,body,false,guns);value.root.parent=platform;value.health.isVisible=false;value.healthBack.isVisible=false;value.marker.isVisible=false;for(const p of value.parts)shadows?.addShadowCaster(p);return value;}
   function setBody(body:string|null,guns=true,suspect:string|null=null,suspectGuns=true){
     if(disposed)return;
-    if((body==='db5'||suspect==='db5')&&factory.modelStatus==='idle')void factory.loadDb5(DB5_BRIEFING_URL).then(()=>{if(disposed)return;const b=bodyAssetId,s=suspectBody;bodyAssetId=null;suspectBody=null;setBody(b,armed,s,suspectArmed);}).catch(()=>undefined);
+    for(const id of [body,suspect])if(id&&isModeledCar(id)&&factory.modelStatusFor(id)==='idle')void factory.loadModel(id,'briefing').then(()=>{if(disposed)return;const b=bodyAssetId,s=suspectBody;bodyAssetId=null;suspectBody=null;setBody(b,armed,s,suspectArmed);}).catch(()=>undefined);
     if(body!==bodyAssetId||guns!==armed){remove(car);car=body?make('garage-preview',body,platform,guns):null;bodyAssetId=body;armed=guns;}
     if(suspect!==suspectBody||suspectGuns!==suspectArmed){remove(rival);rival=suspect?make('garage-suspect',suspect,rivalPlatform,suspectGuns):null;suspectBody=suspect;suspectArmed=suspectGuns;}
   }
@@ -57,6 +59,6 @@ export function createGaragePreview(engine:AbstractEngine,initialQuality:'low'|'
     if(chasing){camera.position.set(-10,9,-11);camera.setTarget(new Vector3(0,.6,0));camera.fov=.58;camera.viewport=short?new Viewport(0,.52,.34,.28):narrow?new Viewport(0,1-195/height,1,90/height):new Viewport(0,.48,.56,.30);}
     else{camera.position.set(5.6,3.8,-7);camera.setTarget(new Vector3(0,1,0));camera.fov=.64;camera.viewport=new Viewport(0,.24,.58,.48);}}
   function dispose(){if(disposed)return;disposed=true;factory.dispose();scene.dispose();}
-  return{scene,setBody,setQuality,update,getStats:()=>({bodyAssetId,suspectBody,armed,suspectArmed,angle,modelStatus:factory.modelStatus}),dispose};
+  return{scene,setBody,setQuality,update,getStats:()=>({bodyAssetId,suspectBody,armed,suspectArmed,angle,modelStatus:factory.modelStatusFor(bodyAssetId??'')}),dispose};
 }
 export type GaragePreview=ReturnType<typeof createGaragePreview>;

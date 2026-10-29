@@ -9,6 +9,40 @@ import { CarFactory, type CarVisual } from './cars';
 import * as CarPresentation from './cars';
 import {readFileSync} from 'node:fs';
 
+describe('modeled Night Courier',()=>{
+  async function load(){
+    scene.useRightHandedSystem=true;const loader=Reflect.get(factory,'loadModel');expect(loader,'load the authored gangster sedan').toBeTypeOf('function');
+    await loader.call(factory,'gangster','driving',new Uint8Array(readFileSync(new URL('../../content/runtime/models/gangster/gangster-driving.glb',import.meta.url))));
+  }
+  it('shows black clearcoat, curved fenders and running boards with exactly four tires and gated guns',async()=>{
+    await load();const car=factory.create('night','gangster',false,false),parts=factory.breakupParts('gangster',false,false);
+    expect(parts).toHaveLength(18);expect(parts.filter(p=>p.metadata.componentName==='tire')).toHaveLength(4);
+    expect(parts.map(p=>p.metadata.componentId)).toEqual(expect.arrayContaining(['fender_left','fender_right','running_board_left','running_board_right']));
+    expect(parts.some(p=>p.metadata.componentId.startsWith('gun_'))).toBe(false);
+    expect(factory.breakupParts('gangster',false,true)).toHaveLength(20);
+    const paints=car.parts.map(p=>p.sourceMesh.material).filter((m):m is PBRMaterial=>m instanceof PBRMaterial&&m.clearCoat.isEnabled);
+    expect(paints.length).toBeGreaterThan(0);expect(paints[0]!.albedoColor.r).toBeLessThan(.1);
+    expect(Math.min(...parts.map(p=>p.getBoundingInfo().boundingBox.minimum.y+p.position.y))).toBeGreaterThanOrEqual(-.001);
+  });
+  it('instances a bounded driving mesh and turns the larger tires about their shared axles',async()=>{
+    await load();const car=factory.create('night','gangster',false,true),second=factory.create('backup','gangster',false,true);
+    expect(car.parts.length).toBeLessThanOrEqual(20);expect(second.parts.map(p=>p.sourceMesh.geometry)).toEqual(car.parts.map(p=>p.sourceMesh.geometry));
+    const triangles=car.parts.reduce((n,p)=>n+p.sourceMesh.getTotalIndices()/3,0);expect(triangles).toBeGreaterThan(9000);expect(triangles).toBeLessThanOrEqual(10000);
+    factory.animateWheels(car,.425,.3);
+    const wheels=car.parts.filter(p=>p.sourceMesh.metadata.wheel);
+    for(const wheel of wheels){expect(wheel.rotation.x).toBeCloseTo(1);expect(wheel.rotation.y).toBeCloseTo(['wheel_fl','wheel_fr'].includes(wheel.sourceMesh.metadata.wheel)?.3:0);}
+    for(const id of ['wheel_fl','wheel_fr','wheel_rl','wheel_rr'])expect(new Set(wheels.filter(p=>p.sourceMesh.metadata.wheel===id).map(p=>p.position.asArray().map(n=>n.toFixed(5)).join(','))).size).toBe(1);
+  });
+  it('keeps simultaneous DB5 and gangster imports, muzzles and geometry independent',async()=>{
+    scene.useRightHandedSystem=true;const loader=Reflect.get(factory,'loadModel');expect(loader).toBeTypeOf('function');
+    await Promise.all([loader.call(factory,'gangster','driving',new Uint8Array(readFileSync(new URL('../../content/runtime/models/gangster/gangster-driving.glb',import.meta.url)))),factory.loadDb5(new Uint8Array(readFileSync(new URL('../../content/runtime/models/db5/db5-driving.glb',import.meta.url))))]);
+    expect(factory.muzzlePoints('gangster')[0]!.y).toBeCloseTo(.786);expect(factory.muzzlePoints('gangster')[0]!.z).toBeCloseTo(1.96);
+    expect(factory.muzzlePoints('db5')[0]!.y).toBeCloseTo(.582);expect(factory.muzzlePoints('db5')[0]!.z).toBeCloseTo(2.02);
+    expect(factory.breakupParts('gangster',false,true)).toHaveLength(20);expect(factory.breakupParts('db5',false,true)).toHaveLength(16);
+    factory.dispose();expect(scene.meshes).toHaveLength(0);
+  });
+});
+
 describe('selectable modeled DB5',()=>{
   async function load(detail:'briefing'|'driving'='driving'){
     scene.useRightHandedSystem=true;
@@ -73,7 +107,7 @@ function paint(car: CarVisual, name: string) {
 
 describe('original procedural vehicle bodies', () => {
   it('removes only the gun fittings from each rookie car and its exact breakup assembly',()=>{
-    for(const body of VEHICLE_BODIES.filter(id=>id!=='db5')){
+    for(const body of VEHICLE_BODIES.filter(id=>id!=='db5'&&id!=='gangster')){
       const rookie=factory.create(`rookie-${body}`,body,false,false);
       expect(paint(rookie,body).color).toBe(paint(factory.create(`armed-${body}`,body,false),body).color);
       const armed=factory.create(`reference-${body}`,body,false);expect(Boolean(rookie.sirenRed)).toBe(Boolean(armed.sirenRed));expect(Boolean(rookie.sirenBlue)).toBe(Boolean(armed.sirenBlue));
@@ -88,7 +122,7 @@ describe('original procedural vehicle bodies', () => {
     expect(glass.metallic).toBe(0); expect(paint.metallic).toBeLessThan(.2); expect(chrome.metallic).toBeGreaterThan(.6);
     expect(paint.clearCoat.isEnabled).toBe(true); expect(glass.clearCoat.isEnabled).toBe(false);
   });
-  it.each([...VEHICLE_BODIES.filter(id=>id!=='db5'), 'traffic-sedan'])('retains every authored %s component for an exact physical breakup', body => {
+  it.each([...VEHICLE_BODIES.filter(id=>id!=='db5'&&id!=='gangster'), 'traffic-sedan'])('retains every authored %s component for an exact physical breakup', body => {
     const traffic = body === 'traffic-sedan';
     const intact = factory.create('assembly', body, traffic);
     const breakup = Reflect.get(factory, 'breakupParts') as (body: string, traffic: boolean) => readonly Mesh[];
@@ -122,7 +156,7 @@ describe('original procedural vehicle bodies', () => {
       return tips;
     });
     expect(barrelTips(factory.create('civilian', 'traffic-sedan', true)), 'spectator cars must have no gun-tip geometry').toHaveLength(0);
-    for (const body of VEHICLE_BODIES.filter(id=>id!=='db5')) {
+    for (const body of VEHICLE_BODIES.filter(id=>id!=='db5'&&id!=='gangster')) {
       const tips = barrelTips(factory.create(`officer-${body}`, body, false));
       expect(tips.some(x => x < 0), `${body} left barrel`).toBe(true);
       expect(tips.some(x => x > 0), `${body} right barrel`).toBe(true);
@@ -165,8 +199,8 @@ describe('original procedural vehicle bodies', () => {
     expect(car.health.getAbsolutePosition().y).toBeCloseTo(3.51,2);expect(car.marker.getAbsolutePosition().y).toBeCloseTo(.08,2);
     expect(car.root.scaling.y).toBe(1);expect(car.root.rotation.z).toBe(0);
   });
-  it('publishes all seven selectable bodies in the shared authoritative catalog', () => {
-    expect(VEHICLE_BODIES).toEqual(['patrol', 'interceptor', 'roadster', 'army', 'ambulance', 'fire-chief', 'db5']);
+  it('publishes all eight selectable bodies in the shared authoritative catalog', () => {
+    expect(VEHICLE_BODIES).toEqual(['patrol', 'interceptor', 'roadster', 'army', 'ambulance', 'fire-chief', 'db5', 'gangster']);
   });
 
   it.each(['patrol', 'interceptor', 'roadster'])('retains the existing %s body and instanced geometry', body => {

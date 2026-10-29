@@ -2,7 +2,6 @@ import { chromium } from '@playwright/test';
 import { createServer } from 'vite';
 import { existsSync, mkdirSync } from 'node:fs';
 import assert from 'node:assert/strict';
-const bodies = ['patrol', 'interceptor', 'roadster', 'army', 'ambulance', 'fire-chief'];
 const server = await createServer({ configFile: false, root: process.cwd(), server: { host: '127.0.0.1', port: 5183, strictPort: true } });
 await server.listen();
 const chrome = process.env.CHROME_PATH ?? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
@@ -12,6 +11,8 @@ try {
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   const url = 'http://127.0.0.1:5183/packages/ui/dev/index.html';
   await page.goto(url); await page.getByRole('heading', { name: "You're on duty." }).waitFor();
+  const bodies=await page.evaluate(async()=>[...(await import('/packages/contracts/src/vehicle-profiles.ts')).VEHICLE_BODIES]);
+  assert.ok(bodies.includes('db5')&&bodies.includes('gangster'),'garage fixture covers the modeled cars in the shared catalog');
   const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('fender-garage-v1') ?? 'null')?.vehicleBodyId);
   const first = await stored(); assert.ok(bodies.includes(first), 'fresh garage assigns and persists one valid vehicle before dispatch');
   assert.equal(await page.evaluate(() => window.fixture.ui.getVehicle()), first);
