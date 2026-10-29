@@ -80,4 +80,3 @@ OpenAI Codex assistance, directed by Stefan Andersson, expanded native and real-
 OpenAI Codex assistance, directed by Stefan Andersson, subsequently reproduced the exact Night Courier dispatch-six uniform-buffer error on 2026-10-29 and added the ordinary-uniform compatibility mitigation, a real six-dispatch regression and observed RED/GREEN evidence.
 
 OpenAI Codex (AI assistance), directed by the project owner: warned smog clouds, room-owned exposure/immunity, bounded billows, timed whiteout and reduced-flash parity, delayed police controls and observed test-first/network/browser verification (2026-10-29).
-

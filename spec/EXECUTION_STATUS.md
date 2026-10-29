@@ -1,5 +1,11 @@
 # Execution status and evidence
 
+## 2026-10-29 · Buffer mitigation integrated with current smog/control main
+
+Merged published main `43f2b52` into the graphics worktree after the observed oil-dispatch RED/GREEN. Documentary conflicts retained both sets of evidence/credits and the owner's timing-policy decision. Compared the resulting client, contracts, simulation, UI, smog and road-gadget sources directly with published main: the concurrent behavior is unchanged. The compatibility helper, focused regression and existing graphics-acceptance work remain independently identified in the diff.
+
+Fresh combined-source verification: **1,090 tests / 104 files pass (25.39 s)**, plus type/documentation checks. Logs: `work/gangster-oil-combined-headless.log` and `work/gangster-oil-combined-check.log`. Full local pre-push browser/native checks, CI and hosted verification are pending at this checkpoint.
+
 
 ## 2026-10-29 · Night Courier oil-dispatch buffer error reproduced and mitigated
 
