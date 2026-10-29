@@ -6,6 +6,7 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { ROAD_GADGET_RULES, type RoadGadgetState, type VehicleState } from '@fender/contracts';
 import { MeshBuilder } from './primitives';
+import {SmogEffects} from './smog';
 interface Slot { oil: Mesh; rim: Mesh; film: Mesh; root: TransformNode; caps: Mesh[]; blades: Mesh[]; meshes: Mesh[] }
 function puddle(name: string, radius: number, scene: Scene, phase = 0): Mesh {
   const mesh = new Mesh(name, scene), data = new VertexData(), count = 24;
@@ -23,10 +24,12 @@ export class RoadGadgetEffects {
   private readonly amber: StandardMaterial;
   private readonly steel: StandardMaterial;
   private readonly film: StandardMaterial;
+  private readonly smog: SmogEffects;
   private tick = 0;
   private disposed = false;
   private stats = { oilSlicks: 0, wheelBladeWarnings: 0, wheelBlades: 0 };
   constructor(scene: Scene) {
+    this.smog=new SmogEffects(scene);
     const material = (name: string, color: string, shine = false) => {
       const m = new StandardMaterial(name, scene); m.diffuseColor = Color3.FromHexString(color);
       m.specularColor = Color3.FromHexString(shine ? '#a9c9dc' : '#3c4148'); m.specularPower = shine ? 96 : 24;
@@ -57,8 +60,10 @@ export class RoadGadgetEffects {
   render(gadgets: readonly RoadGadgetState[], vehicles: readonly VehicleState[], tick: number, reducedMotion = false): void {
     if (this.disposed) return;
     if (Number.isFinite(tick)) this.tick = Math.max(this.tick, tick);
+    this.smog.render(gadgets,vehicles,this.tick,reducedMotion);
     this.hide(); let index = 0;
     for (const g of gadgets) {
+      if(g.kind==='smog')continue;
       const owner = vehicles.find(v => v.entityId === g.ownerEntityId);
       if (index >= this.slots.length) break;
       if (!owner || owner.status !== 'active' || owner.protectedUntilTick > this.tick || this.tick < g.bornTick || this.tick >= g.expiresTick || !Object.values(g.pose).every(Number.isFinite)) continue;
@@ -80,7 +85,7 @@ export class RoadGadgetEffects {
     this.stats = { oilSlicks: 0, wheelBladeWarnings: 0, wheelBlades: 0 };
     for (const slot of this.slots) { slot.root.setEnabled(false); for (const mesh of slot.meshes) { mesh.setEnabled(false); mesh.isVisible = false; } }
   }
-  getStats() { return { ...this.stats }; }
-  reset(): void { if (this.disposed) return; this.tick = 0; this.hide(); }
-  dispose(): void { if (this.disposed) return; this.reset(); this.disposed = true; for (const slot of this.slots) { for (const mesh of slot.meshes) mesh.dispose(); slot.root.dispose(); } for (const material of this.materials) material.dispose(); }
+  getStats() { return { ...this.stats,...this.smog.getStats() }; }
+  reset(): void { if (this.disposed) return; this.tick = 0; this.hide(); this.smog.reset(); }
+  dispose(): void { if (this.disposed) return; this.reset(); this.disposed = true;this.smog.dispose(); for (const slot of this.slots) { for (const mesh of slot.meshes) mesh.dispose(); slot.root.dispose(); } for (const material of this.materials) material.dispose(); }
 }

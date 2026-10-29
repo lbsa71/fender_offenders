@@ -1,7 +1,7 @@
 export { getDispatchFeatures, DEFAULT_DRIVING_CONTEXT, WINTER_ROAD_RULES } from './dispatch-features';
 export type { DispatchFeatures, DispatchDrivingContext } from './dispatch-features';
-export { ROAD_GADGET_RULES, withRoadGadgets } from './road-gadgets';
-export type { RoadGadgetState } from './road-gadgets';
+export { ROAD_GADGET_RULES, SMOG_RULES, smogExposureAt, smogVisibility, withRoadGadgets } from './road-gadgets';
+export type { RoadGadgetState, SmogExposure } from './road-gadgets';
 import type { RoadGadgetState } from './road-gadgets';
 export const PROTOCOL_VERSION = 5;
 export * from './helicopter';
@@ -10,7 +10,7 @@ export { packSnapshot, unpackSnapshot } from './wire';
 export type { WireSnapshot } from './wire';
 export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
-export const GAMEPLAY_REVISION = 'arcade-v25';
+export const GAMEPLAY_REVISION = 'arcade-v26';
 export type { CampaignState, CampaignOutcome, DispatchOutcome, CampaignTarget, CampaignDispatch, CampaignStoryline } from './campaign-types';
 export { CAMPAIGN_ID, CAMPAIGN_TITLE, CAMPAIGN_TARGETS, CAMPAIGN_BOSSES, CAMPAIGN_DISPATCHES, STORYLINES, ALL_CAMPAIGN_TARGETS, ALL_CAMPAIGN_DISPATCHES, getStoryline, isStorylineId, getCampaignDispatch, findCampaignDispatch, getCampaignTarget } from './campaign';
 export { getCampaignMugshot, type CampaignMugshotVariant } from './campaign-mugshots';
@@ -22,7 +22,7 @@ export { VEHICLE_BODIES, VEHICLE_PROFILES, getVehicleProfile, isVehicleBodyId } 
 export type { VehicleBodyId, VehicleProfile } from './vehicle-profiles';
 export type DeviceKind = 'keyboard' | 'gamepad' | 'touch';
 export type ControlScheme = 'auto' | DeviceKind;
-export type DeployWeapon = 'bomb' | 'oil' | 'blades';
+export type DeployWeapon = 'bomb' | 'oil' | 'blades' | 'smog';
 /** Held touch controls; the input adapter owns siren edges and recovery timing. */
 export interface TouchControls {
   driveX: number; driveY: number; // screen direction: right/down positive, local only
@@ -195,7 +195,7 @@ export const isRecord = (value: unknown): value is Record<string, unknown> => ty
 export function isDriverActions(value: unknown): value is DriverActions {
   if (!isRecord(value)) return false;
   const bounded = (key: string, lo: number, hi: number) => typeof value[key] === 'number' && Number.isFinite(value[key]) && value[key] >= lo && value[key] <= hi;
-  return bounded('steer', -1, 1) && bounded('throttle', 0, 1) && bounded('brakeReverse', 0, 1) && ['handbrake', 'fire', 'sirenToggle', 'recover'].every(k => typeof value[k] === 'boolean') && (value.deploy === undefined || ['bomb','oil','blades'].includes(value.deploy as string));
+  return bounded('steer', -1, 1) && bounded('throttle', 0, 1) && bounded('brakeReverse', 0, 1) && ['handbrake', 'fire', 'sirenToggle', 'recover'].every(k => typeof value[k] === 'boolean') && (value.deploy === undefined || ['bomb','oil','blades','smog'].includes(value.deploy as string));
 }
 export function isInputCommand(value: unknown): value is InputCommand {
   return isRecord(value) && typeof value.sessionEpoch === 'string' && value.sessionEpoch.length <= 100 && Number.isSafeInteger(value.sequence) && (value.sequence as number) >= 0 && Number.isSafeInteger(value.clientTick) && (value.clientTick as number) >= 0 && isDriverActions(value.actions);

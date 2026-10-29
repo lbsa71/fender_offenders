@@ -158,6 +158,7 @@ async function boot() {
     if (renderFrame) renderer.render(renderFrame, dt, audioActions);
     ui.setTargetIndicator(active ? renderer.getTargetIndicator() : null);
     ui.setControlAnchor(active ? renderer.getControlAnchor() : null);
+    ui.setSmog(active&&renderFrame?{gadgets:renderFrame.gadgets??[],localEntityId:renderFrame.localEntityId,tick:renderFrame.serverTick??0}:null);
     if (now - hudAt > 80) {
       hudAt = now; const device = input!.getStatus();
       ui.update({ snapshot: active ? snapshot : null, status, mode, localPlayerId: playerId, roomId, device: device.activeDevice, recoverProgress: device.recoverProgress, unsupportedPad: device.unsupportedPad,

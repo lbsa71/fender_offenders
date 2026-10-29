@@ -6,6 +6,9 @@ import { controlHints, placeControlCard } from './tutorial';
 import type { ControlScheme, TouchControls } from '@fender/contracts';
 import { mountTouchControls } from './touch';
 import { mountVolumeKnob } from './volume';
+import {smogExposureAt,smogVisibility,type RoadGadgetState} from '@fender/contracts';
+
+interface SmogFrame {gadgets:readonly RoadGadgetState[];localEntityId:string|null;tick:number}
 
 export type MenuAction = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back' | 'pause';
 export type Menu = 'home' | 'pause' | 'settings' | 'help' | null;
@@ -118,6 +121,21 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const one = <T extends HTMLElement = HTMLElement>(selector: string) => shell.querySelector<T>(selector)!;
   const all = <T extends HTMLElement = HTMLElement>(selector: string) => [...shell.querySelectorAll<T>(selector)];
   const tutorial = one('.fo-prompts'); tutorial.removeAttribute('data-text'); tutorial.hidden = true;
+  const smogScreen=doc.createElement('section');smogScreen.className='fo-smog';smogScreen.dataset.smogScreen='';smogScreen.hidden=true;smogScreen.setAttribute('role','status');smogScreen.setAttribute('aria-live','polite');
+  smogScreen.innerHTML='<div data-smog-fog></div><div data-smog-white></div><p>SMOG · VISIBILITY BLOCKED</p>';shell.append(smogScreen);
+  let smogFrame:SmogFrame|null|undefined;
+  function updateSmog(){
+    const local=model.snapshot?.local?.vehicle??model.snapshot?.vehicles.find(v=>v.playerId===model.localPlayerId),frame=smogFrame===undefined?{gadgets:model.snapshot?.gadgets??[],localEntityId:local?.entityId??null,tick:model.snapshot?.serverTick??0}:smogFrame;
+    const exposure=frame?.localEntityId?smogExposureAt(frame.gadgets,frame.localEntityId,frame.tick):null,state=smogVisibility(exposure,frame?.tick??0);
+    const visible=Boolean(frame&&state.phase!=='clear'&&local?.status==='active'&&local.protectedUntilTick<=frame.tick&&menu===null&&model.snapshot?.phase==='playing'&&!model.snapshot.paused&&!model.error&&(model.mode!=='online'||statusName(model.status)==='playing'));
+    if(!visible){if(!smogScreen.hidden){smogScreen.hidden=true;shell.classList.remove('fo-smog-active');}return;}
+    if(smogScreen.hidden){smogScreen.hidden=false;shell.classList.add('fo-smog-active');}
+    smogScreen.classList.toggle('fo-smog-reduced',settings.reducedFlash);if(smogScreen.dataset.phase!==state.phase)smogScreen.dataset.phase=state.phase;
+    const fog=smogScreen.querySelector<HTMLElement>('[data-smog-fog]')!,white=smogScreen.querySelector<HTMLElement>('[data-smog-white]')!;
+    if(fog.style.opacity!==String(state.fog))fog.style.opacity=String(state.fog);if(white.style.opacity!==String(state.white))white.style.opacity=String(state.white);
+    smogScreen.style.setProperty('--smog-x',`${(controlAnchor?.x??.5)*100}%`);smogScreen.style.setProperty('--smog-y',`${(controlAnchor?.y??.55)*100}%`);
+  }
+  function setSmog(frame:SmogFrame|null){smogFrame=frame;updateSmog();}
   const help = doc.createElement('div'); help.className = 'fo-help-view'; help.hidden = true;
   help.innerHTML = '<h2>Controls help.</h2><p class="fo-muted">A refresher from the motor pool. Close this guide when you are ready to roll.</p><section class="fo-controls-guide" aria-label="Driving controls"><section><h3>KEYBOARD</h3><div data-keyboard-controls></div></section><section><h3>CONTROLLER</h3><p class="fo-controller-note">Standard layout · A / X / Y labels</p><div data-gamepad-controls></div></section></section><button class="fo-secondary" data-action="help-back">BACK</button>';
   one('.fo-settings').after(help);
@@ -129,23 +147,29 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   let tutorialRemaining = 8000;
   let tutorialStarted: number | null = null;
   let tutorialTimer: ReturnType<typeof setTimeout> | undefined;
+  let tutorialDispatchKey = '';
+  let tutorialHasControls = false;
+  function resetTutorial() {
+    clearTimeout(tutorialTimer); tutorialStarted = null; tutorialRemaining = 8000;
+  }
   let controlsViewKey = '';
   function updateControls() {
+    updateSmog();
     updateTutorial();
     const device = controlDevice(), campaign = model.snapshot?.campaign;
     const weapons=campaign?getDispatchFeatures(campaign.dispatchIndex):null;
     const guns = weapons?.gunsEnabled ?? true;
     const reminder = currentReminder();
-    const key = JSON.stringify([device, settings.bindings, guns, reminder]);
+    const key = JSON.stringify([device, settings.bindings, weapons, guns, reminder]);
     if (key !== controlsViewKey) {
       controlsViewKey = key;
       help.querySelector('[data-keyboard-controls]')!.replaceChildren(keyboardControls(doc, settings.bindings));
       help.querySelector('[data-gamepad-controls]')!.replaceChildren(gamepadControls(doc));
-      for(const [action,enabled] of [['fire',guns],['bomb',weapons?.bombsEnabled],['oil',weapons?.oilEnabled],['blades',weapons?.bladesEnabled]])help.querySelectorAll<HTMLElement>(`[data-control="${action}"]`).forEach(row=>{row.hidden=!enabled;});
+      for(const [action,enabled] of [['fire',guns],['bomb',weapons?.bombsEnabled],['oil',weapons?.oilEnabled],['blades',weapons?.bladesEnabled],['smog',weapons?.smogEnabled]])help.querySelectorAll<HTMLElement>(`[data-control="${action}"]`).forEach(row=>{row.hidden=!enabled;});
       helpLesson.textContent = reminder; helpLesson.hidden = !reminder;
     }
     const visible = device !== 'touch' && !disposed && !doc.hidden && menu === null && model.snapshot?.phase === 'playing' && !model.snapshot.paused && !model.error
-      && (model.mode !== 'online' || statusName(model.status) === 'playing') && tutorialRemaining > 0;
+      && (model.mode !== 'online' || statusName(model.status) === 'playing') && tutorialHasControls && tutorialRemaining > 0;
     if (!visible && tutorialStarted !== null) {
       tutorialRemaining = Math.max(0, tutorialRemaining - ((view?.performance.now() ?? Date.now()) - tutorialStarted));
       tutorialStarted = null; clearTimeout(tutorialTimer);
@@ -182,9 +206,9 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
       'Bomb ahead. A black chopper bombs your route: shoot toward its amber ground marker to down it for this dispatch.',
       'Suspect oil: steer around marked patches.',
       'Amber hubcaps warn of blades. Give them room.',
-      'Drop oil behind you after a cutoff.',
+      'Drop oil after a cutoff. Suspect smog: avoid the amber exhaust cloud or lose sight for 2.5 seconds.',
       'SNOW DISPATCH: Brake early; frozen puddles are even slicker. Use side blades. A black chopper returns: shoot toward its amber ground marker to down it for this dispatch.',
-      'Dodge fast bombs. A black chopper returns: shoot toward its amber ground marker to down it for this dispatch.',
+      'Release smog after a cutoff to blind the suspect briefly. Dodge fast bombs. A black chopper returns: shoot toward its amber ground marker to down it for this dispatch.',
     ][index]??'';
   }
   function currentReminder() {
@@ -194,11 +218,12 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   }
   function updateTutorial(){
     const campaign=model.snapshot?.campaign,features=campaign?getDispatchFeatures(campaign.dispatchIndex):null,guns=features?.gunsEnabled??Boolean(model.snapshot);
+    if(model.snapshot){const dispatchKey=JSON.stringify([model.snapshot.matchId,campaign?.campaignId,campaign?.dispatchIndex]);if(dispatchKey!==tutorialDispatchKey){tutorialDispatchKey=dispatchKey;resetTutorial();}}
     touchControls.setGunsEnabled(guns);touchControls.setWeaponsEnabled(features??{});
-    controls.classList.toggle('fo-snow-controls',features?.winterRoads===true);
-    const reminder=features?.winterRoads?'SNOW + ICE: brake early. Frozen puddles are even slicker. Steer gently.':campaign&&campaign.dispatchIndex>0?briefLesson(campaign.dispatchIndex):'',device=controlDevice(),hints=controlHints(device,settings.bindings,guns,features??{}),key=JSON.stringify({device,hints,reminder});
-    if(key!==controlKey){controlKey=key;controls.replaceChildren(controlGraphics(doc,hints,device));if(reminder){const tip=doc.createElement('p');tip.dataset.controlLesson='';tip.textContent=reminder;controls.append(tip);}const tip=doc.createElement('small');tip.className='fo-tutorial-dismiss';tip.textContent=(device==='gamepad'?'MENU':'ESC')+' · CONTROLS';controls.append(tip);}
-    for(const [action,enabled] of [['fire',guns],['bomb',features?.bombsEnabled],['oil',features?.oilEnabled],['blades',features?.bladesEnabled]]){const button=one(`[data-binding="${action}"]`);if(button.parentElement)button.parentElement.hidden=!enabled;}
+    const isUnlock=Boolean(campaign&&campaign.dispatchIndex>0),device=controlDevice(),previous=isUnlock?getDispatchFeatures(campaign!.dispatchIndex-1):undefined,hints=controlHints(device,settings.bindings,guns,features??{},previous),key=JSON.stringify({device,hints,isUnlock});
+    tutorialHasControls=hints.length>0;controls.classList.toggle('fo-new-controls',isUnlock);
+    if(key!==controlKey){controlKey=key;const title=doc.createElement('strong');title.className='fo-controls-title';title.textContent=isUnlock?'NEW CONTROLS':'DRIVING CONTROLS';controls.replaceChildren(title,controlGraphics(doc,hints,device));const tip=doc.createElement('small');tip.className='fo-tutorial-dismiss';tip.textContent=(device==='gamepad'?'MENU':'ESC')+' · ALL CONTROLS';controls.append(tip);}
+    for(const [action,enabled] of [['fire',guns],['bomb',features?.bombsEnabled],['oil',features?.oilEnabled],['blades',features?.bladesEnabled],['smog',features?.smogEnabled]]){const button=one(`[data-binding="${action}"]`);if(button.parentElement)button.parentElement.hidden=!enabled;}
     const cooldown=Math.max(0,Math.ceil(((model.snapshot?.local?.driver.nextDeployTick??0)-(model.snapshot?.serverTick??0))/60));
     write('ammo',cooldown?`GEAR ${cooldown}s`:'');hide('[data-text="ammo"]',!features?.bombsEnabled||cooldown===0);positionControls();
   }
@@ -394,7 +419,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     finally { pending = false; if (!disposed) { all<HTMLButtonElement>('.fo-home button').forEach(button => { button.disabled = false; }); updateGarage(); updateCampaign(); if (model.snapshot?.campaign && lobby() && menu === null) focusFirst(); } }
   }
   const bindingDefaults = keyboardBindings;
-  const bindingLabels: Record<string, string> = { throttle: 'Accelerate', brakeReverse: 'Brake / reverse', left: 'Steer left', right: 'Steer right', handbrake: 'Handbrake', fire: 'Fire', bomb: 'Throw bomb', oil: 'Drop oil', blades: 'Extend blades', siren: 'Siren', recover: 'Hold to recover' };
+  const bindingLabels: Record<string, string> = { throttle: 'Accelerate', brakeReverse: 'Brake / reverse', left: 'Steer left', right: 'Steer right', handbrake: 'Handbrake', fire: 'Fire', bomb: 'Throw bomb', oil: 'Drop oil', blades: 'Extend blades', smog: 'Release smog', siren: 'Siren', recover: 'Hold to recover' };
   for (const [action, fallback] of Object.entries(bindingDefaults)) {
     const row = doc.createElement('label'); row.textContent = bindingLabels[action] ?? action;
     const button = doc.createElement('button'); button.type = 'button'; button.dataset.binding = action; button.textContent = (settings.bindings[action] ?? fallback).join(' / ').replaceAll('Key', ''); row.append(button); one('[data-bindings]').append(row);
@@ -493,6 +518,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   function update(next: UiModel) {
     const previousReason=typeof model.status==='object'?model.status.reason:undefined;
     const previousPaused=model.snapshot?.paused; const previousEpoch = model.snapshot?.sessionEpoch, previousResult = hasResult(), previousDispatch = model.snapshot?.campaign?.dispatchIndex; const wasLobby = lobby(); model = { ...model, ...next };
+    if(previousResult && !hasResult() && model.snapshot?.campaign)resetTutorial();
     if (wasLobby && !lobby() && model.snapshot?.campaign) { clearTimeout(toastTimer); hide('.fo-toast', true); }
     if (wasLobby !== lobby()) callbacks.onMenuVisibility?.(menu !== null || lobby());
     const leavingWithPending = wasLobby && !lobby() && awaitingVehicle !== null;
@@ -603,7 +629,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     }
   }
   showMenu('home'); shell.classList.toggle('fo-reduced-motion', settings.reducedShake); callbacks.onSettings?.(structuredClone(settings));
-  return { update, showMenu, navigate, setTargetIndicator, setControlAnchor, resetTouchControls: touchControls.reset, getVehicle: () => vehicle, getSettings: () => structuredClone(settings), setSettings: (next: Partial<UiSettings>) => {
+  return { update, showMenu, navigate, setTargetIndicator, setControlAnchor, setSmog, resetTouchControls: touchControls.reset, getVehicle: () => vehicle, getSettings: () => structuredClone(settings), setSettings: (next: Partial<UiSettings>) => {
     settings = { ...settings, ...next };
     for (const input of all<HTMLInputElement | HTMLSelectElement>('[data-setting]')) { const key = input.dataset.setting as keyof UiSettings; if (input instanceof HTMLInputElement && input.type === 'checkbox') input.checked = Boolean(settings[key]); else input.value = String(settings[key]); }
     persist(); updateControls();

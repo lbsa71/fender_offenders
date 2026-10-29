@@ -8,6 +8,21 @@ const owner: VehicleState = { entityId: 'boss', playerId: null, bodyAssetId: 'su
 const gadget = (kind: RoadGadgetState['kind'], id: string = kind): RoadGadgetState => ({ entityId: id, ownerEntityId: 'boss', kind, pose: { x: 5, z: -20, yaw: 0 }, bornTick: 100, activeAtTick: 160, expiresTick: 250 });
 beforeEach(() => { engine = new NullEngine(); scene = new Scene(engine); effects = new RoadGadgetEffects(scene); });
 afterEach(() => { effects.dispose(); scene.dispose(); engine.dispose(); });
+it('renders bounded smog billows around the road and exposed cars, without interpreting them as blades',()=>{
+ const cloud={...gadget('oil'),kind:'smog',activeAtTick:160,expiresTick:550,exposures:[{vehicleId:'unit',bornTick:180,expiresTick:390}]} as any;
+ const unit={...owner,entityId:'unit',playerId:'officer',pose:{x:5,z:-20,yaw:0}};
+ const baseline={meshes:scene.meshes.length,materials:scene.materials.length};
+ effects.render([cloud],[owner,unit],120);
+ expect(effects.getStats()).toMatchObject({smogClouds:1,wheelBladeWarnings:0,wheelBlades:0});
+ effects.render([cloud],[owner,unit],190,true);
+ expect((effects.getStats() as any).smogPuffs).toBeGreaterThan(12);
+ expect((effects.getStats() as any).smogPuffs).toBeLessThanOrEqual(128);
+ expect(scene.getMeshByName('smog-billows')!.isEnabled()).toBe(true);
+ effects.render([cloud],[owner,unit],400);
+ expect((effects.getStats() as any).smogPuffs).toBe(0);
+ expect(scene.meshes).toHaveLength(baseline.meshes);expect(scene.materials).toHaveLength(baseline.materials);
+ effects.reset();expect((effects.getStats() as any).smogPuffs).toBe(0);
+});
 it('shows a fixed oil footprint and hubcap warning before exposing moving side blades', () => {
   const oil = gadget('oil'), blades = gadget('blades'), source = structuredClone([oil, blades]);
   effects.render([oil, blades], [owner], 120);

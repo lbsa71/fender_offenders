@@ -64,9 +64,12 @@ The 2026-10-28 DB5 asset trial uses natman's Aston Martin DB5 from BlendSwap, su
 
 OpenAI Codex assistance, directed by Stefan Andersson, integrated natman's DB5 on 2026-10-28: shared selectable profile, direct vehicle picker, imported PBR briefings/driving, animated axle-pivot wheels, progression-gated grille guns, authored cosmetic muzzles, material-preserving physical breakup, and observed test-first/native/browser verification. Original asset authorship and restrictions remain in the DB5 provenance above.
 
+OpenAI Codex (AI assistance), directed by the project owner: dispatch-difference control hovers, per-attempt active-play timing, retained equipment help, and observed test-first/browser oil-deployment verification (2026-10-29).
+
 The 2026-10-28 Night Courier gangster sedan is original project geometry under GPL-3.0-or-later, created with OpenAI Codex assistance under Stefan Andersson's direction: Blender modeling, materials, LODs, detachable components, optional gun attachments, provenance, export validation and offline previews. [Gangster asset provenance](packages/content/manifests/licenses/gangster/README.md) records authorship and the unused external-source research.
 
 OpenAI Codex assistance, directed by Stefan Andersson, integrated Night Courier on 2026-10-28: the eighth shared vehicle profile, independent imported-model caches, radius-correct axle animation, normal gun unlocks and authored muzzles, material-preserving physical breakup, and observed test-first/real-adapter/browser checks. The original model's GPL source and the DB5's separate asset terms remain preserved.
+
 
 OpenAI Codex assistance, directed by Stefan Andersson, reconciled the graphics acceptance plan and diagnostic trace with the owner's 2026-10-29 removal of target/minimum-device performance qualification, preserving functional regressions and dated measurements.
 
@@ -75,3 +78,6 @@ OpenAI Codex assistance, directed by Stefan Andersson, updated the 2026-10-29 on
 OpenAI Codex assistance, directed by Stefan Andersson, expanded native and real-app oil-dispatch diagnostics on 2026-10-29 and added test-only retained-resource observations. The owner's recurring car-visibility failure remains unresolved; passing attempted reproductions are not credited as a fix.
 
 OpenAI Codex assistance, directed by Stefan Andersson, subsequently reproduced the exact Night Courier dispatch-six uniform-buffer error on 2026-10-29 and added the ordinary-uniform compatibility mitigation, a real six-dispatch regression and observed RED/GREEN evidence.
+
+OpenAI Codex (AI assistance), directed by the project owner: warned smog clouds, room-owned exposure/immunity, bounded billows, timed whiteout and reduced-flash parity, delayed police controls and observed test-first/network/browser verification (2026-10-29).
+

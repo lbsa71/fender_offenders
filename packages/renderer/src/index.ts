@@ -239,7 +239,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
       const owner=frame.vehicles.find(v=>v.entityId===gadget.ownerEntityId);
       if(gadget.kind==='blades'&&(!owner||owner.status!=='active'))continue;
       const position=gadget.kind==='blades'?owner!.pose:gadget.pose,volume=combatVolume(position);
-      if(volume>0)audio.effect(gadget.kind,volume,undefined,combatPan(position));
+      if(volume>0)audio.effect(gadget.kind==='smog'?'oil':gadget.kind,volume,undefined,combatPan(position));
     }
     for(const p of particles)if(p.life>0){p.life-=dt;p.mesh.isVisible=p.life>0;p.mesh.position.x+=p.vx*dt;p.mesh.position.y+=p.vy*dt;p.mesh.position.z+=p.vz*dt;p.vy-=p.mesh.material===smoke?-.3*dt:9*dt;const f=Math.max(0,p.life/p.duration);p.mesh.scaling.setAll(p.size*(p.mesh.material===smoke?2-f:f));p.mesh.visibility=f;}
     for(const mark of marks)if(mark.life>0){mark.life-=dt;mark.mesh.isVisible=mark.life>0;mark.mesh.visibility=Math.min(1,mark.life);}
