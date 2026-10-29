@@ -323,7 +323,12 @@ export function createSimulation(mapInput: CollisionMap, options: SimulationOpti
       const g = runtime.gadget, owner = records.get(g.ownerEntityId)?.vehicle;
       if (phase !== 'playing' || tick >= g.expiresTick || !owner || owner.status !== 'active' || owner.protectedUntilTick > tick) { roadGadgets.delete(id); continue; }
       if(g.kind==='smog'){
-        if(tick<g.activeAtTick||tick>=g.activeAtTick+SMOG_RULES.cloudTicks)continue;
+        if(tick<g.activeAtTick){
+          const wake=clone(owner.pose);wake.x-=Math.sin(wake.yaw)*4;wake.z-=Math.cos(wake.yaw)*4;
+          if(wake.x>=map.bounds.minX+3&&wake.x<=map.bounds.maxX-3&&wake.z>=map.bounds.minZ+3&&wake.z<=map.bounds.maxZ-3&&queries.segmentHit(owner.pose,wake)===null)g.pose=wake;
+          continue;
+        }
+        if(tick>=g.activeAtTick+SMOG_RULES.cloudTicks)continue;
         for(const r of records.values()){
           const target=r.vehicle,hostile=owner.playerId===null?target.playerId!==null&&scores.get(target.playerId)?.connection==='connected':target.entityId===pursuit?.suspectId;
           if(!hostile||target.status!=='active'||target.protectedUntilTick>tick||runtime.hitVehicleIds.includes(target.entityId)||Math.hypot(target.pose.x-g.pose.x,target.pose.z-g.pose.z)>SMOG_RULES.radius||queries.segmentHit(g.pose,target.pose)!==null)continue;

@@ -47,6 +47,19 @@ it.each(['ahead','not-closing','protected','disconnected'] as const)('does not s
  if(situation==='disconnected')c.state.scores[0]!.connection='reconnecting';
  sim.restore(c);ticks(sim,1);expect(sim.snapshot().gadgets?.some(g=>String(g.kind)==='smog')).toBe(false);
 });
+it('releases the warned exhaust wake where a road-speed pursuit reaches it, then leaves the armed cloud fixed',()=>{
+ const fastMap={...arena,laneEdges:arena.laneEdges.map(e=>({...e,speedLimit:26}))};
+ const {sim,officerId,bossId}=fixture(7,fastMap),c=sim.checkpoint(),officer=c.state.records.find(r=>r.vehicle.entityId===officerId)!,boss=c.state.records.find(r=>r.vehicle.entityId===bossId)!;
+ boss.vehicle.velocity.z=18;officer.vehicle.velocity.z=22;sim.restore(c);
+ for(let i=0;i<90;i++){
+  const state=sim.snapshot(),target=state.vehicles.find(v=>v.entityId===bossId)!,unit=state.vehicles.find(v=>v.entityId===officerId)!;
+  const difference=Math.atan2(target.pose.x-unit.pose.x,target.pose.z-unit.pose.z)-unit.pose.yaw,angle=Math.atan2(Math.sin(difference),Math.cos(difference));
+  sim.step(new Map([[officerId,{actions:{...neutralActions(),throttle:1,steer:Math.max(-1,Math.min(1,angle*2.1))},sessionEpoch:officer.epoch,sourceCommandSequence:i}]]));
+ }
+ const cloud=sim.snapshot().gadgets!.find(g=>g.kind==='smog')!;
+ expect(cloud.exposures?.some(e=>e.vehicleId===officerId),'following the exhaust at urban pursuit speed must reach the released smog '+JSON.stringify({cloud,officer:sim.snapshot().vehicles.find(v=>v.entityId===officerId),boss:sim.snapshot().vehicles.find(v=>v.entityId===bossId)})).toBe(true);
+ const released=structuredClone(cloud.pose);ticks(sim,10);expect(sim.snapshot().gadgets!.find(g=>g.entityId===cloud.entityId)!.pose).toEqual(released);
+});
 
 it('lets Otis drop one fixed oil patch behind a closing pursuit, with a warning and long cooldown', () => {
   const { sim, bossId } = fixture(); ticks(sim, 1);
