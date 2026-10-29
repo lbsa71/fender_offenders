@@ -81,35 +81,58 @@ it('waits for an intentional activation, plays title tracks in order and leaves 
   player.dispose();
 });
 
-it('crossfades from slow to fast dispatch music and smoothly raises tempo by up to fifteen percent', () => {
+it('crossfades to the authored fast tempo after winding up the slow track', () => {
   const { player, source, settle, context } = setup(); player.unlock(); settle({ screen: 'dispatch', speed: 0, topSpeed: 28 });
   expect(context.level(source(tracks.slow))).toBeCloseTo(.4, 2);
   expect(source(tracks.slow).playbackRate).toBe(1);
   player.update({ screen: 'dispatch', speed: 28, topSpeed: 28 }, 1 / 60);
   expect(context.level(source(tracks.slow))).toBeGreaterThan(0);
   expect(context.level(source(tracks.fast))).toBeGreaterThan(0);
-  expect(source(tracks.fast).playbackRate).toBeGreaterThan(1);
-  expect(source(tracks.fast).playbackRate).toBeLessThan(1.15);
+  expect(source(tracks.fast).playbackRate).toBe(1);
   settle({ screen: 'dispatch', speed: 28, topSpeed: 28 });
   expect(context.level(source(tracks.fast))).toBeCloseTo(.4, 2);
   expect(source(tracks.slow).paused).toBe(true);
-  expect(source(tracks.fast).playbackRate).toBeCloseTo(1.15, 3);
+  expect(source(tracks.slow).playbackRate).toBeCloseTo(1.15, 3);
+  expect(source(tracks.slow).preservesPitch).toBe(false);
+  expect(source(tracks.fast).playbackRate).toBe(1);
   expect(source(tracks.fast).preservesPitch).toBe(true);
   expect(source(tracks.fast).loop).toBe(true);
   player.dispose();
 });
 
 it('uses vehicle-relative speed and hysteresis without restarting loops on every frame', () => {
-  const { player, source, settle, context } = setup(); player.unlock(); settle({ screen: 'dispatch', speed: 12, topSpeed: 16 });
+  const { player, source, settle, context } = setup(); player.unlock(); settle({ screen: 'dispatch', speed: 14, topSpeed: 16 });
   expect(context.level(source(tracks.fast))).toBeGreaterThan(.39);
   const starts = source(tracks.fast).play.mock.calls.length;
-  settle({ screen: 'dispatch', speed: 8.5, topSpeed: 16 });
+  settle({ screen: 'dispatch', speed: 13, topSpeed: 16 });
   expect(context.level(source(tracks.fast))).toBeGreaterThan(.39);
   expect(source(tracks.fast).play.mock.calls.length).toBe(starts);
-  settle({ screen: 'dispatch', speed: 6, topSpeed: 16 });
+  settle({ screen: 'dispatch', speed: 12, topSpeed: 16 });
   expect(context.level(source(tracks.slow))).toBeGreaterThan(.39);
-  expect(source(tracks.slow).playbackRate).toBeCloseTo(1 + .15 * 6 / 16, 3);
+  expect(source(tracks.slow).playbackRate).toBeCloseTo(1 + .15 * 12 / (16 * .85), 3);
   player.dispose();
+});
+
+it.each([16, 28])('winds up slow music before the 85 percent tipping point for a %s m/s vehicle', topSpeed => {
+  const { player, source, settle, context } = setup(); player.unlock();
+  const slow = source(tracks.slow), fast = source(tracks.fast);
+  let previousRate = 1;
+  for (const fraction of [0, .2, .4, .6, .8, .849]) {
+    settle({ screen: 'dispatch', speed: fraction * topSpeed, topSpeed });
+    expect(context.level(slow)).toBeGreaterThan(.39);
+    expect(context.level(fast)).toBe(0);
+    expect(fast.play).not.toHaveBeenCalled();
+    expect(slow.preservesPitch, 'speeding up must raise audible pitch').toBe(false);
+    expect(slow.playbackRate).toBeCloseTo(1 + .15 * fraction / .85, 3);
+    expect(slow.playbackRate).toBeGreaterThanOrEqual(previousRate); previousRate = slow.playbackRate;
+  }
+  expect(slow.play).toHaveBeenCalledTimes(1);
+  player.update({ screen: 'dispatch', speed: .85 * topSpeed, topSpeed }, 1 / 60);
+  expect(context.level(slow)).toBeGreaterThan(0);
+  expect(context.level(fast)).toBeGreaterThan(0);
+  settle({ screen: 'dispatch', speed: .85 * topSpeed, topSpeed });
+  expect(slow.paused).toBe(true); expect(context.level(fast)).toBeGreaterThan(.39);
+  expect(fast.playbackRate).toBe(1); player.dispose();
 });
 
 it('applies master/music levels and immediate mute without losing the saved volume', () => {

@@ -6,6 +6,16 @@ Updated: 2026-10-26. Documentation/credits/GPL were pushed in `c5b1161`, car pre
 
 `Implemented` means the principal code path exists with the evidence cited here; it does not waive outstanding release gates. `Partial` means code exists but a named deliverable or acceptance check remains. `Open` means the deciding gate has not been demonstrated. The plan retains task IDs/dependencies and gates while reflecting the delivered campaign/profile/art choices.
 
+## 2026-10-29 · Slow pitch rise before the Fast soundtrack tipping point
+
+The owner found Fast starting too early and requested a pitch rise on Slow before the handoff. R/Q playback, deterministic tests and native media checks run sequentially in this checkout. Slow now rises in rate and audible pitch from 1.00 at rest to 1.15 at **85%** of the selected vehicle's top speed. Fast enters there at its authored rate of 1.00 and returns to Slow at **75%**. Level crossfades and Slow's pitch response retain the quarter-second time constant. The existing supplied files and streaming/volume/lifecycle adapters remain in use; [audio acceptance](AUDIO.md#adaptive-soundtrack-and-volume-control) defines the reproducible listening stages.
+
+Observed RED before production changes: four `music.test.ts` cases failed on pitch preservation, the old hysteresis and Fast's increased playback rate. The supplied-MP3 browser case then failed at 80% speed because Slow settled at 1.12 instead of exceeding 1.13 before the handoff. All **11** music unit cases and **three** native music browser cases pass after the change. A subsequent browser setup check needed to await the outgoing crossfade before expecting Slow to be paused; that timing correction is not a behavior RED. Existing mute, pause/resume, title rate and real-app lifecycle assertions remain.
+
+Fresh pre-integration verification on `fdc3882` plus this patch passes **1,058 tests across 104 files in 26.20 seconds**, type/docs and whitespace checks; the three browser cases pass in **25.2 seconds**. Current remote main gained the Night Courier during this pass; combined publication checks follow separately. No human listening or physical Safari acceptance is inferred from native media properties.
+
+Publication integration retains remote `93cede8` (Night Courier and the isolated combined gameplay revision). Fresh combined verification passes **1,073 tests across 104 files in 25.65 seconds**, types/docs, asset audit and whitespace checks. The full build/browser/UI/native-rendering gate runs through the normal pre-push hook; its result is reported with publication.
+
 ## 2026-10-28 · Selectable Night Courier integration
 
 The first publication attempt passed **90 browser tests** (11.2 minutes), then stopped in the mocked garage fixture: its separate hardcoded list still contained only the original six bodies, so a valid modeled-car assignment could fail the corrupted-storage assertion. The fixture now reads `VEHICLE_BODIES` through the same Vite-served source and explicitly checks inclusion of both modeled cars. The focused `pnpm test:ui` rerun passed all five fixtures. This corrects the stale test oracle; persistence, corrupted-storage, countdown, reconnect and controller assertions remain intact. The unchanged full pre-push hook runs again for publication.

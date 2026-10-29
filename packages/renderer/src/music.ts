@@ -10,6 +10,7 @@ interface Track {
   source?: MediaElementAudioSourceNode; mixer?: GainNode;
 }
 const unit = (value: number) => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
+const FAST_ENTER = .85, FAST_EXIT = .75;
 
 /** Public files keep their original names; only title/slow/fast MP3s join the soundtrack. */
 export function discoverMusicTracks(files: string[]): MusicTracks {
@@ -40,7 +41,7 @@ export class MusicPlayer {
     const create = (url: string, kind: Track['kind']) => {
       const audio = (options.createAudio ?? (url => new Audio(url)))(url);
       audio.preload = 'none'; audio.loop = kind !== 'title' || manifest.titles.length === 1;
-      audio.preservesPitch = true; audio.volume = 1; audio.playbackRate = 1;
+      audio.preservesPitch = kind !== 'slow'; audio.volume = 1; audio.playbackRate = 1;
       audio.hidden = true; audio.dataset.musicTrack = kind; options.root?.append(audio);
       const track: Track = { url, kind, audio, gain: 0, pending: false, blocked: false, attempt: 0, onEnded: () => {
         if (kind !== 'title' || this.disposed) return;
@@ -104,8 +105,8 @@ export class MusicPlayer {
     const speed = Number.isFinite(state.speed) ? Math.abs(state.speed!) : 0;
     const pace = unit(speed / (Number.isFinite(state.topSpeed) && state.topSpeed! > 0 ? state.topSpeed! : 28));
     if (state.screen === 'dispatch') {
-      if (pace >= .6) this.pace = 'fast';
-      else if (pace <= .45) this.pace = 'slow';
+      if (pace >= FAST_ENTER) this.pace = 'fast';
+      else if (pace <= FAST_EXIT) this.pace = 'slow';
     }
     const selected = state.screen === 'title' ? this.titles[this.titleIndex] : state.screen === 'dispatch' ? this.tracks.find(track => track.kind === this.pace) : null;
     const alpha = 1 - Math.exp(-Math.max(0, Math.min(.1, Number.isFinite(dt) ? dt : 0)) / .25);
@@ -117,8 +118,8 @@ export class MusicPlayer {
         if (target) this.play(track);
         else if (track.gain < .001) { track.gain = 0; this.pause(track); }
       }
-      const rate = track.kind === 'title' ? 1 : 1 + .15 * pace;
-      track.audio.playbackRate = track.kind === 'title' ? 1 : track.audio.playbackRate + (rate - track.audio.playbackRate) * alpha;
+      const rate = track.kind === 'slow' ? 1 + .15 * unit(pace / FAST_ENTER) : 1;
+      track.audio.playbackRate = track.kind === 'slow' ? track.audio.playbackRate + (rate - track.audio.playbackRate) * alpha : 1;
     }
     this.syncVolumes();
   }
