@@ -327,6 +327,15 @@
 
 .fo-prompts[data-tutorial-controls].fo-new-controls{width:200px;grid-template-columns:1fr}
 .fo-controls-title{grid-column:1/-1;font-size:9px;color:var(--yellow)}
+.fo-smog{position:absolute;inset:0;z-index:5;pointer-events:none;overflow:hidden}
+.fo-smog>[data-smog-fog],.fo-smog>[data-smog-white]{position:absolute;inset:0;opacity:0}
+.fo-smog>[data-smog-fog]{background:radial-gradient(ellipse at var(--smog-x,50%) var(--smog-y,55%),#e0e5e8 0%,#c9d2d9c0 24%,#b9c5cf60 48%,transparent 76%)}
+.fo-smog>[data-smog-white]{background:#fff}
+.fo-smog.fo-smog-reduced>[data-smog-white]{background:#879195}
+.fo-smog>p{position:absolute;left:50%;top:27%;transform:translateX(-50%);padding:8px 12px;color:#263832;background:#f4f0dfd9;border-radius:4px;font-size:11px;white-space:nowrap}
+.fo-smog-active .fo-top{z-index:7}.fo-smog-active .fo-wordmark,.fo-smog-active .fo-connection{visibility:hidden}
 .fo-vehicle-choice{display:block;max-width:100%;margin-top:.5rem;padding:.35rem .5rem;border:1px solid #81968a;background:#f0e6cf;color:#183c40;font:inherit;font-size:.8rem;}
 
 @media(max-width:740px) and (min-height:600px){.fo-ui .fo-garage[data-vehicle=db5] [data-text=vehicle-name]{font-size:15px;white-space:nowrap}}
+
+.fo-touch-deploy:has([data-touch="smog"]){display:grid;grid-template-columns:repeat(2,minmax(44px,1fr));gap:6px}

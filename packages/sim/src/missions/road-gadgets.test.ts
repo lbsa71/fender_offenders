@@ -20,6 +20,34 @@ const gadgets = (sim: Simulation) => (Reflect.get(sim.snapshot(), 'gadgets') ?? 
 const ticks = (sim: Simulation, count: number) => { for (let n = 0; n < count; n++) sim.step(new Map()); };
 beforeAll(initPhysics); afterEach(() => sims.splice(0).forEach(sim => sim.dispose()));
 
+it('warns before a closing rear pursuit receives smog, then records one bounded exposure with deterministic replay',()=>{
+ const {sim,bossId,officerId}=fixture(7);ticks(sim,1);
+ const cloud=sim.snapshot().gadgets?.find(g=>String(g.kind)==='smog') as any;
+ expect(cloud,'dispatch 8 should publish a warned smog cloud behind the suspect').toBeDefined();
+ expect(cloud.ownerEntityId).toBe(bossId);expect(cloud.activeAtTick-cloud.bornTick).toBe(60);
+ expect(cloud.exposures).toEqual([]);expect(cloud.pose.z).toBeLessThan(-3);
+ const c=sim.checkpoint(),officer=c.state.records.find(r=>r.vehicle.entityId===officerId)!,boss=c.state.records.find(r=>r.vehicle.entityId===bossId)!;
+ c.tick=cloud.activeAtTick-1;officer.vehicle.pose={...cloud.pose};officer.vehicle.velocity={x:0,z:0,yawRate:0};boss.vehicle.pose.z=30;boss.traffic=undefined;
+ sim.restore(c);ticks(sim,1);
+ const exposed=sim.snapshot().gadgets!.find(g=>g.entityId===cloud.entityId) as any;
+ expect(exposed.exposures).toEqual([{vehicleId:officerId,bornTick:cloud.activeAtTick,expiresTick:cloud.activeAtTick+210}]);
+ expect(sim.snapshot('officer').local!.vehicle.health).toBe(officer.vehicle.health);
+ const stacked=sim.checkpoint();stacked.state.gadgets!.push({gadget:{...cloud,entityId:'overlapping-smog',bornTick:stacked.tick,activeAtTick:stacked.tick,exposures:[]},hitVehicleIds:[]});
+ sim.restore(stacked);ticks(sim,1);expect(sim.snapshot().gadgets!.find(g=>g.entityId==='overlapping-smog')!.exposures).toEqual([]);
+ const saved=sim.checkpoint();ticks(sim,90);const later=sim.snapshot();sim.restore(saved);ticks(sim,90);expect(sim.snapshot()).toEqual(later);
+ expect((sim.snapshot().gadgets!.find(g=>g.entityId===cloud.entityId) as any).exposures).toEqual(exposed.exposures);
+ expect(sim.checkpoint().state.records.find(r=>r.vehicle.entityId===bossId)!.bossAi!.nextGadgetTick).toBeGreaterThanOrEqual(cloud.bornTick+1080);
+});
+
+it.each(['ahead','not-closing','protected','disconnected'] as const)('does not start smog for an officer who is %s',situation=>{
+ const {sim,officerId}=fixture(7),c=sim.checkpoint(),officer=c.state.records.find(r=>r.vehicle.entityId===officerId)!;
+ if(situation==='ahead')officer.vehicle.pose.z=14;
+ if(situation==='not-closing')officer.vehicle.velocity.z=0;
+ if(situation==='protected')officer.vehicle.protectedUntilTick=999;
+ if(situation==='disconnected')c.state.scores[0]!.connection='reconnecting';
+ sim.restore(c);ticks(sim,1);expect(sim.snapshot().gadgets?.some(g=>String(g.kind)==='smog')).toBe(false);
+});
+
 it('lets Otis drop one fixed oil patch behind a closing pursuit, with a warning and long cooldown', () => {
   const { sim, bossId } = fixture(); ticks(sim, 1);
   const patch = gadgets(sim)[0]; expect(patch, 'Otis must publish the rear oil warning').toBeDefined();

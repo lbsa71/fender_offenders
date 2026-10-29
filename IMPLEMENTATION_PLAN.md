@@ -2,11 +2,13 @@
 
 The `arcade-v19` content expansion provides **five separate ten-dispatch storylines** (50 dispatches, 50 portraits). New rooms receive a server-selected case automatically; finishing it offers **Another case**, selecting a different storyline in the same room. Case identity drives story, target, car and lighting through shared content, survives retained rooms and reconnects, and uses the existing bounded ten-stage campaign DTO. All five reuse the proven equipment/tactics progression and six vehicle bodies. F/S/N own catalog and authority; U/R own concise presentation; Q verifies all five through real peers and native browsers. This adds cases without adding a selection screen. Dispatch has acquired four more filing cabinets.
 
-Status: acceptance plan for the integrated `arcade-v25` / protocol 5 alpha. Updated: 2026-10-28 for longer avenues and bounded suspect road gadgets, integrated with continuous local driving, buffered remote presentation, closing-pursuit tactics, staged tutorial and touch controls. Current states and dated evidence for all 49 tasks are in [the execution ledger](spec/EXECUTION_STATUS.md). Task IDs, dependencies and milestone gates remain stable; delivery choices below reflect the current implementation.
+Status: acceptance plan for the integrated `arcade-v26` / protocol 5 alpha. Updated: 2026-10-29 for longer avenues and bounded suspect road gadgets, integrated with continuous local driving, buffered remote presentation, closing-pursuit tactics, staged tutorial and touch controls. Current states and dated evidence for all 49 tasks are in [the execution ledger](spec/EXECUTION_STATUS.md). Task IDs, dependencies and milestone gates remain stable; delivery choices below reflect the current implementation.
 
 *The city is playable. The release paperwork still has several outstanding warrants.*
 
 ## Next acceptance work
+
+The 2026-10-29 smog follow-up assigns G/S/F/N/R/U/Q sequentially in this winter worktree. Suspects introduce a warned, avoidable cloud in dispatch 8; police receive it in 10. Room-owned exposure timing, an exact 2.5-second whiteout, non-stacking recovery, bounded volumetric billows, reduced-flash parity, retained input/menu access and dispatch-difference key help form the acceptance slice. Paired builds use `arcade-v26` / protocol 5. Human difficulty and sustained-device performance remain open.
 
 The 2026-10-29 controls follow-up assigns U/F/Q sequentially in the existing winter worktree: compare each authoritative dispatch with its predecessor, show only new device/remapped controls for eight active seconds per attempt, and retain the complete unlocked controls/reminders in pause help. Verify the existing police oil deployment through Q / left-stick press / OIL; keep its dispatch-8 unlock and shared cooldown. No gameplay or wire change is planned.
 

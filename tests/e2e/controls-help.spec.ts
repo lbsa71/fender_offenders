@@ -37,7 +37,7 @@ test('each dispatch shows only new keys for eight active seconds, retaining the 
     await campaignStage(page, stage); await expect(card).toBeHidden();
     await page.evaluate(() => (window as any).fixture.ui.update({device: 'keyboard'}));
   }
-  await campaignStage(page, 9); await expect(card).toBeHidden();
+  await campaignStage(page, 9); await expect(card.locator('[data-control]')).toHaveCount(1); await expect(card.locator('[data-control="smog"] kbd')).toHaveText('G'); await page.clock.runFor(8000); await expect(card).toBeHidden();
   await page.keyboard.press('Escape'); await page.getByRole('button', {name:'CONTROLS HELP', exact:true}).click();
   await expect(page.locator('.fo-help-view [data-control="oil"] kbd')).toHaveText('Q');
   await expect(page.locator('.fo-help-view [data-control="oil"]')).toHaveCount(2);

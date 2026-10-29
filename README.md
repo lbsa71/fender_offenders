@@ -82,7 +82,7 @@ Twenty-four cosmetic pedestrians walk sidewalks, wait for safe crossing gaps and
 
 Choose **Control scheme** in **Settings & controls**: **Automatic**, **Touch**, **Controller** or **Keyboard**. The choice persists. Automatic starts with touch on devices reporting touch support, otherwise keyboard; using a controller or keyboard switches the active device. Tap the play area to return to touch. An explicit choice keeps the driving source and overlay fixed. Touch controls appear during driving and hide in menus, briefings, results and lost connections. No touchscreen detection relies on an iPad name tag.
 
-The labeled touch controls replace the floating keyboard/controller card. Fire and Drift + Fire appear when the campaign unlocks guns in dispatch 3; dispatches 1–2 keep police guns locked. The eight-second driving hover teaches the opener, then shows only newly introduced controls at each dispatch: guns in 3, bombs in 5, oil in 8 and blades in 9. It pauses in menus and restarts for a new dispatch or retry. Controls Help retains the full unlocked layout and weapon reminders.
+The labeled touch controls replace the floating keyboard/controller card. Fire and Drift + Fire appear when the campaign unlocks guns in dispatch 3; dispatches 1–2 keep police guns locked. The eight-second driving hover teaches the opener, then shows only newly introduced controls at each dispatch: guns in 3, bombs in 5, oil in 8, blades in 9 and smog in 10. It pauses in menus and restarts for a new dispatch or retry. Controls Help retains the full unlocked layout and weapon reminders.
 
 | Action | Keyboard | Standard controller | Touch |
 | --- | --- | --- | --- |
@@ -94,10 +94,13 @@ The labeled touch controls replace the floating keyboard/controller card. Fire a
 | Throw bomb (dispatch 5+) | B | Left shoulder | Tap BOMB |
 | Drop oil behind (dispatch 8+) | Q | Left-stick press | Tap OIL |
 | Extend blades (dispatch 9+) | C | Right-stick press | Tap BLADES |
+| Release smog (dispatch 10) | G | D-pad down | Tap SMOG |
 | Siren | E | X / west button | Tap Siren |
 | Recover a stuck car | Hold R for one second | Hold Y / north button for one second | Hold Recover for one second |
 | Pause / settings | Escape | Menu / Start | Pause button |
 | Menu navigation | Arrows, Enter, Escape; Tab for fields | D-pad / stick, A confirm, B back | Tap buttons and fields |
+
+Suspect smog in dispatch 8 has an amber exhaust warning. Steer around it; entering the cloud brings fog around your car, a quick white fade and 2.5 seconds of blindness. Input and pause remain available. Clouds cannot stack that interval, and suspect releases wait eighteen seconds. Police receive smog in dispatch 10; it briefly stops the suspect reacting to officers, with an eighteen-second shared equipment reload. Reduce Flashes uses an equally opaque grey veil.
 
 Touch and the left stick request a screen direction: right means head right on screen, and down means turn toward the bottom of the screen. The car steers through its ordinary physics, easing acceleration through tight turns. Pull farther for more acceleration; release to coast. A radial dead zone prevents center drift and diagonal input cannot boost acceleration. Keyboard remains vehicle-relative; controller triggers retain optional accelerate and brake/reverse controls. Pointer cancellation, lost capture, viewport resize, focus loss, menus and control changes clear held touches; a fresh touch is required. Callsign text entry uses the device's keyboard. Unknown controller mappings direct players to touch or keyboard in settings rather than guessing button assignments. Browser touch/controller checks use Chromium touch emulation and injected standard gamepads; physical iPad, Android and controller acceptance and sustained mobile performance remain open.
 

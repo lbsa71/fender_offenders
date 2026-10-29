@@ -5,6 +5,11 @@ it('teaches the two new suspect gadgets with explicit avoidance and recovery cue
  expect(getDispatchFeatures(5)).toMatchObject({lessonTitle:'OIL SLICKS'});expect(getDispatchFeatures(5).lesson).toContain('grip');
  expect(getDispatchFeatures(6)).toMatchObject({lessonTitle:'BLADED HUBCAPS'});expect(getDispatchFeatures(6).lesson).toContain('side');
 });
+it('teaches suspect smog in dispatch 8 and grants police smog two dispatches later',()=>{
+ expect(getDispatchFeatures(7).lesson).toMatch(/smog/i);
+ for(let stage=0;stage<10;stage++)expect(getDispatchFeatures(stage)).toHaveProperty('smogEnabled',stage===9);
+ expect(getDispatchFeatures(9).lessonTitle).toBe('UNLOCKED: SMOG!');
+});
 it('introduces room equipment and hazards in order and keeps them available for later dispatches',()=>{
  expect(getDispatchFeatures(0)).toMatchObject({gunsEnabled:false,wetRoads:false,arrestOnly:true});
  expect(getDispatchFeatures(1)).toMatchObject({gunsEnabled:false,wetRoads:false,arrestOnly:false,lessonTitle:'SUSPECT GUNS'});

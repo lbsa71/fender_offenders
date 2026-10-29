@@ -2,6 +2,12 @@ import {describe,it,expect} from 'vitest';
 import {packSnapshot,unpackSnapshot,type WorldSnapshot} from './index';
 const snapshot:WorldSnapshot={protocolVersion:1,mapRevision:'map',gameplayRevision:'rules',sessionEpoch:'epoch',serverTick:0,matchId:'match',phase:'lobby',phaseEndsAtTick:null,vehicles:[],projectiles:[],scores:[{playerId:'a',nickname:'Alpha',score:0,wrecks:0,connection:'connected'}],local:null};
 describe('scoreboard latency wire compatibility',()=>{
+  it('retains smog exposure timing for each affected car through wire reconstruction',()=>{
+    const cloud={entityId:'smog-1',ownerEntityId:'boss',kind:'smog',pose:{x:3,z:-8,yaw:0},bornTick:10,activeAtTick:70,expiresTick:460,exposures:[{vehicleId:'unit',bornTick:90,expiresTick:300}]};
+    const source={...snapshot,gadgets:[cloud]} as unknown as WorldSnapshot;
+    expect(unpackSnapshot(packSnapshot(source)).gadgets).toEqual([cloud]);
+    expect(cloud.exposures).toEqual([{vehicleId:'unit',bornTick:90,expiresTick:300}]);
+  });
   it('reconstructs fixed oil warnings and hubcap timing for peers and late joins',()=>{
     const gadgets=[{entityId:'oil-1',ownerEntityId:'boss',kind:'oil' as const,pose:{x:3.125,z:-8.5,yaw:.25},bornTick:10,activeAtTick:55,expiresTick:355},{entityId:'blades-1',ownerEntityId:'boss-2',kind:'blades' as const,pose:{x:-4,z:8,yaw:0},bornTick:20,activeAtTick:80,expiresTick:170}];
     const source={...snapshot,gadgets};expect(unpackSnapshot(packSnapshot(source))).toHaveProperty('gadgets',gadgets);

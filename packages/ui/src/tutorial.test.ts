@@ -3,7 +3,7 @@ import { controlHints, placeControlCard } from './tutorial';
 import { getDispatchFeatures } from '@fender/contracts';
 
 it.each(['keyboard', 'gamepad', 'touch'] as const)('diffs each dispatch against the previous equipment on %s', device => {
- const expected = [null, [], ['fire'], [], ['bomb'], [], [], ['oil'], ['blades'], []];
+ const expected = [null, [], ['fire'], [], ['bomb'], [], [], ['oil'], ['blades'], ['smog']];
  for (let stage = 0; stage < 10; stage++) {
   const current = getDispatchFeatures(stage), previous = stage ? getDispatchFeatures(stage - 1) : undefined;
   const hints = controlHints(device, { fire: ['KeyF'], oil: ['KeyK'] }, current.gunsEnabled, current, previous);

@@ -46,11 +46,11 @@ it('shares a shootable helper and its permanent dispatch loss with backup and a 
 afterEach(async()=>{ await disposeTestRooms();await Promise.all(rooms.splice(0).map(room=>room.connection.isOpen?room.leave(true):Promise.resolve()));});
 afterAll(async()=>{await server?.gracefullyShutdown(false);});
 
-it.each([[5,'oil'],[6,'blades']] as const)('shares dispatch %s gadget %s timing with two peers and a late joiner',async(stage,kind)=>{
+it.each([[5,'oil'],[6,'blades'],[7,'smog']] as const)('shares dispatch %s gadget %s timing with two peers and a late joiner',async(stage,kind)=>{
  const host=await peer(),guest=await peer(host.room.roomId),{sim,bossId}=encounter(host,stage),c=sim.checkpoint();
  const boss=c.state.records.find(r=>r.vehicle.entityId===bossId)!,officer=c.state.records.find(r=>r.vehicle.playerId===host.room.sessionId)!;
  boss.vehicle.velocity={x:3,z:0,yawRate:0};delete boss.bossAi;
- officer.vehicle.pose={x:kind==='oil'?-14:-3,z:kind==='oil'?-76:-72.5,yaw:Math.PI/2};officer.vehicle.velocity={x:9,z:0,yawRate:0};
+ officer.vehicle.pose={x:kind==='blades'?-3:-14,z:kind==='blades'?-72.5:-76,yaw:Math.PI/2};officer.vehicle.velocity={x:9,z:0,yawRate:0};
  sim.restore(c);host.room.send('resync');guest.room.send('resync');
  await until(()=>host.states.some(s=>s.serverTick>c.tick&&s.gadgets?.some(g=>g.kind===kind)),'The authority must publish the readable gadget warning');
  const sample=host.states.find(s=>s.serverTick>c.tick&&s.gadgets?.some(g=>g.kind===kind))!,gadget=sample.gadgets![0]!;
@@ -59,6 +59,17 @@ it.each([[5,'oil'],[6,'blades']] as const)('shares dispatch %s gadget %s timing 
  expect(guest.states.find(s=>s.serverTick===sample.serverTick)!.gadgets).toEqual(sample.gadgets);
  const late=await peer(host.room.roomId);expect(late.state.gadgets).toEqual(expect.arrayContaining([expect.objectContaining({entityId:gadget.entityId,kind,ownerEntityId:bossId,bornTick:gadget.bornTick,activeAtTick:gadget.activeAtTick,expiresTick:gadget.expiresTick})]));
  expect(late.state.campaign!.dispatchIndex).toBe(stage);
+ if(kind==='smog'){
+  const active=sim.checkpoint(),unit=active.state.records.find(r=>r.vehicle.playerId===host.room.sessionId)!,suspect=active.state.records.find(r=>r.vehicle.entityId===bossId)!;
+  active.tick=Math.max(active.tick,gadget.activeAtTick);unit.vehicle.pose={...gadget.pose};unit.vehicle.velocity={x:0,z:0,yawRate:0};unit.vehicle.discontinuityId++;suspect.vehicle.pose.x+=30;suspect.traffic=undefined;
+  sim.restore(active);host.room.send('resync');guest.room.send('resync');
+  await until(()=>host.states.some(s=>s.gadgets?.some(g=>g.exposures?.some(e=>e.vehicleId===unit.vehicle.entityId))),'Smog exposure reaches the affected officer');
+  const exposed=host.states.find(s=>s.gadgets?.some(g=>g.exposures?.some(e=>e.vehicleId===unit.vehicle.entityId)))!;
+  await until(()=>guest.states.some(s=>s.serverTick===exposed.serverTick),'Backup receives the same exposure tick');
+  expect(guest.states.find(s=>s.serverTick===exposed.serverTick)!.gadgets).toEqual(exposed.gadgets);
+  const effect=exposed.gadgets!.find(g=>g.entityId===gadget.entityId)!.exposures![0]!;expect(effect.expiresTick-effect.bornTick).toBe(210);expect(effect.vehicleId).not.toBe(guest.state.local!.vehicle.entityId);
+  const observer=await peer(host.room.roomId);expect(observer.state.gadgets!.find(g=>g.entityId===gadget.entityId)!.exposures).toContainEqual(effect);
+ }
 });
 
 it.each([[1,'distant'],[1,'closing'],[4,'distant'],[4,'closing']] as const)('replicates dispatch %s driving under a %s pursuit through both real clients',async(stage,approach)=>{
@@ -117,11 +128,22 @@ it('Hector broadcasts a fixed grenade warning to peers and a late joiner, then e
  expect(host.state.scores.every(score=>score.score===0)).toBe(true);
 });
 
-it.each([[4,'bomb'],[7,'oil'],[8,'blades']] as const)('replicates officer %s %s through input admission to peers and a late joiner',async(stage,kind)=>{
+it.each([[4,'bomb'],[7,'oil'],[8,'blades'],[9,'smog']] as const)('replicates officer %s %s through input admission to peers and a late joiner',async(stage,kind)=>{
  const host=await peer(),guest=await peer(host.room.roomId);encounter(host,stage);host.room.send('input',{kind:'input',commands:[{sessionEpoch:host.state.sessionEpoch,sequence:0,clientTick:0,actions:{steer:0,throttle:0,brakeReverse:0,handbrake:false,fire:false,sirenToggle:false,recover:false,deploy:kind}},{sessionEpoch:host.state.sessionEpoch,sequence:1,clientTick:1,actions:{steer:0,throttle:0,brakeReverse:0,handbrake:false,fire:false,sirenToggle:false,recover:false}},{sessionEpoch:host.state.sessionEpoch,sequence:2,clientTick:2,actions:{steer:0,throttle:0,brakeReverse:0,handbrake:false,fire:false,sirenToggle:false,recover:false}},{sessionEpoch:host.state.sessionEpoch,sequence:3,clientTick:3,actions:{steer:0,throttle:0,brakeReverse:0,handbrake:false,fire:false,sirenToggle:false,recover:false}}]});
  const list=(state:WorldSnapshot)=>kind==='bomb'?state.grenades:state.gadgets;
  await until(()=>host.states.some(s=>list(s)?.some(g=>g.ownerEntityId===s.local!.vehicle.entityId)),'Officer deployment must pass real room admission');
  const sample=host.states.find(s=>list(s)?.some(g=>g.ownerEntityId===s.local!.vehicle.entityId))!,weapon=list(sample)!.find(g=>g.ownerEntityId===sample.local!.vehicle.entityId)!;
  await until(()=>guest.states.some(s=>s.serverTick===sample.serverTick),'Backup receives the same deployment tick');expect(list(guest.states.find(s=>s.serverTick===sample.serverTick)!)).toEqual(list(sample));
- const late=await peer(host.room.roomId);expect(list(late.state)).toContainEqual(weapon);expect(late.state.campaign!.dispatchIndex).toBe(stage);expect(sample.local!.driver.nextDeployTick).toBe(weapon.bornTick+720);
+ const late=await peer(host.room.roomId);expect(list(late.state)).toContainEqual(weapon);expect(late.state.campaign!.dispatchIndex).toBe(stage);expect(sample.local!.driver.nextDeployTick).toBe(weapon.bornTick+(kind==='smog'?1080:720));
+ if(kind==='smog'){
+  const cloud=sample.gadgets!.find(g=>g.entityId===weapon.entityId)!;
+  const sim=(matchMaker.getLocalRoomById(host.room.roomId) as unknown as {sim:Simulation}).sim,c=sim.checkpoint(),boss=c.state.records.find(r=>r.vehicle.entityId===c.state.pursuit!.suspectId)!,officer=c.state.records.find(r=>r.vehicle.playerId===host.room.sessionId)!;
+  c.tick=Math.max(c.tick,cloud.activeAtTick-1);boss.vehicle.pose={...cloud.pose};boss.vehicle.velocity={x:0,z:0,yawRate:0};officer.vehicle.pose={x:cloud.pose.x+24,z:cloud.pose.z,yaw:Math.PI/2};officer.vehicle.discontinuityId++;
+  sim.restore(c);host.room.send('resync');
+  await until(()=>host.state.gadgets?.some(g=>g.entityId===weapon.entityId&&g.exposures?.some(e=>e.vehicleId===boss.vehicle.entityId))===true,'Police smog must obscure the marked suspect');
+  const hit=host.state.gadgets!.find(g=>g.entityId===weapon.entityId)!.exposures![0]!;
+  await until(()=>host.state.serverTick>=hit.bornTick+60,'Observe one second of blinded suspect driving');
+  expect(host.events.filter(e=>e.serverTick>hit.bornTick&&e.serverTick<hit.bornTick+60&&(e.kind==='shot'&&e.payload.shooterId===boss.vehicle.entityId||e.kind==='grenade-thrown'&&e.payload.grenade.ownerEntityId===boss.vehicle.entityId))).toEqual([]);
+  expect(host.state.vehicles.find(v=>v.entityId===boss.vehicle.entityId)!.pose.x).not.toBe(boss.vehicle.pose.x);
+ }
 });

@@ -8,7 +8,7 @@ export function gadgetOpportunity(kind: RoadGadgetState['kind'], owner: VehicleS
     const dx = officer.pose.x - owner.pose.x, dz = officer.pose.z - owner.pose.z, distance = Math.hypot(dx, dz);
     const closing = -(dx * (officer.velocity.x - owner.velocity.x) + dz * (officer.velocity.z - owner.velocity.z)) / Math.max(.001, distance);
     const forward = dx * Math.sin(owner.pose.yaw) + dz * Math.cos(owner.pose.yaw), side = dx * Math.cos(owner.pose.yaw) - dz * Math.sin(owner.pose.yaw);
-    return closing > .5 && (kind === 'oil' ? distance < 22 && forward < -3 && Math.abs(side) < 6 : distance < 10 && Math.abs(forward) < 6 && Math.abs(side) < 6);
+    return closing > .5 && (kind === 'oil' ? distance < 22 && forward < -3 && Math.abs(side) < 6 : kind==='smog'?distance<18&&forward< -3&&Math.abs(side)<4.5:distance < 10 && Math.abs(forward) < 6 && Math.abs(side) < 6);
   });
 }
 export function inBladeReach(owner: VehicleState, target: VehicleState): boolean {

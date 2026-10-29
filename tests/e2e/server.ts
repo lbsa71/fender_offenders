@@ -36,11 +36,11 @@ const fixtures=createServer((req,res)=>{
    c.state.arrestTicks=0;c.state.contenderTicks=[];c.state.pursuit.progress=0;c.state.pursuit.state='chasing';c.state.pursuit.arrestingPlayerId=null;c.state.pursuit.contenders=[];
    sim.restore(c);
  }else if(route[2]==='gadget'){
-   const stage=Number(route[3]);if(stage!==5&&stage!==6){res.writeHead(400).end();return;}
+   const stage=Number(route[3]);if(stage!==5&&stage!==6&&stage!==7){res.writeHead(400).end();return;}
    const suspect=c.state.records.find(r=>r.vehicle.entityId===c.state.pursuit?.suspectId)!;
    c.state.phase='playing';c.state.phaseEnd=c.tick+2000;c.state.campaign.dispatchIndex=stage;c.state.projectiles=[];c.state.grenades=[];c.state.gadgets=[];
    suspect.bossAi=undefined;suspect.vehicle.pose={x:0,z:-76,yaw:Math.PI/2};suspect.vehicle.velocity={x:3,z:0,yawRate:0};suspect.vehicle.protectedUntilTick=0;suspect.vehicle.discontinuityId++;
-   officer.vehicle.pose={x:stage===5?-14:-3,z:stage===5?-76:-72.5,yaw:Math.PI/2};officer.vehicle.velocity={x:9,z:0,yawRate:0};officer.vehicle.protectedUntilTick=0;officer.vehicle.discontinuityId++;
+   officer.vehicle.pose={x:stage===6?-3:-14,z:stage===6?-72.5:-76,yaw:Math.PI/2};officer.vehicle.velocity={x:9,z:0,yawRate:0};officer.vehicle.protectedUntilTick=0;officer.vehicle.discontinuityId++;
    c.state.records=c.state.records.filter(r=>r===suspect||r.vehicle.playerId!==null);sim.restore(c);
  }else{
    const suspect=c.state.records.find(r=>r.vehicle.entityId===c.state.pursuit?.suspectId)!;
