@@ -1,5 +1,7 @@
 # Contributors
 
+OpenAI Codex assistance, directed by Stefan Andersson, investigated the 2026-10-29 disappearing-car report, reproduced native WebGL program/sampler errors, added the synchronous shader-compilation compatibility policy for Babylon 9.32, and verified coachwork pixels independently of shadows/markers across model, light, quality and scene transitions.
+
 The five-storyline expansion includes OpenAI Codex assistance for four additional original clue chains, forty new suspects and SVG portraits, shared case selection and retention, case-aware UI/lighting, and observed catalog, simulation, real-client and local browser regression checks. Existing human and Claude Code credits remain below.
 
 *The motor pool runs on shared effort and an alarming number of incident reports.*

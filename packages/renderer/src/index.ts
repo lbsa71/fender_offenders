@@ -21,6 +21,7 @@ import { DrivingSoundTracker } from './driving-sound';
 import { buildCity } from './city';
 import { CarFactory, updateCarStatus, type CarVisual } from './cars';
 import {isModeledCar} from './modeled-car';
+import {requireMatchingMaterialShaders} from './material-readiness';
 import {crossedRoadBump,newCartoonMotion,stepCartoonMotion} from './deformation';
 import {createGaragePreview,type GaragePreview} from './garage';
 import {newVehicleFeedback,kickImpact,kickRecoil,stepVehicleFeedback} from './feedback';
@@ -55,6 +56,7 @@ export function createGameRenderer(canvas:HTMLCanvasElement,map:CollisionMap=dis
   const engine=new Engine(canvas,true,{preserveDrawingBuffer:true,stencil:true,powerPreference:'high-performance'},true);
   engine.setHardwareScalingLevel(Math.max(1,(window.devicePixelRatio||1)/Math.min(window.devicePixelRatio||1,settings.quality==='low'?1:1.5)));
   const scene=new Scene(engine);scene.useRightHandedSystem=true;
+  requireMatchingMaterialShaders(scene);
   scene.clearColor=Color4.FromHexString('#b8d1ceff');scene.ambientColor=Color3.FromHexString('#bdcbb7');
   scene.fogMode=Scene.FOGMODE_LINEAR;scene.fogColor=Color3.FromHexString('#b8d1ce');scene.fogStart=110;scene.fogEnd=235;
   scene.imageProcessingConfiguration.toneMappingEnabled=true;scene.imageProcessingConfiguration.toneMappingType=ImageProcessingConfiguration.TONEMAPPING_ACES;

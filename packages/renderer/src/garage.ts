@@ -13,8 +13,10 @@ import {TransformNode} from '@babylonjs/core/Meshes/transformNode';
 import {CarFactory,type CarVisual} from './cars';
 import {MeshBuilder} from './primitives';
 import {isModeledCar} from './modeled-car';
+import {requireMatchingMaterialShaders} from './material-readiness';
 export function createGaragePreview(engine:AbstractEngine,initialQuality:'low'|'medium'|'high'='high'){
   const scene=new Scene(engine);scene.metadata={kind:'garage-preview'};scene.useRightHandedSystem=true;
+  requireMatchingMaterialShaders(scene);
   scene.clearColor=Color4.FromHexString('#142b30ff');scene.ambientColor=Color3.FromHexString('#d9e0c7');
   scene.imageProcessingConfiguration.toneMappingEnabled=true;scene.imageProcessingConfiguration.toneMappingType=ImageProcessingConfiguration.TONEMAPPING_ACES;scene.imageProcessingConfiguration.exposure=1.05;
   const camera=new FreeCamera('garage-camera',new Vector3(5.6,3.8,-7),scene);camera.setTarget(new Vector3(0,1,0));camera.fov=.64;camera.minZ=.1;

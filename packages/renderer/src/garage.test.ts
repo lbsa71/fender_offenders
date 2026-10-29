@@ -5,6 +5,10 @@ let engine:NullEngine,garage:ReturnType<typeof createGaragePreview>;
 beforeEach(()=>{engine=new NullEngine();garage=createGaragePreview(engine);});
 afterEach(()=>{garage.dispose();engine.dispose();});
 describe('native garage turntable',()=>{
+  it('uses synchronous compilation for the shared preview engine to avoid stale programs',()=>{
+    garage.dispose();engine.getCaps().parallelShaderCompile={COMPLETION_STATUS_KHR:123};garage=createGaragePreview(engine);
+    expect(engine.getCaps().parallelShaderCompile).toBeUndefined();
+  });
   it('keeps the phone chase viewport above the DB5 selection cards',()=>{
     garage.dispose();engine.dispose();engine=new NullEngine({renderWidth:390,renderHeight:844,textureSize:512,deterministicLockstep:false,lockstepMaxSteps:4});garage=createGaragePreview(engine);
     garage.setBody('db5',false,'roadster',false);garage.update(0,true);
