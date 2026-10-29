@@ -1,5 +1,13 @@
 # Execution status and evidence
 
+## 2026-10-29 · Oil-buffer fix ready; publication blocked by existing browser checks
+
+The required pre-push gate on combined commit `ccaa494` finished **95 passed / 2 failed (13.5 minutes)**. Failures: `helicopter.spec.ts` expected `downed` but received `depart` after the unchanged 12-second shooting wait; the native `smog.spec.ts` fixture did not expose `body-hero` within its unchanged 12-second startup wait. Git rejected the push through its local hook; no bypass, assertion removal or timeout change was made. Consequently the fix is **not published or deployed**. Log: `work/gangster-oil-push.log`; full-run failure artifacts are preserved in `work/gangster-oil-push-failures`.
+
+For a bounded causal comparison, temporarily restored the previous UBO-enabled behavior in the compatibility helper and ran only those same two checks with the same browser/GPU configuration. **Both fail identically without the buffer mitigation** (`work/gangster-oil-control-browser.log`). Restored the compatibility change afterward and verified the helper matches its committed fixed source exactly. This establishes that these failures also occur on the old buffer path; it does not claim their root causes are diagnosed or their release requirements satisfied. Their test and gameplay sources remain untouched.
+
+Separately reran the complete `pnpm test:car-visibility` on the merged source: **1,237 clean native frames, 560 oil-bearing frames**, followed by Night Courier dispatches one through six and actual oil warning/active/expiry, all without captured GL warnings/error codes. Dispatch-six coachwork pixels: **1,780 / 1,779 / 1,837**. Log: `work/gangster-oil-combined-visibility.log`. The combined **1,090 headless tests** and type/documentation checks remain green. Pause under the owner's explicit instruction to avoid unrelated rabbit holes and pause when blocked. Hosted/CI validation of this fix remains pending a passing publication gate.
+
 ## 2026-10-29 · Buffer mitigation integrated with current smog/control main
 
 Merged published main `43f2b52` into the graphics worktree after the observed oil-dispatch RED/GREEN. Documentary conflicts retained both sets of evidence/credits and the owner's timing-policy decision. Compared the resulting client, contracts, simulation, UI, smog and road-gadget sources directly with published main: the concurrent behavior is unchanged. The compatibility helper, focused regression and existing graphics-acceptance work remain independently identified in the diff.
