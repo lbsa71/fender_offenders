@@ -1,5 +1,13 @@
 # Execution status and evidence
 
+## 2026-10-29 · Online graphics acceptance audit paused on host memory exhaustion
+
+The existing `polish-app-check.ts` failed before edits: it required `loose-change` while the current server legitimately selected `great-duck-out-duck`. The worktree-only harness update pins the original case through the trusted server option, checks the actual connected roster instead of the retired scoreboard, reads current authored themes (including snow), and catches WebGL warnings as well as page errors. It adds real UI/network retries after staged results, with two warmup retries and ten intended measured rematches; garage/leave loops are not counted as rematches.
+
+The updated run reached all ten dispatch checks and dropped-socket reconnect, wrote `work/graphics-polish-app-current/online-night.png`, and recorded eight measured retries at **3,990 meshes per client**. During retry nine, a separate new shell failed with `System.OutOfMemoryException` / `Failed to create CoreCLR`. The browser scenario was interrupted and its processes exited. This is incomplete acceptance evidence, not a passed ten-rematch or heap-stability result; the cause of whole-host memory exhaustion has not been isolated to the game. Raw logs: `work/polish-app-red.log` and `work/polish-app-current.log`. The harness edits remain uncommitted for review/resumption. Final `pnpm check` and `git diff --check` passed; no production behavior changed.
+
+Two remaining present-tense references to hardware performance approval were removed to match the owner's scope decision. Goal paused under the owner's explicit instruction to pause on problems; no unrelated changes or hardware benchmarks were touched.
+
 ## 2026-10-29 · Owner removes client hardware performance qualification
 
 The owner explicitly requested removal of the target/minimum-device tests and specifications after being asked to name acceptance machines. Retired the 1080p-medium mainstream-GPU target, 720p-low integrated-GPU minimum, named phone performance candidate, client frame-interval/FPS thresholds and hardware-approval dependency. The standalone graphics trace still reports timings, CPU/GPU, draw calls, transfer and scenario coverage as optional diagnostics, but its 20/33.3 ms p95 assertion is removed. No historical failing measurement is relabeled a pass. Current graphics/quality/implementation/product references reflect the changed scope; dated ledger and asset-handoff measurements remain historical.
