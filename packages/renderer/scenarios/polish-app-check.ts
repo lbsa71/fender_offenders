@@ -12,7 +12,19 @@ import type { Simulation } from '@fender/sim';
 const output = resolve(process.argv[2] ?? 'work/graphics-polish-app'); await mkdir(output, { recursive: true });
 process.env.ALLOWED_ORIGINS = 'http://127.0.0.1:5193';
 const server = await createGameServer(2587, '127.0.0.1', { campaignId: CAMPAIGN_ID });
-const vite = await createServer({ server: { port: 5193, strictPort: true, host: '127.0.0.1', hmr: false }, define: { 'import.meta.env.VITE_SERVER_URL': JSON.stringify('http://127.0.0.1:2587') } }); await vite.listen();
+const vite = await createServer({
+  server: { port: 5193, strictPort: true, host: '127.0.0.1', hmr: false },
+  define: { 'import.meta.env.VITE_SERVER_URL': JSON.stringify('http://127.0.0.1:2587') },
+  // Inspect the app's actual scene registries without shipping a new debug API.
+  plugins: [{ name: 'polish-resource-observer', transform(source, id) {
+    if (!id.replaceAll('\\', '/').endsWith('/apps/client/src/main.ts')) return;
+    return `${source}\nimport {EngineStore as PolishEngineStore} from '@babylonjs/core/Engines/engineStore';
+      Object.defineProperty(window, '__POLISH_RESOURCES__', {get: () => PolishEngineStore.Instances.flatMap(engine => engine.scenes).map(scene => ({
+        meshes: scene.meshes.length, materials: scene.materials.length, textures: scene.textures.length,
+        geometries: scene.geometries.length, transformNodes: scene.transformNodes.length, lights: scene.lights.length
+      }))});`;
+  } }],
+}); await vite.listen();
 const browser = await chromium.launch({ headless: true, ...(existsSync(chromium.executablePath()) ? {} : { executablePath: process.env.CHROME_PATH ?? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' }) });
 try {
   const hostContext = await browser.newContext({ viewport: { width: 960, height: 640 } }), guestContext = await browser.newContext({ viewport: { width: 960, height: 640 } });
@@ -32,7 +44,7 @@ try {
   await expect.poll(() => host.evaluate(() => (window as any).__FENDER_DEBUG__?.snapshot.phase)).toBe('playing');
   const roomId = await host.evaluate(() => (window as any).__FENDER_DEBUG__.identity.roomId);
   await guest.goto(host.url()); await guest.getByRole('button', { name: 'HIT THE STREETS' }).click();
-  for (const page of [host, guest]) await expect.poll(() => page.evaluate(() => (window as any).__FENDER_DEBUG__?.snapshot.scores.filter((score: any) => score.connection === 'connected').length)).toBe(2);
+  for (const page of [host, guest]) await expect.poll(() => page.evaluate(() => (window as any).__FENDER_DEBUG__?.snapshot?.scores.filter((score: any) => score.connection === 'connected').length)).toBe(2);
   const room = matchMaker.getLocalRoomById(roomId)!, sim = (room as unknown as { sim: Simulation }).sim;
   const themes = CAMPAIGN_DISPATCHES.map(dispatch => dispatch.theme);
   const observations = [];
@@ -60,7 +72,8 @@ try {
   // do not call sim.rematch or substitute ten garage/leave loops for ten rematches.
   // Warm two retries before measuring to exclude lazy shader/model/cache allocation.
   const sessions = await Promise.all([host, guest].map(page => page.context().newCDPSession(page)));
-  const rematches: { cycle: number; host: { meshes: number; heap: number }; guest: { meshes: number; heap: number } }[] = [];
+  type Sample = { meshes: number; heap: number; resources: Record<string, number>[] };
+  const rematches: { cycle: number; host: Sample; guest: Sample }[] = [];
   for (let cycle = -2; cycle < 10; cycle++) {
     expect(freemem(), 'stop and clean up before exhausting host memory').toBeGreaterThan(1024 ** 3);
     const checkpoint = sim.checkpoint();
@@ -81,7 +94,9 @@ try {
     for (const [index, page] of [host, guest].entries()) {
       await sessions[index]!.send('HeapProfiler.collectGarbage');
       const heap = await sessions[index]!.send('Runtime.getHeapUsage');
-      samples.push({ meshes: await page.evaluate(() => (window as any).__FENDER_DEBUG__.stats.renderer.totalMeshes), heap: heap.usedSize });
+      const resources = await page.evaluate(() => (window as any).__POLISH_RESOURCES__) as Record<string, number>[];
+      expect(resources.length, 'observe both the actual district and garage scenes').toBe(2);
+      samples.push({ meshes: await page.evaluate(() => (window as any).__FENDER_DEBUG__.stats.renderer.totalMeshes), heap: heap.usedSize, resources });
     }
     rematches.push({ cycle: cycle + 1, host: samples[0]!, guest: samples[1]! });
     await writeFile(join(output, 'rematches.json'), JSON.stringify(rematches, null, 2));
@@ -92,10 +107,11 @@ try {
     const baseline = rematches[0]![peer];
     // Mesh resources must remain bounded; GC heap may fluctuate with active snapshots.
     expect(Math.max(...rematches.map(sample => sample[peer].meshes))).toBeLessThanOrEqual(baseline.meshes);
+    for (const sample of rematches) expect(sample[peer].resources).toEqual(baseline.resources);
     expect(rematches.at(-1)![peer].heap).toBeLessThanOrEqual(baseline.heap * 1.1);
     expect(rematches.slice(1).every((sample, index) => sample[peer].heap > rematches[index]![peer].heap)).toBe(false);
   }
   expect(errors).toEqual([]);
-  await writeFile(join(output, 'evidence.json'), JSON.stringify({ browser: browser.version(), observations, rematches, errors, scope: 'Actual solo and two-browser unified Colyseus room; dispatch indices/results staged through authority checkpoints, real UI/network rematches, not a human ten-dispatch playthrough. GC browser heap and mesh counts cover client cleanup, not GPU allocation bytes.' }, null, 2));
+  await writeFile(join(output, 'evidence.json'), JSON.stringify({ browser: browser.version(), observations, rematches, errors, scope: 'Actual solo and two-browser unified Colyseus room; dispatch indices/results staged through authority checkpoints, real UI/network rematches, not a human ten-dispatch playthrough. GC browser heap and retained scene mesh/material/texture/geometry/node/light registries cover client cleanup, not GPU allocation bytes.' }, null, 2));
   console.log(JSON.stringify({ output, dispatches: 10, reconnect: true, rematches: rematches.length, errors }));
 } finally { await browser.close(); await vite.close(); await server.gracefullyShutdown(false); }

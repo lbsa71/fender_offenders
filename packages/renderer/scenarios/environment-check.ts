@@ -14,7 +14,7 @@ try {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error' && /shader|compile|uniform/i.test(m.text())) errors.push(m.text()); });
   await page.addInitScript('window.__name=(fn)=>fn');
-  await page.goto('http://127.0.0.1:5184');
+  await page.goto(process.env.RENDER_SCENARIO_URL ?? 'http://127.0.0.1:5184');
   await page.waitForFunction(() => !!(window as any).fixture?.gameScene.getTransformNodeByName('body-hero'));
   await page.evaluate(() => {
     const f = (window as any).fixture; f.pause();

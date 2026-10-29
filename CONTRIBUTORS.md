@@ -71,3 +71,5 @@ OpenAI Codex assistance, directed by Stefan Andersson, integrated Night Courier 
 OpenAI Codex assistance, directed by Stefan Andersson, reconciled the graphics acceptance plan and diagnostic trace with the owner's 2026-10-29 removal of target/minimum-device performance qualification, preserving functional regressions and dated measurements.
 
 OpenAI Codex assistance, directed by Stefan Andersson, updated the 2026-10-29 online graphics acceptance harness for current case selection, roster and winter themes, with real reconnect/rematch checks, incremental memory evidence and a host-memory stop condition.
+
+OpenAI Codex assistance, directed by Stefan Andersson, expanded native and real-app oil-dispatch diagnostics on 2026-10-29 and added test-only retained-resource observations. The owner's recurring car-visibility failure remains unresolved; passing attempted reproductions are not credited as a fix.

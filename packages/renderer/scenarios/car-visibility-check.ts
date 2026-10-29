@@ -23,6 +23,19 @@ try{
     f.frame.vehicles[1].status=i%6<3?'active':'respawning';f.renderer.setSettings({quality:i%8<4?'medium':'low'});await step();
    }
   }
+  // Regression route: first oil dispatch, warning -> live slick -> expiry,
+  // both scenes, all body/material families, and every graphics preset.
+  let oilFrames=0;
+  for(const body of ['patrol','interceptor','roadster','army','ambulance','fire-chief','db5','gangster']){
+   f.frame.vehicles[0].bodyAssetId=body;f.frame.vehicles[1].bodyAssetId='fire-chief';f.frame.vehicles[1].status='active';
+   f.renderer.setDispatch('false-alarm');f.renderer.setGaragePreview(body);for(let i=0;i<12;i++)await step();f.renderer.setGaragePreview(null);
+   for(let i=0;i<90;i++){
+    f.frame.serverTick=1100+i;f.frame.vehicles[0].pose.z=-43+i*.12;f.frame.cameraTarget.z=f.frame.vehicles[0].pose.z;
+    f.frame.gadgets=Array.from({length:8},(_,j)=>({entityId:`oil-${j}`,ownerEntityId:j%2?'hero':'peer',kind:'oil',pose:{x:j%2?4:-4,z:-43+j*2,yaw:0},bornTick:1100,activeAtTick:1120,expiresTick:1170}));
+    f.renderer.setSettings({quality:['low','medium','high'][Math.floor(i/30)]});await step();if(f.renderer.getStats().oilSlicks>0)oilFrames++;
+   }
+  }
+  f.frame.gadgets=[];f.frame.vehicles[0].pose.z=-43;f.frame.cameraTarget.z=-40;
   f.renderer.setDispatch('stamp-duty');f.frame.vehicles[0].bodyAssetId='gangster';f.frame.vehicles[1].status='active';
   for(let i=0;i<40;i++)await step();
   // Count actual coachwork pixels without accepting its still-visible shadow/marker.
@@ -36,10 +49,11 @@ try{
    let pixels=0;for(let i=0;i<shown.length;i+=4)if(Math.abs(shown[i]-hidden[i])+Math.abs(shown[i+1]-hidden[i+1])+Math.abs(shown[i+2]-hidden[i+2])>35)pixels++;
    visibility.push({body,pixels});await step();
   }
-  return{frames,codes,visibility,stats:f.renderer.getStats()};
+  return{frames,oilFrames,codes,visibility,stats:f.renderer.getStats()};
  });
  await page.screenshot({path:resolve(output,'car.png')});await writeFile(resolve(output,'evidence.json'),JSON.stringify({evidence,errors},null,2));
  assert.deepEqual(errors,[],'scene/light/model transitions must not generate WebGL errors');assert.deepEqual(evidence.codes,[],'every rendered frame must have a clean WebGL context');
+ assert.ok(evidence.oilFrames>=8*60,'all eight bodies must render through actual oil warning and active phases');
  for(const car of evidence.visibility)assert.ok(car.pixels>100,`${car.body} coachwork must render, independently of its shadow/marker: ${car.pixels} pixels`);
  console.log(JSON.stringify(evidence));
 }finally{await browser.close();await server.close();}
