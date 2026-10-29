@@ -6,10 +6,11 @@ const actions = [
   ['siren','SIREN','E','X','SIREN'],['recover','HOLD TO RECOVER','R','Y','RECOVER'],['fire','FIRE','SPACE','RB','FIRE'],
 ] as const;
 const keyName=(key:string)=>key.replace(/^Key/,'').replace(/^Digit/,'').replace(/Left$|Right$/,'').replace('ArrowUp','↑').replace('ArrowDown','↓').replace('ArrowLeft','←').replace('ArrowRight','→').toUpperCase();
-export function controlHints(device:DeviceKind,bindings:Record<string,string[]>,guns:boolean,weapons:{bombsEnabled?:boolean;oilEnabled?:boolean;bladesEnabled?:boolean}={}){
+export function controlHints(device:DeviceKind,bindings:Record<string,string[]>,guns:boolean,weapons:{bombsEnabled?:boolean;oilEnabled?:boolean;bladesEnabled?:boolean}={},previous?:{gunsEnabled:boolean;bombsEnabled?:boolean;oilEnabled?:boolean;bladesEnabled?:boolean}):{action:string;label:string;glyph:string}[]{
  const hints=actions.filter(([action])=>(action!=='fire'||guns)&&(action!=='bomb'||weapons.bombsEnabled)&&(action!=='oil'||weapons.oilEnabled)&&(action!=='blades'||weapons.bladesEnabled)).map(([action,label,key,pad,touch])=>({action,label,glyph:device==='touch'?touch:device==='gamepad'?pad:action==='steer'?[...(bindings.left??['KeyA']),...(bindings.right??['KeyD'])].map(keyName).join(' '):(bindings[action]?.map(keyName).join(' / ')??key)}));
- if(device==='keyboard')return hints;
- return [{action:'drive',label:'PULL TOWARD WHERE YOU WANT TO GO',glyph:device==='touch'?'DRAG':'L'},...hints.filter(h=>h.action!=='steer'&&(device!=='touch'||h.action!=='throttle'&&h.action!=='brakeReverse'))];
+ const current=device==='keyboard'?hints:[{action:'drive',label:'PULL TOWARD WHERE YOU WANT TO GO',glyph:device==='touch'?'DRAG':'L'},...hints.filter(h=>h.action!=='steer'&&(device!=='touch'||h.action!=='throttle'&&h.action!=='brakeReverse'))];
+ const known=new Set(previous?controlHints(device,bindings,previous.gunsEnabled,previous).map(h=>h.action):[]);
+ return current.filter(h=>!known.has(h.action));
 }
 export function placeControlCard(anchor:{x:number;y:number},width:number,height:number,cardWidth:number,cardHeight:number,target:{x:number;y:number}|null){
  const clamp=(v:number,min:number,max:number)=>Math.max(min,Math.min(Math.max(min,max),v));

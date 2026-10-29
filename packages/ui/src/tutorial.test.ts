@@ -1,5 +1,17 @@
 import { expect, it } from 'vitest';
 import { controlHints, placeControlCard } from './tutorial';
+import { getDispatchFeatures } from '@fender/contracts';
+
+it.each(['keyboard', 'gamepad', 'touch'] as const)('diffs each dispatch against the previous equipment on %s', device => {
+ const expected = [null, [], ['fire'], [], ['bomb'], [], [], ['oil'], ['blades'], []];
+ for (let stage = 0; stage < 10; stage++) {
+  const current = getDispatchFeatures(stage), previous = stage ? getDispatchFeatures(stage - 1) : undefined;
+  const hints = controlHints(device, { fire: ['KeyF'], oil: ['KeyK'] }, current.gunsEnabled, current, previous);
+  if (stage === 0) expect(hints.some(h => h.action === 'handbrake')).toBe(true);
+  else expect(hints.map(h => h.action), `dispatch ${stage + 1}`).toEqual(expected[stage]);
+  if (stage === 7 && device === 'keyboard') expect(hints[0]?.glyph).toBe('K');
+ }
+});
 it('explains screen-direction driving on touch and controller without teaching backward-stick reverse',()=>{
  for(const device of ['touch','gamepad'] as const){
   const hints=controlHints(device,{},false);

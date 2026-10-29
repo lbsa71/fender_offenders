@@ -9,10 +9,56 @@ async function fixture(page: Page) {
   await expect(page.getByRole('heading', { name: "You're on duty." })).toBeVisible();
 }
 const enter = (page: Page) => page.getByRole('button', { name: 'HIT THE STREETS' }).click();
+const campaignStage = (page: Page, index: number, phase = 'playing', matchId = `dispatch-${index}`) => page.evaluate(({index, phase, matchId}) => {
+  const {ui, snapshot} = (window as any).fixture;
+  ui.update({snapshot: {...snapshot, matchId, phase, campaign: {campaignId: 'green-light-racket-v1', dispatchIndex: index, status: 'active', outcomes: []}}, status: {state: 'playing'}});
+}, {index, phase, matchId});
 const update = (page: Page, phase = 'playing', device = 'keyboard', state = 'playing') => page.evaluate(({ phase, device, state }) => {
   const { ui, snapshot } = (window as any).fixture;
   ui.update({ snapshot: { ...snapshot, phase }, device, status: { state } });
 }, { phase, device, state });
+
+test('each dispatch shows only new keys for eight active seconds, retaining the complete oil binding in help', async ({page}) => {
+  await fixture(page); await enter(page); await campaignStage(page, 0);
+  const card = page.locator('[data-tutorial-controls]');
+  await expect(card.locator('[data-control="throttle"]')).toBeVisible();
+  await page.clock.runFor(8000); await expect(card).toBeHidden();
+  for (const [stage, action, key] of [[2,'fire','SPACE'],[4,'bomb','B'],[7,'oil','Q'],[8,'blades','C']] as const) {
+    await campaignStage(page, stage, 'lobby'); await page.clock.fastForward(10000);
+    await expect(card).toBeHidden(); await campaignStage(page, stage);
+    await expect(card).toBeVisible();
+    await expect(card.locator('[data-control]')).toHaveCount(1);
+    await expect(card.locator(`[data-control="${action}"] kbd`)).toHaveText(key);
+    await page.clock.runFor(4000); await campaignStage(page, stage);
+    await page.keyboard.press('Escape'); await page.clock.fastForward(10000); await page.keyboard.press('Escape');
+    await page.clock.runFor(3999); await expect(card).toBeVisible();
+    await page.clock.runFor(1); await expect(card).toBeHidden();
+    await page.evaluate(() => (window as any).fixture.ui.update({device: 'gamepad'}));
+    await campaignStage(page, stage); await expect(card).toBeHidden();
+    await page.evaluate(() => (window as any).fixture.ui.update({device: 'keyboard'}));
+  }
+  await campaignStage(page, 9); await expect(card).toBeHidden();
+  await page.keyboard.press('Escape'); await page.getByRole('button', {name:'CONTROLS HELP', exact:true}).click();
+  await expect(page.locator('.fo-help-view [data-control="oil"] kbd')).toHaveText('Q');
+  await expect(page.locator('.fo-help-view [data-control="oil"]')).toHaveCount(2);
+});
+
+test('direct dispatch entry and retry show the new remapped oil key, with controller graphics on device change', async ({page}, info) => {
+  await fixture(page); await enter(page);
+  await page.evaluate(() => (window as any).fixture.ui.setSettings({bindings: {oil:['KeyK']}}));
+  await campaignStage(page, 7);
+  const card = page.locator('[data-tutorial-controls]');
+  await expect(card.locator('[data-control]')).toHaveCount(1);
+  await expect(card.locator('[data-control="oil"] kbd')).toHaveText('K');
+  await page.clock.runFor(3000);
+  await page.evaluate(() => (window as any).fixture.ui.update({device:'gamepad'}));
+  await expect(card.getByRole('img', {name:'Left stick button'})).toBeVisible();
+  await page.clock.runFor(5000); await expect(card).toBeHidden();
+  await campaignStage(page, 7, 'results'); await campaignStage(page, 7, 'lobby'); await page.clock.fastForward(10000);
+  await campaignStage(page, 7); await expect(card).toBeVisible();
+  await page.screenshot({path: info.outputPath('new-oil-control.png')});
+  await page.clock.runFor(8000); await expect(card).toBeHidden();
+});
 
 test('controls tutorial disappears after eight seconds and stays dismissed through updates and dispatches', async ({ page }) => {
   await fixture(page); await enter(page);

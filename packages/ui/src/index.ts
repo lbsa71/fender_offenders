@@ -129,6 +129,11 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   let tutorialRemaining = 8000;
   let tutorialStarted: number | null = null;
   let tutorialTimer: ReturnType<typeof setTimeout> | undefined;
+  let tutorialDispatchKey = '';
+  let tutorialHasControls = false;
+  function resetTutorial() {
+    clearTimeout(tutorialTimer); tutorialStarted = null; tutorialRemaining = 8000;
+  }
   let controlsViewKey = '';
   function updateControls() {
     updateTutorial();
@@ -136,7 +141,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     const weapons=campaign?getDispatchFeatures(campaign.dispatchIndex):null;
     const guns = weapons?.gunsEnabled ?? true;
     const reminder = currentReminder();
-    const key = JSON.stringify([device, settings.bindings, guns, reminder]);
+    const key = JSON.stringify([device, settings.bindings, weapons, guns, reminder]);
     if (key !== controlsViewKey) {
       controlsViewKey = key;
       help.querySelector('[data-keyboard-controls]')!.replaceChildren(keyboardControls(doc, settings.bindings));
@@ -145,7 +150,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
       helpLesson.textContent = reminder; helpLesson.hidden = !reminder;
     }
     const visible = device !== 'touch' && !disposed && !doc.hidden && menu === null && model.snapshot?.phase === 'playing' && !model.snapshot.paused && !model.error
-      && (model.mode !== 'online' || statusName(model.status) === 'playing') && tutorialRemaining > 0;
+      && (model.mode !== 'online' || statusName(model.status) === 'playing') && tutorialHasControls && tutorialRemaining > 0;
     if (!visible && tutorialStarted !== null) {
       tutorialRemaining = Math.max(0, tutorialRemaining - ((view?.performance.now() ?? Date.now()) - tutorialStarted));
       tutorialStarted = null; clearTimeout(tutorialTimer);
@@ -194,10 +199,11 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   }
   function updateTutorial(){
     const campaign=model.snapshot?.campaign,features=campaign?getDispatchFeatures(campaign.dispatchIndex):null,guns=features?.gunsEnabled??Boolean(model.snapshot);
+    if(model.snapshot){const dispatchKey=JSON.stringify([model.snapshot.matchId,campaign?.campaignId,campaign?.dispatchIndex]);if(dispatchKey!==tutorialDispatchKey){tutorialDispatchKey=dispatchKey;resetTutorial();}}
     touchControls.setGunsEnabled(guns);touchControls.setWeaponsEnabled(features??{});
-    controls.classList.toggle('fo-snow-controls',features?.winterRoads===true);
-    const reminder=features?.winterRoads?'SNOW + ICE: brake early. Frozen puddles are even slicker. Steer gently.':campaign&&campaign.dispatchIndex>0?briefLesson(campaign.dispatchIndex):'',device=controlDevice(),hints=controlHints(device,settings.bindings,guns,features??{}),key=JSON.stringify({device,hints,reminder});
-    if(key!==controlKey){controlKey=key;controls.replaceChildren(controlGraphics(doc,hints,device));if(reminder){const tip=doc.createElement('p');tip.dataset.controlLesson='';tip.textContent=reminder;controls.append(tip);}const tip=doc.createElement('small');tip.className='fo-tutorial-dismiss';tip.textContent=(device==='gamepad'?'MENU':'ESC')+' · CONTROLS';controls.append(tip);}
+    const isUnlock=Boolean(campaign&&campaign.dispatchIndex>0),device=controlDevice(),previous=isUnlock?getDispatchFeatures(campaign!.dispatchIndex-1):undefined,hints=controlHints(device,settings.bindings,guns,features??{},previous),key=JSON.stringify({device,hints,isUnlock});
+    tutorialHasControls=hints.length>0;controls.classList.toggle('fo-new-controls',isUnlock);
+    if(key!==controlKey){controlKey=key;const title=doc.createElement('strong');title.className='fo-controls-title';title.textContent=isUnlock?'NEW CONTROLS':'DRIVING CONTROLS';controls.replaceChildren(title,controlGraphics(doc,hints,device));const tip=doc.createElement('small');tip.className='fo-tutorial-dismiss';tip.textContent=(device==='gamepad'?'MENU':'ESC')+' · ALL CONTROLS';controls.append(tip);}
     for(const [action,enabled] of [['fire',guns],['bomb',features?.bombsEnabled],['oil',features?.oilEnabled],['blades',features?.bladesEnabled]]){const button=one(`[data-binding="${action}"]`);if(button.parentElement)button.parentElement.hidden=!enabled;}
     const cooldown=Math.max(0,Math.ceil(((model.snapshot?.local?.driver.nextDeployTick??0)-(model.snapshot?.serverTick??0))/60));
     write('ammo',cooldown?`GEAR ${cooldown}s`:'');hide('[data-text="ammo"]',!features?.bombsEnabled||cooldown===0);positionControls();
@@ -493,6 +499,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   function update(next: UiModel) {
     const previousReason=typeof model.status==='object'?model.status.reason:undefined;
     const previousPaused=model.snapshot?.paused; const previousEpoch = model.snapshot?.sessionEpoch, previousResult = hasResult(), previousDispatch = model.snapshot?.campaign?.dispatchIndex; const wasLobby = lobby(); model = { ...model, ...next };
+    if(previousResult && !hasResult() && model.snapshot?.campaign)resetTutorial();
     if (wasLobby && !lobby() && model.snapshot?.campaign) { clearTimeout(toastTimer); hide('.fo-toast', true); }
     if (wasLobby !== lobby()) callbacks.onMenuVisibility?.(menu !== null || lobby());
     const leavingWithPending = wasLobby && !lobby() && awaitingVehicle !== null;

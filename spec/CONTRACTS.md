@@ -75,6 +75,8 @@ The `arcade-v23` / protocol 5 DB5 follow-up adds `db5` to `VehicleBodyId` and th
 
 ## 2. Device input and commands
 
+The 2026-10-29 UI follow-up derives its eight-second driving hover from the authoritative campaign stage minus the preceding stage. The opener teaches driving; later hovers introduce only guns (3), bombs (5), oil (8) or blades (9). No new actions means no card. Paused/nonplaying play suspends the timer; a new case, dispatch or retry resets it, while ordinary snapshots/device changes do not. Full unlocked controls and reminders remain in Controls Help. Existing Q / left-stick press / OIL deployment and authority are unchanged; no gameplay revision or wire field changes.
+
 ```ts
 type DeviceKind = "keyboard" | "gamepad" | "touch";
 type ControlScheme = "auto" | DeviceKind;

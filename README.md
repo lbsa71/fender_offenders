@@ -82,7 +82,7 @@ Twenty-four cosmetic pedestrians walk sidewalks, wait for safe crossing gaps and
 
 Choose **Control scheme** in **Settings & controls**: **Automatic**, **Touch**, **Controller** or **Keyboard**. The choice persists. Automatic starts with touch on devices reporting touch support, otherwise keyboard; using a controller or keyboard switches the active device. Tap the play area to return to touch. An explicit choice keeps the driving source and overlay fixed. Touch controls appear during driving and hide in menus, briefings, results and lost connections. No touchscreen detection relies on an iPad name tag.
 
-The labeled touch controls replace the floating keyboard/controller card. Fire and Drift + Fire appear when the campaign unlocks guns in dispatch 2; the first dispatch remains an unarmed arrest lesson.
+The labeled touch controls replace the floating keyboard/controller card. Fire and Drift + Fire appear when the campaign unlocks guns in dispatch 3; dispatches 1–2 keep police guns locked. The eight-second driving hover teaches the opener, then shows only newly introduced controls at each dispatch: guns in 3, bombs in 5, oil in 8 and blades in 9. It pauses in menus and restarts for a new dispatch or retry. Controls Help retains the full unlocked layout and weapon reminders.
 
 | Action | Keyboard | Standard controller | Touch |
 | --- | --- | --- | --- |
@@ -91,6 +91,9 @@ The labeled touch controls replace the floating keyboard/controller card. Fire a
 | Brake / reverse | S / Down | Left trigger | Hold Drift to slow into a turn |
 | Handbrake | Shift | A / south button | Hold Drift |
 | Fire | Space | Right shoulder | Hold Fire; Drift + Fire holds both |
+| Throw bomb (dispatch 5+) | B | Left shoulder | Tap BOMB |
+| Drop oil behind (dispatch 8+) | Q | Left-stick press | Tap OIL |
+| Extend blades (dispatch 9+) | C | Right-stick press | Tap BLADES |
 | Siren | E | X / west button | Tap Siren |
 | Recover a stuck car | Hold R for one second | Hold Y / north button for one second | Hold Recover for one second |
 | Pause / settings | Escape | Menu / Start | Pause button |

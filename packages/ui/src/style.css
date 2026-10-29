@@ -325,7 +325,8 @@
  .fo-ui.fo-campaign-results .fo-results>[data-action=leave]{order:2}
 }
 
-.fo-prompts[data-tutorial-controls].fo-snow-controls{width:330px;grid-template-columns:repeat(3,minmax(0,1fr))}
+.fo-prompts[data-tutorial-controls].fo-new-controls{width:200px;grid-template-columns:1fr}
+.fo-controls-title{grid-column:1/-1;font-size:9px;color:var(--yellow)}
 .fo-vehicle-choice{display:block;max-width:100%;margin-top:.5rem;padding:.35rem .5rem;border:1px solid #81968a;background:#f0e6cf;color:#183c40;font:inherit;font-size:.8rem;}
 
 @media(max-width:740px) and (min-height:600px){.fo-ui .fo-garage[data-vehicle=db5] [data-text=vehicle-name]{font-size:15px;white-space:nowrap}}
