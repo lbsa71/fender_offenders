@@ -60,17 +60,15 @@ Vitest and Playwright are installed and versioned in the root manifest/lockfile.
 | HUD cost | Repeated target-badge positioning must keep style recalculation bounded for a live dispatch; Chromium CDP regression is separate from sustained frame-budget acceptance |
 | Operations | Healthy start, port conflict, capacity limit, graceful drain, shutdown message, rollback/content compatibility |
 
-## 4. Reference hardware and browser matrix
+## 4. Browser and input compatibility
 
-The current development-machine details and scoped measurements are in [execution status](EXECUTION_STATUS.md). Formal target/minimum-device approval, exact release-browser builds and power-mode metadata remain incomplete. Figures below remain acceptance targets unless the ledger explicitly records a matching measured scenario.
+Owner scope change, 2026-10-29: target/minimum-client-device qualification and hardware-specific FPS/frame-time gates are removed. There is no required mainstream-GPU target, integrated-GPU laptop minimum or named phone performance candidate. Record browser/backend/settings with diagnostic evidence when useful; approval of a hardware list is not a release dependency. Existing dated device measurements remain history, not current acceptance thresholds.
 
-Initial categories:
+Functional compatibility remains:
 
-- Target: mainstream desktop or laptop GPU, 1920×1080, medium preset, 60 fps target.
-- Minimum candidate: an available integrated-GPU laptop, 1280×720 or dynamic render scale, low preset, 30 fps minimum.
 - Compatibility: Windows Chrome/Edge and Firefox; macOS Safari and Chrome. Test browser versions available at release and record exact builds.
-- Small-phone candidate: iPhone SE 2020/2022 with touch or a standard-mapped controller. Chromium DPR-2 layout checks cover 375×667, 667×375 and reduced visible height at 667×290, including entry, briefing, live HUD, pause and settings. Require all driving targets to remain at least 44 CSS pixels and clear of visible HUD panels; keep health visible and HUD panels separated. Real iPhone Safari, viewport changes while browser controls/keyboard appear, controller pairing and sustained on-device performance remain unverified. The original 2016 SE needs its own browser/runtime and hardware acceptance.
-- Compact HUD: at widths up to 740 CSS pixels or heights up to 420, retain health, timer, audio knob, pause and one suspect marker with distance/guidance/local progress. At the tested 375×667, 667×290 and 844×390 viewports, their combined rectangular bounds, including the audio knob, must occupy no more than 10% of the screen, excluding touch controls. Verify touch/controller/keyboard parity, paused dispatch details/standings/help/sharing, restoration of desktop objective/branding/sharing, directional edge placement and connection-trouble visibility. This is a local layout criterion, separate from hardware/performance acceptance.
+- Small-screen touch layouts: Chromium DPR-2 checks cover 375×667, 667×375 and reduced visible height at 667×290, including entry, briefing, live HUD, pause and settings. Require driving targets to remain at least 44 CSS pixels and clear of visible HUD panels; keep health visible and HUD panels separated. These are functional layout requirements, not qualification of a named phone or its sustained performance.
+- Compact HUD: at widths up to 740 CSS pixels or heights up to 420, retain health, timer, audio knob, pause and one suspect marker with distance/guidance/local progress. At the tested 375×667, 667×290 and 844×390 viewports, their combined rectangular bounds, including the audio knob, must occupy no more than 10% of the screen, excluding touch controls. Verify touch/controller/keyboard parity, paused dispatch details/standings/help/sharing, restoration of desktop objective/branding/sharing, directional edge placement and connection-trouble visibility. This is a functional layout criterion; it does not impose a hardware performance requirement.
 - Input: one real standard-mapped Xbox-style controller and one additional available controller family. Record whether the browser reports standard mapping. Do not advertise untested controller models.
 - Renderer: WebGL2 on each release browser; WebGPU only on supported tested combinations. Simulate capability absence to verify fallback at startup.
 
@@ -78,24 +76,22 @@ If WebGPU initialization fails, reconstruct the renderer using WebGL2 and the sa
 
 ## 5. Performance gates
 
-Measure in a production build after warmup, over a five-minute route/combat scenario. Include eight player vehicles, configured traffic, shots, smoke, shadows, and UI. Record percentiles, not just average fps.
+Optional graphics diagnostics use a production build after warmup, normally a five-minute route/combat trace with eight player vehicles, traffic, shots, smoke, shadows and UI where applicable. Record percentiles and scenario scope. Client frame timings are measurements, not hardware-specific pass/fail criteria. Server, network, transfer and memory checks below remain required.
 
-The [graphics polish plan](GRAPHICS_POLISH.md) adds all three dispatch atmospheres and continuous illumination from every upright street lamp on all presets. One cached 512×512 field avoids per-lamp shader light limits and camera proximity cutoffs. Its native `environment-check.ts` fixture records same-camera captures, actual visible-road pixel brightening, camera/preset stability, browser/device/source metadata, resource reuse and low-night readability. The `codex/graphics-polish` worktree's `polish-check.ts` adds shallow-water pixels/captures, source occlusion, reduced effects and ten garage/leave resource cycles; `polish-app-check.ts` checks all ten shared dispatch themes and actual reconnect. `polish-performance.ts` combines the production-bundled renderer, water, light detail, gunfire, grenades and eight full assembly wrecks. Its renderer trace does not establish server/network/full-HUD or minimum-device gates. Isolated attractive stills cannot establish Q05; owner visual acceptance and the named-device/browser matrix remain required.
+The [graphics polish plan](GRAPHICS_POLISH.md) adds all three dispatch atmospheres and continuous illumination from every upright street lamp on all presets. One cached 512×512 field avoids per-lamp shader light limits and camera proximity cutoffs. Its native `environment-check.ts` fixture records same-camera captures, actual visible-road pixel brightening, camera/preset stability, browser/device/source metadata, resource reuse and low-night readability. The `codex/graphics-polish` worktree's `polish-check.ts` adds shallow-water pixels/captures, source occlusion, reduced effects and ten garage/leave resource cycles; `polish-app-check.ts` checks all ten shared dispatch themes and actual reconnect. `polish-performance.ts` combines the production-bundled renderer, water, light detail, gunfire, grenades and eight full assembly wrecks. Its renderer trace does not establish server/network/full-HUD correctness or ten-rematch memory stability. Isolated attractive stills cannot establish Q05; owner visual acceptance and functional browser/input compatibility remain required. There is no target/minimum-device timing gate.
 
 | Metric | Initial target / gate |
 | --- | --- |
-| Target-device frame interval | Median at or below 16.7 ms; p95 at or below 20 ms; investigate repeated >50 ms stalls |
-| Minimum-device frame interval | p95 at or below 33.3 ms on low preset |
 | Local input response | Applied next sim tick; no network wait; trace input-to-present under representative load |
 | Server room step | p95 below 4 ms and p99 below 8 ms for the eight-player scenario on declared server hardware |
 | Server catch-up | No sustained backlog; log and fail the scenario if room time remains >250 ms behind for over 1 second |
 | Snapshot rate | 20 Hz baseline; report sustained drift or skipped publication under load |
 | Client bandwidth | Starting budget: <50 KB/s down and <10 KB/s up per client average after join; report peaks separately |
 | Initial transfer | <=15 MB compressed to first playable scene |
-| Cold start | Target <=8 seconds to a usable initial scene at 25 Mbps / 50 ms RTT on target hardware; measure download and decode/compile separately |
+| Cold start diagnostics | Record time to usable scene, download and decode/compile under stated network conditions when investigating loading; no client-device elapsed-time gate |
 | Memory stability | No monotonic growth across 10 rematches; compare retained objects/GPU resources after cleanup |
 
-Change a budget through measured evidence and a recorded decision, not by relabeling a failing test. Eight clients in one room is not proof of many-room server capacity. Publish measured room density and keep admission below a documented safety margin.
+The owner explicitly retired client hardware timing gates on 2026-10-29; this does not assert that former failures passed. Change remaining budgets through a recorded decision, not by relabeling a failing test. Eight clients in one room is not proof of many-room server capacity. Publish measured room density and keep admission below a documented safety margin.
 
 ## 6. Network profiles and acceptance
 

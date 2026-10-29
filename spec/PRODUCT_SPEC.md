@@ -158,7 +158,7 @@ Settings expose persisted Automatic, Touch, Controller and Keyboard schemes. Aut
 | P02 | Local steering responds within one simulation tick and is shown on the next render opportunity, without waiting for network acknowledgment | Input/tick/render trace |
 | P03 | Two remote players can join, damage each other, wreck, respawn, and rematch | Integration test plus human playtest |
 | P04 | Eight players complete a five-minute round with consistent scores and no duplicate damage | Bot load scenario and multi-client validation |
-| P05 | The first district stays within the agreed rendering/network/simulation budgets | Performance report on named reference hardware |
+| P05 | The district renders correctly with bounded graphics resources and meets the remaining network/simulation/transfer budgets | Functional rendering/resource checks plus network/simulation/transfer measurements; client frame timings are optional diagnostics |
 | P06 | Controller disconnect, browser blur, and reconnect do not leave stuck controls | Automated device-state tests plus manual controller test |
 | P07 | The game remains playable under the defined normal and stressed network profiles | Network report, correction traces, and playtest notes |
 | P08 | Every shipped asset has provenance and a recorded distribution license | Asset manifest audit |
@@ -171,6 +171,6 @@ MMO infrastructure, realistic vehicle simulation, destructible buildings, humano
 
 The [staged tutorial](TUTORIAL.md) specifies persistent device-aware control icons, authoritative arrest guidance, dual garage previews, the dispatch-3 police gun unlock and bomb warning and dispatch-4 slippery puddles. Tutorial state is shared by the room.
 
-Dispatch 9 is a snow chase through the same district. Roads, ground, roofs, tree tops, street furniture and car tops visibly collect snow, with blue packed roads and frozen puddles retaining route/hazard contrast. All vehicles get pronounced ice handling; frozen authored water has still less grip/braking. Early braking and gentle counter-steering are taught beside all retained weapon controls. Falling flakes are bounded and optional under reduced motion; static winter cover and physics remain. The next dispatch thaws the district. This local acceptance does not imply human difficulty or minimum-device performance approval.
+Dispatch 9 is a snow chase through the same district. Roads, ground, roofs, tree tops, street furniture and car tops visibly collect snow, with blue packed roads and frozen puddles retaining route/hazard contrast. All vehicles get pronounced ice handling; frozen authored water has still less grip/braking. Early braking and gentle counter-steering are taught beside all retained weapon controls. Falling flakes are bounded and optional under reduced motion; static winter cover and physics remain. The next dispatch thaws the district. Human difficulty review remains separate; target/minimum-device performance qualification was removed by the owner on 2026-10-29.
 
 Local winter acceptance now requires rounded, raised cartoon snow on roofs and props, plus ploughed destructible banks outside the carriageways with crossings open. Car, bullet and bomb impacts clear shared gaps without solid vehicle blockers; retries restore the piles.

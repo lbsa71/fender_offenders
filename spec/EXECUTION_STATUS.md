@@ -1,5 +1,11 @@
 # Execution status and evidence
 
+## 2026-10-29 · Owner removes client hardware performance qualification
+
+The owner explicitly requested removal of the target/minimum-device tests and specifications after being asked to name acceptance machines. Retired the 1080p-medium mainstream-GPU target, 720p-low integrated-GPU minimum, named phone performance candidate, client frame-interval/FPS thresholds and hardware-approval dependency. The standalone graphics trace still reports timings, CPU/GPU, draw calls, transfer and scenario coverage as optional diagnostics, but its 20/33.3 ms p95 assertion is removed. No historical failing measurement is relabeled a pass. Current graphics/quality/implementation/product references reflect the changed scope; dated ledger and asset-handoff measurements remain historical.
+
+Functional rendering and GL-warning/body-visibility regressions, browser/input/accessibility, resource caps/cleanup, actual-rematch memory and remaining server/network/transfer requirements stay intact. This is an owner-authorized test-policy/spec change, not a production behavior change; no artificial behavioral RED is required. Documentation/type checks and the exact removal diff are the relevant validation. No benchmark was started or claimed for this policy edit.
+
 ## 2026-10-29 · Disappearing-car shader compatibility regression
 
 The owner reported intermittent missing coachwork with its shadow/marker still visible, alongside WebGL invalid-program and undersized-uniform-buffer errors. A new real WebGL2 scenario reproduced `GL_INVALID_VALUE: glGetProgramiv: Program object expected` plus invalid draw/sampler bindings while changing model, preview/driving scene, light membership, theme and graphics quality. The first native RED captured 1281/1282 GL errors and repeated draw warnings; it did not reproduce the exact undersized-buffer wording. Earlier screenshot checks listened mainly for console errors, while Chrome reports these as warnings.

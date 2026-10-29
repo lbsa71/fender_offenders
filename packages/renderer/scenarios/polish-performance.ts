@@ -52,5 +52,5 @@ try {
   assert.ok(result.maxima.projectiles >= 16 && result.maxima.grenadeWarnings > 0 && result.maxima.grenadeBlasts > 0, 'the trace must exercise shots and grenade warnings/blasts');
   assert.ok(result.maxima.splashDrops > 0, 'the trace must exercise tire splashes through real water');
   assert.equal(result.maxima.helicopters, 1, 'the trace must include the active helicopter');
-  if (seconds >= 300 && headlights === 'normal') { assert.ok(summaries.all.p95Ms! <= (quality === 'low' ? 33.3 : 20), 'named-device frame interval gate failed; preserve evidence and investigate before acceptance'); }
+  // Owner policy, 2026-10-29: frame timings are diagnostics, not target/minimum-device gates.
 } finally { await browser.close(); await new Promise<void>(resolve => server.httpServer.close(() => resolve())); }
