@@ -1,5 +1,17 @@
 # Execution status and evidence
 
+## 2026-10-29 · Current mixed-vehicle combat fixture: functional coverage passes
+
+Ran the production-bundled action fixture for 36 diagnostic seconds, with eight officer vehicles (all current profiles), eight traffic cars and the active helicopter. DB5, Night Courier and helicopter model statuses were `ready`. Observed maxima: **335 exact-assembly physical wreck bodies, 16 projectiles, one grenade warning, three grenade blasts, 48 splash drops, one helicopter, one medium headlight and five source glints**. All existing functional coverage assertions passed and the captured page/shader-error list was empty. This fixture's console handler does not capture all WebGL warnings; the separate strict car-visibility check remains required.
+
+Browser: Chromium 156.0.8078.4, WebGL2 through SwiftShader, medium 1920×1080. Only 63 measured frames were produced; this is short functional coverage, not a sustained or physical-GPU performance result. Frame timings remain diagnostic under the owner's scope decision. Evidence: `work/polish-action-current.log` and `work/graphics-polish-action-current/evidence.json` / `frames.json`. No production code changed and no new behavioral RED was required for this unchanged scenario run.
+
+## 2026-10-29 · Online graphics audit resumed: ten real rematches pass
+
+After resumption, sufficient host memory was available. The isolated retry completed **ten dispatch themes (including dispatch-nine snow), real dropped-socket reconnect, and ten measured UI/network rematches after two warmup retries**, with no page errors or captured WebGL warnings. Both clients retained exactly **4,004 meshes** on every measured retry. GC heap changed from **134,122,308 to 138,080,180 bytes** for the host and **129,171,072 to 131,374,256 bytes** for the guest (under 3% growth, with intermediate decreases rather than strict monotonic growth). These are browser heap and mesh counts, not GPU allocation-byte measurements or a human campaign playthrough. The check now saves each sample immediately and stops before free host memory falls below 1 GiB.
+
+Observed RED before the harness correction was its obsolete fixed-case assertion: expected `loose-change`, received the server's valid random `great-duck-out-duck`. The updated harness explicitly selects the original case using the trusted server option, asserts the actual connected roster, derives themes from authored content, and uses bounded UI waits. No production behavior changed. Current GREEN evidence: `work/polish-app-retry.log`, `work/graphics-polish-app-retry/evidence.json`, `rematches.json`, and `online-night.png`. The earlier interrupted run remains historical evidence below. Combined combat/render correctness and remaining functional/visual acceptance are separate checks.
+
 ## 2026-10-29 · Online graphics acceptance audit paused on host memory exhaustion
 
 The existing `polish-app-check.ts` failed before edits: it required `loose-change` while the current server legitimately selected `great-duck-out-duck`. The worktree-only harness update pins the original case through the trusted server option, checks the actual connected roster instead of the retired scoreboard, reads current authored themes (including snow), and catches WebGL warnings as well as page errors. It adds real UI/network retries after staged results, with two warmup retries and ten intended measured rematches; garage/leave loops are not counted as rematches.

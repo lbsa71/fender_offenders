@@ -69,3 +69,5 @@ The 2026-10-28 Night Courier gangster sedan is original project geometry under G
 OpenAI Codex assistance, directed by Stefan Andersson, integrated Night Courier on 2026-10-28: the eighth shared vehicle profile, independent imported-model caches, radius-correct axle animation, normal gun unlocks and authored muzzles, material-preserving physical breakup, and observed test-first/real-adapter/browser checks. The original model's GPL source and the DB5's separate asset terms remain preserved.
 
 OpenAI Codex assistance, directed by Stefan Andersson, reconciled the graphics acceptance plan and diagnostic trace with the owner's 2026-10-29 removal of target/minimum-device performance qualification, preserving functional regressions and dated measurements.
+
+OpenAI Codex assistance, directed by Stefan Andersson, updated the 2026-10-29 online graphics acceptance harness for current case selection, roster and winter themes, with real reconnect/rematch checks, incremental memory evidence and a host-memory stop condition.
