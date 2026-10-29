@@ -133,6 +133,10 @@ The local `arcade-v20` winter scenery adds rounded roof frosting with shaded ove
 Winter geometry and its materials are created on first snow activation, then reused through thaw. Ordinary dispatches allocate no winter meshes; the native snow and headless resource checks cover both the cold and warmed paths.
 
 
+## WebGL2 material compatibility
+
+Babylon 9.32's WebGL2 material compatibility path disables parallel compilation and shared uniform buffers before driving/garage materials compile. Ordinary uniforms preserve the same rendering while avoiding invalid program and undersized-buffer draws observed across dispatch transitions. This may add CPU/compile cost. `pnpm test:car-visibility` checks warning/error-free rendering and body-only pixels, including Night Courier through dispatches one to six and actual oil warning/active/expiry snapshots from the server.
+
 ## Bouncing wreck tires
 
 Confirmed wrecks give the four original rubber tires separate round X-axis colliders, stronger seeded outward launches, individual spin and high rubber restitution. Tire horizontal launch speed is 7–13 m/s and lift is 4–7.5 m/s; panels retain their previous launch profile. Lower tire damping keeps rebounds and rolling readable. Tire contact prediction/clearance plus at most four CCD substeps handle fast road, building and fragment contacts. The local eight-wreck/464-body cap, 2.6-second lifetime, event deduplication, reduced-motion suppression and cleanup remain unchanged; fragments cannot damage cars or alter authority.

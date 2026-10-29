@@ -1,8 +1,10 @@
 import type {Scene} from '@babylonjs/core/scene';
 
-/** Babylon 9.32 can reuse/deallocate parallel programs during light/layout changes.
- * Compile synchronously so draw bindings and the linked program change together.
- * This trades a compilation-time hitch for correct rendering; WebGL2 stays enabled. */
+/** Babylon 9.32 can retain incompatible draw bindings across garage/light changes.
+ * Compile synchronously and use ordinary uniforms instead of shared uniform buffers.
+ * This trades CPU/compilation cost for correct rendering; WebGL2 stays enabled. */
 export function requireMatchingMaterialShaders(scene:Scene):void{
-  scene.getEngine().getCaps().parallelShaderCompile=undefined;
+  const engine=scene.getEngine();
+  engine.getCaps().parallelShaderCompile=undefined;
+  if('disableUniformBuffers' in engine)engine.disableUniformBuffers=true;
 }

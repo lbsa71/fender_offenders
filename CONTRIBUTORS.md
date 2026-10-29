@@ -73,3 +73,5 @@ OpenAI Codex assistance, directed by Stefan Andersson, reconciled the graphics a
 OpenAI Codex assistance, directed by Stefan Andersson, updated the 2026-10-29 online graphics acceptance harness for current case selection, roster and winter themes, with real reconnect/rematch checks, incremental memory evidence and a host-memory stop condition.
 
 OpenAI Codex assistance, directed by Stefan Andersson, expanded native and real-app oil-dispatch diagnostics on 2026-10-29 and added test-only retained-resource observations. The owner's recurring car-visibility failure remains unresolved; passing attempted reproductions are not credited as a fix.
+
+OpenAI Codex assistance, directed by Stefan Andersson, subsequently reproduced the exact Night Courier dispatch-six uniform-buffer error on 2026-10-29 and added the ordinary-uniform compatibility mitigation, a real six-dispatch regression and observed RED/GREEN evidence.

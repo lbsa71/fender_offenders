@@ -32,7 +32,7 @@
     "test:snow": "tsx packages/renderer/scenarios/snow-check.ts",
     "test:helicopter": "tsx packages/renderer/scenarios/helicopter-check.ts && tsx packages/renderer/scenarios/helicopter-opportunity-check.ts",
     "test:tires": "tsx packages/renderer/scenarios/tire-bounce-check.ts",
-    "test:car-visibility": "tsx packages/renderer/scenarios/car-visibility-check.ts"
+    "test:car-visibility": "tsx packages/renderer/scenarios/car-visibility-check.ts && tsx packages/renderer/scenarios/car-oil-app-check.ts"
   },
   "dependencies": {
     "@fender/contracts": "workspace:*",

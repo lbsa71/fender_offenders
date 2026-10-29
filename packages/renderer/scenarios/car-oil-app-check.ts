@@ -22,6 +22,11 @@ const browser = await chromium.launch({ headless: true, executablePath: process.
 const errors: string[] = [], observations: unknown[] = [];
 try {
   const page = await browser.newPage({ viewport: { width: 960, height: 640 } }); page.setDefaultTimeout(15_000);
+  const campaignRoute = process.env.OIL_ALL_BODIES !== '1', quality = process.env.OIL_QUALITY ?? 'high';
+  await page.addInitScript(quality => localStorage.setItem('fender-settings-v1', JSON.stringify({ quality })), quality);
+  if (campaignRoute) await page.route('**/*gangster*driving*.glb', async route => {
+    await new Promise(resolve => setTimeout(resolve, 750)); await route.continue();
+  });
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (/GL_INVALID|uniform buffer.*too small|Program object expected|too many errors|Error compiling effect/i.test(message.text())) errors.push(message.text()); });
   await page.addInitScript('window.__name=fn=>fn');
@@ -29,14 +34,15 @@ try {
   await expect.poll(() => page.evaluate(() => (window as any).__FENDER_DEBUG__?.identity.roomId)).toBeTruthy();
   const roomId = await page.evaluate(() => (window as any).__FENDER_DEBUG__.identity.roomId);
   const sim = (matchMaker.getLocalRoomById(roomId)! as unknown as { sim: Simulation }).sim;
-  for (const body of VEHICLE_BODIES) {
-    expect(sim.debugDispatch(6, CAMPAIGN_ID)).toBe(true);
+  const routes = campaignRoute ? Array.from({ length: 6 }, (_, index) => ({ body: 'gangster', dispatch: index + 1 })) : VEHICLE_BODIES.map(body => ({ body, dispatch: 6 }));
+  for (const { body, dispatch } of routes) {
+    expect(sim.debugDispatch(dispatch, CAMPAIGN_ID)).toBe(true);
     await expect.poll(() => page.evaluate(() => (window as any).__FENDER_DEBUG__?.snapshot?.phase)).toBe('lobby');
     await page.getByLabel('Your vehicle', { exact: true }).selectOption(body);
     await expect.poll(() => page.evaluate(() => (window as any).__FENDER_DEBUG__?.garage.vehicleBodyId)).toBe(body);
     await page.getByRole('button', { name: 'START DISPATCH', exact: false }).click();
     await expect.poll(() => page.evaluate(() => (window as any).__FENDER_DEBUG__?.snapshot?.phase), { timeout: 10_000 }).toBe('playing');
-    for (const phase of ['warning', 'active', 'expired']) {
+    for (const phase of campaignRoute && dispatch < 6 ? ['expired'] : ['warning', 'active', 'expired']) {
       const checkpoint = sim.checkpoint(), owner = checkpoint.state.records.find(record => record.vehicle.playerId !== null)!;
       for (const record of checkpoint.state.records) { record.traffic = undefined; record.bossAi = undefined; record.vehicle.protectedUntilTick = 0; }
       checkpoint.state.gadgets = phase === 'expired' ? [] : Array.from({ length: 8 }, (_, index) => ({
@@ -59,9 +65,9 @@ try {
         let pixels = 0; for (let i = 0; i < shown.length; i += 4) if (Math.abs(shown[i]! - hidden[i]!) + Math.abs(shown[i + 1]! - hidden[i + 1]!) + Math.abs(shown[i + 2]! - hidden[i + 2]!) > 35) pixels++;
         return { pixels, codes, stats: debug.stats.renderer };
       });
-      observations.push({ body, phase, ...sample });
+      observations.push({ body, dispatch, quality, phase, ...sample });
       await writeFile(resolve(output, 'evidence.json'), JSON.stringify({ observations, errors }, null, 2));
-      console.log(JSON.stringify({ body, phase, pixels: sample.pixels, codes: sample.codes, errors: errors.length }));
+      console.log(JSON.stringify({ body, dispatch, quality, phase, model: sample.stats.gangsterModelStatus, pixels: sample.pixels, codes: sample.codes, errors: errors.length }));
       expect(errors).toEqual([]); expect(sample.codes).toEqual([]); expect(sample.pixels).toBeGreaterThan(100);
     }
   }
