@@ -1,5 +1,7 @@
 import {dispatchFixture,expect,test} from './fixtures';
 import type {Page} from '@playwright/test';
+import {createServer} from 'vite';
+import {resolve} from 'node:path';
 const fixtureUrl=`/@fs/${process.cwd().replaceAll('\\','/')}/packages/ui/dev/index.html`;
 async function exposure(page:Page,tick:number,options:{paused?:boolean;protected?:boolean;reducedFlash?:boolean;phase?:string;victim?:string}={}){
  await page.evaluate(({tick,options})=>{
@@ -49,7 +51,12 @@ test('smog respects the exposed officer, protection, results and reduced flashes
 });
 test('native smog has visible warning billows, envelopes the car and reuses its bounded buffers',async({page},info)=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto(`/@fs/${process.cwd().replaceAll('\\','/')}/packages/renderer/scenarios/index.html`);
+ // Keep native shader modules out of the app server's dependency optimizer.
+ // Other entrypoints or dev servers must not invalidate this scene's chunks.
+ const preview=await createServer({configFile:false,root:resolve('packages/renderer/scenarios'),cacheDir:resolve('work/smog-e2e-vite-cache'),server:{host:'127.0.0.1',port:0,fs:{allow:[process.cwd()]}}});
+ await preview.listen();
+ try{
+ await page.goto(preview.resolvedUrls!.local[0]!);
  await page.waitForFunction(()=>Boolean((window as any).fixture?.gameScene?.getTransformNodeByName('body-hero')));
  await page.evaluate(async()=>{
   const f=(window as any).fixture;f.pause();f.renderer.setSettings({quality:'low',muted:true});
@@ -66,4 +73,5 @@ test('native smog has visible warning billows, envelopes the car and reuses its 
  }
  const expired=await page.evaluate(()=>{const f=(window as any).fixture,before=f.gameScene.meshes.length;f.frame.serverTick=550;f.step(0);return {before,after:f.gameScene.meshes.length,stats:f.renderer.getStats()};});
  expect(expired.before).toBe(expired.after);expect(expired.stats.smogPuffs).toBe(0);expect(errors).toEqual([]);
+ }finally{await preview.close();}
 });

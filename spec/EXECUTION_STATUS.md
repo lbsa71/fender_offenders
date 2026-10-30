@@ -1,5 +1,15 @@
 # Execution status and evidence
 
+## 2026-10-30 · Deterministic helicopter input and isolated smog fixture
+
+The owner explicitly requested de-flaking the two publication blockers and retrying. A fresh unmodified focused run passed both checks, confirming that another ordinary pass alone would not establish a fix (`work/deflake-current-red.log`; despite its attempted-reproduction filename this run was GREEN). A controlled **10-second artifact delay** with the previous screenshot-before-fire ordering then reproduced the missed shoot-down: expected `downed`, received `approach` after the unchanged 12-second polling wait (`work/deflake-screenshot-deadline-red.log`). An earlier four-second delay passed and is not counted as RED.
+
+The helicopter check now selects Patrol explicitly, sends real fire input before capturing the artifact, and measures elapsed combat ticks using the helicopter's authoritative downed `startedAtTick`, rather than a later observer tick. The bound remains **less than 540 ticks**, with the original health, playing phase, outcome and real air-dropped-bomb assertions intact. The optional `FENDER_E2E_CAPTURE_DELAY_MS` stress knob delays only artifact capture, not simulation or admitted input; normal runs add no delay. Gameplay and flight behavior are unchanged.
+
+The earlier smog failure trace contains failed dynamic shader-module downloads from the app server's optimizer cache. The native smog check now owns a dedicated Vite server on an allocated port and its own ignored cache, and closes that server in `finally`. It retains the original 12-second startup wait, GL/page-error checks, warning/envelope counts, reduced-effects checks and stable resource/expiry assertions. This corrects fixture delivery/isolation; its prior startup failure is not claimed as a gameplay behavioral RED.
+
+Observed GREEN: **six focused checks across three repetitions** with the same 10-second screenshot delay, including cold-cache native smog startup (**1.7 minutes**). Log: `work/deflake-stress-green.log`. Type/documentation and whitespace checks pass. Full local pre-push, publication and hosted verification remain pending; no assertions were removed, no timeout was increased, and the buffer mitigation remains unchanged.
+
 ## 2026-10-29 · Oil-buffer fix ready; publication blocked by existing browser checks
 
 The required pre-push gate on combined commit `ccaa494` finished **95 passed / 2 failed (13.5 minutes)**. Failures: `helicopter.spec.ts` expected `downed` but received `depart` after the unchanged 12-second shooting wait; the native `smog.spec.ts` fixture did not expose `body-hero` within its unchanged 12-second startup wait. Git rejected the push through its local hook; no bypass, assertion removal or timeout change was made. Consequently the fix is **not published or deployed**. Log: `work/gangster-oil-push.log`; full-run failure artifacts are preserved in `work/gangster-oil-push-failures`.
