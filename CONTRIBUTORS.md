@@ -88,3 +88,5 @@ OpenAI Codex (AI assistance), directed by Stefan Andersson: original suspect exc
 OpenAI Codex (AI assistance), directed by Stefan Andersson: story-themed alternate suspect scripts, independent per-suspect/outcome rotation, confirmed caption/audio pairing, menu-arrival regression fixes, resumable concurrent ElevenLabs rendering and quota-stop verification (2026-11-01). Pending drafts and successfully rendered speech are recorded separately.
 
 OpenAI Codex (AI assistance), directed by Stefan Andersson: reproduced and stabilized the browser contact-fixture preparation race discovered by the voice publication gate, preserving the full measured arrest windows and every existing driving assertion (2026-11-01).
+
+OpenAI Codex (AI assistance), directed by Stefan Andersson: corrected the saved-settings browser scenario to wait for interactive document readiness after reload, preserving all existing assertions and deadlines (2026-11-01).

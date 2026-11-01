@@ -70,7 +70,8 @@ test('keyboard practice drives, fires, releases controls on pause and saves sett
   await page.getByRole('button', { name: 'BACK ON PATROL' }).click();
   await expect.poll(async () => (await snapshot(page))!.serverTick).toBeGreaterThan(pausedTick);
   await expect(page.getByRole('img', { name: /^Wanted suspect,/ })).toBeVisible();
-  await page.reload();
+  // Check restored controls when the menu is interactive; media completion is independent.
+  await page.reload({waitUntil:'domcontentloaded'});
   await page.getByRole('button', { name: 'SETTINGS & CONTROLS' }).click();
   await expect(page.getByLabel('Reduce flashes')).toBeChecked();
   await expect(page.getByLabel('Graphics')).toHaveValue('medium');
