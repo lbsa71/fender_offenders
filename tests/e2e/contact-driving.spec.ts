@@ -4,6 +4,8 @@ import { maxUnexplainedBackstep } from '../support/motion-trace';
 
 test('keeps both cars stable while bumper pressure completes an arrest through network jitter',async({page})=>{
   test.setTimeout(60000);
+  // Bound software-rendering cost while collecting the unchanged real-frame coverage floor.
+  await page.setViewportSize({width:640,height:360});
   const serverPort=Number(process.env.FENDER_E2E_SERVER_PORT??2867),proxyPort=serverPort+5;
   const proxy=await createTcpProxy(proxyPort,serverPort,{oneWayLatencyMs:60,jitterMs:20});
   await page.route('**/packages/net-client/src/index.ts*',async route=>{
@@ -41,6 +43,11 @@ test('keeps both cars stable while bumper pressure completes an arrest through n
     // measuring ordinary contact, then retain the full three-second arrest window.
     const setupAck=await page.evaluate(()=>(window as any).__FO_CONTACT_API__.getSnapshot().local.lastConsumedSequence);
     await page.waitForFunction(ack=>(window as any).__FO_CONTACT_API__.getSnapshot().local.lastConsumedSequence>=ack+8,setupAck);
+    // Preparation may take longer than an arrest window on a delayed connection.
+    // The fixture must not award an arrest before the measured attempt is armed.
+    if(trial===0)await page.waitForTimeout(3500);
+    expect(await page.evaluate(()=>(window as any).__FO_CONTACT_API__.getSnapshot().phase)).toBe('playing');
+    expect(await page.evaluate(()=>(window as any).__FO_CONTACT_API__.getSnapshot().pursuit.progress)).toBe(0);
     initial.corrections=await page.evaluate(()=>{(window as any).__FO_CONTACT__.frames=[];return (window as any).__FO_CONTACT_API__.getStats().corrections;});
     expect((await page.request.post(`http://127.0.0.1:${serverPort+1000}/room/${room}/contact-ready/0`)).ok()).toBe(true);
     await page.keyboard.down('w');await expect(page.getByText('ARREST CERTIFIED',{exact:true})).toBeVisible();await page.keyboard.up('w');
