@@ -339,3 +339,7 @@
 @media(max-width:740px) and (min-height:600px){.fo-ui .fo-garage[data-vehicle=db5] [data-text=vehicle-name]{font-size:15px;white-space:nowrap}}
 
 .fo-touch-deploy:has([data-touch="smog"]){display:grid;grid-template-columns:repeat(2,minmax(44px,1fr));gap:6px}
+
+.fo-suspect-speech{margin:8px 0 12px;border-left:3px solid #b64a32;padding-left:10px}
+.fo-suspect-speech p{font-size:10px;line-height:1.5;margin:0 0 5px;font-style:italic}
+.fo-suspect-speech button{font-size:8px;min-height:24px}

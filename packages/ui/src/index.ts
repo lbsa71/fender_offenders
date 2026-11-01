@@ -1,3 +1,4 @@
+import { suspectVoice, SuspectVoicePlayer, SuspectVoiceSelection } from './suspect-voice';
 import { getDispatchFeatures, getStoryline, getCampaignDispatch, getCampaignMugshot, getCampaignTarget, getVehicleProfile, isInviteCode, isVehicleBodyId, randomCallsign, sanitizeNickname, VEHICLE_BODIES, type CampaignTarget, type DeviceKind, type TargetIndicator, type VehicleBodyId, type WorldSnapshot } from '@fender/contracts';
 import './style.css';
 import type { CampaignMugshotVariant } from '@fender/contracts';
@@ -247,6 +248,28 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const campaignResolution = doc.createElement('section'); campaignResolution.className = 'fo-campaign-resolution'; campaignResolution.hidden = true; campaignResolution.setAttribute('aria-label', 'Campaign dispatch resolution');
   campaignResolution.innerHTML = '<div class="fo-campaign-target"><div class="fo-campaign-portrait" role="img"></div><div><h3 data-campaign-result-name></h3><strong data-campaign-result-alias></strong></div></div><h3 class="fo-campaign-resolution-label"></h3>';
   resultOutcome.after(campaignResolution);
+  const voicePlayer = new SuspectVoicePlayer(doc);
+  const voiceSelection = new SuspectVoiceSelection();
+  for (const panel of [briefing, campaignResolution]) {
+    const line = doc.createElement('div'); line.className = 'fo-suspect-speech';
+    const quote = doc.createElement('p'); quote.dataset.suspectQuote = '';
+    const replay = doc.createElement('button'); replay.type = 'button'; replay.dataset.suspectReplay = ''; replay.className = 'fo-text-button'; replay.textContent = 'REPLAY VOICE';
+    replay.addEventListener('click', () => voicePlayer.replay()); line.append(quote, replay);
+    panel.querySelector('.fo-campaign-target')!.after(line);
+  }
+  function updateSuspectVoice() {
+    const campaign = model.snapshot?.campaign;
+    const variant = campaign && hasResult() ? campaign.outcomes.find(outcome => outcome.dispatchIndex === campaign.dispatchIndex)?.outcome ?? 'escaped' : 'briefing';
+    const targetId = campaign ? getCampaignDispatch(campaign).targetId : '';
+    const enabled = Boolean(campaign && !doc.hidden && !model.error && !['reconnecting', 'disconnected', 'error'].includes(statusName(model.status)) && (variant === 'briefing' ? !briefing.hidden : !resultDismissed && menu !== 'settings' && menu !== 'help' && hasResult()));
+    const key = campaign ? JSON.stringify([model.snapshot?.matchId, campaign.campaignId, campaign.dispatchIndex, model.snapshot?.phase, variant]) : '';
+    const line = voiceSelection.select(key, targetId, variant, enabled);
+    voicePlayer.update(key, line?.url ?? null, enabled, settings);
+    for (const [panel, kind] of [[briefing, 'briefing'], [campaignResolution, variant]] as const) {
+      panel.querySelector<HTMLElement>('[data-suspect-quote]')!.textContent = (kind === variant ? line : suspectVoice(targetId, kind))?.text ?? '';
+    }
+  }
+  doc.addEventListener('visibilitychange', updateSuspectVoice);
   const latestLead = doc.createElement('section'); latestLead.className = 'fo-campaign-new-lead'; latestLead.hidden = true; latestLead.innerHTML = '<span class="fo-kicker">NEW LEAD</span><p></p>'; campaignResolution.querySelector('.fo-campaign-resolution-label')!.after(latestLead);
   const pauseDetails = doc.createElement('section'); pauseDetails.className = 'fo-pause-dispatch'; pauseDetails.setAttribute('aria-label', 'Dispatch details');
   pauseDetails.innerHTML = '<p data-pause-case></p><p data-pause-unit></p><div class="fo-pause-score-head"><span aria-hidden="true">#</span><span>UNIT</span><span>PING / ms</span><span>PTS</span></div><ol></ol>';
@@ -273,7 +296,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   }, () => { callbacks.onAudioActivation?.(); callbacks.onActivity?.(); });
   one('.fo-top-right').insertBefore(volumeKnob.element, one('[data-action="pause"]'));
   volumeKnob.update(settings.masterVolume, settings.muted);
-  const persist = () => { volumeKnob.update(settings.masterVolume, settings.muted); shell.classList.toggle('fo-reduced-motion', settings.reducedShake); try { view?.localStorage.setItem('fender-settings-v1', JSON.stringify(settings)); } catch { /* Optional persistence. */ } callbacks.onSettings?.(structuredClone(settings)); };
+  const persist = () => { updateSuspectVoice(); volumeKnob.update(settings.masterVolume, settings.muted); shell.classList.toggle('fo-reduced-motion', settings.reducedShake); try { view?.localStorage.setItem('fender-settings-v1', JSON.stringify(settings)); } catch { /* Optional persistence. */ } callbacks.onSettings?.(structuredClone(settings)); };
   function focusFirst() { const focusable = visibleControls(); (focusable.find(node => node.matches('.fo-primary')) ?? focusable[0])?.focus({ preventScroll: true }); }
   const lobby = () => model.snapshot?.phase === 'lobby' && (model.mode === 'online' || Boolean(model.snapshot.campaign));
   const hasResult = (candidate = model) => candidate.snapshot?.phase === 'results' || !candidate.snapshot?.campaign && candidate.mode === 'practice' && candidate.snapshot?.pursuit?.state === 'complete';
@@ -287,6 +310,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     const campaign = model.snapshot?.campaign;
     briefing.hidden = !campaign || !lobby() || menu !== null;
     campaignResolution.hidden = !campaign || !hasResult();
+    updateSuspectVoice();
     shell.classList.toggle('fo-campaign-briefing-open', !briefing.hidden);
     shell.classList.toggle('fo-campaign-results', Boolean(campaign && hasResult() && menu !== 'settings' && menu !== 'help'));
   }
@@ -634,5 +658,5 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     for (const input of all<HTMLInputElement | HTMLSelectElement>('[data-setting]')) { const key = input.dataset.setting as keyof UiSettings; if (input instanceof HTMLInputElement && input.type === 'checkbox') input.checked = Boolean(settings[key]); else input.value = String(settings[key]); }
     persist(); updateControls();
   }, isMenuVisible: () => menu !== null || lobby(), isMenuOpen: () => menu !== null,
-    dispose: () => { disposed = true; controlObserver?.disconnect(); clearTimeout(toastTimer); clearTimeout(tutorialTimer); touchControls.dispose(); volumeKnob.dispose(); shell.removeEventListener('click', click); shell.removeEventListener('input', change); doc.removeEventListener('keydown', remapKey, true); doc.removeEventListener('visibilitychange', updateControls); shell.remove(); } };
+    dispose: () => { disposed = true; voicePlayer.dispose(); doc.removeEventListener('visibilitychange', updateSuspectVoice); controlObserver?.disconnect(); clearTimeout(toastTimer); clearTimeout(tutorialTimer); touchControls.dispose(); volumeKnob.dispose(); shell.removeEventListener('click', click); shell.removeEventListener('input', change); doc.removeEventListener('keydown', remapKey, true); doc.removeEventListener('visibilitychange', updateControls); shell.remove(); } };
 }

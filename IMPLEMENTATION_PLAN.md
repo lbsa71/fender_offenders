@@ -355,3 +355,7 @@ For future work claims, `todo`, `claimed`, `in-progress`, `ready-for-integration
 6. Validate staging and rollback before marking operations or release gates passed.
 
 The current priority is acceptance of the game already on the streets. Keep follow-up accounts, city editors, economies and elaborate matchmaking out of this queue. The dispatch desk has enough forms without inventing a Ministry of Unlockable Hubcaps.
+
+The 2026-11-01 owner-requested suspect speech pass adds four short, story-specific exclamations per suspect in roster order, starting with Nico Nickel: briefing, escape, wreck/hurt and arrest. U/A/Q work sequentially in this checkout with bundled ElevenLabs recordings, visible captions/replay, existing Master/Effects/mute controls, confirmed outcome selection and no network-contract change. The [audio reference](spec/AUDIO.md#suspect-exclamations) defines generation, provenance and listening acceptance.
+
+The same-day owner follow-up uses the remaining ElevenLabs balance for alternate suspect lines in roster-wide rounds. U/A/Q add independent per-suspect/outcome rotation, fixed caption/audio pairing across snapshots and replay, deferred selection for hidden dispatch arrivals, and a runtime catalog containing only successfully rendered recordings. Quota exhaustion stops generation; pending scripts remain drafts. No gameplay or protocol change is required.

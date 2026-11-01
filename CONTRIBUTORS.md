@@ -82,3 +82,7 @@ OpenAI Codex assistance, directed by Stefan Andersson, subsequently reproduced t
 OpenAI Codex (AI assistance), directed by the project owner: warned smog clouds, room-owned exposure/immunity, bounded billows, timed whiteout and reduced-flash parity, delayed police controls and observed test-first/network/browser verification (2026-10-29).
 
 OpenAI Codex assistance, directed by Stefan Andersson, stabilized the helicopter and native smog browser checks on 2026-10-30 through controlled artifact-latency reproduction, authoritative timing, deterministic vehicle selection and isolated shader-module delivery, retaining the gameplay assertions.
+
+OpenAI Codex (AI assistance), directed by Stefan Andersson: original suspect exclamation scripts for fifty characters, ElevenLabs stock-voice casting and rendering, caption/replay presentation, bounded screen-driven audio playback, provenance and test-first browser verification (2026-11-01). Synthesized recordings were generated using the owner's ElevenLabs account; the stock voices are provided by ElevenLabs, not claimed as human performances by project contributors. See [suspect speech documentation](spec/AUDIO.md#suspect-exclamations).
+
+OpenAI Codex (AI assistance), directed by Stefan Andersson: story-themed alternate suspect scripts, independent per-suspect/outcome rotation, confirmed caption/audio pairing, menu-arrival regression fixes, resumable concurrent ElevenLabs rendering and quota-stop verification (2026-11-01). Pending drafts and successfully rendered speech are recorded separately.

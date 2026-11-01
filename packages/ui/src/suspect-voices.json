@@ -1,0 +1,502 @@
+{
+  "nico-nickel": {
+    "name": "Nico Nickel",
+    "voiceId": "N2lVS1w4EtoT3dr4eOWO",
+    "lines": {
+      "briefing": "These meters pay better than your badge!",
+      "escaped": "Keep the change, officer!",
+      "wrecked": "Ow! That withdrawal really hurt!",
+      "arrested": "Cuffs? I'm still not giving change!"
+    }
+  },
+  "mabel-clench": {
+    "name": "Mabel Clench",
+    "voiceId": "FGY2WhTYpPnrIDTdsKH5",
+    "lines": {
+      "briefing": "Your squad car's in my tow zone!",
+      "escaped": "Consider yourself clamped out!",
+      "wrecked": "Ow! That's coming off your invoice!",
+      "arrested": "I'll tow the jail when I'm out!"
+    }
+  },
+  "pip-quill": {
+    "name": "Pip Quill",
+    "voiceId": "SOYHLrjzK2X1ezoPC6cr",
+    "lines": {
+      "briefing": "I've got a permit for this getaway!",
+      "escaped": "File that one in duplicate!",
+      "wrecked": "Ow! You perforated my paperwork!",
+      "arrested": "My lawyer comes in triplicate!"
+    }
+  },
+  "rosa-reel": {
+    "name": "Rosa Reel",
+    "voiceId": "pFZP5JQG7iQjIQuC4Bku",
+    "lines": {
+      "briefing": "Can't afford my fast lane, officer?",
+      "escaped": "Your subscription just expired!",
+      "wrecked": "Ow! That is not express service!",
+      "arrested": "These cuffs cost extra, darling!"
+    }
+  },
+  "hector-hush": {
+    "name": "Hector Hush",
+    "voiceId": "IKne3meq5aSn9XLyUdCD",
+    "lines": {
+      "briefing": "Your arrest request has been denied!",
+      "escaped": "Stamp that one approved!",
+      "wrecked": "Ow! My stamping arm!",
+      "arrested": "I'll appeal every single stamp!"
+    }
+  },
+  "otis-bell": {
+    "name": "Otis Bell",
+    "voiceId": "JBFqnCBsd6RMkjVDRZzb",
+    "lines": {
+      "briefing": "Hear that? That's your lunch escaping!",
+      "escaped": "False alarm! Real getaway!",
+      "wrecked": "Ow! Now that's an emergency!",
+      "arrested": "You can cuff me, not my siren!"
+    }
+  },
+  "tess-cone": {
+    "name": "Tess Cone",
+    "voiceId": "Xb7hH8MSUJpSbSDYk0k2",
+    "lines": {
+      "briefing": "Road closed! Especially to you!",
+      "escaped": "Enjoy the queue, officer!",
+      "wrecked": "Ow! I'm seeing traffic cones!",
+      "arrested": "I'll cone off the whole cell block!"
+    }
+  },
+  "iris-vale": {
+    "name": "Dr Iris Vale",
+    "voiceId": "cgSgspJ2msm6clMCkdW9",
+    "lines": {
+      "briefing": "You look like you need premium care!",
+      "escaped": "Sorry, officer. Out of network!",
+      "wrecked": "Ow! I need an actual doctor!",
+      "arrested": "I prescribe your immediate resignation!"
+    }
+  },
+  "juno-slip": {
+    "name": "Juno Slip",
+    "voiceId": "EXAVITQu4vr4xnSDxMaL",
+    "lines": {
+      "briefing": "Your pursuit doesn't balance, officer!",
+      "escaped": "Put that loss in the books!",
+      "wrecked": "Ow! That's a painful deduction!",
+      "arrested": "You won't balance this racket without me!"
+    }
+  },
+  "aldo-ledger": {
+    "name": "Aldo Ledger",
+    "voiceId": "CwhRBWXzGAHq8TQ4Fs17",
+    "lines": {
+      "briefing": "Every light turns green for me!",
+      "escaped": "Your city still pays my toll!",
+      "wrecked": "Ow! The chairman needs a cushion!",
+      "arrested": "I still own the complaints department!"
+    }
+  },
+  "cora-crumb": {
+    "name": "Cora Crumb",
+    "voiceId": "XrExE9yKIg1WjnnlVkGX",
+    "lines": {
+      "briefing": "These doughnuts aren't stopping for you!",
+      "escaped": "Eat my crumbs, officer!",
+      "wrecked": "Ow! You've bruised my buns!",
+      "arrested": "I demand breakfast with my lawyer!"
+    }
+  },
+  "pat-patty": {
+    "name": "Pat Patty",
+    "voiceId": "TX3LPaxmHKxFdv7VOQHJ",
+    "lines": {
+      "briefing": "You're not on my drive-through menu!",
+      "escaped": "Order up! One disappearing burger!",
+      "wrecked": "Ow! I'm the one getting grilled!",
+      "arrested": "You can't keep this flipper down!"
+    }
+  },
+  "dee-dish": {
+    "name": "Dee Dish",
+    "voiceId": "hpp4J3VqNfWAUOO0d1Us",
+    "lines": {
+      "briefing": "Free lunch? Read the tiny print!",
+      "escaped": "Your voucher's good for one dust cloud!",
+      "wrecked": "Ow! That wasn't on the menu!",
+      "arrested": "I'll print my own visiting pass!"
+    }
+  },
+  "nell-noodle": {
+    "name": "Nell Noodle",
+    "voiceId": "FGY2WhTYpPnrIDTdsKH5",
+    "lines": {
+      "briefing": "Thirty seconds or your chase is free!",
+      "escaped": "Too slow! Your supper's cold!",
+      "wrecked": "Ow! I've pulled a noodle!",
+      "arrested": "I'm still charging for delivery!"
+    }
+  },
+  "moe-melt": {
+    "name": "Moe Melt",
+    "voiceId": "cjVigY5qzO86Huf0OWal",
+    "lines": {
+      "briefing": "Nobody touches my emergency cheese!",
+      "escaped": "Say cheese to my tail lights!",
+      "wrecked": "Ow! I've been grated!",
+      "arrested": "I'll run this pantry from my cell!"
+    }
+  },
+  "syd-scoop": {
+    "name": "Syd Scoop",
+    "voiceId": "onwK4e9ZLuTAKqWW03F9",
+    "lines": {
+      "briefing": "Follow the jingle, miss the crime!",
+      "escaped": "Last scoop's mine, officer!",
+      "wrecked": "Ow! That's worse than brain freeze!",
+      "arrested": "I'll be serving scoops again tomorrow!"
+    }
+  },
+  "tina-tongs": {
+    "name": "Tina Tongs",
+    "voiceId": "pFZP5JQG7iQjIQuC4Bku",
+    "lines": {
+      "briefing": "That street's reserved for my table!",
+      "escaped": "Sorry, fully booked behind me!",
+      "wrecked": "Ow! I'm not the chopping board!",
+      "arrested": "I'll cater my own prison break!"
+    }
+  },
+  "vera-vroom": {
+    "name": "Vera Vroom",
+    "voiceId": "Xb7hH8MSUJpSbSDYk0k2",
+    "lines": {
+      "briefing": "Champagne emergency! Clear the road!",
+      "escaped": "Your table's cancelled, officer!",
+      "wrecked": "Ow! Bring the first-aid menu!",
+      "arrested": "I'll have my lawyer paired with champagne!"
+    }
+  },
+  "perry-pepper": {
+    "name": "Perry Pepper",
+    "voiceId": "N2lVS1w4EtoT3dr4eOWO",
+    "lines": {
+      "briefing": "My receipts are hotter than your engine!",
+      "escaped": "Keep the tip, lose the trail!",
+      "wrecked": "Ow! Too much pepper!",
+      "arrested": "These cuffs won't cancel the service charge!"
+    }
+  },
+  "mona-menu": {
+    "name": "Mona Menu",
+    "voiceId": "cgSgspJ2msm6clMCkdW9",
+    "lines": {
+      "briefing": "Your pursuit gets zero stars!",
+      "escaped": "Five stars for my getaway!",
+      "wrecked": "Ow! One star for bedside manner!",
+      "arrested": "I'll review this jail very harshly!"
+    }
+  },
+  "lola-lane": {
+    "name": "Lola Lane",
+    "voiceId": "EXAVITQu4vr4xnSDxMaL",
+    "lines": {
+      "briefing": "Take the scenic route, officer!",
+      "escaped": "Next left! In another county!",
+      "wrecked": "Ow! That wasn't on the tour!",
+      "arrested": "I'll signpost my own way out!"
+    }
+  },
+  "duke-detour": {
+    "name": "Duke Detour",
+    "voiceId": "SOYHLrjzK2X1ezoPC6cr",
+    "lines": {
+      "briefing": "Wrong turn, right into my business!",
+      "escaped": "Follow the arrows! All of them!",
+      "wrecked": "Ow! I've taken a nasty turn!",
+      "arrested": "This arrest is just a diversion!"
+    }
+  },
+  "mika-map": {
+    "name": "Mika Map",
+    "voiceId": "XrExE9yKIg1WjnnlVkGX",
+    "lines": {
+      "briefing": "My maps don't show a police station!",
+      "escaped": "You've fallen off the map!",
+      "wrecked": "Ow! You've folded me wrong!",
+      "arrested": "I'll redraw the cell door myself!"
+    }
+  },
+  "pru-postcard": {
+    "name": "Pru Postcard",
+    "voiceId": "hpp4J3VqNfWAUOO0d1Us",
+    "lines": {
+      "briefing": "Wish you were fast enough, officer!",
+      "escaped": "I'll send you a postcard!",
+      "wrecked": "Ow! That's not my good side!",
+      "arrested": "I want royalties on that mugshot!"
+    }
+  },
+  "rex-roundabout": {
+    "name": "Rex Roundabout",
+    "voiceId": "IKne3meq5aSn9XLyUdCD",
+    "lines": {
+      "briefing": "Ready for another lap, officer?",
+      "escaped": "Same pigeon, slower police!",
+      "wrecked": "Ow! Everything's spinning!",
+      "arrested": "This case will come full circle!"
+    }
+  },
+  "kip-kiosk": {
+    "name": "Kip Kiosk",
+    "voiceId": "JBFqnCBsd6RMkjVDRZzb",
+    "lines": {
+      "briefing": "Buy a souvenir of your failed chase!",
+      "escaped": "The landmark has left the building!",
+      "wrecked": "Ow! Handle the merchandise gently!",
+      "arrested": "I'll put this jail in the gift shop!"
+    }
+  },
+  "willa-wagon": {
+    "name": "Willa Wagon",
+    "voiceId": "FGY2WhTYpPnrIDTdsKH5",
+    "lines": {
+      "briefing": "Public road? Temporarily mine!",
+      "escaped": "Barrier's down! Bill's going up!",
+      "wrecked": "Ow! I need a personal road closure!",
+      "arrested": "My cell's closed for maintenance!"
+    }
+  },
+  "faye-fare": {
+    "name": "Faye Fare",
+    "voiceId": "pFZP5JQG7iQjIQuC4Bku",
+    "lines": {
+      "briefing": "This trip costs more than your salary!",
+      "escaped": "Return fare? You'll never afford it!",
+      "wrecked": "Ow! That's a rough transfer!",
+      "arrested": "I'll invoice you for this little trip!"
+    }
+  },
+  "nell-north": {
+    "name": "Nell North",
+    "voiceId": "Xb7hH8MSUJpSbSDYk0k2",
+    "lines": {
+      "briefing": "My compass points away from you!",
+      "escaped": "True north! False trail!",
+      "wrecked": "Ow! I've lost my bearings!",
+      "arrested": "I'll find a route out of any cell!"
+    }
+  },
+  "byron-bypass": {
+    "name": "Byron Bypass",
+    "voiceId": "CwhRBWXzGAHq8TQ4Fs17",
+    "lines": {
+      "briefing": "This whole city's my ticket machine!",
+      "escaped": "You've reached your final dead end!",
+      "wrecked": "Ow! That's a costly detour!",
+      "arrested": "You can't navigate this city without me!"
+    }
+  },
+  "ollie-overtime": {
+    "name": "Ollie Overtime",
+    "voiceId": "TX3LPaxmHKxFdv7VOQHJ",
+    "lines": {
+      "briefing": "You're late! Fine's already doubled!",
+      "escaped": "Another minute, another late fee!",
+      "wrecked": "Ow! Give me a minute!",
+      "arrested": "I'll bill you for time served!"
+    }
+  },
+  "rita-rota": {
+    "name": "Rita Rota",
+    "voiceId": "cgSgspJ2msm6clMCkdW9",
+    "lines": {
+      "briefing": "Twenty-six hours and still ahead of you!",
+      "escaped": "Put your defeat on my timesheet!",
+      "wrecked": "Ow! I need paid recovery leave!",
+      "arrested": "I'll put the guards on overtime!"
+    }
+  },
+  "polly-pendulum": {
+    "name": "Polly Pendulum",
+    "voiceId": "EXAVITQu4vr4xnSDxMaL",
+    "lines": {
+      "briefing": "Need an extra hour to catch me?",
+      "escaped": "Your borrowed time just ran out!",
+      "wrecked": "Ow! Stop swinging everything!",
+      "arrested": "I'll make this sentence lose an hour!"
+    }
+  },
+  "felix-fast": {
+    "name": "Felix Fast",
+    "voiceId": "cjVigY5qzO86Huf0OWal",
+    "lines": {
+      "briefing": "Your appointment with me just vanished!",
+      "escaped": "Book another chase next week!",
+      "wrecked": "Ow! Cancel my next appointment!",
+      "arrested": "My lawyer has a priority booking!"
+    }
+  },
+  "wanda-watch": {
+    "name": "Wanda Watch",
+    "voiceId": "XrExE9yKIg1WjnnlVkGX",
+    "lines": {
+      "briefing": "I decide what time you catch me!",
+      "escaped": "Look at that! You're late again!",
+      "wrecked": "Ow! My minute hand!",
+      "arrested": "I'll reset every clock in this jail!"
+    }
+  },
+  "hugo-hooter": {
+    "name": "Hugo Hooter",
+    "voiceId": "onwK4e9ZLuTAKqWW03F9",
+    "lines": {
+      "briefing": "Wake up! Your suspect's leaving!",
+      "escaped": "Hit snooze on that pursuit!",
+      "wrecked": "Ow! Turn that ringing off!",
+      "arrested": "You can't silence my next alarm!"
+    }
+  },
+  "penny-pause": {
+    "name": "Penny Pause",
+    "voiceId": "hpp4J3VqNfWAUOO0d1Us",
+    "lines": {
+      "briefing": "Hold please! Your road is closing!",
+      "escaped": "Still holding? Keep waiting!",
+      "wrecked": "Ow! Can we pause the pain?",
+      "arrested": "I'll keep your lawyers waiting!"
+    }
+  },
+  "vera-vesper": {
+    "name": "Vera Vesper",
+    "voiceId": "FGY2WhTYpPnrIDTdsKH5",
+    "lines": {
+      "briefing": "Catching me costs emergency rates!",
+      "escaped": "Out of hours! Out of luck!",
+      "wrecked": "Ow! Now I need urgent care!",
+      "arrested": "My appeal runs all night!"
+    }
+  },
+  "sam-second": {
+    "name": "Sam Second",
+    "voiceId": "N2lVS1w4EtoT3dr4eOWO",
+    "lines": {
+      "briefing": "Just a second! Actually, never mind!",
+      "escaped": "Your five-minute break starts now!",
+      "wrecked": "Ow! Every second hurts!",
+      "arrested": "I'll count every second until I'm out!"
+    }
+  },
+  "magnus-minute": {
+    "name": "Magnus Minute",
+    "voiceId": "SOYHLrjzK2X1ezoPC6cr",
+    "lines": {
+      "briefing": "Your time is mine, officer!",
+      "escaped": "Time's up! Money's still mine!",
+      "wrecked": "Ow! Stop the clock!",
+      "arrested": "You can lock me up, not time itself!"
+    }
+  },
+  "della-duckett": {
+    "name": "Della Duckett",
+    "voiceId": "pFZP5JQG7iQjIQuC4Bku",
+    "lines": {
+      "briefing": "These ducks have places to be!",
+      "escaped": "Quack quack! Catch you never!",
+      "wrecked": "Ow! That really ruffled me!",
+      "arrested": "My ducks will demand a recount!"
+    }
+  },
+  "bruno-float": {
+    "name": "Bruno Float",
+    "voiceId": "IKne3meq5aSn9XLyUdCD",
+    "lines": {
+      "briefing": "My puddles! My rules!",
+      "escaped": "You're all washed up, officer!",
+      "wrecked": "Ow! That was no soft landing!",
+      "arrested": "I'll make waves from inside!"
+    }
+  },
+  "quin-quill": {
+    "name": "Quin Quill",
+    "voiceId": "JBFqnCBsd6RMkjVDRZzb",
+    "lines": {
+      "briefing": "I've got six passes for this escape!",
+      "escaped": "Your seat's taken, officer!",
+      "wrecked": "Ow! Easy on the feathers!",
+      "arrested": "I'll print a backstage pass to freedom!"
+    }
+  },
+  "lena-lilo": {
+    "name": "Lena Lilo",
+    "voiceId": "Xb7hH8MSUJpSbSDYk0k2",
+    "lines": {
+      "briefing": "You're not allowed in my fast lane!",
+      "escaped": "Pool position! Police last!",
+      "wrecked": "Ow! I need a softer lilo!",
+      "arrested": "These cuffs don't suit the VIP pool!"
+    }
+  },
+  "wade-wake": {
+    "name": "Wade Wake",
+    "voiceId": "CwhRBWXzGAHq8TQ4Fs17",
+    "lines": {
+      "briefing": "Safety budget? Safely in my boot!",
+      "escaped": "Wave goodbye to your evidence!",
+      "wrecked": "Ow! Fetch an emergency towel!",
+      "arrested": "I'll declare this arrest a safety hazard!"
+    }
+  },
+  "gulliver-gale": {
+    "name": "Gulliver Gale",
+    "voiceId": "TX3LPaxmHKxFdv7VOQHJ",
+    "lines": {
+      "briefing": "Fog warning! Mostly for your judgment!",
+      "escaped": "You missed the boat again!",
+      "wrecked": "Ow! My foghorn's cracked!",
+      "arrested": "I'll keep the whole cell block awake!"
+    }
+  },
+  "pippa-paddle": {
+    "name": "Pippa Paddle",
+    "voiceId": "cgSgspJ2msm6clMCkdW9",
+    "lines": {
+      "briefing": "No dock, no entry, no exceptions!",
+      "escaped": "Dry dock's closed to police!",
+      "wrecked": "Ow! I've run aground!",
+      "arrested": "I'll invoice this jail for docking!"
+    }
+  },
+  "marla-marina": {
+    "name": "Marla Marina",
+    "voiceId": "EXAVITQu4vr4xnSDxMaL",
+    "lines": {
+      "briefing": "Champagne rescue! Ducks not included!",
+      "escaped": "Smooth sailing! Rough luck, officer!",
+      "wrecked": "Ow! Where's the real rescue team?",
+      "arrested": "I'll upgrade this cell to first class!"
+    }
+  },
+  "rory-ripple": {
+    "name": "Rory Ripple",
+    "voiceId": "cjVigY5qzO86Huf0OWal",
+    "lines": {
+      "briefing": "The winning duck rides with me!",
+      "escaped": "Last quack's mine, officer!",
+      "wrecked": "Ow! Even the duck felt that!",
+      "arrested": "My duck and I demand a lawyer!"
+    }
+  },
+  "daphne-dabble": {
+    "name": "Daphne Dabble",
+    "voiceId": "XrExE9yKIg1WjnnlVkGX",
+    "lines": {
+      "briefing": "Every duck in this race works for me!",
+      "escaped": "The Commodore sails away again!",
+      "wrecked": "Ow! Somebody cushion the Commodore!",
+      "arrested": "You haven't heard the last quack from me!"
+    }
+  }
+}

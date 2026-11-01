@@ -12,3 +12,4 @@ reports/*.webm
 .DS_Store
 work/
 packages/ui/dev/*.png
+__pycache__/
