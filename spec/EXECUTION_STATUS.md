@@ -1,5 +1,24 @@
 # Execution status and evidence
 
+## 2026-11-01 · Voice work committed; publication blocked by the full browser gate
+
+The complete pre-push browser stage on `904f1b3` finished **95 passed / 8 failed / 1 skipped (26.7 minutes)**. All seven suspect-voice scenarios passed, including native decoding/non-silence of all 2,180 recordings, real-room playback, rotation/replay, hidden arrivals and longest-caption layouts. The opt-in GPU-backend diagnostic was skipped by the existing configuration. The hook rejected the push; the subsequent UI/native fixture commands did not run. The voice commit is `3e609a3`; separate test-fixture/readiness commits are `4ba4b7e` and `904f1b3`. The branch remains local pending a passing gate. Log: `work/voice-push-attempt4.log`; preserved failure artifacts: `work/voice-gate-remaining-failures`.
+
+Remaining failed scenarios, with their assertions retained:
+
+- Touch weapon deployment/pause sequence: the four-dispatch scenario exhausted its 45-second total budget during the final iteration.
+- Live suspect blades: expected one warning presentation, observed zero before the unchanged 12-second polling deadline.
+- Live suspect smog: the cloud rendered, but the officer's expected whiteout phase was absent before the unchanged 12-second deadline.
+- Winter/late-backup/help/thaw flow: exhausted the 45-second total budget.
+- Winter steering through jitter/stall: observed a yaw-rate difference about 0.280486 against the unchanged 0.000001 direct-physics tolerance.
+- Input with 5 fps presentation: observed 88 delivered command sequences against the unchanged requirement above 100.
+- Ordered network jitter: observed 16.302 m of travel against the unchanged requirement above 30 m.
+- Between-input-tick presentation: the bounded 10-second observation wait timed out.
+
+These failures have not been diagnosed or compared against a control without the voice feature; they are not claimed to be proven pre-existing defects or voice regressions. Their assertions and production behavior remain unchanged. Broader repair scope was requested from the owner after the complete gate exposed these gameplay/input issues. No hook bypass was used, and this result does not establish publication, deployment, or release acceptance.
+
+This entry is a documentation-only evidence update; no behavioral RED phase was required for the entry itself. The observed RED/GREEN cycles for the two completed publication-fixture fixes remain dated below.
+
 ## 2026-10-30 · Deterministic helicopter input and isolated smog fixture
 
 The owner explicitly requested de-flaking the two publication blockers and retrying. A fresh unmodified focused run passed both checks, confirming that another ordinary pass alone would not establish a fix (`work/deflake-current-red.log`; despite its attempted-reproduction filename this run was GREEN). A controlled **10-second artifact delay** with the previous screenshot-before-fire ordering then reproduced the missed shoot-down: expected `downed`, received `approach` after the unchanged 12-second polling wait (`work/deflake-screenshot-deadline-red.log`). An earlier four-second delay passed and is not counted as RED.
