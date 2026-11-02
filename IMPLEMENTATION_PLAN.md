@@ -8,6 +8,8 @@ Status: acceptance plan for the integrated `arcade-v26` / protocol 5 alpha. Upda
 
 ## Next acceptance work
 
+The 2026-11-02 browser-fixture investigation observed a car reaching a static wall without a server crash event. Static-wall impact confirmation remains an open authority/presentation follow-up; the passing controlled car-contact check does not resolve it. The [execution ledger](spec/EXECUTION_STATUS.md) retains the diagnostic and scope.
+
 
 Owner scope change (2026-10-29): remove target/minimum-device graphics qualification and its FPS/frame-time acceptance tests. Hardware approval, a mainstream-GPU target, an integrated-GPU minimum and named phone performance are no longer dependencies. Retain optional performance diagnostics, functional rendering/browser/input checks, bounded resources, cleanup, actual-rematch memory and owner visual review. The [graphics plan](spec/GRAPHICS_POLISH.md) and [quality reference](spec/QUALITY_AND_OPERATIONS.md) carry the current scope.
 

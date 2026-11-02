@@ -29,8 +29,8 @@ const fixtures=createServer((req,res)=>{
    c.state.records=[officer,suspect];c.state.projectiles=[];c.state.grenades=[];c.state.gadgets=[];
    c.state.arrestTicks=0;c.state.contenderTicks=[];
    // Clock/correction checks keep the officer's real spawn and lifetime metrics.
-   if(route[3]==='0'){officer.vehicle.pose={x:0,z:-160,yaw:0};officer.vehicle.velocity={x:0,z:0,yawRate:0};officer.vehicle.discontinuityId++;}
-   suspect.vehicle.pose={x:76,z:160,yaw:0};suspect.vehicle.velocity={x:0,z:0,yawRate:0};suspect.vehicle.discontinuityId++;
+   if(route[3]==='0'||route[3]==='2'){officer.vehicle.pose=route[3]==='2'?{x:0,z:-45,yaw:0}:{x:0,z:-160,yaw:0};officer.vehicle.velocity={x:0,z:0,yawRate:0};officer.vehicle.discontinuityId++;}
+   suspect.vehicle.pose=route[3]==='2'?{x:0,z:-25,yaw:Math.PI}:{x:76,z:160,yaw:0};suspect.vehicle.velocity=route[3]==='2'?{x:0,z:-9,yawRate:0}:{x:0,z:0,yawRate:0};suspect.vehicle.discontinuityId++;
    suspect.traffic=undefined;suspect.bossAi=undefined;
    sim.restore(c);
  }else if(route[2]==='contact-ready'){

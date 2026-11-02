@@ -1,5 +1,15 @@
 # Execution status and evidence
 
+## 2026-11-02 · Controlled collision-presentation fixture
+
+The next push gate on `06843a7` reproduced a further intermittent failure: the hard-driving collision check exhausted its unchanged 60-second event/burst observation wait. That run was stopped after the failure to repair its setup (**30 passed / 1 failed / 1 interrupted / 78 not run; 7.8 minutes**); it is not a completed passing gate. Git rejected the push. Log: `work/voice-push-final-gate.log`; retained failure evidence: `work/deflake-impact-red-artifacts`.
+
+The general collision-presentation check now prepares a clear head-on encounter with an oncoming server-simulated suspect, waits for the explicit placement and eight acknowledged commands, and applies actual throttle. Both cars, their collision, server event, native renderer burst and health remain real. The original event-plus-impact-ring, 100-health and no-page-error assertions and 60-second observation/90-second scenario budgets remain unchanged. Failure diagnostics retain local state, input, events and network/ring metrics. The local-only `drive/2` fixture removes unrelated traffic, places the officer at (0, -45), and gives the suspect an oncoming velocity at (0, -25); no production source changed.
+
+Observed fixture RED: the new placement assertion failed against the old fixture (25 against greater than 175), then the station-course assertion failed against the boundary placement (-30 expected, 180 observed). An initial command collided with a closing test server's occupied port and is explicitly not counted as RED. The attempted boundary and station courses did not satisfy the original event/burst observation. In the station diagnostic the car reached the wall with health 100 but no server crash event (`work/deflake-impact-diagnostic.log`, `work/deflake-static-impact-diagnostic`). **Static-wall crash-event confirmation is an unresolved observation**, not a production fix or coverage established by the final car-contact fixture.
+
+Final focused GREEN: **three controlled head-on collision checks passed in 42.5 seconds** (`work/deflake-impact-contact-green.log`), preserving all original observable assertions. Fresh headless GREEN: **1,097 tests / 106 files** (`work/deflake-final-headless.log`). Type/documentation and whitespace checks pass. Publication and the complete browser/UI/native gate remain pending at this checkpoint.
+
 ## 2026-11-02 · Full-gate follow-up: winter steering and tutorial readiness
 
 The complete pre-push browser stage on `a442d07` finished **105 passed / 2 failed / 1 existing diagnostic skip (25.1 minutes)** (`work/voice-push-deflaked.log`; traces preserved in `work/deflake-full-gate-artifacts`). All seven voice checks, four touch weapon cases, live gadget checks, both winter UI cases and the remaining driving checks passed. Winter steering still failed its unchanged yaw-rate limit (0.869667 against less than 0.000001), and the long arrest/guns/puddles/backup tutorial exhausted 45 seconds. The hook rejected publication; subsequent UI/native commands did not run.
