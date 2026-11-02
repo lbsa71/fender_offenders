@@ -1,5 +1,6 @@
 import { expect, test } from './fixtures';
 import type { Page } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
 import { createTcpProxy } from '../integration/tcp-proxy';
 import { predictVehicle } from '@fender/sim';
 import { districtMap } from '@fender/content';
@@ -30,6 +31,8 @@ async function clearDrivingLane(page: Page, relocate = true) {
 
 for(const dispatch of [1,9])test(`steering press and release in dispatch ${dispatch} follow direct local physics through jitter and a 650ms TCP stall`, async ({page})=>{
   test.setTimeout(60000);
+  // Keep winter raster work bounded alongside the intentional TCP stall.
+  if (dispatch === 9) await page.setViewportSize({ width: 320, height: 240 });
   const serverPort=Number(process.env.FENDER_E2E_SERVER_PORT??2867),proxyPort=serverPort+4;
   const profile={oneWayLatencyMs:80,jitterMs:50,stallAtMs:undefined as number|undefined,stallDurationMs:650},began=performance.now();
   const proxy=await createTcpProxy(proxyPort,serverPort,profile);
@@ -41,7 +44,7 @@ for(const dispatch of [1,9])test(`steering press and release in dispatch ${dispa
       const submit=api.submit,sample=api.sampleFrame;
       api.submit=function(...args){const trace=window.__FO_STEERING__;if(trace)trace.commands.push({at:performance.now(),logical:args[1],command:structuredClone(args[0])});return submit.apply(this,args);};
       api.sampleFrame=function(...args){const frame=sample.apply(this,args),trace=window.__FO_STEERING__,state=api.getSnapshot();
-        if(trace&&frame&&state?.local){const car=frame.vehicles.find(car=>car.entityId===frame.localEntityId);trace.frames.push({at:performance.now(),sampleAt:frame.sampleTimeSeconds*1000,pose:{...car.pose},velocity:{...car.velocity},life:car.discontinuityId,pending:api.getStats().pendingInputs});}return frame;};
+        if(trace&&frame&&state?.local){const car=frame.vehicles.find(car=>car.entityId===frame.localEntityId);trace.frames.push({at:performance.now(),sampleAt:frame.sampleTimeSeconds*1000,pose:{...car.pose},velocity:{...car.velocity},life:car.discontinuityId,pending:api.getStats().pendingInputs,contactRevision:state.local.contact?.revision??0,corrections:api.getStats().corrections});}return frame;};
     } return api;`)});
   });
   await page.addInitScript(({serverPort,proxyPort})=>{
@@ -55,7 +58,7 @@ for(const dispatch of [1,9])test(`steering press and release in dispatch ${dispa
     await page.waitForFunction(()=>(window as any).__FENDER_DEBUG__?.snapshot?.phase==='playing'&&(window as any).__FENDER_DEBUG__.input.focused);
     await clearDrivingLane(page);
     await page.waitForTimeout(250);
-    await page.evaluate(()=>{const driver=(window as any).__FO_DRIVER__;(window as any).__FO_STEERING__={initial:structuredClone(driver.getSnapshot().local),commands:[],frames:[]};});
+    await page.evaluate(()=>{const driver=(window as any).__FO_DRIVER__;(window as any).__FO_STEERING__={initial:structuredClone(driver.getSnapshot().local),surface:{width:innerWidth,height:innerHeight,canvasWidth:document.querySelector('canvas')?.width,canvasHeight:document.querySelector('canvas')?.height},commands:[],frames:[]};});
     await page.keyboard.down('w');profile.stallAtMs=performance.now()-began+500;await page.waitForTimeout(500);
     for(const key of ['d','a','d','a']){await page.keyboard.down(key);await page.waitForTimeout(120);await page.keyboard.up(key);await page.waitForTimeout(600);}
     await page.keyboard.up('w');await page.waitForTimeout(200);
@@ -66,7 +69,9 @@ for(const dispatch of [1,9])test(`steering press and release in dispatch ${dispa
       const dt=Math.max(0,Math.min(.05,(frame.sampleAt-lastLogical)/1000));
       return {yaw:Math.abs(Math.atan2(Math.sin(frame.pose.yaw-expected.vehicle.pose.yaw-expected.vehicle.velocity.yawRate*dt),Math.cos(frame.pose.yaw-expected.vehicle.pose.yaw-expected.vehicle.velocity.yawRate*dt))),rate:Math.abs(frame.velocity.yawRate-expected.vehicle.velocity.yawRate)};
     });
-    await test.info().attach('Direct local steering versus actual networked frames',{body:JSON.stringify({trace,errors}),contentType:'application/json'});
+    const tracePath = test.info().outputPath('steering-trace.json');
+    await writeFile(tracePath, JSON.stringify({trace,errors}));
+    await test.info().attach('Direct local steering versus actual networked frames',{path:tracePath,contentType:'application/json'});
     expect(trace.frames.length).toBeGreaterThan(60);
     expect(Math.max(...trace.frames.map(frame=>frame.pending))).toBeGreaterThan(6);
     expect(new Set(trace.frames.map(frame=>frame.life)).size,'This steering trace must avoid actual collision/reset interventions').toBe(1);

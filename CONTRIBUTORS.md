@@ -92,3 +92,5 @@ OpenAI Codex (AI assistance), directed by Stefan Andersson: reproduced and stabi
 OpenAI Codex (AI assistance), directed by Stefan Andersson: corrected the saved-settings browser scenario to wait for interactive document readiness after reload, preserving all existing assertions and deadlines (2026-11-01).
 
 OpenAI Codex (AI assistance), directed by Stefan Andersson: reproduced the eight remaining voice-publication browser failures and stabilized their touch, gadget, winter and driving fixtures while preserving gameplay assertions (2026-11-02).
+
+The same Codex follow-up bounded the winter steering fixture, retained successful raw steering traces, separated the long dispatch tutorial flow, and synchronized late-backup keyboard navigation with confirmed joining (2026-11-02).

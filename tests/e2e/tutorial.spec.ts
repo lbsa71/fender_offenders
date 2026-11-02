@@ -21,11 +21,17 @@ test('teaches an unarmed first arrest with temporary remapped controls and both 
  await page.getByText('KEYBOARD BINDINGS',{exact:true}).click();await expect(page.locator('[data-binding="fire"]')).toBeHidden();
 });
 
-test('an arrest teaches suspect guns before police guns unlock and later briefings teach bombs and puddles',async({page,browser})=>{
+test('an arrest teaches suspect guns before police guns unlock',async({page})=>{
+ await page.setViewportSize({width:800,height:450});
  await page.goto('/');await page.getByRole('button',{name:'HIT THE STREETS'}).click();await page.getByRole('button',{name:'START DISPATCH'}).click();
  await expect(page.locator('[data-tutorial-controls]')).toBeVisible();await arrestFixture(page);
  await expect(page.getByText('ARREST CERTIFIED',{exact:true})).toBeVisible();await page.getByRole('button',{name:'NEXT BRIEFING'}).click();
  await expect(page.locator('[data-tutorial-lesson]')).toContainText('SUSPECT GUNS');
+});
+
+test('the gun unlock retains fire help, accepts real fire and repeats the suspect bomb warning',async({page})=>{
+ await page.setViewportSize({width:800,height:450});
+ await page.goto('/');await page.getByRole('button',{name:'HIT THE STREETS'}).click();
  await dispatchFixture(page,2);await expect(page.locator('[data-tutorial-lesson]')).toContainText('UNLOCKED: GUNS!');
  await page.getByRole('button',{name:'START DISPATCH'}).click();
  await page.keyboard.press('Escape');await page.getByRole('button',{name:'CONTROLS HELP',exact:true}).click();
@@ -34,11 +40,16 @@ test('an arrest teaches suspect guns before police guns unlock and later briefin
  await page.keyboard.press('Escape');await page.getByRole('button',{name:'BACK ON PATROL'}).click();
  await page.keyboard.down('Space');await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.snapshot.local.driver.shotOrdinal??0)).toBeGreaterThan(0);await page.keyboard.up('Space');
  await dispatchFixture(page,2);await expect(page.locator('[data-tutorial-lesson]')).toContainText('marked circle');
+});
+
+test('puddle briefings and retained gun help reach late backup in the same wet dispatch',async({page,browser})=>{
+ await page.setViewportSize({width:800,height:450});
+ await page.goto('/');await page.getByRole('button',{name:'HIT THE STREETS'}).click();
  await dispatchFixture(page,3);await expect(page.locator('[data-tutorial-lesson]')).toContainText('Puddles reduce grip');
  await page.getByRole('button',{name:'START DISPATCH'}).click();await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.stats.renderer.waterSurfaces)).toBe(6);
  await page.keyboard.press('Escape');await page.getByRole('button',{name:'CONTROLS HELP',exact:true}).click();
  await expect(page.locator('.fo-help-view [data-control-lesson]')).toContainText('Puddles reduce grip');
- const backupContext=await createGameContext(browser);try{const backup=await backupContext.newPage();await backup.goto(page.url());await backup.getByRole('button',{name:'HIT THE STREETS'}).click();await expect(backup.locator('[data-tutorial-controls]')).toBeHidden();await backup.keyboard.press('Escape');await backup.getByRole('button',{name:'CONTROLS HELP',exact:true}).click();await expect(backup.locator('.fo-help-view [data-control-lesson]')).toContainText('Puddles reduce grip');for(const row of await backup.locator('.fo-help-view [data-control="fire"]').all())await expect(row).toBeVisible();expect(await backup.evaluate(()=>(window as any).__FENDER_DEBUG__?.snapshot.campaign.dispatchIndex)).toBe(3);}finally{await backupContext.close();}
+ const backupContext=await createGameContext(browser);try{const backup=await backupContext.newPage();await backup.setViewportSize({width:800,height:450});await backup.goto(page.url(),{waitUntil:'domcontentloaded'});await backup.getByRole('button',{name:'HIT THE STREETS'}).click();await backup.waitForFunction(()=>{const d=(window as any).__FENDER_DEBUG__;return d?.snapshot?.phase==='playing'&&d.snapshot.campaign?.dispatchIndex===3&&d.input.focused;});await expect(backup.locator('[data-tutorial-controls]')).toBeHidden();await backup.keyboard.press('Escape');await backup.getByRole('button',{name:'CONTROLS HELP',exact:true}).click();await expect(backup.locator('.fo-help-view [data-control-lesson]')).toContainText('Puddles reduce grip');const rows=backup.locator('.fo-help-view [data-control="fire"]');await expect(rows).toHaveCount(2);for(const row of await rows.all())await expect(row).toBeVisible();expect(await backup.evaluate(()=>(window as any).__FENDER_DEBUG__?.snapshot.campaign.dispatchIndex)).toBe(3);}finally{await backupContext.close();}
 });
 
 test('shares a chase preview and both cars on a narrow briefing without covering its start action',async({page},testInfo)=>{
