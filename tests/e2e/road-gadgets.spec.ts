@@ -1,5 +1,11 @@
 import { dispatchFixture, expect, test } from './fixtures';
 
+// Observe short live phases without making software rasterization the test's clock.
+test.use({ viewport: { width: 640, height: 360 } });
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('fender-garage-v1', JSON.stringify({ vehicleBodyId: 'patrol' })));
+});
+
 for (const [stage, kind, description] of [[5, 'oil', 'Suspect oil'], [6, 'blades', 'Amber hubcaps']] as const) {
   test(`dispatch ${stage + 1} explains ${kind} and renders its authoritative warning and active phase`, async ({ page }, testInfo) => {
     await page.goto('/'); await page.getByRole('button', { name: 'HIT THE STREETS' }).click(); await dispatchFixture(page, stage);

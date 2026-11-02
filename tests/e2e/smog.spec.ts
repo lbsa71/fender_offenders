@@ -27,15 +27,21 @@ test('smog envelopes the car, fades to white for 2.5 seconds and clears without 
  await exposure(page,310);await expect(veil).toBeHidden();
 });
 test('a real suspect smog cloud warns, envelopes the officer and clears after the room-owned exposure',async({page},info)=>{
+ await page.setViewportSize({width:640,height:360});
+ await page.addInitScript(()=>localStorage.setItem('fender-garage-v1',JSON.stringify({vehicleBodyId:'patrol'})));
  await page.goto('/');await page.getByRole('button',{name:'HIT THE STREETS'}).click();await dispatchFixture(page,7);
  await expect(page.locator('[data-tutorial-lesson]')).toContainText('smog');await page.getByRole('button',{name:'START DISPATCH'}).click();
  await page.waitForFunction(()=>(window as any).__FENDER_DEBUG__?.snapshot?.phase==='playing');
  const room=new URL(page.url()).searchParams.get('room')!,port=Number(process.env.FENDER_E2E_SERVER_PORT??2867)+1000;
+ // A real chase must close on the moving wake; coasting is not a smog exposure fixture.
+ await page.keyboard.down('w');
+ try{
  expect((await page.request.post(`http://127.0.0.1:${port}/room/${room}/gadget/7`)).ok()).toBe(true);
  await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__.stats.renderer.smogClouds)).toBeGreaterThan(0);
  const veil=page.locator('[data-smog-screen]');await expect(veil).toHaveAttribute('data-phase','whiteout');await expect(veil.locator('[data-smog-white]')).toHaveCSS('opacity','1');
  const exposure=await page.evaluate(()=>{const s=(window as any).__FENDER_DEBUG__.snapshot;return s.gadgets.flatMap((g:any)=>g.exposures??[]).find((e:any)=>e.vehicleId===s.local.vehicle.entityId);});expect(exposure.expiresTick-exposure.bornTick).toBe(210);
  await page.screenshot({path:info.outputPath('live-suspect-whiteout.png')});await expect(veil).toBeHidden({timeout:8000});
+ }finally{await page.keyboard.up('w');}
 });
 test('smog respects the exposed officer, protection, results and reduced flashes',async({page},info)=>{
  await page.goto(fixtureUrl);await page.getByRole('button',{name:'HIT THE STREETS'}).click();

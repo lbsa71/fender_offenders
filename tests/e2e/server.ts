@@ -28,7 +28,8 @@ const fixtures=createServer((req,res)=>{
    const suspect=c.state.records.find(r=>r.vehicle.entityId===c.state.pursuit?.suspectId)!;
    c.state.records=[officer,suspect];c.state.projectiles=[];c.state.grenades=[];c.state.gadgets=[];
    c.state.arrestTicks=0;c.state.contenderTicks=[];
-   officer.vehicle.pose={x:0,z:-160,yaw:0};officer.vehicle.velocity={x:0,z:0,yawRate:0};officer.vehicle.discontinuityId++;
+   // Clock/correction checks keep the officer's real spawn and lifetime metrics.
+   if(route[3]==='0'){officer.vehicle.pose={x:0,z:-160,yaw:0};officer.vehicle.velocity={x:0,z:0,yawRate:0};officer.vehicle.discontinuityId++;}
    suspect.vehicle.pose={x:76,z:160,yaw:0};suspect.vehicle.velocity={x:0,z:0,yawRate:0};suspect.vehicle.discontinuityId++;
    suspect.traffic=undefined;suspect.bossAi=undefined;
    sim.restore(c);

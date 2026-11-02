@@ -1,9 +1,32 @@
 import { expect, test } from './fixtures';
+import type { Page } from '@playwright/test';
 import { createTcpProxy } from '../integration/tcp-proxy';
 import { predictVehicle } from '@fender/sim';
 import { districtMap } from '@fender/content';
 import { getDispatchFeatures, type InputCommand, type LocalAuthorityState } from '@fender/contracts';
 import { summarizeMotion, type MotionSample } from '../support/motion-trace';
+
+// These checks measure input/network behavior, not software-GPU throughput.
+test.use({ viewport: { width: 640, height: 360 } });
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('fender-garage-v1', JSON.stringify({ vehicleBodyId: 'patrol' }));
+    localStorage.setItem('fender-settings-v1', JSON.stringify({ quality: 'low', controlScheme: 'keyboard' }));
+  });
+});
+
+async function clearDrivingLane(page: Page, relocate = true) {
+  const room = new URL(page.url()).searchParams.get('room')!;
+  const port = Number(process.env.FENDER_E2E_SERVER_PORT ?? 2867) + 1000;
+  expect((await page.request.post(`http://127.0.0.1:${port}/room/${room}/drive/${relocate ? 0 : 1}`)).status()).toBe(204);
+  await page.waitForFunction(relocate => {
+    const state = (window as any).__FENDER_DEBUG__?.snapshot;
+    return state?.local && (!relocate || state.local.vehicle.pose.z < -150) && state.vehicles.length === 2;
+  }, relocate);
+  // Drain commands from before fixture synchronization before observation.
+  const ack = await page.evaluate(() => (window as any).__FENDER_DEBUG__.snapshot.local.lastConsumedSequence);
+  await page.waitForFunction(ack => (window as any).__FENDER_DEBUG__.snapshot.local.lastConsumedSequence >= ack + 8, ack);
+}
 
 for(const dispatch of [1,9])test(`steering press and release in dispatch ${dispatch} follow direct local physics through jitter and a 650ms TCP stall`, async ({page})=>{
   test.setTimeout(60000);
@@ -30,6 +53,7 @@ for(const dispatch of [1,9])test(`steering press and release in dispatch ${dispa
   try{
     await page.goto(`/?debugDispatch=${dispatch}`);await page.getByRole('button',{name:'HIT THE STREETS'}).click();await page.getByRole('button',{name:'START DISPATCH'}).click();
     await page.waitForFunction(()=>(window as any).__FENDER_DEBUG__?.snapshot?.phase==='playing'&&(window as any).__FENDER_DEBUG__.input.focused);
+    await clearDrivingLane(page);
     await page.waitForTimeout(250);
     await page.evaluate(()=>{const driver=(window as any).__FO_DRIVER__;(window as any).__FO_STEERING__={initial:structuredClone(driver.getSnapshot().local),commands:[],frames:[]};});
     await page.keyboard.down('w');profile.stallAtMs=performance.now()-began+500;await page.waitForTimeout(500);
@@ -67,6 +91,7 @@ test('keeps solo driving commands and prediction steady when rendering drops to 
     const debug = (window as any).__FENDER_DEBUG__;
     return debug?.snapshot?.phase === 'playing' && document.querySelector('.fo-hud')?.getAttribute('hidden') === null && debug.input.focused;
   });
+  await clearDrivingLane(page, false);
   await page.waitForTimeout(250);
   await page.keyboard.down('w');
   try {
@@ -107,6 +132,7 @@ test('keeps a solo chase steady through ordered network delay and jitter', async
     await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
     await page.getByRole('button', { name: 'START DISPATCH' }).click();
     await page.waitForFunction(() => (window as any).__FENDER_DEBUG__?.snapshot?.phase === 'playing' && (window as any).__FENDER_DEBUG__.input.focused);
+    await clearDrivingLane(page, false);
     const endpoint = process.env.TEST_SERVER_URL!;
     const beforeHealth = await (await page.request.get(`${endpoint}/health`)).json();
     const start = await page.evaluate(() => (window as any).__FENDER_DEBUG__.snapshot.local.vehicle.pose);
@@ -127,6 +153,8 @@ test('keeps a solo chase steady through ordered network delay and jitter', async
 
 test('renders local driving between input ticks through jitter without waiting for acknowledged poses', async ({ page }) => {
   test.setTimeout(60000);
+  // This observer needs sub-50ms frame pairs; bound real raster work accordingly.
+  await page.setViewportSize({ width: 320, height: 240 });
   const serverPort = Number(process.env.FENDER_E2E_SERVER_PORT ?? 2867), proxyPort = serverPort + 3;
   const proxy = await createTcpProxy(proxyPort, serverPort, { oneWayLatencyMs: 80, jitterMs: 50 });
   // Observe the frame already handed to the renderer. Do not sample twice or
@@ -162,12 +190,7 @@ test('renders local driving between input ticks through jitter without waiting f
     await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
     await page.getByRole('button', { name: 'START DISPATCH' }).click();
     await page.waitForFunction(() => (window as any).__FENDER_DEBUG__?.snapshot?.phase === 'playing' && (window as any).__FENDER_DEBUG__.input.focused);
-    const room = new URL(page.url()).searchParams.get('room')!;
-    expect((await page.request.post(`http://127.0.0.1:${serverPort + 1000}/room/${room}/drive/0`)).status()).toBe(204);
-    await page.waitForFunction(() => {
-      const state = (window as any).__FENDER_DEBUG__?.snapshot;
-      return state?.local?.vehicle.pose.z < -150 && state.vehicles.length === 2;
-    });
+    await clearDrivingLane(page);
     await page.keyboard.down('w'); await page.waitForTimeout(1000);
     const began = await page.evaluate(() => performance.now());
     await page.waitForFunction(began => {
@@ -176,7 +199,11 @@ test('renders local driving between input ticks through jitter without waiting f
         const dt = sample.sampleAt - samples[index].sampleAt; return dt > 0 && dt < 50;
       });
       return useful.length >= 90 && samples.at(-1).sampleAt - began >= 2000;
-    }, began, { timeout: 10000 });
+    }, began, { timeout: 10000 }).catch(async error => {
+      const samples = await page.evaluate(() => (window as any).__FO_MOTION__);
+      await test.info().attach('Incomplete local render observation', { body: JSON.stringify(samples), contentType: 'application/json' });
+      throw error;
+    });
     await page.keyboard.up('w');
     const samples: MotionSample[] = await page.evaluate(began => (window as any).__FO_MOTION__.filter((sample: { sampleAt: number }) => sample.sampleAt >= began), began);
     const { steps, stalledFraction, maxBackwards, speedVariation, p95SpeedJump } = summarizeMotion(samples);
