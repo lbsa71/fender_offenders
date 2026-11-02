@@ -12,7 +12,8 @@ test.use({ viewport: { width: 640, height: 360 } });
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('fender-garage-v1', JSON.stringify({ vehicleBodyId: 'patrol' }));
-    localStorage.setItem('fender-settings-v1', JSON.stringify({ quality: 'low', controlScheme: 'keyboard' }));
+    const existing = JSON.parse(localStorage.getItem('fender-settings-v1') ?? '{}');
+    localStorage.setItem('fender-settings-v1', JSON.stringify({ ...existing, quality: 'low', controlScheme: 'keyboard' }));
   });
 });
 
@@ -42,27 +43,32 @@ for(const dispatch of [1,9])test(`steering press and release in dispatch ${dispa
     await route.fulfill({response,body:source.replace('return api;',`{
       window.__FO_DRIVER__=api; window.__FO_STEERING__=null;
       const submit=api.submit,sample=api.sampleFrame;
-      api.submit=function(...args){const trace=window.__FO_STEERING__;if(trace)trace.commands.push({at:performance.now(),logical:args[1],command:structuredClone(args[0])});return submit.apply(this,args);};
+      api.submit=function(...args){
+        const trace=window.__FO_STEERING__,before=api.getStats().pendingInputs,at=performance.now(),result=submit.apply(this,args);
+        if(trace){const item={at,logical:args[1],command:structuredClone(args[0])};
+          if(api.getStats().pendingInputs===before+1)trace.commands.push(item);else trace.dropped.push(item);
+        }return result;
+      };
       api.sampleFrame=function(...args){const frame=sample.apply(this,args),trace=window.__FO_STEERING__,state=api.getSnapshot();
         if(trace&&frame&&state?.local){const car=frame.vehicles.find(car=>car.entityId===frame.localEntityId);trace.frames.push({at:performance.now(),sampleAt:frame.sampleTimeSeconds*1000,pose:{...car.pose},velocity:{...car.velocity},life:car.discontinuityId,pending:api.getStats().pendingInputs,contactRevision:state.local.contact?.revision??0,corrections:api.getStats().corrections});}return frame;};
     } return api;`)});
   });
-  await page.addInitScript(({serverPort,proxyPort})=>{
+  await page.addInitScript(({serverPort,proxyPort,winter})=>{
     localStorage.setItem('fender-garage-v1',JSON.stringify({vehicleBodyId:'patrol'}));
-    localStorage.setItem('fender-settings-v1',JSON.stringify({quality:'low',controlScheme:'keyboard'}));
+    localStorage.setItem('fender-settings-v1',JSON.stringify({quality:'low',controlScheme:'keyboard',reducedShake:winter}));
     const NativeWebSocket=window.WebSocket;
     window.WebSocket=class extends NativeWebSocket{constructor(url:string|URL,protocols?:string|string[]){const target=new URL(String(url));if(target.hostname==='127.0.0.1'&&target.port===String(serverPort))target.port=String(proxyPort);super(target,protocols);}};
-  },{serverPort,proxyPort});
+  },{serverPort,proxyPort,winter:dispatch===9});
   try{
     await page.goto(`/?debugDispatch=${dispatch}`);await page.getByRole('button',{name:'HIT THE STREETS'}).click();await page.getByRole('button',{name:'START DISPATCH'}).click();
     await page.waitForFunction(()=>(window as any).__FENDER_DEBUG__?.snapshot?.phase==='playing'&&(window as any).__FENDER_DEBUG__.input.focused);
     await clearDrivingLane(page);
     await page.waitForTimeout(250);
-    await page.evaluate(()=>{const driver=(window as any).__FO_DRIVER__;(window as any).__FO_STEERING__={initial:structuredClone(driver.getSnapshot().local),surface:{width:innerWidth,height:innerHeight,canvasWidth:document.querySelector('canvas')?.width,canvasHeight:document.querySelector('canvas')?.height},commands:[],frames:[]};});
+    await page.evaluate(()=>{const driver=(window as any).__FO_DRIVER__;(window as any).__FO_STEERING__={initial:structuredClone(driver.getSnapshot().local),reducedShake:JSON.parse(localStorage.getItem('fender-settings-v1')??'{}').reducedShake,snowflakes:(window as any).__FENDER_DEBUG__.stats.renderer.snowflakes,surface:{width:innerWidth,height:innerHeight,canvasWidth:document.querySelector('canvas')?.width,canvasHeight:document.querySelector('canvas')?.height},commands:[],dropped:[],frames:[]};});
     await page.keyboard.down('w');profile.stallAtMs=performance.now()-began+500;await page.waitForTimeout(500);
     for(const key of ['d','a','d','a']){await page.keyboard.down(key);await page.waitForTimeout(120);await page.keyboard.up(key);await page.waitForTimeout(600);}
     await page.keyboard.up('w');await page.waitForTimeout(200);
-    const trace:{initial:LocalAuthorityState;commands:{at:number;logical:number;command:InputCommand}[];frames:{at:number;sampleAt:number;pose:{yaw:number};velocity:{yawRate:number};life:number;pending:number}[]}=await page.evaluate(()=>(window as any).__FO_STEERING__);
+    const trace:{reducedShake?:boolean;snowflakes:number;initial:LocalAuthorityState;commands:{at:number;logical:number;command:InputCommand}[];frames:{at:number;sampleAt:number;pose:{yaw:number};velocity:{yawRate:number};life:number;pending:number}[]}=await page.evaluate(()=>(window as any).__FO_STEERING__);
     let expected=structuredClone(trace.initial),cursor=0,lastLogical=0;
     const errors=trace.frames.map(frame=>{
       while(cursor<trace.commands.length&&trace.commands[cursor]!.at<=frame.at){const item=trace.commands[cursor++]!;expected={...expected,...predictVehicle(districtMap,expected.vehicle,expected.driver,item.command.actions,[],undefined,(expected.driver.simulatedTick??0)+1,getDispatchFeatures(dispatch-1))};lastLogical=item.logical;}
@@ -72,6 +78,7 @@ for(const dispatch of [1,9])test(`steering press and release in dispatch ${dispa
     const tracePath = test.info().outputPath('steering-trace.json');
     await writeFile(tracePath, JSON.stringify({trace,errors}));
     await test.info().attach('Direct local steering versus actual networked frames',{path:tracePath,contentType:'application/json'});
+    if (dispatch === 9) { expect(trace.reducedShake).toBe(true); expect(trace.snowflakes).toBe(0); }
     expect(trace.frames.length).toBeGreaterThan(60);
     expect(Math.max(...trace.frames.map(frame=>frame.pending))).toBeGreaterThan(6);
     expect(new Set(trace.frames.map(frame=>frame.life)).size,'This steering trace must avoid actual collision/reset interventions').toBe(1);

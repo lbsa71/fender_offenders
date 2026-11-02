@@ -1,5 +1,13 @@
 # Execution status and evidence
 
+## 2026-11-02 · Steering reference observes accepted submissions
+
+A further focused steering repetition retained a RED yaw-rate difference of 0.001926 against the unchanged 0.000001 limit (`work/deflake-steering-reduced-motion.log`; raw failure under `work/deflake-steering-reduced-motion-before-settings`). Contact revisions and correction count stayed constant while pending inputs dropped from 16 to 3. Source inspection identified an oracle gap: the observer recorded a `submit()` call before invoking it, although the client's bounded-queue guard can return before advancing prediction. The observer now invokes the unchanged API and records a prediction command only when the synchronous pending-input count increases by one; rejected calls are retained separately as `dropped`. All delivered frames and original comparison/coverage limits remain asserted. No production queue, physics or networking behavior changed. The recorded earlier failure alone is not claimed to prove every prior steering failure shared this cause.
+
+The winter-only steering fixture also requests the shipped reduced-motion setting and verifies the actual stored flag and zero rendered snowflakes. Shared initialization preserves case-specific settings. The first explicit setting check passed before that preservation refactor; it is not claimed as a RED. Median software-rendered winter frame intervals remained around 108 ms in a retained diagnostic, so this is not reported as an FPS improvement or hardware qualification. The separate winter rendering scenarios retain their settings and visual assertions.
+
+The `6c9631e` push attempt was stopped early before applying this follow-up (**9 passed / 1 interrupted / 100 not run; 1.3 minutes**, `work/voice-push-complete-gate.log`). It is not a completed gate and did not publish. Final focused GREEN: **six steering checks across three repetitions of both dispatches (1.9 minutes)** (`work/deflake-steering-accepted-green.log`). Types/documentation and whitespace checks pass; the complete publication gate remains pending at this checkpoint.
+
 ## 2026-11-02 · Controlled collision-presentation fixture
 
 The next push gate on `06843a7` reproduced a further intermittent failure: the hard-driving collision check exhausted its unchanged 60-second event/burst observation wait. That run was stopped after the failure to repair its setup (**30 passed / 1 failed / 1 interrupted / 78 not run; 7.8 minutes**); it is not a completed passing gate. Git rejected the push. Log: `work/voice-push-final-gate.log`; retained failure evidence: `work/deflake-impact-red-artifacts`.

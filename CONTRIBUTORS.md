@@ -93,4 +93,4 @@ OpenAI Codex (AI assistance), directed by Stefan Andersson: corrected the saved-
 
 OpenAI Codex (AI assistance), directed by Stefan Andersson: reproduced the eight remaining voice-publication browser failures and stabilized their touch, gadget, winter and driving fixtures while preserving gameplay assertions (2026-11-02).
 
-The same Codex follow-up bounded the winter steering fixture, retained successful raw steering traces, separated the long dispatch tutorial flow, and synchronized late-backup keyboard navigation with confirmed joining, and prepared a deterministic head-on collision-presentation fixture with retained failure diagnostics (2026-11-02).
+The same Codex follow-up bounded the winter steering fixture, retained successful raw steering traces, separated the long dispatch tutorial flow, and synchronized late-backup keyboard navigation with confirmed joining, and prepared a deterministic head-on collision-presentation fixture with retained failure diagnostics, and corrected steering-reference accounting for bounded submissions (2026-11-02).
