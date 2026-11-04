@@ -345,3 +345,8 @@
 .fo-ui .fo-garage-stats span{font-size:7px;margin-bottom:2px;letter-spacing:0}
 .fo-ui .fo-garage-stats strong{font-size:13px}
 .fo-ui .fo-garage-stats meter{height:6px}
+
+@media(max-width:740px) and (min-height:800px){
+ .fo-ui.fo-campaign-briefing-open .fo-garage{height:302px}
+ .fo-ui.fo-campaign-briefing-open .fo-campaign-briefing{top:412px}
+}
