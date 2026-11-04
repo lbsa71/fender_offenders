@@ -339,3 +339,9 @@
 @media(max-width:740px) and (min-height:600px){.fo-ui .fo-garage[data-vehicle=db5] [data-text=vehicle-name]{font-size:15px;white-space:nowrap}}
 
 .fo-touch-deploy:has([data-touch="smog"]){display:grid;grid-template-columns:repeat(2,minmax(44px,1fr));gap:6px}
+
+/* Dispatch comparison: concise live stats leave the road preview and start action visible. */
+.fo-ui .fo-garage-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 8px;margin:7px 0}
+.fo-ui .fo-garage-stats span{font-size:7px;margin-bottom:2px;letter-spacing:0}
+.fo-ui .fo-garage-stats strong{font-size:13px}
+.fo-ui .fo-garage-stats meter{height:6px}

@@ -18,7 +18,7 @@ try{
  await expect(briefing).toBeVisible();await expect(page.locator('.fo-garage')).toBeVisible();
  expect(await page.evaluate(()=>window.campaignFixture.ui.isMenuVisible())).toBe(true);
  expect(await page.evaluate(()=>document.activeElement?.getAttribute('data-action'))).toBe('campaign-start');
- await expect(page.locator('.fo-campaign-tracker,.fo-campaign-casefile,.fo-campaign-roster,.fo-garage-stats,[data-campaign-tactics]')).toHaveCount(0);
+ await expect(page.locator('.fo-campaign-tracker,.fo-campaign-casefile,.fo-campaign-roster,[data-campaign-tactics]')).toHaveCount(0);
  await expect(briefing.locator('.fo-campaign-portrait svg')).toHaveCount(1);
  await expect(briefing).not.toContainText(catalog.dispatches[0].reveal);
  await page.keyboard.press('Enter');expect(await page.evaluate(()=>window.campaignFixture.starts)).toBe(1);
