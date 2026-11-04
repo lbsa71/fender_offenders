@@ -1,5 +1,13 @@
 # Execution status and evidence
 
+## 2026-11-04 · Issues #5/#6: animated title and continuous briefing music
+
+The title adds original code-authored SVG toy cars, bouncing lettering, road motion and a comic dust puff. Animation uses transforms, stops outside home, and respects system/game reduced motion including pseudo-elements. The app's existing persistent MusicPlayer now attempts title playback on load at the saved volume; blocked autoplay exposes Play Title Music. No gesture policy is bypassed. Briefings select the title tune without resetting its position; dispatch transitions crossfade to/from the adaptive chase tracks. Pause, reconnect, mute and disposal retain their existing gates. U/R/F/Q ownership is sequential in the title/audio worktree.
+
+Observed RED: the music unit case faded the title to zero on briefing; the real title browser case found no chase artwork. Further native checks caught the old CSS hiding the new title, a road pseudo-element still animating under reduced motion, and the short-screen layout hiding the existing entry heading. Those pass after the corresponding fixes. Twelve music unit cases, **eight focused browser cases (51.6 s)** including native allowed-autoplay and blocked-activation paths, all three short-phone flows and supplied-MP3 playback pass. Desktop 1440×900, portrait 375×667 and landscape 667×290 title captures were inspected; entry remains visible. Type/docs, asset audit, whitespace and **1,091 headless tests / 104 files (26.12 s)** pass. Full pre-push and CI are checked for publication separately. Listening/hardware acceptance is not inferred from these captures.
+
+Final screenshot review reproduced a further portrait defect: the Invite URL button stretched to **529 px** tall because the older home selector retained its bottom constraint. The new compact-height and non-overlap browser assertions failed before the CSS correction, then passed across desktop, portrait and short landscape layouts. Five fresh title/small-touch browser checks pass (**29.5 s**); final 375×667 and 667×290 captures were inspected. The earlier publication attempt was stopped before pushing to incorporate this fix; the full gate is rerun without bypass.
+
 ## 2026-11-04 · Issue #7: dispatch vehicle comparison
 
 The owner's issue restores armor, top speed, acceleration and handling for both briefing cars, including authority-supplied armor for the displayed body. Reassign now advances through the shared catalog and wraps; direct selection, persistence and lobby authority remain covered. This supersedes the earlier stat-free briefing choice while retaining concise story/results and the clear chase HUD.

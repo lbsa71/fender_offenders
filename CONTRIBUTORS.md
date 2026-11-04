@@ -84,3 +84,5 @@ OpenAI Codex (AI assistance), directed by the project owner: warned smog clouds,
 OpenAI Codex assistance, directed by Stefan Andersson, stabilized the helicopter and native smog browser checks on 2026-10-30 through controlled artifact-latency reproduction, authoritative timing, deterministic vehicle selection and isolated shader-module delivery, retaining the gameplay assertions.
 
 The 2026-11-04 issue #7 follow-up includes OpenAI Codex assistance for compact live vehicle stats, ordered catalog reassignment and observed browser/fixture regression checks.
+
+The 2026-11-04 issues #5/#6 follow-up includes OpenAI Codex assistance for original SVG toy-car title artwork/animation, reduced-motion and phone layouts, policy-aware title autoplay, persistent briefing music/crossfades and observed native media/browser regressions.

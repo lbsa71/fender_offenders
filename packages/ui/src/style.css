@@ -10,9 +10,9 @@
 @media(max-width:740px){.fo-online .fo-scoreboard{width:205px}}
 .fo-connectivity-icon{display:inline-flex;width:22px;height:22px;flex:none}.fo-connectivity-icon svg{width:100%;height:100%;overflow:visible}.fo-wifi-slash{display:none}.fo-connection-reconnecting{color:var(--yellow)}.fo-connection-broken{color:var(--red)}.fo-connection-reconnecting .fo-wifi-slash,.fo-connection-broken .fo-wifi-slash{display:block}.fo-connection-connecting .fo-connectivity-icon{opacity:.65}.fo-connection-local .fo-connectivity-icon{display:none}
 /* One briefing, one pursuit stage, two comparable sets of keys. */
-.fo-ui:has(.fo-home:not([hidden])) .fo-menu{display:flex;justify-content:center}
-.fo-ui:has(.fo-home:not([hidden])) .fo-hero{display:none}
-.fo-ui:has(.fo-home:not([hidden])) .fo-panel{width:410px;max-width:100%}
+
+
+
 .fo-garage,.fo-lobby .fo-garage{position:absolute;top:125px;left:5vw;bottom:94px;width:49vw;max-width:740px;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none}
 .fo-garage-heading h1{font:800 clamp(24px,3vw,40px)/1 'Arial Narrow',Impact,sans-serif;letter-spacing:.02em;margin:10px 0}
 .fo-garage-heading>.fo-kicker{font-size:8px;letter-spacing:1.3px}
@@ -346,7 +346,64 @@
 .fo-ui .fo-garage-stats strong{font-size:13px}
 .fo-ui .fo-garage-stats meter{height:6px}
 
+/* Title chase: transform-only toy-car animation, removed from play and reduced motion. */
+.fo-ui.fo-title-screen .fo-menu{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,390px);gap:4vw;inset:108px 6vw 40px}
+.fo-ui.fo-title-screen .fo-hero{display:block;min-width:0;padding:0}
+.fo-ui.fo-title-screen .fo-hero h1{font-size:clamp(45px,6.4vw,94px);margin:20px 0 16px;animation:fo-title-bob 3s ease-in-out infinite}
+.fo-ui.fo-title-screen .fo-panel{width:100%;max-width:390px}
+.fo-title-chase{position:relative;height:140px;overflow:hidden;margin-top:20px;contain:layout paint}
+.fo-title-road{position:absolute;inset:95px 0 0;background:#10282a;border-block:2px solid #f4f0df66;transform:rotate(-3deg)}
+.fo-title-road:after{content:'';position:absolute;top:18px;left:-50%;width:200%;border-top:3px dashed #f4d34e;animation:fo-title-road 1s linear infinite}
+.fo-title-car{position:absolute;width:180px;bottom:20px;animation:fo-title-dash 6s ease-in-out infinite}
+.fo-title-car svg{display:block;width:100%;overflow:visible}
+.fo-title-body{transform-origin:50% 80%;animation:fo-title-bounce .7s ease-in-out infinite}
+.fo-title-getaway{left:48%;animation-delay:-1.5s;width:155px}
+.fo-title-patrol{left:8%}
+.fo-title-dust{position:absolute;bottom:20px;left:0;padding:8px;background:#f4d34e;color:#10282a;clip-path:polygon(0 30%,25% 20%,30% 0,55% 20%,85% 0,80% 35%,100% 70%,70% 75%,65% 100%,40% 80%,10% 100%);font-weight:bold;animation:fo-title-poof 2s ease-out infinite}
+.fo-title-audio{margin-top:12px;min-height:44px}
+@keyframes fo-title-bob{50%{transform:rotate(-2deg) translateY(-4px)}}
+@keyframes fo-title-road{to{transform:translateX(-36px)}}
+@keyframes fo-title-bounce{50%{transform:translateY(-4px) rotate(2deg)}}
+@keyframes fo-title-dash{25%{transform:translateX(20px) rotate(-4deg)}60%{transform:translateX(-12px) rotate(3deg)}}
+@keyframes fo-title-poof{0%,100%{transform:scale(.3);opacity:0}35%{transform:scale(1.1) rotate(-12deg);opacity:1}80%{transform:translateX(-25px) scale(.8);opacity:0}}
+.fo-ui:not(.fo-title-screen) .fo-hero *{animation:none!important}
+.fo-ui.fo-reduced-motion .fo-hero *{animation:none!important}
+@media(prefers-reduced-motion:reduce){.fo-ui .fo-hero *{animation:none!important}}
+@media(max-width:740px) and (min-height:600px){
+ .fo-ui.fo-title-screen .fo-menu{display:flex;flex-direction:column;justify-content:center;gap:12px;inset:90px 20px 30px}
+ .fo-ui.fo-title-screen .fo-hero{width:100%;text-align:center;flex:none}
+ .fo-ui.fo-title-screen .fo-hero h1{font-size:42px;line-height:.88;margin:6px 0}
+ .fo-ui.fo-title-screen .fo-hero>.fo-kicker{font-size:7px;letter-spacing:1px}
+ .fo-ui.fo-title-screen .fo-hero p{display:none}
+ .fo-ui.fo-title-screen .fo-title-chase{height:78px;margin:0}
+ .fo-ui.fo-title-screen .fo-title-road{top:53px}
+ .fo-ui.fo-title-screen .fo-title-car{width:115px;bottom:5px}
+ .fo-ui.fo-title-screen .fo-panel{flex-shrink:1;max-height:calc(100% - 185px);padding:14px 18px}
+ .fo-ui.fo-title-screen .fo-panel h2{font-size:28px}
+ .fo-ui.fo-title-screen .fo-panel-footer{margin-top:12px;padding-top:10px}
+ .fo-ui.fo-title-screen .fo-input-hint{display:none}
+}
+@media(max-height:599px){
+ .fo-ui.fo-title-screen .fo-menu{inset:78px 20px 15px;grid-template-columns:minmax(0,1fr) minmax(280px,340px);gap:20px}
+ .fo-ui.fo-title-screen .fo-hero>.fo-kicker,.fo-ui.fo-title-screen .fo-hero p{display:none}
+ .fo-ui.fo-title-screen .fo-hero h1{font-size:clamp(32px,5.5vw,60px);margin:0}
+ .fo-ui.fo-title-screen .fo-title-chase{height:90px;margin:0}
+ .fo-ui.fo-title-screen .fo-title-road{top:60px}
+ .fo-ui.fo-title-screen .fo-title-car{width:120px;bottom:6px}
+ .fo-ui.fo-title-screen .fo-panel{padding:10px 15px}
+ .fo-ui.fo-title-screen .fo-muted,.fo-ui.fo-title-screen .fo-input-hint{display:none}
+ .fo-ui.fo-title-screen .fo-panel h2{font-size:20px;line-height:1;margin-bottom:4px}
+ .fo-ui.fo-title-screen .fo-field{margin-bottom:8px}.fo-ui.fo-title-screen .fo-field input{padding:6px;margin-top:3px}
+ .fo-ui.fo-title-screen .fo-primary{padding:8px}.fo-ui.fo-title-screen .fo-panel-footer{margin-top:8px;padding-top:8px}
+ .fo-ui.fo-title-screen .fo-title-audio{margin-top:6px;min-height:44px;padding:6px}
+}
+
 @media(max-width:740px) and (min-height:800px){
  .fo-ui.fo-campaign-briefing-open .fo-garage{height:302px}
  .fo-ui.fo-campaign-briefing-open .fo-campaign-briefing{top:412px}
 }
+.fo-ui:not(.fo-title-screen) .fo-hero *::after,.fo-ui.fo-reduced-motion .fo-hero *::after{animation:none!important}
+@media(prefers-reduced-motion:reduce){.fo-ui .fo-hero *::after{animation:none!important}}
+
+@media(max-width:740px) and (min-height:600px){.fo-ui.fo-title-screen:has(.fo-home:not([hidden])) .fo-invite{top:78px;bottom:auto;left:auto;right:20px;min-height:44px;transform:none}}
+@media(max-height:599px){.fo-ui.fo-title-screen:has(.fo-home:not([hidden])) .fo-invite{left:20px;right:auto;top:auto;bottom:8px;min-height:44px;transform:none}}

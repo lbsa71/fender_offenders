@@ -97,6 +97,8 @@ async function boot() {
   });
   input = createInputSource({ drivingYaw:()=>online?.getDrivingYaw()??0,directionToYaw:(x,y)=>renderer.getDrivingHeading(x,y),onNeutralize: () => online?.neutralize(), onReset: () => ui.resetTouchControls(), onMenuAction: action => ui.navigate(action) });
   applySettings(ui.getSettings());
+  // Attempt immediate title playback; browsers can require the visible activation control.
+  music.unlock();
   const resize = () => renderer.resize(); window.addEventListener('resize', resize);
   const visibility = () => { accumulator = inputAccumulator = 0; previousInputAt = previousTime = previousFrameAt = performance.now(); input?.resetHeldState(); online?.setPresence(ui.isMenuOpen(),document.hidden); music.update({ ...musicState, hidden: document.hidden }, 0); };
   const activity = (event: Event) => { if(event.isTrusted) { online?.activity(); music.unlock(); } };
@@ -150,10 +152,10 @@ async function boot() {
     renderer.setAudioActive(active && !ui.isMenuVisible() && !paused && snapshot?.phase === 'playing');
     const musicCar = renderFrame?.vehicles.find(car => car.entityId === renderFrame.localEntityId) ?? snapshot?.local?.vehicle;
     const dispatchMusic = active && (snapshot?.phase === 'playing' || snapshot?.phase === 'countdown');
-    musicState = { screen: !active ? 'title' : dispatchMusic ? 'dispatch' : 'silent',
+    musicState = { screen: !active ? 'title' : dispatchMusic ? 'dispatch' : 'briefing',
       speed: musicCar ? Math.hypot(musicCar.velocity.x, musicCar.velocity.z) : 0,
       topSpeed: musicCar ? getVehicleProfile(musicCar.bodyAssetId).topSpeed : 28,
-      paused: active && (paused || ui.isMenuVisible() || status.state !== 'playing'), hidden: document.hidden };
+      paused: active && (paused || ui.isMenuOpen() || !['playing','lobby'].includes(status.state)), hidden: document.hidden };
     music.update(musicState, dt);
     if (renderFrame) renderer.render(renderFrame, dt, audioActions);
     ui.setTargetIndicator(active ? renderer.getTargetIndicator() : null);
@@ -162,7 +164,7 @@ async function boot() {
     if (now - hudAt > 80) {
       hudAt = now; const device = input!.getStatus();
       ui.update({ snapshot: active ? snapshot : null, status, mode, localPlayerId: playerId, roomId, device: device.activeDevice, recoverProgress: device.recoverProgress, unsupportedPad: device.unsupportedPad,
-        canStart: canStartDispatch(), pingMs: online?.getStats().rtt,
+        canStart: canStartDispatch(), audioNeedsActivation: music.getStats().needsActivation, pingMs: online?.getStats().rtt,
         selectedVehicleBodyId: snapshot?.local && isVehicleBodyId(snapshot.local.vehicle.bodyAssetId) ? snapshot.local.vehicle.bodyAssetId : undefined });
     }
     animation = requestAnimationFrame(frame);
