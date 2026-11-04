@@ -28,6 +28,13 @@ test('title chase animates, offers blocked audio activation, and respects reduce
   for(const size of [{width:1440,height:900},{width:375,height:667},{width:667,height:290}]){
     await page.setViewportSize(size);await expect(page.getByRole('button',{name:'HIT THE STREETS'})).toBeInViewport();
     await page.screenshot({path:test.info().outputPath(`title-${size.width}.png`)});
+    const invite=await page.getByRole('button',{name:'INVITE URL',exact:true}).boundingBox();expect(invite).not.toBeNull();
+    expect(invite!.height,`invite remains compact at ${size.width}px`).toBeLessThanOrEqual(56);
+    for(const target of [page.locator('.fo-hero h1'),page.locator('.fo-home')]){
+      const box=await target.boundingBox();expect(box).not.toBeNull();
+      const overlaps=invite!.x<box!.x+box!.width&&invite!.x+invite!.width>box!.x&&invite!.y<box!.y+box!.height&&invite!.y+invite!.height>box!.y;
+      expect(overlaps,`invite clears title and entry panel at ${size.width}px`).toBe(false);
+    }
   }
   await page.emulateMedia({reducedMotion:'reduce'});
   await expect.poll(()=>page.locator('.fo-title-chase').evaluate(n=>n.getAnimations({subtree:true}).filter(a=>a.playState==='running').length)).toBe(0);

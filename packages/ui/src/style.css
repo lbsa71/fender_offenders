@@ -405,5 +405,5 @@
 .fo-ui:not(.fo-title-screen) .fo-hero *::after,.fo-ui.fo-reduced-motion .fo-hero *::after{animation:none!important}
 @media(prefers-reduced-motion:reduce){.fo-ui .fo-hero *::after{animation:none!important}}
 
-@media(max-width:740px) and (min-height:600px){.fo-ui.fo-title-screen .fo-invite{top:78px;bottom:auto;right:20px}}
-@media(max-height:599px){.fo-ui.fo-title-screen .fo-invite{left:20px;right:auto;top:auto;bottom:8px}}
+@media(max-width:740px) and (min-height:600px){.fo-ui.fo-title-screen:has(.fo-home:not([hidden])) .fo-invite{top:78px;bottom:auto;left:auto;right:20px;min-height:44px;transform:none}}
+@media(max-height:599px){.fo-ui.fo-title-screen:has(.fo-home:not([hidden])) .fo-invite{left:20px;right:auto;top:auto;bottom:8px;min-height:44px;transform:none}}
