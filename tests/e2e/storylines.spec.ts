@@ -12,7 +12,7 @@ test('shows all fifty case-specific suspects and short stories without adding a 
   await expect(briefing.locator('[data-campaign-briefing]')).toHaveText(dispatch.briefing.replace(' Arrest him or wreck the getaway car.',''));
   await expect(page.locator('[data-text="suspect-vehicle-name"]')).toHaveText(getVehicleProfile(target.vehicleBodyId).name);
   await expect(briefing.locator('.fo-campaign-portrait')).toHaveAttribute('aria-label',`${target.name}, “${target.alias}”, ${target.role}`);
-  await expect(page.locator('.fo-campaign-tracker,.fo-campaign-casefile,.fo-garage-stats')).toHaveCount(0);
+  await expect(page.locator('.fo-campaign-tracker,.fo-campaign-casefile')).toHaveCount(0);
   if(stage===0){await page.setViewportSize({width:390,height:844});await expect(page.getByRole('button',{name:'START DISPATCH'})).toBeInViewport();await page.screenshot({path:info.outputPath(`${story.id}-phone.png`),animations:'disabled'});await page.setViewportSize({width:960,height:640});}
  }
 });

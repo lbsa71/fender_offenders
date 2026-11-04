@@ -177,3 +177,5 @@ Unless a file states otherwise, the original code, documentation, procedural art
 Third-party dependencies and CC0 source recordings retain their own licenses and notices; the project license does not replace them. See [original asset provenance](packages/content/manifests/licenses/ORIGINAL_ASSETS.md), [audio provenance](packages/content/manifests/licenses/audio/README.md) and [contributors](CONTRIBUTORS.md).
 
 Graphics acceptance no longer requires named target/minimum hardware or FPS/frame-time qualification (owner decision, 2026-10-29). Optional performance traces remain available for diagnosis. Functional renderer, shader/visibility, browser/input, resource-bound and cleanup checks remain required; see [the graphics plan](spec/GRAPHICS_POLISH.md).
+
+Dispatch car selection compares armor, top speed, acceleration and handling. **Reassign Vehicle** advances through the catalog in order and wraps to the first car; the dropdown also supports direct choice.

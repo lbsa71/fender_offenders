@@ -1,5 +1,11 @@
 # Execution status and evidence
 
+## 2026-11-04 · Issue #7: dispatch vehicle comparison
+
+The owner's issue restores armor, top speed, acceleration and handling for both briefing cars, including authority-supplied armor for the displayed body. Reassign now advances through the shared catalog and wraps; direct selection, persistence and lobby authority remain covered. This supersedes the earlier stat-free briefing choice while retaining concise story/results and the clear chase HUD.
+
+Observed browser RED: the new catalog-cycle scenario found no stats; after restoring them, it found Ambulance where the next catalog entry was Interceptor. Both checks now pass. Eight projection unit cases, the real catalog/wrap browser case, six responsive briefing fixture layouts, types/docs, whitespace and all **1,090 headless tests / 104 files (25.68 s)** pass. Portrait 390×844 and landscape 740×420 captures were inspected under `work/briefing-fixture-*`; start stays visible, cards fit and do not overlap the story. The full pre-push run also reproduced a DB5 preview clearance failure at 390×844; taller phones now reserve more space above the cards. The unchanged DB5 check passes with the correction. Superseded no-stats assertions now verify the requested comparison; dashboard and progression exclusions remain. The full gate also caught a pre-existing backup tutorial race: hidden controls could be asserted before joining, then Escape ran before the client was playing. The fixture now waits for the authoritative playing state before opening pause/help; the original assertions remain. U/F/Q ownership is sequential; no wire/gameplay contract changes.
+
 ## 2026-10-30 · Deterministic helicopter input and isolated smog fixture
 
 The owner explicitly requested de-flaking the two publication blockers and retrying. A fresh unmodified focused run passed both checks, confirming that another ordinary pass alone would not establish a fix (`work/deflake-current-red.log`; despite its attempted-reproduction filename this run was GREEN). A controlled **10-second artifact delay** with the previous screenshot-before-fire ordering then reproduced the missed shoot-down: expected `downed`, received `approach` after the unchanged 12-second polling wait (`work/deflake-screenshot-deadline-red.log`). An earlier four-second delay passed and is not counted as RED.
