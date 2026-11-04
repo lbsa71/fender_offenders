@@ -7,6 +7,7 @@ import type { ControlScheme, TouchControls } from '@fender/contracts';
 import { mountTouchControls } from './touch';
 import { mountVolumeKnob } from './volume';
 import { vehicleStats } from './vehicle-stats';
+import { titleScene } from './title-screen';
 import {smogExposureAt,smogVisibility,type RoadGadgetState} from '@fender/contracts';
 
 interface SmogFrame {gadgets:readonly RoadGadgetState[];localEntityId:string|null;tick:number}
@@ -29,6 +30,7 @@ export interface UiSettings {
   bindings: Record<string, string[]>;
 }
 export interface UiModel {
+  audioNeedsActivation?: boolean;
   snapshot?: WorldSnapshot | null;
   localPlayerId?: string | null;
   mode?: 'practice' | 'online';
@@ -231,6 +233,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const resultOutcome = doc.createElement('p'); resultOutcome.className = 'fo-result-outcome'; resultOutcome.hidden = true; one('.fo-results h2').after(resultOutcome);
   one('.fo-home .fo-muted').textContent = 'Take the keys. Cause a little paperwork.';
   one('.fo-home [data-action="practice"] small').textContent = 'Play. Share the URL anytime.';
+  one('.fo-hero').removeAttribute('aria-hidden');one('.fo-hero').innerHTML=titleScene;
+  const playTitle=doc.createElement('button');playTitle.type='button';playTitle.className='fo-title-audio fo-secondary';playTitle.dataset.action='audio-activate';playTitle.textContent='PLAY TITLE MUSIC';playTitle.hidden=true;one('.fo-home').append(playTitle);
   const garage = doc.createElement('section'); garage.className = 'fo-garage'; garage.setAttribute('aria-label', 'Vehicle comparison');
   garage.innerHTML = '<header class="fo-garage-heading"><h1>ON THEIR TAIL.</h1></header><div class="fo-vehicle-comparison"><article class="fo-garage-card" data-vehicle-comparison="unit"><span class="fo-kicker">YOUR UNIT</span><h2 data-text="vehicle-name"></h2><span class="fo-vehicle-role" data-text="vehicle-role"></span><button type="button" data-action="reassign">REASSIGN VEHICLE</button></article><article class="fo-garage-card fo-suspect-card" data-vehicle-comparison="suspect"><span class="fo-kicker">SUSPECT CAR</span><h2 data-text="suspect-vehicle-name"></h2><span class="fo-vehicle-role" data-text="suspect-vehicle-role"></span></article></div>';
   shell.append(garage);
@@ -401,6 +405,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if(persistentToast && (next===null || next==='home'))clearToast();
     if (next === 'settings' || next === 'help') previousMenu = menu;
     menu = next;
+    shell.classList.toggle('fo-title-screen', next === 'home');
     shell.classList.toggle('fo-is-playing', menu === null);
     shell.classList.toggle('fo-is-settings', menu === 'settings');
     shell.classList.toggle('fo-is-help', menu === 'help');
@@ -469,6 +474,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
         if (next === current) { next = randomCallsign(() => 0); if (next === current) next = randomCallsign(() => 1); }
         nickname.value = next; persistCallsign(); break;
       }
+      case 'audio-activate': callbacks.onAudioActivation?.(); break;
       case 'reassign': if (canReassign()) { vehicle = VEHICLE_BODIES[(VEHICLE_BODIES.indexOf(vehicle)+1)%VEHICLE_BODIES.length]!; awaitingVehicle = lobby() ? vehicle : null; persistVehicle(); updateGarage(); callbacks.onVehicleChange?.(vehicle); } break;
       case 'pause': if (model.snapshot) showMenu(menu === null ? 'pause' : null); break;
       case 'resume': showMenu(null); callbacks.onResume?.(); break;
@@ -616,6 +622,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if (error) { if (menu === null) showMenu('pause'); notify(errorMessages[error] ?? error); }
     if (model.unsupportedPad && model.unsupportedPad !== lastUnsupportedPad) toast('UNSUPPORTED CONTROLLER MAPPING — CHOOSE TOUCH OR KEYBOARD IN SETTINGS');
     lastUnsupportedPad = model.unsupportedPad ?? null;
+    playTitle.hidden=!model.audioNeedsActivation||settings.muted;
     updateGarage();
     updateCampaign();
     updateTargetBadge();

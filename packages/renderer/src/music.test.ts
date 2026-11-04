@@ -34,9 +34,22 @@ class Context {
   close() { this.closed = true; return Promise.resolve(); }
   level(media: Media) { return this.sources.get(media)?.output?.gain.value ?? 0; }
 }
-type State = { screen: 'title' | 'dispatch' | 'silent'; speed?: number; topSpeed?: number; paused?: boolean; hidden?: boolean };
+type State = { screen: 'title' | 'briefing' | 'dispatch' | 'silent'; speed?: number; topSpeed?: number; paused?: boolean; hidden?: boolean };
 type Player = { unlock(): void; update(state: State, dt: number): void; setSettings(settings: { masterVolume: number; musicVolume: number; muted: boolean }): void; dispose(): void };
 const tracks = { titles: ['/Titles One.mp3', '/Titles Two.mp3'], slow: '/Slow.mp3', fast: '/Fast.mp3' };
+it('keeps the title tune and its position through briefing, then crossfades both directions into the chase', () => {
+  const {player,source,settle,context}=setup();player.unlock();settle({screen:'title'});
+  const title=source(tracks.titles[0]!);title.currentTime=35;const starts=title.play.mock.calls.length;
+  settle({screen:'briefing'});expect(context.level(title)).toBeGreaterThan(.39);
+  expect(title.currentTime).toBe(35);expect(title.play).toHaveBeenCalledTimes(starts);
+  player.update({screen:'dispatch',speed:0,topSpeed:28},1/60);
+  expect(context.level(title)).toBeGreaterThan(0);expect(context.level(source(tracks.slow))).toBeGreaterThan(0);
+  settle({screen:'dispatch',speed:0});expect(title.paused).toBe(true);
+  player.update({screen:'briefing'},1/60);
+  expect(context.level(title)).toBeGreaterThan(0);expect(context.level(source(tracks.slow))).toBeGreaterThan(0);
+  settle({screen:'briefing'});expect(context.level(title)).toBeGreaterThan(.39);expect(title.currentTime).toBe(35);
+  player.dispose();
+});
 function setup(manifest = tracks) {
   const Player = Reflect.get(audio, 'MusicPlayer');
   expect(Player, 'the audio adapter must support an authored adaptive soundtrack').toBeTypeOf('function');
