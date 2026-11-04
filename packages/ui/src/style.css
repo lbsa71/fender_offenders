@@ -391,7 +391,8 @@
  .fo-ui.fo-title-screen .fo-title-road{top:60px}
  .fo-ui.fo-title-screen .fo-title-car{width:120px;bottom:6px}
  .fo-ui.fo-title-screen .fo-panel{padding:10px 15px}
- .fo-ui.fo-title-screen .fo-panel h2,.fo-ui.fo-title-screen .fo-muted,.fo-ui.fo-title-screen .fo-input-hint{display:none}
+ .fo-ui.fo-title-screen .fo-muted,.fo-ui.fo-title-screen .fo-input-hint{display:none}
+ .fo-ui.fo-title-screen .fo-panel h2{font-size:20px;line-height:1;margin-bottom:4px}
  .fo-ui.fo-title-screen .fo-field{margin-bottom:8px}.fo-ui.fo-title-screen .fo-field input{padding:6px;margin-top:3px}
  .fo-ui.fo-title-screen .fo-primary{padding:8px}.fo-ui.fo-title-screen .fo-panel-footer{margin-top:8px;padding-top:8px}
  .fo-ui.fo-title-screen .fo-title-audio{margin-top:6px;min-height:44px;padding:6px}
