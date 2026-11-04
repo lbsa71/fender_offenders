@@ -28,11 +28,10 @@ for(const [stage,kind,key] of [[4,'bomb','b'],[7,'oil','q'],[8,'blades','c'],[9,
  await expect(page.locator('.fo-help-view [data-control-lesson]')).toContainText(kind==='bomb'?'bomb':kind);
 });
 
-test('deploys each unlocked weapon through actual touch taps without replay after pause',async({page,context})=>{
+for(const [stage,kind] of [[4,'bomb'],[7,'oil'],[8,'blades'],[9,'smog']] as const)test(`dispatch ${stage+1} deploys police ${kind} through actual touch taps without replay after pause`,async({page,context})=>{
  await page.addInitScript(()=>localStorage.setItem('fender-settings-v1',JSON.stringify({quality:'low',controlScheme:'touch'})));await page.setViewportSize({width:390,height:844});await page.goto('/');await page.getByRole('button',{name:'HIT THE STREETS'}).click();const cdp=await context.newCDPSession(page);
- for(const [stage,kind] of [[4,'bomb'],[7,'oil'],[8,'blades'],[9,'smog']] as const){await dispatchFixture(page,stage);await page.getByRole('button',{name:'START DISPATCH'}).click();await page.waitForFunction(()=>{const d=(window as any).__FENDER_DEBUG__;return d?.snapshot?.phase==='playing'&&d.snapshot.serverTick>=d.snapshot.local.vehicle.protectedUntilTick&&d.input.focused;});
+ await dispatchFixture(page,stage);await page.getByRole('button',{name:'START DISPATCH'}).click();await page.waitForFunction(()=>{const d=(window as any).__FENDER_DEBUG__;return d?.snapshot?.phase==='playing'&&d.snapshot.serverTick>=d.snapshot.local.vehicle.protectedUntilTick&&d.input.focused;});
  const box=(await page.locator(`[data-touch="${kind}"]`).boundingBox())!;expect(box.width).toBeGreaterThanOrEqual(44);expect(box.height).toBeGreaterThanOrEqual(44);
  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{id:1,x:box.x+box.width/2,y:box.y+box.height/2}]});await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
  await expect.poll(()=>page.evaluate(()=>((window as any).__FENDER_DEBUG__.snapshot.local.driver.nextDeployTick??0))).toBeGreaterThan(0);const deadline=await page.evaluate(()=>(window as any).__FENDER_DEBUG__.snapshot.local.driver.nextDeployTick);await page.getByRole('button',{name:'Open pause menu'}).click();await page.getByRole('button',{name:'BACK ON PATROL'}).click();expect(await page.evaluate(()=>(window as any).__FENDER_DEBUG__.snapshot.local.driver.nextDeployTick)).toBe(deadline);
- }
 });

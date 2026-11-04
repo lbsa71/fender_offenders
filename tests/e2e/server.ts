@@ -6,6 +6,8 @@ import type { Simulation } from '@fender/sim';
 import { CAMPAIGN_ID, STORYLINES, neutralActions } from '@fender/contracts';
 
 const port=Number(process.env.PORT??2867),server=await createGameServer(port,'127.0.0.1',{campaignId:CAMPAIGN_ID,debugDispatch:true});
+// Fixture preparation must not complete an arrest before the measured window starts.
+const contactSetups=new WeakMap<Simulation,{ready:boolean;playerId:string}>();
 const fixtures=createServer((req,res)=>{
  const route=/^\/room\/([A-Za-z0-9_-]{8,64})\/(story|stage|arrest|gadget|contact|contact-ready|drive)\/(\d)$/.exec(req.url??'');
  if(req.method!=='POST'||!route){res.writeHead(404).end();return;}
@@ -26,12 +28,16 @@ const fixtures=createServer((req,res)=>{
    const suspect=c.state.records.find(r=>r.vehicle.entityId===c.state.pursuit?.suspectId)!;
    c.state.records=[officer,suspect];c.state.projectiles=[];c.state.grenades=[];c.state.gadgets=[];
    c.state.arrestTicks=0;c.state.contenderTicks=[];
-   officer.vehicle.pose={x:0,z:-160,yaw:0};officer.vehicle.velocity={x:0,z:0,yawRate:0};officer.vehicle.discontinuityId++;
-   suspect.vehicle.pose={x:76,z:160,yaw:0};suspect.vehicle.velocity={x:0,z:0,yawRate:0};suspect.vehicle.discontinuityId++;
+   // Clock/correction checks keep the officer's real spawn and lifetime metrics.
+   if(route[3]==='0'||route[3]==='2'){officer.vehicle.pose=route[3]==='2'?{x:0,z:-45,yaw:0}:{x:0,z:-160,yaw:0};officer.vehicle.velocity={x:0,z:0,yawRate:0};officer.vehicle.discontinuityId++;}
+   suspect.vehicle.pose=route[3]==='2'?{x:0,z:-25,yaw:Math.PI}:{x:76,z:160,yaw:0};suspect.vehicle.velocity=route[3]==='2'?{x:0,z:-9,yawRate:0}:{x:0,z:0,yawRate:0};suspect.vehicle.discontinuityId++;
    suspect.traffic=undefined;suspect.bossAi=undefined;
    sim.restore(c);
  }else if(route[2]==='contact-ready'){
-   if(c.state.phase!=='playing'||!c.state.pursuit){res.writeHead(409).end();return;}
+   const setup=contactSetups.get(sim);
+   if(c.state.phase!=='playing'||!c.state.pursuit||!setup){res.writeHead(409).end();return;}
+   setup.ready=true;
+   const score=c.state.scores.find(score=>score.playerId===setup.playerId);if(score)score.connection='connected';
    // Preserve settled vehicle/contact state; measure a full arrest after fixture synchronization.
    c.state.arrestTicks=0;c.state.contenderTicks=[];c.state.pursuit.progress=0;c.state.pursuit.state='chasing';c.state.pursuit.arrestingPlayerId=null;c.state.pursuit.contenders=[];
    sim.restore(c);
@@ -51,8 +57,15 @@ const fixtures=createServer((req,res)=>{
    officer.vehicle.discontinuityId++;suspect.vehicle.discontinuityId++;
    if(route[2]==='contact'){
      c.state.records=[officer,suspect];officer.vehicle.pose={x:0,z:-30,yaw:0};suspect.vehicle.pose={x:0,z:-25.5,yaw:Math.PI};
+     const setup={ready:false,playerId:officer.vehicle.playerId!};contactSetups.set(sim,setup);
+     const score=c.state.scores.find(score=>score.playerId===setup.playerId);if(score)score.connection='reconnecting';
+     c.state.arrestTicks=0;c.state.contenderTicks=[];if(c.state.pursuit)c.state.pursuit.progress=0;
      const step=sim.step.bind(sim);let sequence=0;
-     sim.step=inputs=>step(new Map([...inputs,[suspect.vehicle.entityId,{actions:{...neutralActions(),throttle:.2},sessionEpoch:'bumper-fixture',sourceCommandSequence:sequence++}]]));
+     sim.step=inputs=>{
+       // Keep real collision/motion running; eligibility begins at contact-ready.
+       if(!setup.ready)sim.setConnection(setup.playerId,'reconnecting');
+       return step(new Map([...inputs,[suspect.vehicle.entityId,{actions:{...neutralActions(),throttle:.2},sessionEpoch:'bumper-fixture',sourceCommandSequence:sequence++}]]));
+     };
    }
    sim.restore(c);
  }

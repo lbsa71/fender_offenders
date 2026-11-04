@@ -8,6 +8,8 @@ Status: acceptance plan for the integrated `arcade-v27` / protocol 5 alpha. Upda
 
 ## Next acceptance work
 
+The 2026-11-02 browser-fixture investigation observed a car reaching a static wall without a server crash event. Static-wall impact confirmation remains an open authority/presentation follow-up; the passing controlled car-contact check does not resolve it. The [execution ledger](spec/EXECUTION_STATUS.md) retains the diagnostic and scope.
+
 The 2026-11-04 Pocket Rocket follow-up integrates the original bubble car as the ninth selectable profile in `codex/pocket-rocket`, paired gameplay `arcade-v27` / protocol 5. G/R/F/Q own the profile, native PBR presentation, ordinary gun gating, axle animation, exact physical breakup, bounded distant LOD, real room selection and browser checks sequentially. Existing chassis collision rules and other vehicles remain intact. [Integration evidence and review](spec/handoffs/BUBBLE_INTEGRATION.md) distinguish observed checks from pending human appearance/handling review and publication.
 
 
@@ -357,3 +359,7 @@ For future work claims, `todo`, `claimed`, `in-progress`, `ready-for-integration
 6. Validate staging and rollback before marking operations or release gates passed.
 
 The current priority is acceptance of the game already on the streets. Keep follow-up accounts, city editors, economies and elaborate matchmaking out of this queue. The dispatch desk has enough forms without inventing a Ministry of Unlockable Hubcaps.
+
+The 2026-11-01 owner-requested suspect speech pass adds four short, story-specific exclamations per suspect in roster order, starting with Nico Nickel: briefing, escape, wreck/hurt and arrest. U/A/Q work sequentially in this checkout with bundled ElevenLabs recordings, visible captions/replay, existing Master/Effects/mute controls, confirmed outcome selection and no network-contract change. The [audio reference](spec/AUDIO.md#suspect-exclamations) defines generation, provenance and listening acceptance.
+
+The same-day owner follow-up uses the remaining ElevenLabs balance for alternate suspect lines in roster-wide rounds. U/A/Q add independent per-suspect/outcome rotation, fixed caption/audio pairing across snapshots and replay, deferred selection for hidden dispatch arrivals, and a runtime catalog containing only successfully rendered recordings. Quota exhaustion stops generation; pending scripts remain drafts. No gameplay or protocol change is required.

@@ -84,9 +84,23 @@ OpenAI Codex (AI assistance), directed by the project owner: warned smog clouds,
 
 OpenAI Codex assistance, directed by Stefan Andersson, stabilized the helicopter and native smog browser checks on 2026-10-30 through controlled artifact-latency reproduction, authoritative timing, deterministic vehicle selection and isolated shader-module delivery, retaining the gameplay assertions.
 
+OpenAI Codex (AI assistance), directed by Stefan Andersson: original suspect exclamation scripts for fifty characters, ElevenLabs stock-voice casting and rendering, caption/replay presentation, bounded screen-driven audio playback, provenance and test-first browser verification (2026-11-01). Synthesized recordings were generated using the owner's ElevenLabs account; the stock voices are provided by ElevenLabs, not claimed as human performances by project contributors. See [suspect speech documentation](spec/AUDIO.md#suspect-exclamations).
+
+OpenAI Codex (AI assistance), directed by Stefan Andersson: story-themed alternate suspect scripts, independent per-suspect/outcome rotation, confirmed caption/audio pairing, menu-arrival regression fixes, resumable concurrent ElevenLabs rendering and quota-stop verification (2026-11-01). Pending drafts and successfully rendered speech are recorded separately.
+
+OpenAI Codex (AI assistance), directed by Stefan Andersson: reproduced and stabilized the browser contact-fixture preparation race discovered by the voice publication gate, preserving the full measured arrest windows and every existing driving assertion (2026-11-01).
+
+OpenAI Codex (AI assistance), directed by Stefan Andersson: corrected the saved-settings browser scenario to wait for interactive document readiness after reload, preserving all existing assertions and deadlines (2026-11-01).
+
+OpenAI Codex (AI assistance), directed by Stefan Andersson: reproduced the eight remaining voice-publication browser failures and stabilized their touch, gadget, winter and driving fixtures while preserving gameplay assertions (2026-11-02).
+
+The same Codex follow-up bounded the winter steering fixture, retained successful raw steering traces, separated the long dispatch tutorial flow, and synchronized late-backup keyboard navigation with confirmed joining, and prepared a deterministic head-on collision-presentation fixture with retained failure diagnostics, and corrected steering-reference accounting for bounded submissions (2026-11-02).
+
 The 2026-11-04 issue #7 follow-up includes OpenAI Codex assistance for compact live vehicle stats, ordered catalog reassignment and observed browser/fixture regression checks.
 
 The 2026-11-04 issues #5/#6 follow-up includes OpenAI Codex assistance for original SVG toy-car title artwork/animation, reduced-motion and phone layouts, policy-aware title autoplay, persistent briefing music/crossfades and observed native media/browser regressions.
+
+The 2026-11-04 voice/main integration includes OpenAI Codex assistance for preserving title/music and vehicle comparison updates, verifying voice coverage of all five opening dispatches, and testing explicit full-resync steering baselines with negative reset/life cases and real-server recovery, and a contact reference that independently replays local collision separation and once-applied authority adjustments while rejecting unauthorized displacement.
 
 The 2026-10-30 Pocket Rocket bubble car is original GPL-3.0-or-later project geometry, created with OpenAI Codex assistance under Stefan Andersson's direction: rounded Blender modeling, PBR materials, oversized optional guns, detachable parts, LODs, observed regression checks, real Babylon import verification and offline previews. [Bubble-car provenance](packages/content/manifests/licenses/bubble/README.md) records source and attribution.
 

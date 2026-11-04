@@ -340,6 +340,10 @@
 
 .fo-touch-deploy:has([data-touch="smog"]){display:grid;grid-template-columns:repeat(2,minmax(44px,1fr));gap:6px}
 
+.fo-suspect-speech{margin:8px 0 12px;border-left:3px solid #b64a32;padding-left:10px}
+.fo-suspect-speech p{font-size:10px;line-height:1.5;margin:0 0 5px;font-style:italic}
+.fo-suspect-speech button{font-size:8px;min-height:24px}
+
 /* Dispatch comparison: concise live stats leave the road preview and start action visible. */
 .fo-ui .fo-garage-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 8px;margin:7px 0}
 .fo-ui .fo-garage-stats span{font-size:7px;margin-bottom:2px;letter-spacing:0}

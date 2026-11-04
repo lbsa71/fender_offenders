@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { maxUnexplainedBackstep, summarizeMotion } from '../support/motion-trace';
+import { maxUnexplainedBackstep, sameRevisionBacksteps, summarizeMotion } from '../support/motion-trace';
 
 it('measures a constant-speed rendered trace without introducing velocity changes', () => {
   const samples = Array.from({ length: 90 }, (_, i) => ({ at: i * 1000 / 60, sampleAt: i * 1000 / 60, z: i * 20 / 60, ack: i - 8, pending: 8 }));
@@ -53,4 +53,30 @@ it('still detects a contact displacement applied twice or replayed with the same
     { at: 0, z: -.35, velocity: 0, contactZ: -.35 },
     { at: 40, z: -.7, velocity: 0, contactZ: -.35 },
   ])).toBeGreaterThan(.2);
+});
+
+it('does not report continuous physical reverse as a same-revision rewind', () => {
+  const velocity = -4.513330196664472, elapsed = .0468;
+  expect(sameRevisionBacksteps([
+    { at: 0, z: 0, velocity, contactZ: 0, contact: 7 },
+    { at: elapsed * 1000, z: velocity * elapsed, velocity, contactZ: 0, contact: 7 },
+  ])[0]).toBeCloseTo(0, 12);
+});
+it('still exposes a same-revision teleport beyond measured reverse travel', () => {
+  expect(sameRevisionBacksteps([
+    { at: 0, z: 0, velocity: -1, contactZ: 0, contact: 7 },
+    { at: 100, z: -.5, velocity: -1, contactZ: 0, contact: 7 },
+  ])[0]).toBeGreaterThan(.2);
+});
+it('cannot excuse a contact displacement without a new revision', () => {
+  expect(sameRevisionBacksteps([
+    { at: 0, z: 0, velocity: 0, contactZ: 0, contact: 7 },
+    { at: 40, z: -.4, velocity: 0, contactZ: -.4, contact: 7 },
+  ])[0]).toBeGreaterThan(.2);
+});
+it('keeps same-revision coverage distinct from new authoritative adjustments', () => {
+  expect(sameRevisionBacksteps([
+    { at: 0, z: 0, velocity: 0, contactZ: 0, contact: 7 },
+    { at: 40, z: -.1, velocity: 0, contactZ: -.1, contact: 8 },
+  ])).toEqual([]);
 });

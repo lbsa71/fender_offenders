@@ -1,19 +1,30 @@
 import { expect, test } from './fixtures';
 import { createTcpProxy } from '../integration/tcp-proxy';
-import { maxUnexplainedBackstep } from '../support/motion-trace';
+import { maxUnexplainedBackstep, sameRevisionBacksteps } from '../support/motion-trace';
+import { replayContactTrace, type ContactTrace } from '../support/contact-trace';
 
 test('keeps both cars stable while bumper pressure completes an arrest through network jitter',async({page})=>{
   test.setTimeout(60000);
+  // Bound software-rendering cost while collecting the unchanged real-frame coverage floor.
+  await page.setViewportSize({width:480,height:270});
   const serverPort=Number(process.env.FENDER_E2E_SERVER_PORT??2867),proxyPort=serverPort+5;
   const proxy=await createTcpProxy(proxyPort,serverPort,{oneWayLatencyMs:60,jitterMs:20});
   await page.route('**/packages/net-client/src/index.ts*',async route=>{
     const response=await route.fetch(),source=await response.text();expect(source).toContain('return api;');
-    await route.fulfill({response,body:source.replace('return api;',`{
+    expect(source.match(/\bpredictVehicle\s*\(/g)).toHaveLength(1);
+    const observed = source.replace(/\bpredictVehicle\s*\(/g, 'observeContactPrediction(');
+    await route.fulfill({response,body:observed.replace('return api;',`function observeContactPrediction(...args){
+      const trace=window.__FO_CONTACT__;
+      if(trace)trace.events.push({kind:'prediction',order:trace.nextOrder++,actions:structuredClone(args[3]),proxies:structuredClone(args[4]),tick:args[6],context:structuredClone(args[7])});
+      return predictVehicle(...args);
+    } {
       const sample=api.sampleFrame;window.__FO_CONTACT__=null;
+      api.onSnapshot(state=>{const trace=window.__FO_CONTACT__;if(trace&&state.local?.contact)trace.events.push({kind:'contact',order:trace.nextOrder++,contact:structuredClone(state.local.contact)});});
       api.sampleFrame=function(...args){const frame=sample.apply(this,args),state=api.getSnapshot(),trace=window.__FO_CONTACT__;
         if(trace&&frame&&state?.phase==='playing'){const car=frame.vehicles.find(v=>v.entityId===frame.localEntityId),target=frame.vehicles.find(v=>v.entityId===state.pursuit?.suspectId);
-          if(car&&target&&car.discontinuityId===trace.localLife&&target.discontinuityId===trace.targetLife)trace.frames.push({at:frame.sampleTimeSeconds*1000,z:car.pose.z,velocity:car.velocity.z,contactZ:state.local.contact?.pose.z??0,life:car.discontinuityId,targetLife:target.discontinuityId,health:car.health,contact:state.local.contact?.revision??0,corrections:api.getStats().corrections});}
+          if(car&&target)trace.frames.push({order:trace.nextOrder++,at:frame.sampleTimeSeconds*1000,predictionAt,proxies:structuredClone(frame.vehicles.filter(v=>v.entityId!==frame.localEntityId)),z:car.pose.z,velocity:car.velocity.z,contactZ:state.local.contact?.pose.z??0,life:car.discontinuityId,targetLife:target.discontinuityId,health:car.health,contact:state.local.contact?.revision??0,corrections:api.getStats().corrections});}
         return frame;};window.__FO_CONTACT_API__=api;
+      window.__FO_CONTACT_STATE__=()=>({local:structuredClone(predicted),contact:structuredClone(appliedContact)});
     } return api;`)});
   });
   await page.addInitScript(({serverPort,proxyPort})=>{
@@ -32,7 +43,7 @@ test('keeps both cars stable while bumper pressure completes an arrest through n
     const initial=await page.evaluate(()=>{
       const api=(window as any).__FO_CONTACT_API__,state=api.getSnapshot();
       const localLife=state.local.vehicle.discontinuityId+1,targetLife=state.vehicles.find((car:any)=>car.entityId===state.pursuit.suspectId).discontinuityId+1;
-      (window as any).__FO_CONTACT__={frames:[],localLife,targetLife};
+      (window as any).__FO_CONTACT__=null;
       return {corrections:api.getStats().corrections+1,localLife,targetLife};
     });
     expect((await page.request.post(`http://127.0.0.1:${serverPort+1000}/room/${room}/contact/0`)).ok()).toBe(true);
@@ -41,27 +52,38 @@ test('keeps both cars stable while bumper pressure completes an arrest through n
     // measuring ordinary contact, then retain the full three-second arrest window.
     const setupAck=await page.evaluate(()=>(window as any).__FO_CONTACT_API__.getSnapshot().local.lastConsumedSequence);
     await page.waitForFunction(ack=>(window as any).__FO_CONTACT_API__.getSnapshot().local.lastConsumedSequence>=ack+8,setupAck);
-    initial.corrections=await page.evaluate(()=>{(window as any).__FO_CONTACT__.frames=[];return (window as any).__FO_CONTACT_API__.getStats().corrections;});
+    // Preparation may take longer than an arrest window on a delayed connection.
+    // The fixture must not award an arrest before the measured attempt is armed.
+    if(trial===0)await page.waitForTimeout(3500);
+    expect(await page.evaluate(()=>(window as any).__FO_CONTACT_API__.getSnapshot().phase)).toBe('playing');
+    expect(await page.evaluate(()=>(window as any).__FO_CONTACT_API__.getSnapshot().pursuit.progress)).toBe(0);
+    initial.corrections=await page.evaluate(()=>{const state=(window as any).__FO_CONTACT_STATE__();(window as any).__FO_CONTACT__={initial:state.local,initialContact:state.contact,events:[],frames:[],nextOrder:0};return (window as any).__FO_CONTACT_API__.getStats().corrections;});
     expect((await page.request.post(`http://127.0.0.1:${serverPort+1000}/room/${room}/contact-ready/0`)).ok()).toBe(true);
     await page.keyboard.down('w');await expect(page.getByText('ARREST CERTIFIED',{exact:true})).toBeVisible();await page.keyboard.up('w');
-    const frames:{at:number;z:number;velocity:number;contactZ:number;life:number;targetLife:number;health:number;contact:number;corrections:number}[]=await page.evaluate(()=>(window as any).__FO_CONTACT__.frames);
+    const trace: Omit<ContactTrace,'frames'> & {frames:(ContactTrace['frames'][number]&{z:number;velocity:number;contactZ:number;life:number;targetLife:number;health:number;contact:number;corrections:number})[]} = await page.evaluate(()=>(window as any).__FO_CONTACT__);
+    const rawFrames=trace.frames,expectedZ=replayContactTrace(trace);
+    const velocityOnlyUnexplained=maxUnexplainedBackstep(rawFrames);
+    const frames=rawFrames.map((frame,i)=>({...frame,expectedZ:expectedZ[i]!}));
+    const maxReplayError=Math.max(...frames.map((f,i)=>Math.abs(f.z-expectedZ[i]!)));
     const backsteps=frames.slice(1).map((f,i)=>frames[i]!.z-f.z),maxBackstep=Math.max(...backsteps);
-    const unadjustedBacksteps=frames.slice(1).flatMap((f,i)=>f.contact===frames[i]!.contact?[frames[i]!.z-f.z]:[]);
+    const rawSameRevisionBacksteps=frames.slice(1).flatMap((f,i)=>f.contact===frames[i]!.contact?[frames[i]!.z-f.z]:[]);
+    const unexplainedWithoutRevision=sameRevisionBacksteps(frames);
     const unexplainedBackstep=maxUnexplainedBackstep(frames);
     const separationPerRevision=frames.slice(1).flatMap((f,i)=>f.contact>frames[i]!.contact?[Math.abs(f.contactZ-frames[i]!.contactZ)/(f.contact-frames[i]!.contact)]:[]);
-    await test.info().attach('Rendered bumper contact and arrest',{body:JSON.stringify({frames,maxBackstep,unexplainedBackstep}),contentType:'application/json'});
-    console.log('Bumper trace',JSON.stringify({frames:frames.length,maxBackstep,unexplainedBackstep,contactRevisions:Math.max(...frames.map(f=>f.contact)),controllerResets:Math.max(...frames.map(f=>f.corrections))-initial.corrections}));
+    await test.info().attach('Rendered bumper contact and arrest',{body:JSON.stringify({trace,expectedZ,maxReplayError,velocityOnlyUnexplained,frames,maxBackstep,rawSameRevisionBacksteps,unexplainedWithoutRevision,unexplainedBackstep}),contentType:'application/json'});
+    console.log('Bumper trace',JSON.stringify({frames:frames.length,maxBackstep,unexplainedBackstep,maxReplayError,velocityOnlyUnexplained,contactRevisions:Math.max(...frames.map(f=>f.contact)),controllerResets:Math.max(...frames.map(f=>f.corrections))-initial.corrections}));
     expect(frames[0]!.life,'Recording begins with the explicit fixture intervention, not an earlier car pose').toBe(initial.localLife);
     expect(frames[0]!.targetLife).toBe(initial.targetLife);
     totalFrames+=frames.length;expect(Math.max(...frames.map(f=>f.contact))).toBeGreaterThan(3);
     expect(Math.max(...frames.map(f=>f.corrections)),'Contact must not restart local driving').toBe(initial.corrections);
     expect(new Set(frames.map(f=>f.life)).size).toBe(1);expect(new Set(frames.map(f=>f.targetLife)).size).toBe(1);
     expect(Math.min(...frames.map(f=>f.health))).toBe(100);
-    expect(unadjustedBacksteps.length).toBeGreaterThan(3);
-    expect(Math.max(...unadjustedBacksteps),'Without a new contact adjustment, settled contact must not jump back to older poses').toBeLessThan(.2);
+    expect(unexplainedWithoutRevision.length).toBeGreaterThan(3);
+    expect(Math.max(...unexplainedWithoutRevision),'Without a new contact adjustment, settled contact must not jump back to older poses').toBeLessThan(.2);
     expect(separationPerRevision.length).toBeGreaterThan(3);
     expect(Math.max(...separationPerRevision),'The authority must not hide a large teleport in a contact revision').toBeLessThan(.2);
     expect(unexplainedBackstep,'Holding bumper contact must not add an unexplained jump to older poses').toBeLessThan(.2);
+    expect(maxReplayError,'Every rendered position must follow independent physics and once-applied contact adjustments').toBeLessThan(.2);
     await page.getByRole('button',{name:/^BACK TO DISPATCH/}).click();
    }
    expect(totalFrames,'Two real arrest windows must provide enough samples without imposing a rendering FPS requirement').toBeGreaterThan(60);

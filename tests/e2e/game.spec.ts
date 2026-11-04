@@ -70,7 +70,8 @@ test('keyboard practice drives, fires, releases controls on pause and saves sett
   await page.getByRole('button', { name: 'BACK ON PATROL' }).click();
   await expect.poll(async () => (await snapshot(page))!.serverTick).toBeGreaterThan(pausedTick);
   await expect(page.getByRole('img', { name: /^Wanted suspect,/ })).toBeVisible();
-  await page.reload();
+  // Check restored controls when the menu is interactive; media completion is independent.
+  await page.reload({waitUntil:'domcontentloaded'});
   await page.getByRole('button', { name: 'SETTINGS & CONTROLS' }).click();
   await expect(page.getByLabel('Reduce flashes')).toBeChecked();
   await expect(page.getByLabel('Graphics')).toHaveValue('medium');
@@ -86,17 +87,36 @@ test('a hard driving collision presents a confirmed impact burst without ram dam
   test.setTimeout(90000);
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await page.addInitScript(()=>localStorage.setItem('fender-garage-v1',JSON.stringify({vehicleBodyId:'patrol'})));
-  await practice(page);await page.keyboard.down('w');await page.keyboard.down('d');
+  await practice(page);
+  // Drive a clear head-on encounter with the real oncoming suspect, not an open-ended circle.
+  const room = new URL(page.url()).searchParams.get('room')!;
+  const port = Number(process.env.FENDER_E2E_SERVER_PORT ?? 2867) + 1000;
+  expect((await page.request.post(`http://127.0.0.1:${port}/room/${room}/drive/2`)).status()).toBe(204);
+  await expect.poll(async () => (await snapshot(page))?.local?.vehicle.pose).toMatchObject({x:0,z:-45});
+  const ack = (await snapshot(page))!.local!.lastConsumedSequence;
+  await page.waitForFunction(ack => {
+    const d = (window as any).__FENDER_DEBUG__;
+    return d.input.focused && d.snapshot.local.lastConsumedSequence >= ack + 8;
+  }, ack);
+  await page.keyboard.down('w');
   try{
     // The burst can expire between cross-process polls. Observe every real
     // browser frame so a short, actually rendered impact cannot be skipped.
     await page.waitForFunction(()=>{
       const debug=(window as DebugWindow).__FENDER_DEBUG__;
       return !!debug?.events?.some(event=>event.kind==='crash')&&(debug.stats?.renderer?.impactRings??0)>0;
-    },undefined,{polling:'raf',timeout:60000});
+    },undefined,{polling:'raf',timeout:60000}).catch(async error => {
+      const diagnostic = await page.evaluate(() => {
+        const d = (window as any).__FENDER_DEBUG__;
+        return { local: d.snapshot?.local, input: d.input, events: d.events, network: d.stats?.network, impactRings: d.stats?.renderer?.impactRings };
+      });
+      console.log('Collision diagnostic', JSON.stringify(diagnostic));
+      await test.info().attach('Collision diagnostic', {body:JSON.stringify(diagnostic),contentType:'application/json'});
+      throw error;
+    });
     expect((await snapshot(page))!.local!.vehicle.health).toBe(100);
     expect(errors).toEqual([]);
-  }finally{await page.keyboard.up('w');await page.keyboard.up('d');}
+  }finally{await page.keyboard.up('w');}
 });
 
 test('a standard controller can start, drive, pause, navigate and safely disconnect', async ({ page }) => {
