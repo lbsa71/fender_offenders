@@ -99,4 +99,4 @@ The 2026-11-04 issue #7 follow-up includes OpenAI Codex assistance for compact l
 
 The 2026-11-04 issues #5/#6 follow-up includes OpenAI Codex assistance for original SVG toy-car title artwork/animation, reduced-motion and phone layouts, policy-aware title autoplay, persistent briefing music/crossfades and observed native media/browser regressions.
 
-The 2026-11-04 voice/main integration includes OpenAI Codex assistance for preserving title/music and vehicle comparison updates, verifying voice coverage of all five opening dispatches, and testing explicit full-resync steering baselines with negative reset/life cases and real-server recovery.
+The 2026-11-04 voice/main integration includes OpenAI Codex assistance for preserving title/music and vehicle comparison updates, verifying voice coverage of all five opening dispatches, and testing explicit full-resync steering baselines with negative reset/life cases and real-server recovery, and a contact reference that distinguishes physical reverse from unauthorized same-revision displacement.

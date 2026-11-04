@@ -1,11 +1,11 @@
 import { expect, test } from './fixtures';
 import { createTcpProxy } from '../integration/tcp-proxy';
-import { maxUnexplainedBackstep } from '../support/motion-trace';
+import { maxUnexplainedBackstep, sameRevisionBacksteps } from '../support/motion-trace';
 
 test('keeps both cars stable while bumper pressure completes an arrest through network jitter',async({page})=>{
   test.setTimeout(60000);
   // Bound software-rendering cost while collecting the unchanged real-frame coverage floor.
-  await page.setViewportSize({width:640,height:360});
+  await page.setViewportSize({width:480,height:270});
   const serverPort=Number(process.env.FENDER_E2E_SERVER_PORT??2867),proxyPort=serverPort+5;
   const proxy=await createTcpProxy(proxyPort,serverPort,{oneWayLatencyMs:60,jitterMs:20});
   await page.route('**/packages/net-client/src/index.ts*',async route=>{
@@ -53,10 +53,11 @@ test('keeps both cars stable while bumper pressure completes an arrest through n
     await page.keyboard.down('w');await expect(page.getByText('ARREST CERTIFIED',{exact:true})).toBeVisible();await page.keyboard.up('w');
     const frames:{at:number;z:number;velocity:number;contactZ:number;life:number;targetLife:number;health:number;contact:number;corrections:number}[]=await page.evaluate(()=>(window as any).__FO_CONTACT__.frames);
     const backsteps=frames.slice(1).map((f,i)=>frames[i]!.z-f.z),maxBackstep=Math.max(...backsteps);
-    const unadjustedBacksteps=frames.slice(1).flatMap((f,i)=>f.contact===frames[i]!.contact?[frames[i]!.z-f.z]:[]);
+    const rawSameRevisionBacksteps=frames.slice(1).flatMap((f,i)=>f.contact===frames[i]!.contact?[frames[i]!.z-f.z]:[]);
+    const unexplainedWithoutRevision=sameRevisionBacksteps(frames);
     const unexplainedBackstep=maxUnexplainedBackstep(frames);
     const separationPerRevision=frames.slice(1).flatMap((f,i)=>f.contact>frames[i]!.contact?[Math.abs(f.contactZ-frames[i]!.contactZ)/(f.contact-frames[i]!.contact)]:[]);
-    await test.info().attach('Rendered bumper contact and arrest',{body:JSON.stringify({frames,maxBackstep,unexplainedBackstep}),contentType:'application/json'});
+    await test.info().attach('Rendered bumper contact and arrest',{body:JSON.stringify({frames,maxBackstep,rawSameRevisionBacksteps,unexplainedWithoutRevision,unexplainedBackstep}),contentType:'application/json'});
     console.log('Bumper trace',JSON.stringify({frames:frames.length,maxBackstep,unexplainedBackstep,contactRevisions:Math.max(...frames.map(f=>f.contact)),controllerResets:Math.max(...frames.map(f=>f.corrections))-initial.corrections}));
     expect(frames[0]!.life,'Recording begins with the explicit fixture intervention, not an earlier car pose').toBe(initial.localLife);
     expect(frames[0]!.targetLife).toBe(initial.targetLife);
@@ -64,8 +65,8 @@ test('keeps both cars stable while bumper pressure completes an arrest through n
     expect(Math.max(...frames.map(f=>f.corrections)),'Contact must not restart local driving').toBe(initial.corrections);
     expect(new Set(frames.map(f=>f.life)).size).toBe(1);expect(new Set(frames.map(f=>f.targetLife)).size).toBe(1);
     expect(Math.min(...frames.map(f=>f.health))).toBe(100);
-    expect(unadjustedBacksteps.length).toBeGreaterThan(3);
-    expect(Math.max(...unadjustedBacksteps),'Without a new contact adjustment, settled contact must not jump back to older poses').toBeLessThan(.2);
+    expect(unexplainedWithoutRevision.length).toBeGreaterThan(3);
+    expect(Math.max(...unexplainedWithoutRevision),'Without a new contact adjustment, settled contact must not jump back to older poses').toBeLessThan(.2);
     expect(separationPerRevision.length).toBeGreaterThan(3);
     expect(Math.max(...separationPerRevision),'The authority must not hide a large teleport in a contact revision').toBeLessThan(.2);
     expect(unexplainedBackstep,'Holding bumper contact must not add an unexplained jump to older poses').toBeLessThan(.2);
