@@ -2,9 +2,7 @@ import { expect, test } from './fixtures';
 import type { Page } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import { createTcpProxy } from '../integration/tcp-proxy';
-import { predictVehicle } from '@fender/sim';
-import { districtMap } from '@fender/content';
-import { getDispatchFeatures, type InputCommand, type LocalAuthorityState } from '@fender/contracts';
+import { compareSteeringTrace, type SteeringTrace } from '../support/steering-trace';
 import { summarizeMotion, type MotionSample } from '../support/motion-trace';
 
 // These checks measure input/network behavior, not software-GPU throughput.
@@ -30,7 +28,7 @@ async function clearDrivingLane(page: Page, relocate = true) {
   await page.waitForFunction(ack => (window as any).__FENDER_DEBUG__.snapshot.local.lastConsumedSequence >= ack + 8, ack);
 }
 
-for(const dispatch of [1,9])test(`steering press and release in dispatch ${dispatch} follow direct local physics through jitter and a 650ms TCP stall`, async ({page})=>{
+for(const dispatch of [1,9])for(const forceResync of [false,true])test(`steering press and release in dispatch ${dispatch} follow direct local physics through jitter and a 650ms TCP stall${forceResync ? ' and an explicit full resync' : ''}`, async ({page})=>{
   test.setTimeout(60000);
   // Keep winter raster work bounded alongside the intentional TCP stall.
   if (dispatch === 9) await page.setViewportSize({ width: 320, height: 240 });
@@ -45,12 +43,13 @@ for(const dispatch of [1,9])test(`steering press and release in dispatch ${dispa
       const submit=api.submit,sample=api.sampleFrame;
       api.submit=function(...args){
         const trace=window.__FO_STEERING__,before=api.getStats().pendingInputs,at=performance.now(),result=submit.apply(this,args);
-        if(trace){const item={at,logical:args[1],command:structuredClone(args[0])};
+        if(trace){const item={order:trace.nextOrder++,at,logical:args[1],command:structuredClone(args[0])};
           if(api.getStats().pendingInputs===before+1)trace.commands.push(item);else trace.dropped.push(item);
         }return result;
       };
+      api.onSnapshot(state=>{const trace=window.__FO_STEERING__;if(trace&&state.local)trace.snapshots.push({order:trace.nextOrder++,at:performance.now(),predictionAt,local:structuredClone(state.local),resetReason:state.resetReason,corrections:api.getStats().corrections});});
       api.sampleFrame=function(...args){const frame=sample.apply(this,args),trace=window.__FO_STEERING__,state=api.getSnapshot();
-        if(trace&&frame&&state?.local){const car=frame.vehicles.find(car=>car.entityId===frame.localEntityId);trace.frames.push({at:performance.now(),sampleAt:frame.sampleTimeSeconds*1000,pose:{...car.pose},velocity:{...car.velocity},life:car.discontinuityId,pending:api.getStats().pendingInputs,contactRevision:state.local.contact?.revision??0,corrections:api.getStats().corrections});}return frame;};
+        if(trace&&frame&&state?.local){const car=frame.vehicles.find(car=>car.entityId===frame.localEntityId);trace.frames.push({order:trace.nextOrder++,at:performance.now(),sampleAt:frame.sampleTimeSeconds*1000,pose:{...car.pose},velocity:{...car.velocity},life:car.discontinuityId,pending:api.getStats().pendingInputs,contactRevision:state.local.contact?.revision??0,corrections:api.getStats().corrections});}return frame;};
     } return api;`)});
   });
   await page.addInitScript(({serverPort,proxyPort,winter})=>{
@@ -64,25 +63,24 @@ for(const dispatch of [1,9])test(`steering press and release in dispatch ${dispa
     await page.waitForFunction(()=>(window as any).__FENDER_DEBUG__?.snapshot?.phase==='playing'&&(window as any).__FENDER_DEBUG__.input.focused);
     await clearDrivingLane(page);
     await page.waitForTimeout(250);
-    await page.evaluate(()=>{const driver=(window as any).__FO_DRIVER__;(window as any).__FO_STEERING__={initial:structuredClone(driver.getSnapshot().local),reducedShake:JSON.parse(localStorage.getItem('fender-settings-v1')??'{}').reducedShake,snowflakes:(window as any).__FENDER_DEBUG__.stats.renderer.snowflakes,surface:{width:innerWidth,height:innerHeight,canvasWidth:document.querySelector('canvas')?.width,canvasHeight:document.querySelector('canvas')?.height},commands:[],dropped:[],frames:[]};});
+    await page.evaluate(()=>{const driver=(window as any).__FO_DRIVER__;(window as any).__FO_STEERING__={initial:structuredClone(driver.getSnapshot().local),initialCorrections:driver.getStats().corrections,nextOrder:0,snapshots:[],reducedShake:JSON.parse(localStorage.getItem('fender-settings-v1')??'{}').reducedShake,snowflakes:(window as any).__FENDER_DEBUG__.stats.renderer.snowflakes,surface:{width:innerWidth,height:innerHeight,canvasWidth:document.querySelector('canvas')?.width,canvasHeight:document.querySelector('canvas')?.height},commands:[],dropped:[],frames:[]};});
     await page.keyboard.down('w');profile.stallAtMs=performance.now()-began+500;await page.waitForTimeout(500);
+    if(forceResync)await page.evaluate(()=>(window as any).__FO_DRIVER__.request('resync'));
     for(const key of ['d','a','d','a']){await page.keyboard.down(key);await page.waitForTimeout(120);await page.keyboard.up(key);await page.waitForTimeout(600);}
     await page.keyboard.up('w');await page.waitForTimeout(200);
-    const trace:{reducedShake?:boolean;snowflakes:number;initial:LocalAuthorityState;commands:{at:number;logical:number;command:InputCommand}[];frames:{at:number;sampleAt:number;pose:{yaw:number};velocity:{yawRate:number};life:number;pending:number}[]}=await page.evaluate(()=>(window as any).__FO_STEERING__);
-    let expected=structuredClone(trace.initial),cursor=0,lastLogical=0;
-    const errors=trace.frames.map(frame=>{
-      while(cursor<trace.commands.length&&trace.commands[cursor]!.at<=frame.at){const item=trace.commands[cursor++]!;expected={...expected,...predictVehicle(districtMap,expected.vehicle,expected.driver,item.command.actions,[],undefined,(expected.driver.simulatedTick??0)+1,getDispatchFeatures(dispatch-1))};lastLogical=item.logical;}
-      const dt=Math.max(0,Math.min(.05,(frame.sampleAt-lastLogical)/1000));
-      return {yaw:Math.abs(Math.atan2(Math.sin(frame.pose.yaw-expected.vehicle.pose.yaw-expected.vehicle.velocity.yawRate*dt),Math.cos(frame.pose.yaw-expected.vehicle.pose.yaw-expected.vehicle.velocity.yawRate*dt))),rate:Math.abs(frame.velocity.yawRate-expected.vehicle.velocity.yawRate)};
-    });
+    const trace: SteeringTrace & { reducedShake?: boolean; snowflakes: number } = await page.evaluate(()=>(window as any).__FO_STEERING__);
+    const errors = compareSteeringTrace(trace, dispatch);
     const tracePath = test.info().outputPath('steering-trace.json');
     await writeFile(tracePath, JSON.stringify({trace,errors}));
     await test.info().attach('Direct local steering versus actual networked frames',{path:tracePath,contentType:'application/json'});
     if (dispatch === 9) { expect(trace.reducedShake).toBe(true); expect(trace.snowflakes).toBe(0); }
+    if(forceResync)expect(trace.snapshots.some(s=>s.resetReason==='resync'&&s.corrections>trace.initialCorrections),'The real server must deliver a full resync baseline').toBe(true);
+    expect(Math.max(...errors.map(error=>error.unexpectedCorrections)),'Ordinary snapshots must never reset local steering').toBe(0);
     expect(trace.frames.length).toBeGreaterThan(60);
     expect(Math.max(...trace.frames.map(frame=>frame.pending))).toBeGreaterThan(6);
-    expect(new Set(trace.frames.map(frame=>frame.life)).size,'This steering trace must avoid actual collision/reset interventions').toBe(1);
-    expect(Math.max(...errors.map(error=>error.rate)),'Network traffic must not restore old steering into the local controller').toBeLessThan(.000001);
+    if(!forceResync)expect(new Set(trace.frames.map(frame=>frame.life)).size,'This steering trace must avoid actual collision/life interventions').toBe(1);
+    expect(Math.max(...errors.map(error=>error.unexpectedLifeChanges)),'Every rendered life must match its declared baseline').toBe(0);
+    expect(Math.max(...errors.map(error=>error.rate)),'Ordinary snapshots must not restore old steering between explicit full resyncs').toBeLessThan(.000001);
     expect(Math.max(...errors.map(error=>error.yaw)),'Network traffic must not add a delayed visual turn after release').toBeLessThan(.001);
   }finally{await page.keyboard.up('w');await proxy.dispose();}
 });
