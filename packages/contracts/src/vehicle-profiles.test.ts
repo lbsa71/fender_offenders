@@ -1,6 +1,13 @@
 import { expect, it } from 'vitest';
 import * as contracts from './index.js';
 
+it('offers Pocket Rocket as a nimble, lightly armored selectable bubble car',()=>{
+  expect(contracts.GAMEPLAY_REVISION).toBe('arcade-v27');
+  expect(contracts.isVehicleBodyId('bubble')).toBe(true);
+  expect(contracts.VEHICLE_BODIES).toContain('bubble');
+  expect(contracts.getVehicleProfile('bubble')).toMatchObject({id:'bubble',name:'Pocket Rocket',maxHealth:70,topSpeed:26,acceleration:20,steeringRate:2.7,grip:11.5});
+});
+
 it('offers Night Courier as a selectable armored 1920s sedan',()=>{
   expect(contracts.isVehicleBodyId('gangster')).toBe(true);
   expect(contracts.VEHICLE_BODIES).toContain('gangster');
@@ -13,10 +20,10 @@ it('offers the DB5 as a selectable classic GT with shared handling',()=>{
   expect(contracts.getVehicleProfile('db5')).toMatchObject({id:'db5',name:'Aston Martin DB5',maxHealth:90,topSpeed:26});
 });
 
-it('exposes eight shared vehicle profiles with distinct trade-offs and a safe fallback', () => {
+it('exposes nine shared vehicle profiles with distinct trade-offs and a safe fallback', () => {
   expect(contracts).toHaveProperty('VEHICLE_PROFILES');
   const profiles = Reflect.get(contracts, 'VEHICLE_PROFILES') as Record<string, { maxHealth: number; topSpeed: number }>;
-  expect(Object.keys(profiles).sort()).toEqual(['ambulance', 'army', 'db5', 'fire-chief', 'gangster', 'interceptor', 'patrol', 'roadster']);
+  expect(Object.keys(profiles).sort()).toEqual(['ambulance', 'army', 'bubble', 'db5', 'fire-chief', 'gangster', 'interceptor', 'patrol', 'roadster']);
   expect(profiles.army!.maxHealth).toBeGreaterThan(profiles.patrol!.maxHealth);
   expect(profiles.army!.topSpeed).toBeLessThan(profiles.patrol!.topSpeed);
   expect(profiles.roadster!.maxHealth).toBeLessThan(profiles.patrol!.maxHealth);

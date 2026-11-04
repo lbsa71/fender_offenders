@@ -1,0 +1,122 @@
+{
+  "recorded": "2026-10-30",
+  "name": "Pocket Rocket",
+  "license": "GPL-3.0-or-later",
+  "creation": "Original unbranded Blender geometry with OpenAI Codex assistance directed by Stefan Andersson",
+  "externalSourceUsed": false,
+  "licenseFile": {
+    "path": "packages/content/manifests/licenses/bubble/LICENSE.txt",
+    "bytes": 35149,
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  },
+  "editableSource": {
+    "path": "asset-source/bubble/bubble-prepared.blend",
+    "bytes": 376135,
+    "sha256": "3d6a238eaf5862daba7d8eb1c359bcde0a02cf771308b98aa8ce7bda2b972b3a"
+  },
+  "canonicalRecipe": {
+    "path": "tools/assets/bubble/prepare.py",
+    "bytes": 13404,
+    "sha256": "e91e333a4d19a0c8b81bda782ebe079a71725d69e7779e46bb3f5dce78bfdde3"
+  },
+  "runtime": {
+    "briefing": {
+      "path": "packages/content/runtime/models/bubble/bubble-briefing.glb",
+      "bytes": 443044,
+      "sha256": "927334eaa5fc44d9b0505bf7d2a41e2bb8e85f86da6721f9c29783afb7fc4758",
+      "triangles": 19008,
+      "meshes": 19,
+      "primitives": 40,
+      "materials": 7,
+      "images": 0,
+      "gzipBytes": 139158,
+      "extensionsUsed": [
+        "KHR_materials_clearcoat"
+      ],
+      "unarmedBounds": {
+        "min": [
+          -0.8100000023841858,
+          -0.26499998569488525,
+          -1.3865000009536743
+        ],
+        "max": [
+          0.8100000023841858,
+          1.1699999570846558,
+          1.3865000009536743
+        ]
+      }
+    },
+    "driving": {
+      "path": "packages/content/runtime/models/bubble/bubble-driving.glb",
+      "bytes": 188152,
+      "sha256": "b0f97efd9b41b96ddbb06fc3273b9cd13d7d31b3b72f8ccb85e69e09d3c9ca34",
+      "triangles": 7392,
+      "meshes": 19,
+      "primitives": 40,
+      "materials": 7,
+      "images": 0,
+      "gzipBytes": 49396,
+      "extensionsUsed": [
+        "KHR_materials_clearcoat"
+      ],
+      "unarmedBounds": {
+        "min": [
+          -0.8100000023841858,
+          -0.26499998569488525,
+          -1.3865000009536743
+        ],
+        "max": [
+          0.8100000023841858,
+          1.1699999570846558,
+          1.3865000009536743
+        ]
+      }
+    },
+    "distant": {
+      "path": "packages/content/runtime/models/bubble/bubble-distant.glb",
+      "bytes": 83908,
+      "sha256": "588252ccbca3b718120db280d61700eb65c81df94203cc96289aad5c87f162ae",
+      "triangles": 2620,
+      "meshes": 19,
+      "primitives": 36,
+      "materials": 7,
+      "images": 0,
+      "gzipBytes": 19147,
+      "extensionsUsed": [
+        "KHR_materials_clearcoat"
+      ],
+      "unarmedBounds": {
+        "min": [
+          -0.8100000023841858,
+          -0.26499998569488525,
+          -1.375
+        ],
+        "max": [
+          0.8100000023841858,
+          1.1699999570846558,
+          1.375
+        ]
+      }
+    }
+  },
+  "runtimeTextureDependencies": [],
+  "toolchain": "Blender 5.2.2 LTS; Node; Babylon.js 9.32.0 GLB loader / NullEngine",
+  "repeatability": "All three runtime GLB hashes matched across a complete repeated export on 2026-10-30. Blender container bytes can vary on save.",
+  "validation": {
+    "testsPassed": 26,
+    "previewCount": 18,
+    "triangleBudgets": [
+      20000,
+      8000,
+      3000
+    ],
+    "maxPrimitivesPerLod": 40
+  },
+  "limits": [
+    "Actual game selection, weapon gating, cameras, physics and sustained performance remain pending.",
+    "Direct Babylon loader checks verify asset structure and PBR import, not gameplay integration.",
+    "Opaque glazing; no interior or engine.",
+    "Far LOD is intentionally coarse.",
+    "Hide both optional gun meshes on import until normal equipment rules permit them."
+  ]
+}

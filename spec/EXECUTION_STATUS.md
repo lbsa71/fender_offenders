@@ -1,5 +1,11 @@
 # Execution status and evidence
 
+## 2026-11-04 · Preserve Pocket Rocket while completing voice publication
+
+Integrated current main `24ba291` into the voice branch, preserving the ninth vehicle, model/LOD/breakup/audio integration and its new browser/native checks. Documentation conflicts retain both contributions and dated evidence. This is integration and documentation work; no new behavioral RED is claimed.
+
+The preceding voice tree at `80d9c94` passed **1,117 headless tests / 108 files**, **114 browser scenarios / one existing optional GPU diagnostic skip (27.3 minutes)**, all five UI smoke suites and native water, audio, helicopter, snow and tire checks (`work/voice-main-final-awake-push.log`). The final vehicle check lost its execution context during confirmed lid-close sleep; the pre-push hook rejected publication. An earlier DB5 failure also overlapped a 52-second lid-close sleep and passed unchanged in the next run. These are interrupted gates, not completed publication. The owner has now confirmed an awake window for a fresh full gate on the integrated tree. Fresh combined headless checks pass **1,132 tests / 108 files (30.79 seconds)**, with type/documentation and whitespace checks green (`work/voice-pocket-headless.log`, `work/voice-pocket-check.log`). The full gate, push and PR checks remain pending at this checkpoint.
+
 ## 2026-11-04 · Independent contact replay includes local collision separation
 
 The integrated gate on `ad509e9` stopped with **38 passed / 1 failed / 1 interrupted / 1 existing diagnostic skip / 74 not run (10.2 minutes)**. Contact reported 0.2550911784 m unexplained displacement against the unchanged 0.2 m limit (`work/voice-main-gate-verified.log`, `work/voice-main-contact-kinematic-red`). Publication was rejected. The velocity-only reference omitted position separation performed by local collision physics; the original failed interval lacks the richer input trace, so it is not claimed independently replayed.
@@ -35,6 +41,16 @@ Integrated `origin/main` at `a582e5e` into the voice branch, preserving the titl
 Verified the first dispatch of all five selectable cases: Nico Nickel, Cora Crumb, Lola Lane, Ollie Overtime and Della Duckett each have **11 selectable recordings per briefing/escaped/wrecked/arrested outcome**. All fifty suspects are voiced, so every normal case opening and subsequent dispatch has recordings without changing encounter order. The asset integration check verifies selectable files, text, voice IDs, byte lengths and hashes.
 
 Fresh integrated GREEN: **1,098 headless tests / 106 files**, type/documentation/whitespace checks, and **nine focused native-browser voice/title scenarios**, including decoding/non-silence of all 2,180 recordings and longest-caption layouts with the restored car cards. Logs: `work/voice-main-headless.log`, `work/voice-main-check.log`, `work/voice-main-focused-browser.log`. The full local pre-push gate, PR verification and merge to main remain pending at this checkpoint.
+
+## 2026-11-04 · Pocket Rocket selectable-car integration
+
+Imported original GPL art delivery `7b83b6e` into the separate `codex/pocket-rocket` worktree, based on current main `a582e5e`, preserving source geometry, licenses, current title/audio work and restored unit/suspect statistics. Pocket Rocket (`bubble`) is profile nine at paired gameplay `arcade-v27` / protocol 5: 70 health, 26 m/s, acceleration 20, steering 2.7 and grip 11.5. Existing vehicle profiles, equipment progression, authority projectile/muzzle rules, collision dimensions and eight-player limit are unchanged.
+
+Observed RED before implementation: catalog/model checks rejected the missing body/model; distant loads reused 7,392-triangle driving geometry rather than 2,620-triangle distant geometry; the actual renderer never switched the distant car; recorded audio had no tuning for the new ID; the generic charred visual exceeded the tiny footprint. Initial tuning also failed the unchanged sustained-fire speed penalty (25.14 m/s versus required <23.8). The final profile preserves that recoil rule and the unchanged weighted balance/no-dominance gates. Setup corrections (oscillator versus recorded-audio test path, owner disposal of a created car, and obsolete procedural-only catalog lists) are not claimed as behavioral RED.
+
+Current GREEN: **1,106 headless tests / 104 files (25.69 s)**; 26 asset/real-loader checks; type/documentation, asset audit and whitespace checks. Three real-app cases pass direct selection, 70 HP/stat display, ordinary guns, actual driving and saved identity in dispatches 1/3/9, including narrow snow. The real prediction facade also admits `bubble` with authoritative 70 health. Native captures verify 7,392/2,620-triangle detail selection with 90/70 m hysteresis, armed/unarmed previews, 892 independent body pixels, zero page/GL errors, 19 physical fragments/four differently launched tires, expiry and complete disposal. The common shader regression is extended to include the new body. [Full handoff and commands](handoffs/BUBBLE_INTEGRATION.md) distinguish this evidence from pending human appearance/handling review and publication checks.
+
+Logs: `work/pocket-core-red.log`, `pocket-lod-red.log`, `pocket-native-red.log`, `pocket-recorded-audio-red.log`, `pocket-charred-red.log`, `pocket-headless-first.log`, `pocket-recoil-green.log`, `pocket-headless-final.log`, `pocket-app-first.log`, `pocket-check-final.log`, and `work/pocket-native-complete/evidence.json`. Full local pre-push, CI and hosted results are not yet claimed at this checkpoint.
 
 ## 2026-11-04 · Issues #5/#6: animated title and continuous briefing music
 

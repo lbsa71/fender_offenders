@@ -7,11 +7,17 @@ import type {Scene} from '@babylonjs/core/scene';
 import type {TransformNode} from '@babylonjs/core/Meshes/transformNode';
 
 export const MODELED_CARS={
+  bubble:{radius:.265,driving:new URL('../../content/runtime/models/bubble/bubble-driving.glb',import.meta.url).href,briefing:new URL('../../content/runtime/models/bubble/bubble-briefing.glb',import.meta.url).href,distant:new URL('../../content/runtime/models/bubble/bubble-distant.glb',import.meta.url).href},
   db5:{radius:.311,driving:new URL('../../content/runtime/models/db5/db5-driving.glb',import.meta.url).href,briefing:new URL('../../content/runtime/models/db5/db5-briefing.glb',import.meta.url).href},
   gangster:{radius:.425,driving:new URL('../../content/runtime/models/gangster/gangster-driving.glb',import.meta.url).href,briefing:new URL('../../content/runtime/models/gangster/gangster-briefing.glb',import.meta.url).href},
 } as const;
 export type ModeledCarId=keyof typeof MODELED_CARS;
+export type CarDetail='driving'|'distant';
+export type ModelDetail='briefing'|CarDetail;
 export const isModeledCar=(id:string):id is ModeledCarId=>Object.prototype.hasOwnProperty.call(MODELED_CARS,id);
+export function modelSource(body:ModeledCarId,detail:ModelDetail):string{const model=MODELED_CARS[body];return detail==='distant'?('distant'in model?model.distant:model.driving):model[detail];}
+/** Separate enter/leave distances keep tiny remote cars from popping between LODs. */
+export function carDetailForDistance(body:string,distance:number,previous:CarDetail='driving'):CarDetail{return body==='bubble'&&distance>(previous==='distant'?70:90)?'distant':'driving';}
 export interface CarTemplates{intact:Map<boolean,Mesh[]>;fragments:Map<boolean,Mesh[]>;muzzles:Vector3[];dispose():void}
 
 /** Bake the imported component transforms once. Officers instance shared material batches. */
