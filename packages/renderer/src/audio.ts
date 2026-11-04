@@ -5,6 +5,7 @@ export { MusicPlayer, discoverMusicTracks } from './music';
 export interface DrivingSound { load: number; slip: number; surface: 'asphalt' | 'dirt' | 'grass'; bodyAssetId?: string }
 // Shared recordings, individually tuned for the weight and rev range of each body.
 const ENGINE_TUNING: Record<VehicleBodyId, { pitch: number; brightness: number }> = {
+  bubble: {pitch:1.35,brightness:1.2},
   db5: {pitch:1.06,brightness:1.08},
   gangster: {pitch:.79,brightness:.74},
   patrol: { pitch: 1, brightness: 1 }, interceptor: { pitch: 1.12, brightness: 1.15 },

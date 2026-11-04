@@ -12,30 +12,31 @@ import type { Scene } from '@babylonjs/core/scene';
 import { MeshBuilder } from './primitives';
 import { newCartoonMotion, type CartoonMotion } from './deformation';
 import {newVehicleFeedback,type VehicleFeedback} from './feedback';
-import {MODELED_CARS,isModeledCar,loadCarTemplates,type CarTemplates} from './modeled-car';
+import {MODELED_CARS,isModeledCar,loadCarTemplates,modelSource,type CarTemplates,type CarDetail,type ModelDetail} from './modeled-car';
 
 export const VEHICLE_PAINT_COLORS:Readonly<Record<string,string>>={patrol:'#ece5cf',roadster:'#e98a48',interceptor:'#407c91',army:'#69754a',ambulance:'#f4efe0','fire-chief':'#bd4c3d',traffic:'#cbb26e'};
 
-export interface CarVisual { entityId:string;wreckLifeFloor:number;wreckParts:InstancedMesh[];wreckLife:number|null;explodedLife:number|null;root: TransformNode; suspension: TransformNode; body: TransformNode; bodyAssetId:string; traffic:boolean; armed:boolean; motion:CartoonMotion;feedback:VehicleFeedback;lastCrashAt:number;lastCrashTick:number; lastBumpId:string|null;lastBumpAt:number; parts: InstancedMesh[]; sirenRed: InstancedMesh | null; sirenBlue: InstancedMesh | null; health: Mesh; healthBack: Mesh; marker: Mesh; previousX: number; previousZ: number; previousYaw: number; discontinuity: number }
+export interface CarVisual { entityId:string;wreckLifeFloor:number;wreckParts:InstancedMesh[];wreckLife:number|null;explodedLife:number|null;root: TransformNode; suspension: TransformNode; body: TransformNode; bodyAssetId:string;detail:CarDetail; traffic:boolean; armed:boolean; motion:CartoonMotion;feedback:VehicleFeedback;lastCrashAt:number;lastCrashTick:number; lastBumpId:string|null;lastBumpAt:number; parts: InstancedMesh[]; sirenRed: InstancedMesh | null; sirenBlue: InstancedMesh | null; health: Mesh; healthBack: Mesh; marker: Mesh; previousX: number; previousZ: number; previousYaw: number; discontinuity: number }
 
 export class CarFactory {
   private models=new Map<string,CarTemplates>();
+  private distantModels=new Map<string,CarTemplates>();
   private loading=new Map<string,Promise<void>>();
   private statuses=new Map<string,'loading'|'ready'|'failed'>();
   get modelStatus(){return this.modelStatusFor('db5');}
-  modelStatusFor(body:string):'idle'|'loading'|'ready'|'failed'{return this.statuses.get(body)??'idle';}
+  modelStatusFor(body:string,detail:CarDetail='driving'):'idle'|'loading'|'ready'|'failed'{return this.statuses.get(detail==='distant'?`${body}:distant`:body)??'idle';}
   private disposed=false;
   muzzlePoints(body:string):readonly Vector3[]{return this.models.get(body)?.muzzles??[new Vector3(-.63,1.17,2.45),new Vector3(.63,1.17,2.45)];}
   animateWheels(car:CarVisual,distance:number,steer:number):void{
     for(const part of car.parts){const wheel=part.sourceMesh.metadata?.wheel as string|undefined;if(!wheel)continue;part.rotation.x=(part.rotation.x+distance/part.sourceMesh.metadata.wheelRadius)%(Math.PI*2);part.rotation.y=wheel==='wheel_fl'||wheel==='wheel_fr'?steer:0;}
   }
   loadDb5(source:string|ArrayBufferView=MODELED_CARS.db5.driving):Promise<void>{return this.loadModel('db5','driving',source);}
-  loadModel(body:string,detail:'briefing'|'driving'='driving',source?:string|ArrayBufferView):Promise<void>{
+  loadModel(body:string,detail:ModelDetail='driving',source?:string|ArrayBufferView):Promise<void>{
     if(!isModeledCar(body))return Promise.resolve();
-    const pending=this.loading.get(body);if(pending)return pending;
-    this.statuses.set(body,'loading');
-    const load=loadCarTemplates(this.scene,source??MODELED_CARS[body][detail],body).then(asset=>{if(this.disposed){asset.dispose();return;}this.models.set(body,asset);this.statuses.set(body,'ready');}).catch(error=>{this.statuses.set(body,'failed');throw error;});
-    this.loading.set(body,load);return load;
+    const key=detail==='distant'?`${body}:distant`:body,pending=this.loading.get(key);if(pending)return pending;
+    this.statuses.set(key,'loading');
+    const load=loadCarTemplates(this.scene,source??modelSource(body,detail),body).then(asset=>{if(this.disposed){asset.dispose();return;}(detail==='distant'?this.distantModels:this.models).set(body,asset);this.statuses.set(key,'ready');}).catch(error=>{this.statuses.set(key,'failed');throw error;});
+    this.loading.set(key,load);return load;
   }
   private templates = new Map<string, Mesh[]>();
   private assemblies = new Map<string, Mesh[]>();
@@ -65,8 +66,8 @@ export class CarFactory {
   /** Exact authored components, centered for rigid-body use; intact cars still use material batches. */
   breakupParts(body:string,traffic:boolean,armed=!traffic):readonly Mesh[]{const model=this.models.get(body);if(!traffic&&model)return model.fragments.get(armed)!;this.template(body,traffic,armed);return this.assemblies.get(this.key(body,traffic,armed))!;}
 
-  private template(body: string, traffic: boolean, armed=!traffic): Mesh[] {
-    const model=this.models.get(body);if(!traffic&&model)return model.intact.get(armed)!;
+  private template(body: string, traffic: boolean, armed=!traffic,detail:CarDetail='driving'): Mesh[] {
+    const model=(detail==='distant'?this.distantModels.get(body):undefined)??this.models.get(body);if(!traffic&&model)return model.intact.get(armed)!;
     const type=this.bodyType(body,traffic),key=this.key(body,traffic,armed);
     const cached=this.templates.get(key);if(cached)return cached;
     const assembly:Mesh[]=[];
@@ -184,18 +185,19 @@ export class CarFactory {
     for(const z of [-1.32,1.32])box(0,.42,z,2.05,.12,.12);
     const merged=Mesh.MergeMeshes(pieces,true,true,undefined,false,false)!;merged.name='charred-chassis-source';merged.material=this.material('charred-chassis','#263237');merged.isVisible=false;merged.receiveShadows=true;merged.metadata={wreckPart:true};return this.charredTemplate=merged;
   }
-  create(entityId:string, body:string, traffic:boolean, armed=!traffic):CarVisual{
+  create(entityId:string, body:string, traffic:boolean, armed=!traffic,detail:CarDetail='driving'):CarVisual{
     const root=new TransformNode(`vehicle-${entityId}`,this.scene);
     const suspension=new TransformNode(`suspension-${entityId}`,this.scene);suspension.parent=root;
     const coachwork=new TransformNode(`body-${entityId}`,this.scene);coachwork.parent=suspension;coachwork.setPivotPoint(new Vector3(0,.55,0));
-    const parts=this.template(body,traffic,armed).map((mesh)=>{const i=mesh.createInstance(`${entityId}-${mesh.name}`);i.parent=mesh.metadata?.role==='wheel'?suspension:coachwork;i.isVisible=true;return i;});
+    const parts=this.template(body,traffic,armed,detail).map((mesh)=>{const i=mesh.createInstance(`${entityId}-${mesh.name}`);i.parent=mesh.metadata?.role==='wheel'?suspension:coachwork;i.isVisible=true;return i;});
     const chassis=this.charred().createInstance(`${entityId}-charred-chassis`);chassis.parent=root;chassis.isVisible=false;const wreckParts=[chassis];
+    if(body==='bubble')chassis.scaling.set(.78,.8,.68);
     const healthBack=MeshBuilder.CreateBox(`${entityId}-health-back`,{width:2.2,height:.09,depth:.2},this.scene);healthBack.position.set(0,3.5,0);healthBack.parent=root;healthBack.material=this.material('health-back','#29464d');
     const health=MeshBuilder.CreateBox(`${entityId}-health`,{width:2,height:.1,depth:.21},this.scene);health.position.set(0,3.51,0);health.parent=root;health.material=this.material('health','#a6ddbd',0,true);
     const marker=MeshBuilder.CreateTorus(`${entityId}-marker`,{diameter:3,thickness:.065,tessellation:40},this.scene);marker.position.y=.08;marker.parent=root;marker.material=this.material('marker','#b9e8da',0,true);
-    return{entityId,root,wreckParts,wreckLife:null,explodedLife:null,wreckLifeFloor:-1,suspension,body:coachwork,bodyAssetId:body,traffic,armed,motion:newCartoonMotion(),feedback:newVehicleFeedback(),lastCrashAt:-10,lastCrashTick:-1,lastBumpId:null,lastBumpAt:-10,parts,sirenRed:parts.find((p)=>p.sourceMesh.name==='red-siren')??null,sirenBlue:parts.find((p)=>p.sourceMesh.name==='blue-siren')??null,health,healthBack,marker,previousX:0,previousZ:0,previousYaw:0,discontinuity:-1};
+    return{entityId,root,wreckParts,wreckLife:null,explodedLife:null,wreckLifeFloor:-1,suspension,body:coachwork,bodyAssetId:body,detail,traffic,armed,motion:newCartoonMotion(),feedback:newVehicleFeedback(),lastCrashAt:-10,lastCrashTick:-1,lastBumpId:null,lastBumpAt:-10,parts,sirenRed:parts.find((p)=>p.sourceMesh.name==='red-siren')??null,sirenBlue:parts.find((p)=>p.sourceMesh.name==='blue-siren')??null,health,healthBack,marker,previousX:0,previousZ:0,previousYaw:0,discontinuity:-1};
   }
-  dispose():void{this.disposed=true;for(const model of this.models.values())model.dispose();this.models.clear();for(const meshes of [...this.templates.values(),...this.assemblies.values()])for(const mesh of meshes)mesh.dispose();this.charredTemplate?.dispose();for(const material of this.materials.values())material.dispose();this.templates.clear();this.assemblies.clear();this.materials.clear();this.charredTemplate=null;}
+  dispose():void{this.disposed=true;for(const model of [...this.models.values(),...this.distantModels.values()])model.dispose();this.models.clear();this.distantModels.clear();for(const meshes of [...this.templates.values(),...this.assemblies.values()])for(const mesh of meshes)mesh.dispose();this.charredTemplate?.dispose();for(const material of this.materials.values())material.dispose();this.templates.clear();this.assemblies.clear();this.materials.clear();this.charredTemplate=null;}
 }
 
 /** Native instances support boolean visibility; status never mutates shared source/material alpha. */

@@ -1,8 +1,10 @@
 # Shared contracts
 
+`arcade-v27` adds Pocket Rocket (`bubble`) as the ninth selectable profile: 70 health, 26 m/s top speed, 20 m/s² acceleration, 2.7 rad/s steering and 11.5 grip. Selection, prediction, authority, respawn and stat projection share that profile. Protocol 5, map `sunset-borough-3`, the eight-player room limit, collision dimensions, damage and equipment progression are unchanged. Paired `arcade-v27` clients/authority are required; `arcade-v26` clients must refresh. The three original GPL GLBs and their LOD/muzzle/pivot data affect presentation and cosmetic breakup only. See [the integration handoff](handoffs/BUBBLE_INTEGRATION.md).
+
 `arcade-v19` adds five room-owned ten-dispatch storylines through the existing `CampaignState.campaignId`. Wire shape, protocol 5 and map `sunset-borough-3` are unchanged; matching gameplay revisions remain mandatory. The server chooses initial and subsequent case IDs; production join requests still contain only room ID, callsign and vehicle. `createGameServer(..., {campaignId})` is a server-owned fixture configuration, never a client-supplied selection. `CampaignDispatch.theme` supplies shared presentation metadata. Fifty authored dispatch IDs resolve to their case, local stage and lighting; no portrait or story payload is added to snapshots.
 
-Status: semantic contract reference for the integrated alpha (`arcade-v26` gameplay, protocol 5, map `sunset-borough-3`). Updated: 2026-10-29. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
+Status: semantic contract reference for the integrated alpha (`arcade-v27` gameplay, protocol 5, map `sunset-borough-3`). Updated: 2026-10-29. Executable DTOs and compact wire adapters live in [packages/contracts](../packages/contracts/src/index.ts); validation/fixture completion is tracked under F01/F02 in [execution status](EXECUTION_STATUS.md).
 
 *The contracts are the traffic lights. Please resist interpreting red as an optional decoration.*
 

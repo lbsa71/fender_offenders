@@ -9,6 +9,27 @@ const selection = (page: Page) => page.evaluate(() => JSON.parse(localStorage.ge
 const renderer = (page: Page) => page.evaluate(() => (window as DebugWindow).__FENDER_DEBUG__?.stats?.renderer);
 const frames = (page: Page) => page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
 
+for(const stage of [0,2,8])test(`chooses Pocket Rocket with correct stats and gun fittings in dispatch ${stage+1}`,async({page},info)=>{
+  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+  page.on('console',message=>{if(/GL_INVALID|uniform buffer.*too small|Program object expected/i.test(message.text()))errors.push(message.text());});
+  await page.goto('/');await page.getByRole('button',{name:'HIT THE STREETS'}).click();if(stage)await dispatchFixture(page,stage);
+  await page.getByRole('combobox',{name:'Your vehicle'}).selectOption('bubble');
+  await expect(page.locator('[data-text="vehicle-name"]')).toHaveText('Pocket Rocket');
+  await expect(page.locator('[data-vehicle-comparison="unit"] [data-vehicle-stats]')).toContainText('70 HP');
+  await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.stats.renderer.garageModelStatus)).toBe('ready');
+  await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.stats.renderer.garageArmed)).toBe(stage>0);
+  if(stage===8)await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:info.outputPath('pocket-briefing.png')});
+  await page.getByRole('button',{name:'START DISPATCH'}).click();
+  await expect.poll(async()=>(await state(page))?.phase).toBe('playing');
+  await expect.poll(()=>page.evaluate(()=>(window as any).__FENDER_DEBUG__?.stats.renderer.bubbleModelStatus)).toBe('ready');
+  expect((await state(page))?.local?.vehicle).toMatchObject({bodyAssetId:'bubble',health:70,maxHealth:70});
+  const before=(await state(page))!.local!.vehicle.pose;
+  await page.keyboard.down('ArrowUp');
+  try{await expect.poll(async()=>{const pose=(await state(page))!.local!.vehicle.pose;return Math.hypot(pose.x-before.x,pose.z-before.z);}).toBeGreaterThan(.5);}finally{await page.keyboard.up('ArrowUp');}
+  await page.screenshot({path:info.outputPath('pocket-driving.png')});expect(await selection(page)).toBe('bubble');expect(errors).toEqual([]);
+});
+
 for(const stage of [0,8])test(`chooses and drives the black Night Courier in dispatch ${stage+1}`,async({page})=>{
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('/');await page.getByRole('button',{name:'HIT THE STREETS'}).click();
