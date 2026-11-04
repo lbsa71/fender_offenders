@@ -64,6 +64,21 @@ for(const stage of [4,8])test(`modeled DB5 keeps its armed briefing and driving 
   await page.screenshot({path:`work/db5-armed-driving-${stage+1}.png`});expect(errors).toEqual([]);
 });
 
+test('reassignment cycles the catalog, wraps and shows live vehicle stats', async ({ page }) => {
+  test.setTimeout(90000);
+  await page.addInitScript(() => localStorage.setItem('fender-garage-v1', JSON.stringify({ vehicleBodyId: 'patrol' })));
+  await page.goto('/'); await page.getByRole('button', { name: 'HIT THE STREETS' }).click();
+  const card = page.locator('[data-vehicle-comparison="unit"]');
+  for (const id of [...VEHICLE_BODIES, VEHICLE_BODIES[0]]) {
+    await expect(page.getByRole('combobox', { name: 'Your vehicle' })).toHaveValue(id);
+    await expect(card.locator('[data-vehicle-stats]')).toContainText('HP');
+    await expect(card.locator('[data-vehicle-stats]')).toContainText('km/h');
+    await expect(card.getByRole('meter', { name: 'Acceleration' })).toBeVisible();
+    await expect(card.getByRole('meter', { name: 'Handling' })).toBeVisible();
+    await page.getByRole('button', { name: 'REASSIGN VEHICLE', exact: true }).click();
+  }
+});
+
 test('garage persists its assignment, changes via keyboard and dispatches that body into practice', async ({ page }) => {
   test.setTimeout(120000);
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));

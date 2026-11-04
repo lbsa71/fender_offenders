@@ -21,12 +21,12 @@ try {
     const profile = await page.evaluate(stage => { const f = window.campaignFixture; return f.profile(f.catalog.getCampaignTarget(f.catalog.CAMPAIGN_DISPATCHES[stage].targetId).vehicleBodyId); }, stage);
     await expect(suspect).toContainText(profile.name);
     await expect(suspect).toContainText(profile.role);
-    await expect(suspect.getByRole('meter')).toHaveCount(0);
-    await expect(suspect).not.toContainText('HP');
-    await expect(suspect).not.toContainText('KM/H');
+    await expect(suspect.getByRole('meter')).toHaveCount(2);
+    await expect(suspect).toContainText('HP');
+    await expect(suspect).toContainText('km/h');
   }
   await set({ stage: 3, vehicleBodyId: 'patrol', suspectMaxHealth: 180 });
-  await expect(suspect).not.toContainText('180 HP');
+  await expect(suspect).toContainText('180 HP');
   await set({ stage: 3, vehicleBodyId: 'patrol' });
   await expect(unit.locator('h2')).toHaveText('Patrol');
   await page.evaluate(() => { Math.random = () => .5; });
@@ -79,5 +79,5 @@ try {
   await page.getByRole('button', { name: 'END PATROL' }).click({ timeout: 3000 });
   await expect(page.getByRole('heading', { name: "You're on duty." })).toBeVisible();
   expect(errors).toEqual([]);
-  console.log('Mocked briefing: ten named suspect cars, stat-free reassignment, six layouts and quick/reduced animations passed.');
+  console.log('Mocked briefing: ten named suspect cars, live stats and ordered reassignment, six layouts and quick/reduced animations passed.');
 } finally { await browser.close(); await server.close(); }

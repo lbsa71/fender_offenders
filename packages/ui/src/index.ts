@@ -7,6 +7,8 @@ import { controlHints, placeControlCard } from './tutorial';
 import type { ControlScheme, TouchControls } from '@fender/contracts';
 import { mountTouchControls } from './touch';
 import { mountVolumeKnob } from './volume';
+import { vehicleStats } from './vehicle-stats';
+import { titleScene } from './title-screen';
 import {smogExposureAt,smogVisibility,type RoadGadgetState} from '@fender/contracts';
 
 interface SmogFrame {gadgets:readonly RoadGadgetState[];localEntityId:string|null;tick:number}
@@ -29,6 +31,7 @@ export interface UiSettings {
   bindings: Record<string, string[]>;
 }
 export interface UiModel {
+  audioNeedsActivation?: boolean;
   snapshot?: WorldSnapshot | null;
   localPlayerId?: string | null;
   mode?: 'practice' | 'online';
@@ -231,9 +234,16 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
   const resultOutcome = doc.createElement('p'); resultOutcome.className = 'fo-result-outcome'; resultOutcome.hidden = true; one('.fo-results h2').after(resultOutcome);
   one('.fo-home .fo-muted').textContent = 'Take the keys. Cause a little paperwork.';
   one('.fo-home [data-action="practice"] small').textContent = 'Play. Share the URL anytime.';
+  one('.fo-hero').removeAttribute('aria-hidden');one('.fo-hero').innerHTML=titleScene;
+  const playTitle=doc.createElement('button');playTitle.type='button';playTitle.className='fo-title-audio fo-secondary';playTitle.dataset.action='audio-activate';playTitle.textContent='PLAY TITLE MUSIC';playTitle.hidden=true;one('.fo-home').append(playTitle);
   const garage = doc.createElement('section'); garage.className = 'fo-garage'; garage.setAttribute('aria-label', 'Vehicle comparison');
   garage.innerHTML = '<header class="fo-garage-heading"><h1>ON THEIR TAIL.</h1></header><div class="fo-vehicle-comparison"><article class="fo-garage-card" data-vehicle-comparison="unit"><span class="fo-kicker">YOUR UNIT</span><h2 data-text="vehicle-name"></h2><span class="fo-vehicle-role" data-text="vehicle-role"></span><button type="button" data-action="reassign">REASSIGN VEHICLE</button></article><article class="fo-garage-card fo-suspect-card" data-vehicle-comparison="suspect"><span class="fo-kicker">SUSPECT CAR</span><h2 data-text="suspect-vehicle-name"></h2><span class="fo-vehicle-role" data-text="suspect-vehicle-role"></span></article></div>';
   shell.append(garage);
+  for (const card of Array.from(garage.querySelectorAll<HTMLElement>('[data-vehicle-comparison]'))) {
+    const stats=doc.createElement('div');stats.className='fo-garage-stats';stats.dataset.vehicleStats='';
+    stats.innerHTML='<div><span>Armor</span><strong data-stat="armor"></strong></div><div><span>Top speed</span><strong data-stat="speed"></strong></div><div><span>Acceleration</span><meter aria-label="Acceleration" min="0" max="1"></meter></div><div><span>Handling</span><meter aria-label="Handling" min="0" max="1"></meter></div>';
+    card.querySelector('.fo-vehicle-role')!.after(stats);
+  }
   one('[data-text="vehicle-name"]').setAttribute('aria-live','polite');
   const vehicleChoice=doc.createElement('select');vehicleChoice.setAttribute('aria-label','Your vehicle');vehicleChoice.className='fo-vehicle-choice';
   for(const id of VEHICLE_BODIES){const option=doc.createElement('option');option.value=id;option.textContent=getVehicleProfile(id).name;vehicleChoice.append(option);}
@@ -396,11 +406,21 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     garage.dataset.vehicle = vehicle;
     const profile=getVehicleProfile(vehicle);
     write('vehicle-name',profile.name);write('vehicle-role',profile.role);
+    function updateStats(card:HTMLElement,id:VehicleBodyId,authority?:Parameters<typeof vehicleStats>[1]){
+      const stats=vehicleStats(id,authority);
+      for(const [key,value] of [['armor',`${stats.maxHealth} HP`],['speed',`${stats.speedKmh} km/h`]]){
+        const node=card.querySelector(`[data-stat="${key}"]`)!;if(node.textContent!==value)node.textContent=value!;
+      }
+      card.querySelector<HTMLMeterElement>('[aria-label="Acceleration"]')!.value=stats.accelerationMeter;
+      card.querySelector<HTMLMeterElement>('[aria-label="Handling"]')!.value=stats.handlingMeter;
+    }
+    updateStats(one('[data-vehicle-comparison="unit"]'),vehicle,model.snapshot?.local?.vehicle);
     const campaign=model.snapshot?.campaign,suspectCard=one('[data-vehicle-comparison="suspect"]');
     suspectCard.hidden=!campaign;
     if(campaign){
       const target=getCampaignTarget(getCampaignDispatch(campaign).targetId),suspect=getVehicleProfile(target.vehicleBodyId);
       write('suspect-vehicle-name',suspect.name);write('suspect-vehicle-role',suspect.role);
+      updateStats(suspectCard,target.vehicleBodyId,model.snapshot?.vehicles.find(v=>v.entityId===model.snapshot?.pursuit?.suspectId));
     }
     one<HTMLButtonElement>('[data-action="reassign"]').disabled = !canReassign();
     vehicleChoice.value=vehicle;vehicleChoice.disabled=!canReassign();
@@ -409,6 +429,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if(persistentToast && (next===null || next==='home'))clearToast();
     if (next === 'settings' || next === 'help') previousMenu = menu;
     menu = next;
+    shell.classList.toggle('fo-title-screen', next === 'home');
     shell.classList.toggle('fo-is-playing', menu === null);
     shell.classList.toggle('fo-is-settings', menu === 'settings');
     shell.classList.toggle('fo-is-help', menu === 'help');
@@ -477,7 +498,8 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
         if (next === current) { next = randomCallsign(() => 0); if (next === current) next = randomCallsign(() => 1); }
         nickname.value = next; persistCallsign(); break;
       }
-      case 'reassign': if (canReassign()) { vehicle = rollVehicle(vehicle); awaitingVehicle = lobby() ? vehicle : null; persistVehicle(); updateGarage(); callbacks.onVehicleChange?.(vehicle); } break;
+      case 'audio-activate': callbacks.onAudioActivation?.(); break;
+      case 'reassign': if (canReassign()) { vehicle = VEHICLE_BODIES[(VEHICLE_BODIES.indexOf(vehicle)+1)%VEHICLE_BODIES.length]!; awaitingVehicle = lobby() ? vehicle : null; persistVehicle(); updateGarage(); callbacks.onVehicleChange?.(vehicle); } break;
       case 'pause': if (model.snapshot) showMenu(menu === null ? 'pause' : null); break;
       case 'resume': showMenu(null); callbacks.onResume?.(); break;
       case 'leave': resultDismissed = true; callbacks.onLeave?.(); model = {}; showMenu('home'); hide('.fo-hud', true); notify(''); break;
@@ -624,6 +646,7 @@ export function mountGameUi(root: HTMLElement, callbacks: UiCallbacks) {
     if (error) { if (menu === null) showMenu('pause'); notify(errorMessages[error] ?? error); }
     if (model.unsupportedPad && model.unsupportedPad !== lastUnsupportedPad) toast('UNSUPPORTED CONTROLLER MAPPING — CHOOSE TOUCH OR KEYBOARD IN SETTINGS');
     lastUnsupportedPad = model.unsupportedPad ?? null;
+    playTitle.hidden=!model.audioNeedsActivation||settings.muted;
     updateGarage();
     updateCampaign();
     updateTargetBadge();

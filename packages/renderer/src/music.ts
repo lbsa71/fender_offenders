@@ -1,6 +1,6 @@
 export interface MusicTracks { titles: string[]; slow: string | null; fast: string | null }
 export interface MusicState {
-  screen: 'title' | 'dispatch' | 'silent'; speed?: number; topSpeed?: number; paused?: boolean; hidden?: boolean;
+  screen: 'title' | 'briefing' | 'dispatch' | 'silent'; speed?: number; topSpeed?: number; paused?: boolean; hidden?: boolean;
 }
 interface MusicSettings { masterVolume: number; musicVolume: number; muted: boolean }
 interface Options { createAudio?: (url: string) => HTMLAudioElement; createContext?: () => AudioContext; root?: HTMLElement }
@@ -108,7 +108,7 @@ export class MusicPlayer {
       if (pace >= FAST_ENTER) this.pace = 'fast';
       else if (pace <= FAST_EXIT) this.pace = 'slow';
     }
-    const selected = state.screen === 'title' ? this.titles[this.titleIndex] : state.screen === 'dispatch' ? this.tracks.find(track => track.kind === this.pace) : null;
+    const selected = state.screen === 'title' || state.screen === 'briefing' ? this.titles[this.titleIndex] : state.screen === 'dispatch' ? this.tracks.find(track => track.kind === this.pace) : null;
     const alpha = 1 - Math.exp(-Math.max(0, Math.min(.1, Number.isFinite(dt) ? dt : 0)) / .25);
     for (const track of this.tracks) {
       const target = track === selected && !this.suspended() ? 1 : 0;
@@ -124,7 +124,7 @@ export class MusicPlayer {
     this.syncVolumes();
   }
   getStats() {
-    return { unlocked: this.unlocked, screen: this.state.screen, pace: this.pace, tracks: this.tracks.map(track => ({
+    return { unlocked: this.unlocked, needsActivation: this.unlocked && !this.settings.muted && this.settings.masterVolume*this.settings.musicVolume>0 && (this.context?.state === 'suspended' || this.tracks.some(track=>track.blocked)), screen: this.state.screen, pace: this.pace, tracks: this.tracks.map(track => ({
       url: track.url, kind: track.kind, playing: !track.audio.paused, volume: track.audio.muted ? 0 : track.mixer?.gain.value ?? 0, playbackRate: track.audio.playbackRate, blocked: track.blocked,
     })) };
   }

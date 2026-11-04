@@ -6,7 +6,7 @@ test('keeps the story and car choice without turning the briefing into a statist
   const briefing=page.getByRole('region',{name:'Campaign dispatch briefing'});
   await expect(briefing.locator('[data-campaign-briefing]')).toHaveText(CAMPAIGN_DISPATCHES[0]!.briefing.replace(' Arrest him or wreck the getaway car.',''));
   await expect(briefing.locator('[data-campaign-name]')).toHaveText('Nico Nickel');
-  await expect(page.locator('.fo-garage-stats,.fo-tactics-difficulty,.fo-campaign-tracker,.fo-campaign-casefile,.fo-campaign-roster')).toHaveCount(0);
+  await expect(page.locator('.fo-tactics-difficulty,.fo-campaign-tracker,.fo-campaign-casefile,.fo-campaign-roster')).toHaveCount(0);
   for(const size of [{width:960,height:640},{width:390,height:844},{width:740,height:420}]){
     await page.setViewportSize(size);
     await expect(page.getByRole('button',{name:'START DISPATCH'})).toBeInViewport();
